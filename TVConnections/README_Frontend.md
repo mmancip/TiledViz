@@ -1,0 +1,33 @@
+Action sur les conteneurs :
+call_replace
+get_init_window
+grabwin
+kill_all_Xvnc
+kill_dockers
+kill_ssh
+launch_command
+launch_dockers
+launch_tunnels
+launch_vncviewer
+launch_Wall
+launch_x11vnc
+replace_init_window
+rescale_docker
+stop_dockers
+
+Client-serveur VMD :
+analyse_newNoeuds.py
+UDP_2_multi_TCP.py
+
+Actions globales : 
+build_mageia_git
+build_WebRTC_git
+all_dockers_images
+all_dockers_ps
+all_dockers_rm
+all_dockers_stop
+all_services_docker_restart
+mydocker-join
+mydocker-swarm
+stop_all_dockers
+clear_images

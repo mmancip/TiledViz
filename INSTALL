@@ -1,0 +1,94 @@
+How to install TiledViz ?
+
+1. Docker rights
+
+You must first install docker package (at least 17.03 version).
+
+You must be in docker groups to be abble to launch docker containers :
+> chown :docker /var/run/docker.sock
+No need to be root for TiledViz host part. No TiledViz containers are execute with
+root users for security.
+
+2. Python3 environment
+For host part (named TiledViz Secure) you must have installed postgresql client
+tools.
+You may also use a python3 environement as non root user  :
+- sudo apt-get install -y python3-pip postgresql-client libpq-dev
+- sudo pip3 install virtualenv
+- export DATE=$(date +%F_%H-%M-%S)
+- mkdir TiledVizEnv_${DATE}
+- virtualenv TiledVizEnv_${DATE}
+- source TiledVizEnv_${DATE}/bin/activate
+
+3. Requirements
+Then all other tools are installed in you local environment with :
+    - pip3 install -r requirements.txt
+
+4. Database
+After installing client side of postgresql database, in stage 2, you have to choose
+if you prefer install the TiledViz database in your host system or having a container
+dedicated to database managment.
+
+a. docker + localhost
+For docker container, a simple postgres alpine is very small :
+docker run -d postgres:9.6-alpine
+This will download DockerHub version of postgres with alpine system.
+
+For local postgresql db you have to install posrgres "postgresql9.6-server" on your system.
+
+Then you can use psql tool to insert database structure :
+{{{
+psql -h localhost -U tiledviz -d TiledViz -f TVDatabase/TiledViz.sql
+}}}
+and replace localhost by postgres.
+
+Note that the database password must be changed in this TiledViz.sql file.
+{{{
+sed -e "s&	ENCRYPTED PASSWORD 'm_test/@03';&	ENCRYPTED PASSWORD 'your_postgres_password';&" -i TVDatabase/TiledViz.sql
+}}}
+NOT with 'your_postgres_password' of course.
+
+b. Environement
+We need those environment variables to be set to the right values :
+{{{
+export POSTGRES_HOST=postgres
+export POSTGRES_USER=tiledviz
+export POSTGRES_DB=TiledViz
+export POSTGRES_PASSWORD="your_postgres_password"
+export passwordDB="$POSTGRES_PASSWORD"
+}}}
+
+c. Fill values
+For Gitlab Continuous Integration script file .gitlab-ci.yml, we have prepared fill script of the database with old TileViz demo files :
+- TVDatabase/filledDatabase.sh
+
+d. Get models.py
+
+A module TVDB in TVdatabase subdirectory
+Because the database is built graphicaly with pgModeler and saved in file TVDatabase/TiledViz.dbm, we need
+to compile a sqlalchemy python representation of it :
+{{{
+sqlacodegen postgres://${POSTGRES_USER}:"${POSTGRES_PASSWORD}"@${POSTGRES_HOST}/${POSTGRES_DB} --outfile=TVDatabase/TVDb/models.py
+}}}
+
+c docker run
+{{{
+export IPPOSTGRES=$(grep postgres /etc/hosts | tr '[:space:]*' '\n' | head -1)
+}}}
+
+
+5. Running Flask
+a. build
+- docker build -t flaskimage -f TVWeb/FlaskDocker/Dockerfile.web .
+b. run
+docker rm -f flaskdock
+docker run -it --rm --name flaskdock --add-host="postgres:${IPPOSTGRES}"  -p 0.0.0.0:5000:5000 -v $(pwd):/TiledViz flaskimage ${POSTGRES_HOST} ${POSTGRES_DB} ${POSTGRES_USER} ${POSTGRES_PASSWORD} "my Preci0us secr_t key for t&sts."
+c. test
+    - export IPFlask=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' flaskdock)
+    - TVDatabase/getDatabase.sh
+    - docker run -t -v $(pwd)/TVWeb/Selenium:/usr/local/Selenium --add-host="flaskdock:$IPFlask" --name selenium --rm joyzoursky/python-chromedriver:3.7-alpine3.8-selenium python3 /usr/local/Selenium/test_script.py 
+d. log
+    - docker exec -t flaskdock cat /TiledViz/TVWeb/TiledViz.log
+e. stop
+   - docker stop flaskdock
+6. TiledViz Secure

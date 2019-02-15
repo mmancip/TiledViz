@@ -1,0 +1,4 @@
+CASE_NAME=CLIMAF
+
+DATA_PATH=vesg.ipsl.upmc.fr/thredds/fileServer/IPSLFS
+SESSION=VESGIPSL

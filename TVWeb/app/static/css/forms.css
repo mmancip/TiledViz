@@ -1,0 +1,23 @@
+.column
+{
+	width:100%;
+}
+
+#submit
+{
+	text-align:center;
+	padding: auto;
+	margin: auto;
+}
+
+.warning_user
+{
+	text-align: center;
+	color: red;
+	style: bold;
+}
+
+body
+{
+	color: lightgrey;
+}

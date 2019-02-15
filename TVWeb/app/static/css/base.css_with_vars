@@ -1,0 +1,41 @@
+:root{
+--width-left-part: 10%;
+--width-right-part: 90%;
+}
+
+body
+{
+	background-color: black;
+	color: green;
+}
+.main-grid
+{
+		position: fixed;
+		top: 100px;
+		left: var(--width-left-part);
+		background-color: green;
+		color: blue;
+		width: var(--width-right-part);
+}
+.main-legend-zone
+{
+		position: fixed;
+		top: 0px;
+		left: var(--width-left-part);
+		background-color: purple;
+		color: red;
+		width: var(--width-right-part);
+}
+.main-menu
+{
+		position: fixed;
+		top: 0px;
+		left: 0px;
+		width: var(--width-left-part);
+		max-width: 150px;
+		background-color: blue;
+		color: green;
+		display: flex;
+		flex-wrap: wrap;
+		flex-direction: column;
+}

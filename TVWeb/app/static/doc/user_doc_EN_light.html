@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>User documentation for TiledViz</title>
+  <link rel="stylesheet" href="doc_style_light.css" />
+</head>
+<body>
+<h1>User documentation for TiledViz</h1>
+
+<p>This documentation aims to provide the user of TiledViz with basic knowledge about the interface and how to use it.</p>
+
+<h2>The tiles</h2>
+
+<p>The tiles may contain an image, a video, or other kind of visual data.
+<img src="tiles.png" alt="Schematic tile" /></p>
+
+<h3>The hitbox</h3>
+
+<p>On the left side of the tile, the black vertical zone enables to interact with the environment. It will be called the &ldquo;hitbox&rdquo; in the following.</p>
+
+<p>Its color changes according to the current action :</p>
+
+<table>
+<thead>
+<tr>
+<th>Color </th>
+<th> Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dark red </td>
+<td> The mouse is over the tile (only with desktop browsers).</td>
+</tr>
+<tr>
+<td>Red </td>
+<td> The tile is selected to be swapped with another one.</td>
+</tr>
+<tr>
+<td>Green </td>
+<td> The tile is selected for zoom mode or master-slave mode.</td>
+</tr>
+</tbody>
+</table>
+
+
+<h3>The stickers</h3>
+
+<p>On the right side, a vertical blank zone is designed to show the stickers of the tiles. These are colored squares representing filters or tags given to the tile. Each time they are shown, a legend is also displayed at the top of the screen.</p>
+
+<h3>The handle</h3>
+
+<p>At the bottom left corner, a hand-shaped icon is dedicated to drag and drop actions.</p>
+
+<p>Its color changes according to the current state of the tile:</p>
+
+<table>
+<thead>
+<tr>
+<th>Color </th>
+<th> Icon </th>
+<th> Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>White </td>
+<td><img src="../images/drag-handle-on.png" alt="Handle-on" /></td>
+<td> The tile may be drag-and-dropped.</td>
+</tr>
+<tr>
+<td>Green </td>
+<td><img src="../images/drag-handle-dragging.png" alt="Handle-dragging" /></td>
+<td>  The tile is currently draggable.</td>
+</tr>
+<tr>
+<td>Gray </td>
+<td><img src="../images/drag-handle-off.png" alt="Handle-off" /></td>
+<td> Drag-and-drop is not available at this time.</td>
+</tr>
+</tbody>
+</table>
+
+
+<h2>Interacting with the tiles</h2>
+
+<h3>Moving tiles</h3>
+
+<p>For the movements, the animation and animation speeds can be defined in the config file.</p>
+
+<h4>Swapping two individual tiles</h4>
+
+<p>The tiles are not exactly swapped, rather, the second one is moved next to the first one, and the neighbouring tiles are re-arranged to preserve the coherence of the data.
+This action can be undone with the &ldquo;Undo&rdquo; button of the Global menu.</p>
+
+<table>
+<thead>
+<tr>
+<th>Action </th>
+<th> Behaviour on desktop browser   </th>
+<th> Behaviour on WildOS</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1. Hover over the first tile. </td>
+<td> The hitbox becomes dark red. </td>
+<td> The hitbox stays black (the cursor is not detected by design).</td>
+</tr>
+<tr>
+<td>2. Click on the hitbox. </td>
+<td> It becomes red. </td>
+<td> It becomes red.</td>
+</tr>
+<tr>
+<td>3. Hover over the second tile. </td>
+<td> Its hitbox becomes dark red. </td>
+<td> Its hitbox stays black.</td>
+</tr>
+<tr>
+<td>4. Click on the hitbox of the second tile. </td>
+<td> Done ! </td>
+<td> Done !</td>
+</tr>
+</tbody>
+</table>
+
+
+<h4>&ldquo;Drag-and-drop&rdquo;-ing tiles (only on desktop browsers)</h4>
+
+<p>This can be done when selecting the little hand at the bottom left corner of the tile and moving it to its destination. Like with the swap, the two tiles become contiguous, rather than really swapping their position.</p>
+
+<p>When drag and dropping a transparent tile, the tile is ovelapped on the underlaying tile, enabling the user to compare
+data by transparency.</p>
+
+<p>Options in <code>config_default.js</code> as well as in the option menu enable to unload the tile when dragging (&ldquo;Move only a
+border&rdquo;) or to move them along a grid (&ldquo;Move on grid&rdquo;).</p>
+
+<h4>Swapping entire lines or columns</h4>
+
+<p>The two last options in the individual menu of each tile allow the user to swap the line (resp. column) of this tile
+with another line (resp. column) by clicking the same button on a tile of the destination line (resp. column). See
+documentation on these icons (in the <em>Tile menu</em> section) for more information.</p>
+
+<h2><img src="menu_horizontal.png" alt="Global menu" /> Global menu</h2>
+
+<p>The menu lies on the left side of the interface. For each option or item in the global menu, the tag menu or the tile menu, the icon will appear white if the option is not selected or used, and grey if it is selected. To select a menu item, you have to click on it. If you entered an option and do not wish anymore to go further with it, clicking on the grey icon will exit it.</p>
+
+<h3><img src="../images/icons/globalmenu/up_arrow.png" alt="Icon to go up" /> Up arrow</h3>
+
+<p>Moves the grid one row up (to use when scrolling is not available, ie with WildOS).</p>
+
+<h3><img src="../images/icons/globalmenu/openNodeMenu.png" alt="Icon to open the tile menus" /> Tile menu</h3>
+
+<p>The first icon opens the Tile menu on each tile, and gives access to its options.
+<img src="tilemenu.png" alt="Preview of the tile menu" /></p>
+
+<h4><img src="../images/icons/nodemenu/transparent.png" alt="Icon for transparency" /> Transparency</h4>
+
+<p>Clicking on this icon makes the related tile transparent, and will allow (in a next version) to overlay it on other tiles to enhance various phenomenons or to compare data.</p>
+
+<h4><img src="../images/icons/nodemenu/write.png" alt="Icon for notes" /> Notes</h4>
+
+<p>Creates a post-it on the tile to write observations on its content.
+Post-its are saved when the user clicks on the &ldquo;Save&rdquo; icon of the Global menu.</p>
+
+<h4><img src="../images/icons/nodemenu/draw.png" alt="Icon for draw" /> Draw</h4>
+
+<p>Opens the draw menu and enables drawing on the tile, to enhance a phenomenon for example. This fonction is more suited to static images.</p>
+
+<p><img src="drawmenu.png" alt="Preview of the draw menu" /></p>
+
+<h5><img src="../images/icons/drawmenu/palette.png" alt="Palette to change drawing color" /> Choose colors</h5>
+
+<p>Opens a pop-up window with a color wheel, allowing the user to select a suitable color.</p>
+
+<h5><img src="../images/icons/drawmenu/lineWidth.png" alt="Choose line width" /> Choose line width</h5>
+
+<p>Enables to change the width of the drawing.</p>
+
+<h5><img src="../images/icons/globalmenu/brush.png" alt="Erase drawing" /> Erase the drawing</h5>
+
+<p>Erases the drawing and let the user start again.</p>
+
+<h5><img src="../images/icons/globalmenu/save.png" alt="Save drawing" /> Save the drawing</h5>
+
+<p>Prompts a window to save the drawing. Only the lines drawn on the tile will be saved, a script is then provided to combine the original image and the drawing (still in progress), maybe another smoother solution will be found later.</p>
+
+<h5><img src="../images/icons/drawmenu/drawonNode.png" alt="Transfer draw" /> Transfer a draw on the tile</h5>
+
+<p>Rescale the draw to be printed on the tile in grid view mode.</p>
+
+<h5><img src="../images/icons/globalmenu/masterslave.png" alt="Transfer all draw" /> Transfer a draw on all tiles</h5>
+
+<p>Report the draw on all tiles to simplify comparisons in grid view mode.</p>
+
+<h4><img src="../images/icons/nodemenu/column.png" alt="Icon to swap columns" /> Column swap</h4>
+
+<p>Click on the icon on a tile of the first column to be swapped, this column will then appear with a green border. Then click on the icon on a tile of the second column, to swap the two selected set of tiles. Depending on the configuration of TiledViz, an animation may be shown.</p>
+
+<h4><img src="../images/icons/nodemenu/line.png" alt="Icon to swap lines" /> Line swap</h4>
+
+<p>Click on the icon on a tile of the first line to be swapped, this line will then appear with a yellow border. Then click on the icon on a tile of the second line, to swap the two selected set of tiles. Depending on the configuration of TiledViz, an animation may be shown.</p>
+
+<h3><img src="../images/icons/globalmenu/search.png" alt="Icon to search with filters" /> Filter with keywords</h3>
+
+<p>Type keywords in the research bar, they will be matched with a list of keywords extracted from the meta-data of the tiles. Auto-completion is enabled for this field. The &ldquo;&amp;&rdquo; can be used to combine several keywords. Upon hitting &ldquo;Enter&rdquo;, the tiles corresponding to the keywords are moved to the top, and little stickers appears on their right side to show to which keyword(s) they fit. The legend for the colors is shown at the top right of the interface.</p>
+
+<ul style="list-style-type: normal;" id="list">Filter node through tags and zoom on
+  filtered nodes
+  <li> <ul> Launch a simple research
+	   <li> type the keyword in the search bar and press enter :
+	     <br>	the matchiang nodes will move to the top of the grid, the
+	     other ones will stay at the bottom and become darker.
+	   </li>
+    </ul>
+  </li>
+  <li> <ul> Launch a multiple research
+      <li> type the keywords in the search bar, using the symbol "&" as separator
+	("pressure&heat" to search for both terms) :
+      </li>
+      <li> a legend with different colors will be shown at the top of the screen.
+      </li>
+      <li> Clean search : click on the Eraser icon on the upper-right corner. <br>
+	This filter use Jquery UI modules : autocompletes, see https://jqueryui.com/autocomplete/ for details
+    </ul>
+  </li>
+
+</ul>
+
+<h3><img src="../images/icons/globalmenu/tags.png" alt="Icon for tags" /> Tags</h3>
+
+<p>This icon opens the tag menu and shows the tags on the tiles, and the legend of already present tags. It allows further operations on the tags.</p>
+
+<p><img src="tagmenu.png" alt="Preview of the tag menu" /></p>
+
+<h4>Give a tag to a tile</h4>
+
+<p>Click on the tag in the legend, it will get a red border. Then, you have to click on the hitbox of the tile to see the tag appear on its right side.</p>
+
+<h4>Remove a tag from a tile</h4>
+
+<p>Click on the sticker to remove a single tag from a tile.</p>
+
+<h4><img src="../images/icons/tagmenu/selectTags.png" alt="Icon to select the tiles" /> Select tiles with the same tag</h4>
+
+<p>Click the zoom or MS global menu icon, then click on tag menu to enable tag
+  selection with this icon. Click on a tag in the legend. All the tiles bearing this
+  tag (as displayed by their green hitbox) will be selected for the first action.</p>
+
+<h4><img src="../images/icons/tagmenu/alignTags.png" alt="Icon to group the tiles" /> Group all tiles with the same tag</h4>
+
+<p>Click on this icon, then on a tag in the legend. All the tiles bearing this tag (as displayed by their stickers) will be moved towards the upper left corner of the grid.</p>
+
+<h4><img src="../images/icons/tagmenu/closeHideTag.png" alt="hide nodes with the tags" /> Hidding nodes with the tags</h4>
+
+<p>Click on this button then click on a tag to hide all nodes with this tag. Click again on this button an a tag and unhide all nodes with this other tag.</p>
+
+<h4><img src="../images/icons/tagmenu/closeKillTag.png" alt="kill nodes with the tags" /> Kill nodes with the tags</h4>
+
+<p>Suppress all nodes with selected tags.</p>
+
+<p>All suppressed nodes are not saved if save button is clicked in global menu.</p>
+
+<h4><img src="../images/icons/tagmenu/addTag.png" alt="Icon to add a tag" /> Add a tag</h4>
+
+<p>Prompts a text field to enter the name of the new tag. Please avoid to insert special characters, they should be treated and replaced, but it may cause further problems.</p>
+
+<h4><img src="../images/icons/tagmenu/removeTag.png" alt="Icon to remove a tag" /> Remove a tag</h4>
+
+<p>Click on this icon, then on the tag to remove in the legend. The tag will disappear, as well as the corresponding stickers on the tiles.</p>
+
+<h4><img src="../images/icons/globalmenu/brush.png" alt="Icon to erase the tags" /> Erase the tags</h4>
+
+<p>Clicking on this icon will remove all the tags and the stickers.</p>
+
+<p><strong>Note</strong>: This mode doesn&rsquo;t work completly before TiledViz server version because node suppression cannot work with fixed web page version.</p>
+
+<h3><img src="../images/icons/globalmenu/zoom.png" alt="Icon to zoom on nodes" /> Zoom</h3>
+
+<p>After clicking on this icon, select the tiles you wish to zoom on. To select them, click on the corresponding hitbox on the left of the tile, it will become green, meaning that the tile has correctly been selected.</p>
+
+<p>Then, click on the button on the upper left <img src="../images/icons/globalmenu/validateZoomSelection.png" alt="Icon to expand selected nodes" /> to expand the view to only the selected nodes.</p>
+
+<p>To go back to the initial view, click again on the button <img src="../images/icons/globalmenu/closeZoomButton.png" alt="Icon to unzoom selected nodes" /> on the upper left.</p>
+
+<h3><img src="../images/icons/globalmenu/masterslave.png" alt="Icon for Master-slave mode" /> Master-slave mode</h3>
+
+<p>This mode enables to control all selected tiles using one of them as a controller.
+Every move on the controller (ie, turning a molecule or a brain in a tile) will be replicated on other chosen tiles.</p>
+
+<p>To chose tiles, click on the hitbox, that will become green. If you wish to control all tiles, directly click on <img src="../images/icons/globalmenu/masterslaveALL.png" alt="the master-slave icon" />.</p>
+
+<p>Once the zoom interface with all the tiles appears, you can then move them all at once.</p>
+
+<h3><img src="../images/icons/globalmenu/draws.png" alt="Global menu for draws" /> Draws management</h3>
+
+<p>This menu is used to manage draws reported by the draw on a tile button in draw menu.</p>
+
+<p>A tabular is given for each reported draw with the number of the origin of the draw in first column and the number of clones on all nodes reporting on second column.</p>
+
+<p>If you click on the first check box, it will erase the draw and all its clones and the second check box will only hide all the draws.</p>
+
+<h3><img src="../images/icons/globalmenu/rotate.png" alt="Icon to rotate a tile" /> Rotate tiles</h3>
+
+<p>Shows little rotation icons for each tile (best suited to a touch table or a tablet).</p>
+
+<h3><img src="../images/icons/globalmenu/OnOff.png" alt="Icon to turn on/off the tiles" /> On/off buttons</h3>
+
+<p>Creates at the top of each tile hitbox a green square bearing its initial number on the grid.
+Clicking on it unloads the content of the tile (the square becomes red, clicking on it again reloads the content), which
+could allow for better performance.</p>
+
+<p><strong>Below</strong>: on the left, an &ldquo;on&rdquo; tile: green square, content loaded; on the right, an &ldquo;off&rdquo; tile: red square, content
+unloaded.</p>
+
+<p><img src="on_off_option.png" alt="Exemple" /></p>
+
+<p>All off-nodes are not saved if save button is clicked in global menu.</p>
+
+<h3><img src="../images/icons/globalmenu/zoomNode.png" alt="Icon for individual zoom" /> Individual zoom</h3>
+
+<p>Adds a Zoom icon at the bottom right corner of each tile: when clicked, the tile is magnified.</p>
+
+<p><strong>Note</strong>: May conflict with the QR codes option, since their icons are both located at the bottom right corner of the
+tiles.</p>
+
+<h3><img src="../images/icons/globalmenu/QRcode.png" alt="Icon for QR codes" /> QR codes</h3>
+
+<p>Adds a QR code at the bottom right corner of each tile: when scanned with a tablet, the tablet will show the zoomed
+tile.</p>
+
+<p><strong>Note</strong>: May conflict with the individual zoom option, since their icons are both located at the bottom right corner of the
+tiles.</p>
+
+<h3><img src="../images/icons/globalmenu/showInfo.png" alt="Icon for information" /> Informations</h3>
+
+<p>Clicking on this icon displays the title (or name) of each tile at their upper right corner, if this feature is not
+activated by default in the Settings menu.</p>
+
+<h3><img src="../images/icons/globalmenu/refresh.png" alt="Icon to revert a tile" /> Refresh tiles</h3>
+
+<p>Refresh all the nodes with their original sources.</p>
+
+<h3><img src="../images/icons/globalmenu/back.png" alt="Icon to undo last action" /> Cancel last movement</h3>
+
+<p>Clicking on this button cancels the last movement of tiles ; if the last user-made move involved several intermediate states, it will be necessary to click multiple times on the button to cancel this action.</p>
+
+<h3><img src="../images/icons/globalmenu/forward.png" alt="Icon to redo last cancelled action" /> Repeat last cancelled action</h3>
+
+<p>Like with the &ldquo;Undo last action&rdquo;, the user will have to repeat clicking on this icon if they wishes to redo a move composed of multiple individuals moves.</p>
+
+<h3><img src="../images/icons/globalmenu/save.png" alt="Icon to save the notes" /> Save</h3>
+
+<p>Upon clicking on this button, the notes written for each tile, the tags and the position of the tiles are saved in an auxiliary file which can later be reopened to continue the session or to be used as a starting point for the next.</p>
+
+<h3><img src="../images/icons/globalmenu/options.png" alt="Icon for settings" /> Settings</h3>
+
+<p>This icon opens the settings menu, that will allow (in the next versions) to change on the fly some parameters of the application.</p>
+
+<h4>Color theme</h4>
+
+<p>The Dark color theme corresponds to light text on a dark background, and is more suited to be displayed on Mandelbrot, whereas the Light mode is black on white, more confortable on desktops. Those themes are applied for the option menu and the help page.</p>
+
+<h3><img src="../images/icons/globalmenu/help.png" alt="Icon for help: Interrogation mark" /> Help</h3>
+
+<p>Opens the help page; to close it, click again on the interrogation mark.</p>
+
+<h3><img src="../images/icons/globalmenu/down_arrow.png" alt="Icon to go down" /> Down arrow</h3>
+
+<p>Moves the grid one row down (to use when scrolling is not available, ie with WildOS).</p>
+
+<h2>Configuration</h2>
+
+<h3>Default configuration</h3>
+
+<p>A default configuration is loaded by TiledViz from the <code>config_default.js</code> file. It contains the following parameters
+* Colors: for the different stickers (for filters and tags), and markers of state (selected tile, tile to be zoomed, …)
+* Tile configuration: how to use the parameters contained in tiles.js
+* Behavioural constants: number of tiles, of columns, should they be fixed, spaces between tiles, …</p>
+
+<h3>Custom configuration</h3>
+
+<p>In order to specify custom parameters and to enhance the user experience, it is possible to add in the Case folder a copy of <code>config_default.js</code> (to be named <code>config.js</code>). It is not mandatory to add in this custom file all the parameters from the default configuration file, but one has to be cautious of the syntax when writing those custom parameters.</p>
+
+<table>
+<thead>
+<tr>
+<th>In <code>config_default.js</code>  </th>
+<th> In <code>config.js</code> </th>
+<th> Result in TiledViz</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>param_1 = value_1</code>     </td>
+<td> <code>param_1 = value_2</code> </td>
+<td> <code>param_1 = value_2</code></td>
+</tr>
+<tr>
+<td><code>param_1 = value_1</code>     </td>
+<td> Nothing or no <code>config.js</code> </td>
+<td> <code>param_1 = value_1</code></td>
+</tr>
+</tbody>
+</table>
+
+</body>

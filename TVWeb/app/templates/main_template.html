@@ -1,0 +1,54 @@
+{% extends "base_main_template.html" %}
+
+{% block additional_scripts_css %}
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/main.css') }}">
+{% endblock %}
+
+
+{% block content %}
+<div class="container">
+<div class="row">
+	<h1> Welcome, {{ user.username }}!</h1>
+	<!-- <div> -->
+	<!-- <i class="fas fa-info"></i> -->
+	<!-- </div> -->
+</div>
+</br>
+<div class="row">
+  <div class="col">
+    <a href="{{ url_for('login')}}">
+      <button type="button" name="buttonLogin" class="btn btn-primary btn-block btn-lg">	Click to login</button>
+    </a>
+  </div>
+  <div class="col">
+    <a href="{{ url_for('register')}}" >
+      <button type="button" name="buttonRegister" class="btn btn-primary btn-block">Register as new user</button>
+    </a>
+  </div>
+</div>
+<div class="row">
+  <div class="col">
+    <a href="/project">
+      <button type="button" class="btn btn-primary btn-block">Create new or change project</button>
+    </a>
+    
+  </div>
+  <div class="col">
+    <a href="/grid">
+      <button type="button" class="btn btn-primary btn-block">Grid access with last project</button>
+    </a>
+    
+  </div>
+</div>
+<div class="row">
+  <div class="col">
+    <a href="/allsessions">
+      <button type="button" class="btn btn-primary btn-block">Search to another project and session</button>
+    </a>
+    
+  </div>
+  </div>
+</div>
+</div>
+	
+{% endblock %}

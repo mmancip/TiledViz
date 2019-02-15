@@ -1,0 +1,50 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>JSONEditor</title>
+
+  <link rel="stylesheet"
+	href="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/5.28.2/jsoneditor.min.css"
+	integrity="sha256-0g5yJEEhhjj7b+OT+tOn8IBly2P/5+UyU1g1/W5VZfI="
+	crossorigin="anonymous" />
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsoneditor/5.28.2/jsoneditor.min.js"
+	  integrity="sha256-0fFVLa/33uSRXl/lUXolxF9IdLB/WC3DRP1JGXmTJyM="
+	  crossorigin="anonymous"></script>
+
+  <style type="text/css">
+    #jsoneditor {
+      width: 600px;
+      height: 900px;
+    }
+  </style>
+</head>
+<body>
+  <p>
+    Modify json and click submit.
+  </p>
+  <p>
+    <form action="" method="post">
+      <button id="submit" name="submit" value="{{ TheJson }}">Submit result</button>
+    </form>
+  </p>
+<div id="jsoneditor"></div>
+
+<script>
+  // create the editor
+  var container = document.getElementById('jsoneditor');
+  var options = {}; 
+  var editor = new JSONEditor(container, options);
+
+  // set json
+  var InJson = {{ TheJson|safe }}; 
+  editor.set(InJson);
+
+  // End editor button
+  document.getElementById('submit').onclick = function () {
+    var OutJson = editor.get();
+    document.getElementById('submit').value=JSON.stringify(OutJson); //, null, 2
+  };
+</script>
+</body>
+</html>

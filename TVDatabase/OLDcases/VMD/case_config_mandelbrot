@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# doc for used variables:
+# NUM_DOCKERS: number of docker instances (data iteration) to run. Generally
+#     overriden manually when running the lance_anatomistVNC script.
+# DOCKER_NAME: docker image name
+# DATA_MOUNT_DOCKER: mount point in docker containers for the data directory
+# DATA_PATH_DOCKER: data directory in docker containers. May be different from
+#     the mount point, because docker cannot correctly mount sub-directories of
+#     NFS filesysems exported with CIFS access management. So we have to mount
+#     the root filesystem directory, and use data with their path inside it.
+# DATA_PATH: host data directory, which will be mounted to $DATA_MOUNT_DOCKER
+#     in docker containers
+
+# BV_PATH: Brainvisa software directory on host filssystem. Will be mounted on
+#     /opt/brainvisa in docker containers
+# TILEVIZ_CASE_DIR: direcrory where the TileViz case application is installed
+
+NUM_DOCKERS=2
+
+CASE_NAME=VMD
+
+# Option tunnel ssh
+OPTIONssh='-R 314\${DOCKERID}:localhost:3141 -R 414\${DOCKERID}:localhost:4141'
+
+# Mandelbrot paths
+DOCKER_NAME=mageianvidia
+
+# data path outside docker
+DATA_PATH=/home/mmancip/BIOMOLECULAR/JEANVOINE
+#/home/mmancip/BIOMOLECULAR/SPEZIA/TOTAL
+#/home/mmancip/BIOMOLECULAR/SPEZIA/TOTAL1
+
+# data path mount point inside docker
+DATA_MOUNT_DOCKER=/datas
+# data path real dir inside docker
+DATA_PATH_DOCKER=${DATA_MOUNT_DOCKER}
+# binary path
+BIN_PATH=/apps/mdls/VMD/vmd-1.9.2
+PYTHON_PATH=/apps/mdls/PYTHON/python2.5
+
+# WEB PATH
+TILEVIZ_CASE_HOST=${HTTP_FRONTEND}
+TILEVIZ_CASE_DIR=/apps/mdls/WildOS/test/TileVizCases_config/VMD

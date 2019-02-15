@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}
+	{% if project %}
+		<title> {{ project }} {{ session }} - TiledViz</title>
+	{% else %}
+		<title>{{ title }}</title>
+	{% endif %}
+{% endblock %}
+
+{% block additional_scripts_css %}
+{% endblock %}
+
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <ul class=flashes>
+    {% for message in messages %}
+      <li>{{ message }}</li>
+    {% endfor %}
+    </ul>
+  {% endif %}
+{% endwith %}
+    
+{% block body %}
+<body>
+		{% block content %}{% endblock %}
+</body>
+{% endblock %}

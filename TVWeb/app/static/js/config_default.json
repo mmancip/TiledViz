@@ -1,0 +1,81 @@
+    {
+	"language":"EN",
+	"colors":{ 
+		"FilterStickersTab" : ["Aqua","Orange","OrangeRed","RebeccaPurple","SlateGrey","SeaGreen","Peru","LimeGreen","Lime","Coral"], 
+	    "TagStickersTab" : ["NavajoWhite", "Brown", "Teal", "Blue", "SkyBlue", "SlateBlue", "DarkSalmon", "Gold", "LightGrey", "MediumVioletRed","Chartreuse","Pink","Cornsilk","Crimson","BlueViolet","DarkGreen","DarkOrange","Cyan","DeepPink","DodgerBlue","GoldenRod","IndianRed","GreenYellow","Khaki","LightSeaGreen","Magenta","LightSkyBlue","Olive","Orchid","PaleTurquoise","MidnightBlue","PaleVioletRed","PowderBlue","Sienna","SpringGreen","Violet","Yellow","YellowGreen"  ], 
+		"HBdefault" : "saddlebrown", 
+		"HBonfocus" : "darkred", 
+		"HBselected" : "red", 
+		"HBtoZoom" : "green", 
+		"colorTheme" : "dark" 
+	},
+	"jsonData":{
+		"useLocation" : true, 
+		"useId" : false, 
+		"useTitle" : true 
+	},
+	"tagBehaviour":{
+		"showAll" : true, 
+		
+		"numOfTagsToShow" : 5, 
+		"selectionMethod" : "frequency" 
+	},
+	"behaviour":{
+		"loadAllContentOnStart" : false,
+		"meshCardinal" : "jsDataTab.length", 
+		
+		"fixColumnNumber" : false,
+		"maxColumnNumber" : 10, 
+		"spaceBetweenColumns" : 100, 
+		"spaceBetweenLines" : 120, 
+		"targetSize" : 2.1, 
+		"onlyOneOption" : false, 
+		"draw":{ 
+			"style" : "round",
+			"width" : 10,
+			"defaultColor" : "black"
+		},
+		"minHeight" : 150, 
+		"minWidth" : 150, 
+		"showAnimationsLineColSwap" : false, 
+		"animationSpeed" : 15, 
+		"spread" : {
+			"X" : 950,
+			"Y" : 446 
+		},
+		"borderSize" : 0, 
+		"onlyOneTransparentTile" : false,
+		"opacity" : 0.2, 
+		"alwaysShowInfo" : true,
+		"showInfoAtLoading" : true, 
+		"defautInfoFontSize" : 55,
+		"maxInfoFontSize" : 60,
+		"infoFonts" : ["Georgia,serif", "Courier,sans serif", "Palatino Linotype,Palatino,serif", "Times New Roman,Times,serif"], 
+		"infoTextColor" : "white",
+		"defaultFontIndex" : 1,
+		"defaultKeepRatio" : false,
+		"moveOnlyABorder" : true,
+		"moveOnGrid" : false,
+	        "touchSpeed" : 3,
+		"smoothRotation" : false,
+		"RotationSpeed" : 1, 
+		"moveOnNodeMenuOption" : true, 
+		"moveOnMenuOption" : false, 
+		"allMSShowMax" : 8  
+	},
+	"cssProperties":{
+		"button":{ 
+			"height" : 160,
+			"width" : 300,
+			"fontSize" : 60
+		},
+		"columnSwapBoxShadow" :  "0 0 0 10px green",
+		"lineSwapBoxShadow" : "0 0 0 10px gold",
+		"nodeMenu":{
+			"position" : "absolute",
+			"top" : -120
+		}
+	
+
+	}
+}

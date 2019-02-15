@@ -1,0 +1,51 @@
+/* TILES */
+
+.tile
+{
+	position:absolute; /* relative already tried, not the desired effect */
+	display:block;
+	background-color: black;
+	z-index:100;
+}
+
+.tile.ui-draggable
+{
+	/*outline: 10px white solid;*/
+	z-index: 999;
+}
+
+.hitbox
+{
+	position:absolute;
+	opacity:1;
+	background-color:darkgray;
+	height:100%;
+	z-index: 102;
+}
+
+.handle
+{
+	position:absolute;
+	left:0px;
+	background-size: 100% 100%;
+	z-index: 450;
+}
+
+.handle.handle-on
+{
+	background-image: url(../images/drag-handle-on.png);
+}
+.handle.handle-off
+{
+	background-image: url(../images/drag-handle-off.png);
+}
+.handle.handle-dragging
+{
+	background-image: url(../images/drag-handle-dragging.png);
+}
+
+.tile>iframe
+{
+	position:absolute;
+	z-index: 101;
+}

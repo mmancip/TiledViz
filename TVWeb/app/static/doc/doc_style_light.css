@@ -1,0 +1,42 @@
+table
+{
+	border-collapse: collapse;
+}
+
+table, tr, td, th 
+{
+	border: 1px black solid;
+}
+
+tr, td, th
+{
+	padding: 10px;
+}
+
+img 
+{
+	border: 10px solid black;
+	margin: auto;
+	padding: auto;
+
+}
+
+[src*="icons"]
+{
+	background-color: black;
+	height: 50px;
+	width: 50px;
+	border: 10px solid black;
+	vertical-align: middle;
+}
+
+body
+{
+	background-color: white;
+	color: black;
+}
+
+p
+{
+	color: black;
+}

@@ -1,0 +1,27 @@
+# Docker file for flask-based docker
+
+FROM pypi/flask-socketio:latest
+
+# Update python3, install pip3, netstat, virtualenv
+ENV DEBIAN_FRONTEND teletype
+RUN apt-get update && apt-get install -y apt-utils
+RUN apt-get install -y python3-pip net-tools && pip3 install --upgrade virtualenv
+
+RUN pip3 install --upgrade pip
+
+COPY ./ /TiledViz
+
+# create and run virtualenv
+RUN virtualenv -p python3 flask_venv && \
+    /bin/bash -c "source /flask_venv/bin/activate ; \
+                  export LC_ALL=C.UTF-8 ; \
+                  export LANG=C.UTF-8 ; \
+		  pip3 install -r /TiledViz/TVWeb/requirements.txt ; \
+                  cd /flask_venv/lib/python3.5/site-packages/sqlacodegen; \
+		  /TiledViz/TVDatabase/patch_flask_sqlacodegen /TiledViz "
+
+EXPOSE 5000
+
+ENTRYPOINT ["/TiledViz/TVWeb/FlaskDocker/start_docker_web.sh"]
+
+CMD ["localhost", "TiledViz", "tiledviz", "m_test/@03", "I-am-a-wonderful-unicorn"]

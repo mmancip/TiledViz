@@ -1,0 +1,108 @@
+/* CSS variables (still testing) */
+/* :root{ */
+/* --default-icon-size:150; /\*px, but units will be added at computation*\/ */
+/* --width-left-part: 10%; */
+/* --width-right-part: 90%; */
+/* } */
+
+body
+{
+	background-color: #1c1414;
+}
+
+/* Flex container for menu and legend+grid (row) */
+/* body */
+/* { */
+/* 	background-color: black; */
+	/* color: green; */
+	/* display: flex; */
+	/* display: -webkit-flex; */
+	/* flex-wrap: wrap; */
+	/* flex-direction: row; */
+/* } */
+
+/* #left-column{ */
+/* } */
+
+/* Flex container for legend and grid (column) */
+/* #right-column{ */
+/* 		flex-grow: 1; */
+/* 		display: flex; */
+/* 		display: -webkit-flex; */
+/* 		flex-direction: column; */
+/* 		padding: 0px calc(var(--default-icon-size)*var(--default-zoom)*1px) Opx calc(var(--default-icon-size)*var(--default-zoom)*1px); */
+/* } */
+
+/* .main-grid */
+/* { */
+/* 		position:relative; */
+/* 		background-color: green; */
+/* 		color: blue; */
+/* 		/\*flex-grow: 1; /\* Relative to global page layout *\/ */
+/* 		/\*display:flex; /\* For tiles to be flexed *\/ */
+/* } */
+
+.main-legend-zone
+{
+/*	position: fixed;*/
+	background-color: purple;
+	color: red;
+	display: flex;
+	display: -webkit-flex;
+	/* flex-direction: row; */
+	justify-content: space-between;
+}
+
+#legend
+{
+	/*position:fixed;*/
+}
+
+#notifications
+{
+/*	position:fixed;*/
+	width:50%;
+	background-color:black;
+	color:lime;
+	right:0px;
+}
+
+/* .main-menu */
+/* { */
+/* 		position: fixed; */
+/* 		top: 0px; */
+/* 		left: 0px; */
+/* 		max-width: 150px; */
+/* 		display: flex; */
+/* 		flex-wrap: wrap; */
+/* 		flex-direction: column; */
+/* } */
+
+._modal-invite
+{
+	margin:auto;
+}
+
+#inviteModal
+{
+	width:80%;
+}
+
+.btn-default
+{
+    color: azure;
+    background-color:#948b7a;
+}
+.btn-default:hover
+{
+    color: green
+}
+
+.btn-selected.btn-secondary
+{
+	background-color:#5022ba;
+}
+.form-control
+{
+    display: inline;
+}

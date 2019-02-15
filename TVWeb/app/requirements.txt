@@ -1,0 +1,70 @@
+<script src="//ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.css" integrity="sha256-p6xU9YulB7E2Ic62/PX+h59ayb3PBJ0WFTEQxq0EjHw=" crossorigin="anonymous" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css" integrity="sha256-rByPlHULObEjJ6XQxW/flG2r+22R5dKiAoef+aXWfik=" crossorigin="anonymous" />
+
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" integrity="sha256-KM512VNnjElC30ehFwehXjx1YCHPiQkOPmqnrWtpccM=" crossorigin="anonymous"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.6/umd/popper.min.js" integrity="sha384-wHAiFfRlMFy6i5SRaxvfOCifBUQy1xHdJ/yoi7FRNXMRBu5WHdZYu1hA6ZOblgut" crossorigin="anonymous"></script>
+https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js
+<!--<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js"
+	    integrity="sha384-b/U6ypiBEHpOf/4+1nzFpr53nxSS+GLCkfwBdFNTxtclqqenISfwAzpKaMNFNmj4"
+	    crossorigin="anonymous"></script>-->
+
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/js/bootstrap.min.js"
+integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
+<!-- bootstrap.min.js -->
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css" integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS" crossorigin="anonymous">
+
+dist/js/socket.io.min.js
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.js" integrity="sha256-yr4fRk/GU1ehYJPAs8P4JlTgu0Hdsp4ZKrx8bDEDC3I=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.3/socket.io.js" integrity="sha256-sdmLD9jD1PIzq3KOQPNSGZYxjv76rds79Mnyk5JNp1M=" crossorigin="anonymous"></script>
+
+jquery.postitall.js
+<link rel="stylesheet" href="https://github.com/txusko/PostItAll/raw/master/dist/jquery.postitall.css">
+<script src="https://github.com/txusko/PostItAll/raw/master/dist/jquery.postitall.js"></script>
+
+<link rel="stylesheet" href="https://combinatronics.com/txusko/PostItAll/master/dist/jquery.postitall.css">
+
+<script
+   type="text/javascript"
+      src="https://combinatronics.com/txusko/PostItAll/master/dist/jquery.postitall.js"
+      ></script>
+
+FileSaver.js
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.8/FileSaver.js" integrity="sha256-htuR1Owx8i9hm4h4Y4d/FjlPLoj2teQmhJ5WnNSo3w0=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.8/FileSaver.min.js" integrity="sha256-FPJJt8nA+xL4RU6/gsriA8p8xAeLGatoyTjldvQKGdE=" crossorigin="anonymous"></script>
+
+canvas-toBlob.js
+<script src="https://cdnjs.cloudflare.com/ajax/libs/javascript-canvas-to-blob/3.14.0/js/canvas-to-blob.js" integrity="sha256-LiwhOpedCnXmq5YIsXd03WliXi0VqHmv8cJJLt1mBxQ=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/javascript-canvas-to-blob/3.14.0/js/canvas-to-blob.min.js" integrity="sha256-CeBz6ph2imsCxljJfaQYaMRiRYRtW/TP5kH7REY3qvQ=" crossorigin="anonymous"></script>
+
+noframework.waypoints.min.js
+<script src="https://cdnjs.cloudflare.com/ajax/libs/waypoints/4.0.1/noframework.waypoints.js" integrity="sha256-xf6Naph8KoHnBI8zAqwc8fTs1b28G7E/cj3aQ9vv7yQ=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/waypoints/4.0.1/noframework.waypoints.min.js" integrity="sha256-XJuslujM3cGzRZGiSi/KNSdk58uORO/mmrEQNjVtb5k=" crossorigin="anonymous"></script>
+
+dist/js/q.js
+<script src="https://cdnjs.cloudflare.com/ajax/libs/q.js/2.0.3/q.js" integrity="sha256-16L1ZSxWxChp6QjhcwFMclXRbLKXWgNgltDzI1gDT0E=" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/q.js/2.0.3/q.min.js" integrity="sha256-Nk3CeSCR0RXEyKIjXu93TOi8bFWi0WZwvX15K/468yY=" crossorigin="anonymous"></script>
+
+dist/js/qrcode.min.js
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.qrcode/1.0/jquery.qrcode.min.js" integrity="sha256-9MzwK2kJKBmsJFdccXoIDDtsbWFh8bjYK/C7UjB1Ay0=" crossorigin="anonymous"></script>
+
+<script
+   type="text/javascript"
+      src="https://combinatronics.com/davidshimjs/qrcodejs/master/qrcode.min.js"
+      ></script>
+
+
+you can use $.getScript jQuery function:
+
+<script>
+  $.getScript("https://combinatronics.com/username/repo/master/src/file.js", function
+  () {
+      /* do something when loaded */
+        });
+</script>

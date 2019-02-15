@@ -1,0 +1,203 @@
+/* CSS variables */
+:root{
+	--default-icon-size:150; /*px, but units will be added at computation*/
+	--default-zoom: 1;
+}
+
+
+/* Generic aspect */
+[class$=ButtonIcon]
+{
+	width: calc(var(--default-icon-size)*var(--default-zoom)*1px);
+	height: calc(var(--default-icon-size)*var(--default-zoom)*1px);
+	background-size: calc(var(--default-icon-size)*var(--default-zoom)*1px);
+	padding-top: 100%;
+}
+
+/* Global menu icons */
+[class~=upArrowButtonIcon]
+{
+	background-image: url(../images/up_arrow.png);
+}
+[class~=openTileMenuButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/openTileMenu.png);
+}
+
+[class~=closeTileMenuButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/closeTileMenu.png);
+}
+
+[class~=searchButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/search.png);
+}
+
+[class~=closeSearchButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/closeSearch.png);
+}
+
+[class~=tagsButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/tags.png);
+}
+
+[class~=closeTagsButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/closeTags.png);
+}
+
+[class~=zoomButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/zoom.png);
+}
+
+[class~=closeZoomButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/closeZoom.png);
+}
+
+[class~=disableZoomButtonIcon]
+{
+	background-image: url(images/icons/globalmenu/disableZoom.png);
+}
+
+[class~=unzoomButtonIcon]
+{
+	background-image: url(images/icons/globalmenu/closeZoomButton.png);
+}
+
+
+[class~=expandZoomButtonIcon]
+{
+	background-image: url(images/icons/globalmenu/validateZoomSelection.png);
+}
+
+[class~=helpButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/help.png);
+}
+
+[class~=MSButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/masterslave.png);
+}
+
+[class~=closeMSButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/closemasterslave.png);
+}
+
+[class~=disableMSButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/disablemasterslave.png);
+}
+
+[class~=startMSButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/masterslave.png);
+}
+
+[class~=AllMSButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/masterslaveALL.png);
+}
+
+[class~=drawManagementButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/drawManagement.png);
+}
+
+[class~=closeDrawManagementButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/closeDrawManagement.png);
+}
+
+[class~=OnOffButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/OnOff.png);
+}
+
+[class~=closeOnOffButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/closeOnOff.png);
+}
+
+[class~=zoomTilesButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/zoomTiles.png);
+}
+
+
+[class~=closeZoomTilesButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/closeZoomTiles.png);
+}
+
+[class~=disablezoomTilesButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/disableZoomTile.png);
+}
+
+[class~=QRCodesButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/QRCodes.png);
+}
+
+[class~=closeQRCodesButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/closeQRCodes.png);
+}
+[class~=showInfoButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/showInfo.png);
+}
+
+[class~=closeShowInfoButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/closeShowInfo.png);
+}
+
+[class~=rotateButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/rotate.png);
+}
+
+[class~=closeRotateButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/closeRotate.png);
+}
+
+[class~=moveBackButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/back.png)
+}
+
+[class~=moveForwardButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/forward.png)
+}
+[class~=saveButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/save.png);
+}
+[class~=optionsButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/options.png);	
+}
+
+[class~=closeOptionsButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/closeOptions.png);	
+}
+
+[class~=closeHelpButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/closeHelp.png);
+}
+[class~=downArrowButtonIcon]
+{
+	background-image: url(../images/down_arrow.png);
+}
