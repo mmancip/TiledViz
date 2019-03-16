@@ -17,6 +17,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     $('#legend').html("<h1>Working on "+my_session+"</h1> <h2>Number of nodes : "+cardinal.toString()+"</h2>");
     var touchok=('ontouchstart' in document);
 
+    // Bool to add initial position in tags of each tile
+    var debugPos = false;
+    
     me = this; // Reference to the mesh
     var nodeCardinal = cardinal; // Number of nodes on the mesh
     var nodes = []; // Table containing all the nodes on the mesh indexed by --> "node"+id<-- 
@@ -64,6 +67,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     var HideNodeTagFlag=false; // Flag indicated the use of HideTag menu to hide nodes with selected tag in tagMenu.
 
     var KillNodeTagFlag=false; // Flag indicated the use of KillTag menu to suppress nodes with selected tag in tagMenu.
+
+    var PaletteNodeTagFlag=false; // Flag indicated the use of ChoosingColor menu to change tag color with selected tag in tagMenu.
+
     var TagHeight=0; // tag-legend zone height
     
     // Getter and setter for zoomSelection
@@ -159,6 +165,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		}
 	    }
 	    $('#tile-opacity-'+id).append("<input id=tileOpacitySlider"+id+" class=tile-opacity-slider type='range' name=tileOpacitySlider"+id+" min=0 max=100 value="+nodeOpacity*100+">");
+	    $('#tileOpacitySlider'+id).off("click").off("mousup");
 	    $('#tileOpacitySlider'+id).on({
 		click : function(){
 		    var nodeOpacity_ = Math.max($('#tileOpacitySlider'+id).val()/100, 0.1);
@@ -344,7 +351,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    $("body").append('<div id=superSail></div>');
 	    $("#superSail").css({ // GLOBALCSS !
 		    position : 'absolute',
-			top : 0,
+			top : TagHeight,
 			left : 0,
 			height : "100%",
 			width : "100%",
@@ -355,6 +362,16 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    $("#superSail").off('touchstart');
 	    $("#superSail").off('touchmove');
 	    $("#superSail").off('touchend');
+	    $('#superSail').append('<div id=buttonUnzoom class=unzoomButtonIcon></div>');
+	    $('#buttonUnzoom').css({	// GLOBALCSS !					
+		position : "relative", 
+		top : 0 ,
+		left : parseInt($(me.menu.getHtmlMenuSelector()).css("width")),
+		height : 200,
+		width : 200,
+		zIndex : 802,	
+		backgroundColor: "rgba(0, 0, 0, 0.5)"
+	    });
 
 
 	    // unload nodes streams
@@ -372,11 +389,11 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		$("#zoomSupport").css({ // GLOBALCSS !
 			position: "fixed",
 			    //top: (parseInt(window.innerHeight)-ratio*(parseInt(window.innerWidth)-500))/2,
-		    top:Math.max(450,TagHeight+100),
-			    left: 100,
+		    top:Math.max(450,TagHeight+240),
+			    left: 20,
 			    marginTop: "0",
 			    width: supportW,
-			    height: parseInt(supportH*1.5)+200,
+			    height: "98%",
 			    backgroundColor : "grey",
 			    opacity : "1.",
 			    display : "flex",
@@ -393,13 +410,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    // Size of the grid
 	    // Search for the upper and closest square number of the cardinal of the set of nodes chosen by users
 	    var L = Math.min(nodeZoomTab.length,2);
-	    if ( nodeZoomTab.length > 4 ) {
+	    if ( nodeZoomTab.length > 12 ) {
 		L = Math.min(nodeZoomTab.length,3);
 	    }
 
 	    var W = supportW/L;
 	    var H = supportH/L;
-	    var e=0; // Iterator
 
 	    //console.log(H, W, supportH, supportW);
 	    // Building the grid
@@ -410,18 +426,43 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    // Number of lines
 	    var NbL=Math.max(NbZ/L,1);
 
-	    zoomX=W;
+	    // space between zoomed tiles
+	    var shiftX=60;
+	    var shiftY=60;
+
+	    var zoomX=W-shiftX;
 	    ///initSpread.Y
-	    zoomY=H;
+	    var zoomY=H-shiftY;
 	    //-shiftleft
 	    // shiftleft=parseInt($('#zoomSupport>#'+id+'>#hitbox'+id).css('width'))		    
-	    Zscale=H/initSpread.Y*0.96;
+	    var Zscale=H/initSpread.Y;
+
+	    shifttop=function(e) { return (H+60)*parseInt(e/L)+shiftY };
+	    shiftleft=function(e) { return W*parseInt(e % L)+shiftX };
 
 	    // To suppress properly some zoomed node :
 	    nodeZoomState=new Array();
 	    nodeZoomState.length=NbZ;
 	    nodeZoomState.fill(true)
 	    
+	    // Stickers : on click, erase the sticker from the node
+	    ZclickSticker = function(){
+		// console.log("sticker clicked", this.id);
+		var splittedId = this.id.split("_");
+		var nodeId = splittedId.pop();
+		var node = me.getNodes()["node"+nodeId];
+		var zoomed = $('#Zoomed'+nodeId);
+		zoomed.children(".stickers_zone").find('#'+this.id).remove();
+		var nodelev=$('#'+nodeId).css("z-index");
+		$('#'+nodeId).css("z-index",999);
+		thisSticker=$('#'+nodeId).children(".stickers_zone").find('#'+this.id);
+		thisSticker.show();
+		$('#'+nodeId).show();
+		thisSticker.click();
+		$('#'+nodeId).css("z-index",nodelev);
+	    };
+
+
 	    for(var e=0;e<NbZ;e++){
 
 		thisnode=nodeZoomTab[e];
@@ -435,12 +476,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		thiszoom=$("#Zoomed"+e);
 		thiszoom.appendTo("#zoomSupport");
 
-		shifttop=H*parseInt(e/L)+20;
-		shiftleft=W*parseInt(e % L);
 		thiszoom.css({ // GLOBALCSS !
 			position : 'absolute',
-			    top : shifttop,
-			    left : shiftleft+110,
+		    	    top : shifttop(e),
+		            left : shiftleft(e)+110,
 			    height : H,
 			    width : W,
 			    backgroundColor : "black",
@@ -502,22 +541,21 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		// Zframe.off('touchend');
 
 		Zinfo.css('-webkit-transform','scale('+Zscale/2+')').css('-moz-transform','scale('+Zscale/2+')');
-		Zinfo.css('top',"0px");
+		Zinfo.css('top',"-60px").css("left",zoomX*1./2).css("position","absolute");;
+		Zinfo.show();
 		
 		// Copy sticker zone
 		var Zsticker=thisnodeId.children(".stickers_zone").clone().css('display','block').appendTo("#Zoomed"+e);
 		Zsticker[0].id="Z"+Zsticker[0].id;
-		Zsticker.css('-webkit-transform','scale('+Zscale/2+')').css('-moz-transform','scale('+Zscale/2+')');
-		Zsticker.css("left", spread.X*Zscale).css("position","relative");
 
 		// Supress this zoomed node 
-		thiszoom.append('<div id="Zclose'+e+'" class=unzoomButtonIcon></div>');
+		thiszoom.prepend('<div id="Zclose'+e+'" class=unzoomButtonIcon></div>');
 		Zclose=$('#Zclose'+e);
 		Zclose.css({
 		    position: 'absolute',
 		    height:200,
 		    width: 200,
-		    left: -140,
+		    left: spread.X*Zscale,
 		    top: 0,
 		    zIndex:400,
 		    '-webkit-transform':'scale('+Zscale/4+')',
@@ -532,36 +570,33 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			if ( ee != e && nodeZoomState[ee] ) {
 			    thiszoom=$("#Zoomed"+ee);
 
-			    shifttop=H*parseInt(iter/L)+20;
-			    shiftleft=W*parseInt(iter % L);
-
 			    thiszoom.css({
-	    			top : shifttop,
-	    			left : shiftleft+140
+	    			top : shifttop(iter),
+	    			left : shiftleft(iter)
 			    });
 			    iter = iter + 1;
 			}
 		    }
 		});
+
+		Zsticker.css('-webkit-transform','scale('+Zscale/2+')').css('-moz-transform','scale('+Zscale/2+')');
+		Zsticker.css({
+		    left: spread.X*Zscale+80,
+		    top: parseInt(Zclose.css("height"))+10,
+		    position: "absolute",
+		    display: "block"});
+		Zsticker.children('.sticker').on({
+		    click : ZclickSticker
+		});
 	    }
 	}
-
-	$('#buttonUnzoom').css({	// GLOBALCSS !					
-		position : "fixed", 
-		top : 0 ,
-		left : parseInt($(me.menu.getHtmlMenuSelector()).css("width")),
-		height : 200,
-		width : 200,
-		zIndex : 802,	
-		backgroundColor: "rgba(0, 0, 0, 0.5)"
-	    });
 
 	// Add zoom slider
 	var zoomValue = $('#zoomSupport').children(".Zoomed").children("iframe").css("transform");
 	zoomValue = zoomValue.replace("matrix(", "").replace(")", "").split(",")[0];
 	//console.log("zoom value", zoomValue);
-	$('#buttonUnzoom').append("<div id=zoom-slider-label>Zoom level</div>")
-	.append("<input id=zoomSlider name=zoomSlider type=range min="+zoomValue+" max="+4*zoomValue+" step=0.1 value="+zoomValue+" oninput='zoom.value=zoomSlider.value.toString()'>")
+	$('#superSail').append("<div id=zoom-slider-label>Zoom level</div>")
+	.append("<input id=zoomSlider name=zoomSlider type=range min="+zoomValue/2+" max="+4*zoomValue+" step=0.1 value="+zoomValue+" oninput='zoom.value=zoomSlider.value.toString()'>")
 	.append("<output name=zoom id=zoom for=zoomSlider>"+zoomValue+"</output>");
 
 	$('#zoomSlider').change(function () {
@@ -575,7 +610,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			    );
 	    });
 	$('#zoom-slider-label').css({
-		position : "fixed",
+		position : "absolute",
 		    fontSize : "150px",
 		    top :0,
 		    left : "50%",
@@ -583,8 +618,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    backgroundColor: "rgba(0, 0, 0, 0.5)"
 		    });
 	$('#zoomSlider').css({
-		position : "fixed", 
-		    top : 1/2 * parseInt($('#buttonUnzoom').css("height")),
+		position : "absolute",
+		    top : parseInt($('#buttonUnzoom').css("height")),
 		    left : "60%",
 		    width : 30/100 * parseInt($('header').css("width"))
 		    });
@@ -624,6 +659,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		$("#superSail").remove();
 		$("#zoomSupport").hide();
+	        $('#zoomSupport').css("-moz-transform","scale(1)").css("-webkit-transform","scale(1)").css("transform-origin", "0 0 0");
 		$('#zoomSupport').children(".Zoomed").remove();
 		$("#buttonUnzoom").off();
 		$("#buttonUnzoom").remove();		
@@ -735,14 +771,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    $("#tag-legend").css({ height: $("#tag-legend").height()+$('#'+globalTagsList[k]).height() });
 	}
 	try  {
-	    if (k<colorTagStickersTab.length-1)  { 
-		$('#'+globalTagsList[k]).css('background-color', colorTagStickersTab[k]);
-	    }
-	    else if (k<(colorTagStickersTab.length + colorFilterStickersTab.length-2))  { 
-		$('#'+globalTagsList[k]).css('background-color', colorFilterStickersTab[k-colorTagStickersTab.length]);
-	    } else { 
-		$('#'+globalTagsList[k]).css('background-color', "rgb("+Math.floor(Math.random()*255) + ", " + Math.floor(Math.random()*255)+ ", " + Math.floor(Math.random()*255)+")");
-	    }
+	    $('#'+globalTagsList[k]).css('background-color',ColorSticker(k));
 	    attributedTagsColorsArray[globalTagsList[k]] =$('#'+globalTagsList[k]).css("background-color");
 	    $('#tag-notif').text("New tag added: " + tmpNewTag);
 	}
@@ -757,9 +786,20 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    TopPP=TagHeight;
 	    htmlPrimaryParent.css("marginTop",TopPP+"px");
 	}
-	$('.tag').on({
+	$('.tag').off("click").on({
 	    click : clickTagInLegend
 	});
+    }
+
+    // Color tag
+    this.ChangeColorTag = function(thisTag, NewColor) {
+	$('#'+thisTag).css('background-color',NewColor);
+	attributedTagsColorsArray[thisTag] = NewColor;
+	for (O in nodes2)  { 
+	    if (me.hasTag(nodes2[O], thisTag))  { 
+		nodes2[O].getStickers().colorSticker(thisTag,NewColor);
+	    }
+	}
     }
     
     // Kill nodes with selected tags menu
@@ -818,11 +858,11 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		var left_ = parseInt($(me.menu.getHtmlMenuSelector()).css("width"));
 		var width_= parseInt($('header').css('width')) - left_ -600 /*- parseInt($('body').prop("scrollwidth"))*/; // 600 is for the three buttons on the right
 
-		$('#add-tag').on("tap focusin click",
+		$('#add-tag').off("tap focusin click").on("tap focusin click",
 		    function(){
 			    $('.tag').off("click");
 
-			    $('#add-tag').on({
+			$('#add-tag').off("keypress").on({
 				    keypress : function(e){
 					if (e.which == 13 ) {
 					    if ( $('#new-tag').val().trim()!='')  { // ENTER 
@@ -846,7 +886,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 				});
 			}
 		    );
-		$('#add-tag').on("autocompleteselect", function(event, ui) {
+		$('#add-tag').off("autocompleteselect").on("autocompleteselect", function(event, ui) {
 			document.getElementById("new-tag").value = ui.item.value;
 			var myEvent = jQuery.Event("keypress");
 			myEvent.which = 13;
@@ -898,7 +938,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	$('#validateDelTags').append('<button id="validButtonYes" name="validButtonYes" class="validateDelTags btn btn-info" >Yes</button>');
 	$('#validateDelTags').append('&nbsp;&nbsp;');
 	$('#validateDelTags').append('<button id="validButtonNo" name="validButtonNo" class="validateDelTags btn btn-info" >No</button>');
-	$('#validButtonYes').on({
+	$('#validButtonYes').off("click").on({
 		    // Delete all tools created on magnifyingGlass and zoomAndDrawOnNodes
 	    click : function() {
 		if (emit_click("validateDelTags","validButtonYes"))
@@ -907,7 +947,6 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    buffer=globalTagsList.pop();
 
 		    for(O in nodes)  { 
-			nodes[O].getStickers().removeSticker(buffer);
 			nodes[O].removeElementFromNodeTagList(buffer);
 		    }
 		}
@@ -918,7 +957,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		$('#validateDelTags').remove()
 		//console.log("end erasing tags");
 	    }})
-	$('#validButtonNo').on({
+	$('#validButtonNo').off("click").on({
 	    click : function() {
 		if (emit_click("validateDelTags","validButtonNo"))
 		    return
@@ -928,6 +967,25 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     tagMenuIconClassAttributesTab.push("brushButtonIcon");
     tagMenuShareEvent.push(true);
 
+    // Choose color !
+    tagMenuEventTab.push(    function(v, id, optionNumber){
+	    if(v)  { 
+		var defaultColor = colourNameToHex(configBehaviour.draw.defaultColor);
+		$('#menu'+id).append('<div id=color-picker-zone style="position: absolute; top: 200px; left: 1100px"></div>');
+		$('#color-picker-zone').append('<label for="colorChoose" style="height: 200px; width: 400px; color: white; font-size: 4em">Color:</label>');
+		$('#color-picker-zone').append('<input type="color" value="'+defaultColor+'" id="colorChoose" style="height: 200px; width: 200px; font-size: 2em">');
+		PaletteNodeTagFlag=true;
+		$('#menu'+id+'>#option'+optionNumber).removeClass('paletteButtonIcon').addClass('closePaletteButtonIcon');
+	    } else { 
+		$('#color-picker-zone').remove();
+		PaletteNodeTagFlag=false;
+		$('#menu'+id+'>#option'+optionNumber).removeClass('closePaletteButtonIcon').addClass('paletteButtonIcon');
+	    }
+	});
+    tagMenuIconClassAttributesTab.push("paletteButtonIcon");
+    tagMenuShareEvent.push(false);
+
+    
 
     /** DRAW MENU
      * Functions :
@@ -992,7 +1050,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    //console.log("new line width value : ", configBehaviour.draw.width);
 		};
 
-		$('#lineWidthSelector').on({
+		$('#lineWidthSelector').off("change").on({
 			change : changeLineWidth
 			    });
 
@@ -1271,7 +1329,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    $("body").append('<div id="DrawSupport" style="width: '+sdatai.width+'px; height: '+sdatai.height+'px"></div>');
 
     	var data="";
-    	socket.on('receive_draw_part', function(sdatap){
+    	socket.off('receive_draw_part').on('receive_draw_part', function(sdatap){
 
 	    // $("#DrawSupport").show();
 	    // $(".node").hide();
@@ -1546,17 +1604,17 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 
 		// Autocomplete : see https://jqueryui.com/autocomplete/ for details
-		$( "#search" ).on( "autocompleteselect", function( event, ui ) {
+		$( "#search" ).off("autocompleteselect").on( "autocompleteselect", function( event, ui ) {
 
 			document.getElementById("filter").value = ui.item.value;
 		    });
 
 		// Set user interaction
-		$("#search").on("tap focusin",			 
+		$("#search").off("tap focusin").on("tap focusin",			 
 
 			function(){
 
-			    $("#search").on({	
+			    $("#search").off("keydown").on({	
 
 				    keydown : function(e){ // TO DO : replace with keypresses ?
 					$('#internal_warning').remove();
@@ -1648,7 +1706,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 				});
 			});
-		$("#search").on({
+		$("#search").off("focusout").on({
 			    focusout : function(){
 
 			    $("#search").off('keydown');									
@@ -1663,7 +1721,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 			    });	
 
-		$('#brush').on({		
+		$('#brush').off("click").on({		
 
 			click : function()  { 
 			    var buffer=0;
@@ -1672,7 +1730,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 				buffer=appliedFilters.pop();
 
 				for(O in nodes)  { 
-				    nodes[O].getStickers().removeSticker(buffer);
+				    nodes[O].removeElementFromNodeTagList(buffer);
 				}
 
 				numOfFilter--;
@@ -1825,151 +1883,26 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			TopPP=TagHeight;
 			htmlPrimaryParent.css("marginTop",TopPP+"px");;
 		    }
+
+		    // for debugging : add tag with initial grid order
+		    if (debugPos) {
+			var nodes = me.getNodes2();
+			for(O in nodes)  { 
+		    	    me.AddNewTag("pos"+O);
+		    	    nodes[O].getStickers().addSticker("pos"+O, attributedTagsColorsArray["pos"+O]);
+		    	    nodes[O].addElementToNodeTagList("pos"+O);
+			}
+		    }
 		}
 		$('.stickers_zone').css("visibility", "visible");
 			
 
-		// User interaction
-		// Tags	
-		clickTagInLegend = function(){
-		    if (emit_click("tag",this.id))
-			return
-		    var nodes = me.getNodes2();
-		    if(me.getRemovingTag())  { 
-			var tagToRemove = document.getElementById(this.id);
-			for(O in nodes)  { 
-			    nodes[O].getStickers().removeSticker(this.id);
-			    nodes[O].removeElementFromNodeTagList(this.id);
-			}
-			$('#tag-notif').text("Tag " + this.id + " removed from tag list and tiles.");
-			$('.tag#'+this.id).remove();//removeChild(tagToRemove);
-			currentSelectedTag = "";
 
-		    } else if (me.getSelectingTags())  { 
-			var tagToSelect = this.id;
-			var nodes_tmp = nodes;
-			var w = 0;
-			for (O in nodes)  { 
-			    if (me.hasTag(nodes[O], tagToSelect))  {
-				var HB = $('#hitbox' + nodes[O].getId());
-				nodeSelect(nodes[O],HB);
-				w ++;
-			    }
-			}
-			if (w==0){
-				$('#tag-notif').text("No matching tiles for tag " + tagToSelect + " found");
-			} else {
-				$('#tag-notif').text(w + " matching tiles for tag " + tagToSelect + " found");
-			}
-
-		    } else if (me.getGroupingTags())  { 
-			var tagToGroup = this.id;
-			var nodes_tmp = nodes;
-			var w = 0;
-			for (O in nodes)  { 
-			    if (me.hasTag(nodes[O], tagToGroup))  { 
-				mesh.switchLocation(nodes_tmp[O], nodes2[w], false, true);
-				w ++;
-			    }
-			}
-			if (w==0){
-				$('#tag-notif').text("No matching tiles for tag " + tagToGroup + " found");
-			} else {
-				$('#tag-notif').text(w + " matching tiles for tag " + tagToGroup + " found");
-			}
-
-			if(chargeAllContentOnStart==false)  { 
-			    for(O in nodes ){
-				node = nodes[O];
-				if( node.getLoadedStatus() == false && mesh.locationProvider(node.getIdLocation()).getY()<window.innerHeight  )  { 
-				    //console.log(node.getmLocation().getnX());
-				    ratio=mesh.loadContent(node.getId());
-				    node.setLoadedStatus(true);
-				}
-			    }
-			}
-
-		    } else if (HideNodeTagFlag) {
-			var tagToGroup = this.id;
-			if (me.getHideNodeTags())  { 
-			    // Hide nodes for this tag 
-			    for (O in nodes2)  { 
-				if (me.hasTag(nodes2[O], tagToGroup))  { 
-				    Id=nodes2[O].getId();
-				    SetOff(Id);
-				}
-			    }
-				$('#tag-notif').text("Hiding the tiles bearing " + tagToGroup + " tag. (To make them visible again, click on the icon in the tag menu, then on the tag again)")
- 			} else {
-			    // Show nodes for this tag 
-			    for (O in nodes2)  { 
-				if (me.hasTag(nodes2[O], tagToGroup))  { 
-				    Id=nodes2[O].getId();
-				    SetOn(Id);
-				}
-			    }
-				$('#tag-notif').text("Showing the tiles bearing " + tagToGroup + " tag.")
- 			}
-//			HideNodeTagFlag=false;
-		    } else if (KillNodeTagFlag) {
-			var tagToGroup = this.id;
-			// Kill nodes for this tag 
-			for (O in nodes2)  { 
-			    if (me.hasTag(nodes2[O], tagToGroup))  { 
-				Id=nodes2[O].getId();
-				nodeCardinal--;
-				node=$('#'+Id);
-				var OOF = $('#onoff'+Id);
-				OOF.css('background-color', "red");
-				nodes2[O].setOnOffStatus(false);
-				node.children("iframe").hide();
-				nodes2[O].setLoadedStatus(false);
-				nodes2[O].getStickers().removeSticker(tagToGroup);
-				nodes2[O].removeElementFromNodeTagList(tagToGroup);
-				nodeEnd=nodes2[nodeCardinal];
-				mesh.switchLocationShiftColumnLine(nodes2[O],nodeEnd,false,false);
-				nodes2.splice(nodeCardinal,1);
-				//node.hide();
-			    }
- 			}
-			$('#tag-notif').text("Killing the tiles bearing " + tagToGroup + " tag.")
-			$('.tag#'+tagToGroup).remove();
-		    } else { // DEFAULT behaviour: click on a tag = make it ready to be given to a tile
-			if (currentSelectedTag != this.id)  { // Click on a different tag than the previous one
-			    $('#'+this.id).css("outline-style", "solid");
-			    $('#'+this.id).css("z-index", 500);
-			    if (currentSelectedTag != "")  { // Previous tag was existing (and not blank) : un-select it
-				$('#'+currentSelectedTag).css("outline-style", "none");
-				$('#'+currentSelectedTag).css("z-index", 149);
-			    }
-			    currentSelectedTag = this.id;
-				$('#tag-notif').text("Selected tag: " + currentSelectedTag + "; you may now click on the left border of a tile to give it the tag.");
-			}
-			else // Un-select current tag
-			    {
-				$('#'+this.id).css("outline-style", "none");
-				$('#'+this.id).css("z-index", 149);
-				currentSelectedTag = "";
-				$('#tag-notif').text("No selected tag.");
-			    }
-		    }
-		};
-
-		$('.tag').on({
+		$('.tag').off("click").on({
 			click : clickTagInLegend
 			    });
 
-		// Stickers : on click, erase the sticker from the node
-		clickSticker = function(){
-		    //console.log("sticker clicked", this.id);
-		    if (emit_click("sticker",this.id))
-			return
-		    var splittedId = this.id.split("_");
-		    var nodeId = splittedId.pop();
-		    var node = me.getNodes2()[nodeId];
-		    node.getStickers().removeSticker(splittedId.join("_"));
-		};
-		$('.sticker').on({
+		$('.sticker').off("click").on({
 			click : clickSticker
 			    });
 			
@@ -2013,6 +1946,173 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     menuIconClassAttributesTab.push('tagsButtonIcon');
     MenuShareEvent.push(true)
     
+    // User interaction
+    // Tags	
+    clickTagInLegend = function(){
+	if (! PaletteNodeTagFlag)
+	    if (emit_click("tag",this.id))
+		return
+	var nodes = me.getNodes2();
+	if(me.getRemovingTag())  { 
+	    var tagToRemove = document.getElementById(this.id);
+	    for(O in nodes)  { 
+		nodes[O].removeElementFromNodeTagList(this.id);
+	    }
+	    $('#tag-notif').text("Tag " + this.id + " removed from tag list and tiles.");
+	    $('.tag#'+this.id).remove();//removeChild(tagToRemove);
+	    delete globalTagsList[globalTagsList.indexOf(this.id)];
+	    currentSelectedTag = "";
+
+	} else if (me.getSelectingTags())  { 
+	    var tagToSelect = this.id;
+	    var nodes_tmp = nodes;
+	    var w = 0;
+	    for (O in nodes)  { 
+		if (me.hasTag(nodes[O], tagToSelect))  {
+		    var HB = $('#hitbox' + nodes[O].getId());
+		    nodeSelect(nodes[O],HB);
+		    w ++;
+		}
+	    }
+	    if (w==0){
+		$('#tag-notif').text("No matching tiles for tag " + tagToSelect + " found");
+	    } else {
+		$('#tag-notif').text(w + " matching tiles for tag " + tagToSelect + " found");
+	    }
+
+	} else if (me.getGroupingTags())  { 
+	    var tagToGroup = this.id;
+	    var nodes_tmp = nodes;
+	    var w = 0;
+	    for (O in nodes)  { 
+		if (me.hasTag(nodes[O], tagToGroup))  { 
+		    mesh.switchLocation(nodes_tmp[O], nodes2[w], false, true);
+		    w ++;
+		}
+	    }
+	    if (w==0){
+		$('#tag-notif').text("No matching tiles for tag " + tagToGroup + " found");
+	    } else {
+		$('#tag-notif').text(w + " matching tiles for tag " + tagToGroup + " found");
+	    }
+
+	    if(chargeAllContentOnStart==false)  { 
+		for(O in nodes ){
+		    node = nodes[O];
+		    if( node.getLoadedStatus() == false && mesh.locationProvider(node.getIdLocation()).getY()<window.innerHeight  )  { 
+			//console.log(node.getmLocation().getnX());
+			ratio=mesh.loadContent(node.getId());
+			node.setLoadedStatus(true);
+		    }
+		}
+	    }
+
+	} else if (HideNodeTagFlag) {
+	    var tagToGroup = this.id;
+	    if (me.getHideNodeTags())  { 
+		// Hide nodes for this tag 
+		for (O in nodes2)  { 
+		    if (me.hasTag(nodes2[O], tagToGroup))  { 
+			Id=nodes2[O].getId();
+			SetOff(Id);
+		    }
+		}
+		$('#tag-notif').text("Hiding the tiles bearing " + tagToGroup + " tag. (To make them visible again, click on the icon in the tag menu, then on the tag again)")
+ 	    } else {
+		// Show nodes for this tag 
+		for (O in nodes2)  { 
+		    if (me.hasTag(nodes2[O], tagToGroup))  { 
+			Id=nodes2[O].getId();
+			SetOn(Id);
+		    }
+		}
+		$('#tag-notif').text("Showing the tiles bearing " + tagToGroup + " tag.")
+ 	    }
+	    //			HideNodeTagFlag=false;
+	} else if (KillNodeTagFlag) {
+	    var tagToKill = this.id;
+	    // Kill nodes for this tag 
+	    for (O in nodes2)  { 
+		if (me.hasTag(nodes2[O], tagToKill))  { 
+		    Id=nodes2[O].getId();
+		    nodeCardinal--;
+		    node=$('#'+Id);
+		    var OOF = $('#onoff'+Id);
+		    OOF.css('background-color', "red");
+		    nodes2[O].setOnOffStatus(false);
+		    node.children("iframe").hide();
+		    nodes2[O].setLoadedStatus(false);
+		    nodes2[O].removeElementFromNodeTagList(tagToKill);
+		    nodeEnd=nodes2[nodeCardinal];
+		    mesh.switchLocationShiftColumnLine(nodes2[O],nodeEnd,false,false);
+		    nodes2.splice(nodeCardinal,1);
+		    //node.hide();
+		}
+ 	    }
+	    $('#tag-notif').text("Killing the tiles bearing " + tagToKill + " tag.")
+	    $('.tag#'+tagToKill).remove();
+	} else if (PaletteNodeTagFlag) {
+	    var tagToColor = this.id;
+	    var colorChoose;
+	    var defaultColor = colourNameToHex(configBehaviour.draw.defaultColor);
+	    colorChoose = document.querySelector("#colorChoose");
+	    colorChoose.value = defaultColor;
+
+	    $('#'+tagToColor).css("outline-style", "solid");
+	    
+	    var TagColor = defaultColor;
+
+	    window["updateFirst"+tagToColor] = function (event) {
+		TagColor = event.target.value;
+	    }
+	    window["updateAll"+tagToColor] = function (event) {
+		$('#'+tagToColor).css("outline-style", "none");
+		cdata={"room":my_session,"OldTag":tagToColor,"TagColor":TagColor};
+		socket.emit("color_Tag", cdata, function(sdata){
+ 		    console.log("socket change color Tag ", cdata);
+		});
+		colorChoose.removeEventListener("input", window["updateFirst"+tagToColor]);
+		colorChoose.removeEventListener("change", window["updateAll"+tagToColor]);
+		delete window["updateFirst"+tagToColor];
+		delete window["updateAll"+tagToColor];
+	    }
+	    
+	    colorChoose.addEventListener("input", window["updateFirst"+tagToColor], false);
+	    colorChoose.addEventListener("change", window["updateAll"+tagToColor], false);
+	    colorChoose.select();
+	    
+	} else { // DEFAULT behaviour: click on a tag = make it ready to be given to a tile
+	    if (currentSelectedTag != this.id)  { // Click on a different tag than the previous one
+		$('#'+this.id).css("outline-style", "solid");
+		$('#'+this.id).css("z-index", 500);
+		if (currentSelectedTag != "")  { // Previous tag was existing (and not blank) : un-select it
+		    $('#'+currentSelectedTag).css("outline-style", "none");
+		    $('#'+currentSelectedTag).css("z-index", 149);
+		}
+		currentSelectedTag = this.id;
+		$('#tag-notif').text("Selected tag: " + currentSelectedTag + "; you may now click on the left border of a tile to give it the tag.");
+	    }
+	    else // Un-select current tag
+	    {
+		$('#'+this.id).css("outline-style", "none");
+		$('#'+this.id).css("z-index", 149);
+		currentSelectedTag = "";
+		$('#tag-notif').text("No selected tag.");
+	    }
+	}
+    };
+
+    // Stickers : on click, erase the sticker from the node
+    clickSticker = function(){
+	//console.log("sticker clicked", this.id);
+	if (emit_click("sticker",this.id))
+	    return
+	var splittedId = this.id.split("_");
+	var nodeId = splittedId.pop();
+	var node = me.getNodes()["node"+nodeId];
+	node.removeElementFromNodeTagList(splittedId.join("_"));
+    };
+
     /** Zoom function 
 	After activation (the icon becomes white on black background), select node by clicking on it, 
 	click on the button on the upper-right to zoom, then to unzoom. 
@@ -2039,8 +2139,6 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    if(nodeZoomTab.length>0)  { 
 		$("#menu"+id).css("visibility", "hidden");
 
-		// Add unZoom button
-		$('body').append('<div id=buttonUnzoom class=unzoomButtonIcon></div>');
 		//$('#buttonUnzoom').hide();
 		me.magnifyingGlass(nodeZoomTab,ratio,initSpread);
 		me.resetNodesToZoom();
@@ -2077,8 +2175,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			//me.setZoomSelection(true); // To change the behaviour of a hitbox click, cf clickHB method // DEPRECATED ?
 
 			$('.node').off();
-			$('.hitbox').off("click");
-			$('.hitbox').on("click", clickHBZoom);
+			$('.hitbox').off("click").on("click", clickHBZoom);
 			$('.hitbox').off("mouseenter");
 			_allowDragAndDrop = false;
 
@@ -2146,10 +2243,6 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    
 	    if(nodeMSTab.length>0) {
 		menuMS.css("visibility", "hidden");
-
-		// Add unZoom button
-		$('body').append('<div id=buttonUnzoom class=unzoomButtonIcon></div>');
-		//$('#buttonUnzoom').hide();
 
 		// We repeat first node because its div will be used as master.
 		nodeMSTab=Array(nodeMSTab[0]).concat(nodeMSTab);
@@ -2295,8 +2388,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			//me.setZoomSelection(true); // To change the behaviour of a hitbox click, cf clickHB method // DEPRECATED ?
  
 			$('.node').off();
-			$('.hitbox').off("click");
-			$('.hitbox').on("click", clickHBZoom);
+			$('.hitbox').off("click").on("click", clickHBZoom);
 			$('.hitbox').off("mouseenter");
 			_allowDragAndDrop = false;
 			
@@ -2364,7 +2456,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
    				$('#draws'+thisblob.nodeId).append("<input type='checkbox' name='drawNode"+thisblob.nodeId+"' value='yes'> supress Node "+thisblob.nodeId+" | </input>");
    				$('#draws'+thisblob.nodeId).append("<input type='checkbox' name='drawOtherNodes"+thisblob.nodeId+"' value='yes'> Hide all clone "+ thisblob.listNodeImg.length+"</br></input>");
 				$('input[name=drawNode'+thisblob.nodeId+'][value=yes]').attr("checked", true);
-   				$('input[name=drawNode'+thisblob.nodeId+'][value=yes]').on({
+   			    $('input[name=drawNode'+thisblob.nodeId+'][value=yes]').off("change").on({
    					change : function(){
 					    // Unchecked : delete the blob and all pictures on tiles.
 					    var newImg=thisblob.image;
@@ -2381,7 +2473,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
    					}
    				    });
 				$('input[name=drawOtherNodes'+thisblob.nodeId+'][value=yes]').attr("checked", true);
-   				$('input[name=drawOtherNodes'+thisblob.nodeId+'][value=yes]').on({
+   			    $('input[name=drawOtherNodes'+thisblob.nodeId+'][value=yes]').off("change").on({
    					change : function(){
 					    if ($('input[name=drawOtherNodes'+thisblob.nodeId+']').attr("checked")) {
 						// Unchecked : Hide all pictures of this blob on tiles.
@@ -2523,12 +2615,14 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	
     var refreshNodes = function (node) {
 
-	// check if optionnal argument node is present
-	node = node || false
+	// check if optionnal argument node is present (node can be "0" == false in javascript)
+	var hasNoNode=false
+	if (typeof(node) == "undefined")
+ 	    hasNoNode = true
 
 	//console.log("test refresh");
 
-	if (node == false) {// ie no node specified -> refresh all nodes
+	if (hasNoNode) {// ie no node specified -> refresh all nodes
 	    var nodes = me.getNodes();
 	    for (O in nodes) {
 		me.unsetDraggable(nodes[O].getId(), false, false);
@@ -2839,7 +2933,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	$('#saveValidate').append('<form><p> New suffix for save '+my_session+'</p>'
 					+ '<input type=text id="newSuffix" value="'+strDate+'" style="width:40%"></input>&nbsp;&nbsp;'
 					+'<button id="submitSave" name="submitSave" class="btn btn-info"><h2> Submit</h2></button></form>');
-	$('#submitSave').on("click",function() {
+	$('#submitSave').off("click").on("click",function() {
 	    new_suffix=$('#newSuffix').val();
 	    new_room=my_session+'_'+new_suffix;
 	    cdata ={"room":my_session, "NewSuffix": new_suffix,"Session": temp }
@@ -2853,14 +2947,14 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			+'<button id="ChangeRoomYes" name="ChangeRoomYes" class="btn btn-info" ><h2>Yes</h2></button>&nbsp;'
 			+'<button id="ChangeRoomNo" name="ChangeRoomNo" class="btn btn-info" ><h2>No</h2></button>');
 
-	    $('#ChangeRoomYes').on("click",function() {
+	    $('#ChangeRoomYes').off("click").on("click",function() {
 		new_room=$('#gNRnew_room').val();
 		cdata ={"room":my_session, "NewRoom": new_room }
 		$('#gGnewroom').val(new_room);
 		socket.emit("deploy_Session", cdata);
 	    });
 	    
-	    $('#ChangeRoomNo').on("click",function() {
+	    $('#ChangeRoomNo').off("click").on("click",function() {
 		$('#gotoNewRoom').remove();
 	    });
 	});
@@ -2933,7 +3027,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		var clickKR = function(){
 		    if ($('input[name=spread-keepratio]').is(":checked"))  { 
 			//console.log("KR checked");
-			$('input[name=spreadX]').on({
+			$('input[name=spreadX]').off("change").on({
 				change : function(){
 				    //console.log("changeX");
 				    var ratioX = $('input[name=spreadX]').val()/spread.X;
@@ -2941,7 +3035,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 				    $('input[name=spreadY]').val(spread.Y*ratioX);
 				}
 			    });
-			$('input[name=spreadY]').on({
+			$('input[name=spreadY]').off("change").on({
 				change : function(){
 				    //console.log("changeY");
 				    var ratioY = $('input[name=spreadY]').val()/spread.Y;
@@ -2954,7 +3048,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    }
 		};
 
-		$('input[name=spread-keepratio]').on({
+		$('input[name=spread-keepratio]').off("click").on({
 			click : clickKR
 			    });
 		if(configBehaviour.defaultKeepRatio)  { // Simulate first click to check the box if default behaviour means it should be checked
@@ -3144,7 +3238,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		
 		// Interactions
-		$('#buttonSave').on({
+		$('#buttonSave').off("click").on({
 
 			click : function(){
 			    ApplyParameters();
@@ -3152,13 +3246,13 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			}
 		    });
 
-		$('#buttonCancel').on('click',function() { 
+		$('#buttonCancel').off("click").on('click',function() { 
 		    $('#options').remove();
 		    $('#options-content-select').remove();
 		    $('#menu' + id + '>#option' + optionNumber).removeClass("closeOptionsButtonIcon").addClass("optionsButtonIcon");
 		});
 
-		$('#buttonShare').on({
+		$('#buttonShare').off("click").on({
 			click : function(){				
 			    ConfigJson = ApplyParameters();
 			    
@@ -3316,7 +3410,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			zIndex : 802,	
 			backgroundColor: "rgba(0, 0, 0, 0.5)"
 		    });
-		    $('#buttonClosehelp').on('click',function() { 
+		    $('#buttonClosehelp').off("click").on('click',function() { 
 			$('#helpSupport').hide();	
 			$('#menu' + id  + '>#option' + optionNumber).removeClass("closeHelpButtonIcon").addClass("helpButtonIcon")
 		    });
@@ -3373,7 +3467,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 				top : parseInt($('#helpSliderLabel').css("height"))
 				});
 
-		    $('#helpSlider').on({
+		    $('#helpSlider').off("click").on({
 			    click : function(e){
 				var newZoom = $('#helpSlider').val();
 				var ratio = newZoom/(window.devicePixelRatio*100);
@@ -3590,7 +3684,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    // $('iframe').css( '-moz-transform', "scale("+scaleX+","+ scaleY +")");
 		    $('.onoff').css("height",parseInt(spread.Y*0.1)).css("width",parseInt(spread.Y*0.1)).css("left",-parseInt(spread.Y*0.1)).css("z-index", 161);
 		    $('.hitbox').css("height", parseInt(spread.Y*0.9)).css("top",parseInt(spread.Y*0.1));
-		    $('.info').css("font-size", parseInt($('.info').css("font-size"))*scale);
+		    $('.info').css("font-size", Math.min(configBehaviour.maxInfoFontSize,parseInt(configBehaviour.defaultInfoFontSize*scale)));
 
 		    for(O in nodes)  { 	
 			if(ColumnStyle=="static") // Why are the two parts of this condition the same?!
@@ -3613,11 +3707,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    }
 		    $('.stickers_zone').css("left", spread.X);
 		    //console.log($('.info').css("font-size"));
-		    configBehaviour.defaultInfoFontSize = parseInt($('.info').css("font-size"))*scale;
+		    configBehaviour.defaultInfoFontSize = $('.info').css("font-size");
 		    //console.log(configBehaviour.defaultInfoFontSize);
-		    $('.info').css("font-size", configBehaviour.defaultInfoFontSize);
-		    //console.log($('.info').css("font-size"));
-
 
 		} else { 
 		    spread=newSpread;
@@ -3631,7 +3722,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    $('.onoff').css("height",parseInt(spread.Y*0.1)).css("width",parseInt(spread.Y*0.1)).css("left",-parseInt(spread.Y*0.1));
 		    $('.hitbox').css("height", parseInt(spread.Y*0.9)).css("top",parseInt(spread.Y*0.1));
 		    //console.log(parseInt($('.info').css("font-size")));
-		    //$('.info').css("font-size", parseInt($('.info').css("font-size"))*scale);
+		    $('.info').css("font-size", Math.min(configBehaviour.maxInfoFontSize,parseInt(configBehaviour.defaultInfoFontSize*scale)));
 		    //console.log(parseInt($('.info').css("font-size")));
 
 		    if(ColumnStyle=="static")  { 
@@ -3649,10 +3740,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    }	
 		    $('.stickers_zone').css("left", spread.X);
 		    //console.log($('.info').css("font-size"));
-		    configBehaviour.defaultInfoFontSize = parseInt($('.info').css("font-size"))*scale;
+		    configBehaviour.defaultInfoFontSize = $('.info').css("font-size");
 		    //console.log(configBehaviour.defaultInfoFontSize);
-		    $('.info').css("font-size", configBehaviour.defaultInfoFontSize);
-		    //console.log($('.info').css("font-size"));
 		} 
 	    };
 
@@ -4312,7 +4401,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		if (configBehaviour.moveOnGrid) {
 		    $('#' + targetNode_).draggable("option", "grid", [spread.X + gapBetweenColumns, spread.Y + configBehaviour.gapBetweenLines]);
 		}
-		$('#' + targetNode_).on("mouseup", function(e){
+		$('#' + targetNode_).off("mouseup").on("mouseup", function(e){
 		    
 			me.dropNode(targetNode_);
 			refreshNodes(targetNode_);
@@ -4622,12 +4711,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		}
 	    }	
 	    else if (me.getZoomSelection() == true)  { 
-		console.log("should not happen");
-		clickHBZoom();
+		console.log("Select Zoom with hitbox.");
+		clickHBZoom(id=this.id);
 	    }
 	    else if (currentSelectedTag !="")  { 
-		console.log("should not happen tag");
-		clickHBTag();
+		console.log("Add Tag with hitbox.");
+		clickHBTag(id=this.id);
 	    }
 
 
@@ -4646,26 +4735,34 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    }					
 	}
 	
-	clickHBZoom = function(){
+	clickHBZoom = function(id__){
+	    if (typeof this.id == 'undefined')
+		var id_ = id__;
+	    else
+		var id_ = this.id;
 	    //console.log("click HBZoom");
-	    var HB = $('#' + this.id);
-	    var id = this.id; 
+	    var HB = $('#' + id_);
 	    try {
-		id = this.id.replace("hitbox", ""); 
+		var id = id_.replace("hitbox", ""); 
+		//console.log(this.id, id, HB); 
+		var node = me.getNodes()["node"+id];
+		nodeSelect(node,HB)
 	    } catch(e) {
+		console.log("Error in clickHBZoom.");
 	    }
-	    //console.log(this.id, id, HB); 
-	    var node = me.getNodes()["node"+id];
-	    nodeSelect(node,HB)
 	};
 
-	clickHBTag = function(){
+	clickHBTag = function(id__){
+	    if (typeof this.id == 'undefined')
+		var id_ = id__;
+	    else
+		var id_ = this.id;
 	    //console.log("click HBTag", this);
-	    if (emit_click("hitbox",this.id))
+	    if (emit_click("hitbox",id_))
 		return
-	    var HB = $('#' + this.id);
+	    var HB = $('#' + id_);
 	    if(currentSelectedTag != "")  { 
-		var id = this.id.replace("hitbox", "");
+		var id = id_.replace("hitbox", "");
 		var node = me.getNodes()["node"+id];
 		node.getStickers().addSticker(currentSelectedTag, attributedTagsColorsArray[currentSelectedTag]);
 		node.addElementToNodeTagList(currentSelectedTag);
@@ -4990,10 +5087,6 @@ dblclick: dblclickFunction*/
 	    // menuGlobal.children("[class*=MSButtonIcon]").removeClass("MSButtonIcon").addClass("disableMSButtonIcon");
 	    // $('.node').children("[class*=menu]").children("[class*=drawButtonIcon]").removeClass("drawButtonIcon").addClass("disabledrawButtonIcon");
 
-	    // Add unZoom button
-	    $('body').append('<div id=buttonUnzoom class=unzoomButtonIcon></div>');
-	    //$('#buttonUnzoom').hide();
-
 	    me.magnifyingGlass(nodeZoomTab,ratio,initSpread);
 
 	    $('#buttonUnzoom').on({
@@ -5063,7 +5156,7 @@ dblclick: dblclickFunction*/
 			});				
 	};
 		    
-	$('.qrcode').on({
+	$('.qrcode').off("click").on({
 		click : clickQRcode
 		    });
 

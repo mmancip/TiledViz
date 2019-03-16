@@ -1,0 +1,2 @@
+#!/bin/sh
+find . -name "*.png_base64" -exec bash -c 'FILE=$(echo {} | sed -e "s&_base64&&"); base64 -d {} > origin_$(basename ${FILE})' \;

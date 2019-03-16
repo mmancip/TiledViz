@@ -2,9 +2,37 @@
     ->id of the node concerned 
     ->htmltag of this node $("#node"+id)*/
 $(document).ready(    function (){
+    ColorSticker = function(k) {
+	if (k<colorTagStickersTab.length)  { 
+	    return colorTagStickersTab[k];
+	}
+	else if (k<(colorTagStickersTab.length + colorFilterStickersTab.length))  { 
+	    return colorFilterStickersTab[k-colorTagStickersTab.length];
+	} else { 
+	    return "rgb("+Math.floor(Math.random()*255) + ", " + Math.floor(Math.random()*255)+ ", " + Math.floor(Math.random()*255)+")";
+	}
+    };
+
+    newTag_conformance = function(tmpNewTag) {
+	tmpNewTag = tmpNewTag.replace(/\s[+]\s/g, "_and_");
+	var forbiddenCharacters = ["'", "(", ")", " + ", " ", ".", ",", '"', "@", "+", "/", "*", "=", "%", ":", "__"]; // TO DO: create a function, to also use with the filters?
+	var replacementCharacters = ["", "", "", "_and_","_", "_", "_", "", "_at_", "_", "_", "_", "_", "_", "", "_"];
+
+	for(var i=0; i<forbiddenCharacters.length; i++)  { 
+	    while($.inArray(forbiddenCharacters[i], tmpNewTag)!=-1)  { 
+		tmpNewTag = tmpNewTag.replace(forbiddenCharacters[i],replacementCharacters[i]);
+	    }
+	}
+	tmpNewTag = tmpNewTag.replace(/_+$/g, ""); // Trailing underscores
+	tmpNewTag = tmpNewTag.replace(/_+/g, "_"); // Multiple underscores
+	return tmpNewTag;
+    };    
+    
 	Stickers = function(id, htmlSupport)  { 
 	
 	    var numOfTags = 0;
+	    var nodeId=id;
+	    
 	    $('#'+id).append("<div id=stickers_"+ id +" class=stickers_zone></div>");
 
 	    $('#stickers_'+id).css({
@@ -22,21 +50,35 @@ $(document).ready(    function (){
 		return this;
 	    }
 
+	    this.getNodeId = function() { 
+		return nodeId;
+	    }
+
 	    var stickerTab = [];
+	    this.getStickerTab = function()  {
+		return stickerTab.toString();
+	    }
+	    
 	    this.updateStickers = function()  { 
 		//console.log("updating stickers");
 		$('#stickers_'+id).children(".sticker").remove();
-		for (var it = 0;it<stickerTab.length;it++)  { 
-			
+		var it = 0;
+		while (it < stickerTab.length)  { 
 		    var text_ = stickerTab[it][0];
 		    var color = stickerTab[it][1];
 		    //console.log(text_, color);
+
+		    var thisSticker = $('#stickers_'+id).children(".sticker")[it];
+		    
 		    $('#stickers_'+id).append("<div id='" +text_ + "_" + id +"' class='"+text_+ " sticker'" + "></div>");
 		    $('#'+ text_ + "_" +id).css({
 			    classN : "sticker",
 				backgroundColor : color,
 				top : 50*it+"px",		
-				});
+		    }).off("click").on({
+			click : clickSticker
+		    });
+		    it++;
 		}
 	    }	
 
@@ -88,6 +130,23 @@ $(document).ready(    function (){
 		    //console.log("Sticker already exists");
 		}
 
+	    }
+
+	    this.colorSticker = function(text_, color)  { 
+		if($('#stickers_'+id).children("."+text_).length != 0)  { 				
+		    var it = 0;
+		    while (it < stickerTab.length)  { 
+			if ( text_ == stickerTab[it][0] ) {
+			    stickerTab[it][1] = color;
+			    break;
+			}
+			it++;
+		    }
+		    
+		    $('#'+ text_ + "_" +id).css({
+			backgroundColor : color,
+		    });
+		}
 	    }
 	}
     })

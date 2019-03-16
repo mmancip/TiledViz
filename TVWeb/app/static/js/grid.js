@@ -295,7 +295,12 @@ $(document).ready( function(){
     // Menu shared between clients
     socket.on('receive_Menu_click', function(sdata){
      	console.log("receive_Menu_click",sdata);
-	var thisoption=$('#menu'+sdata.Menu+'>#option'+sdata.optionNumber);
+	if ($('#menu'+sdata.Menu+'>.'+sdata.optionButton).length > 0) {
+	    var thisoption=$('#menu'+sdata.Menu+'>.'+sdata.optionButton);
+	} else {
+	    var thisoption=$('#menu'+sdata.Menu+'>.close'+sdata.optionButton);
+	}
+	//$('#menu'+sdata.Menu+'>#option'+sdata.optionNumber);
 	var listClass=thisoption.attr("class").split(" ");
 	if ( listClass.find(function(s) {return s.toLowerCase().indexOf(sdata.optionButton.toLowerCase()) != -1 }) != undefined) {
 	    thisoption.addClass("NotSharedAgain");
@@ -349,6 +354,12 @@ $(document).ready( function(){
     socket.on('receive_Add_Tag', function(sdata){
      	console.log("receive_Add_Tag",sdata);
 	mesh.AddNewTag(sdata["NewTag"])
+    });
+
+    // Add new color for a tag
+    socket.on('receive_Color_Tag', function(sdata){
+     	console.log("receive_Color_Tag",sdata);
+	mesh.ChangeColorTag(sdata["OldTag"],sdata["TagColor"])
     });
 
     socket.on('receive_deploy_Session', function(sdata){

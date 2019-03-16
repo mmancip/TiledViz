@@ -25,7 +25,7 @@ import werkzeug.exceptions
 from werkzeug.utils import secure_filename
 
 import sys,re,traceback
-import datetime
+import datetime,time
 
 sys.path.append(os.path.abspath('../TVDatabase'))
 from TVDb import tvdb
@@ -1230,7 +1230,13 @@ def jsoneditor():
 @app.route('/grid', methods=['GET', 'POST'])
 def show_grid():
     #user = "Anonymous", project = "test", psession = "stest", is_client_active = True
+    global is_client_active
+    #logging.debug("Enter in show_grid: with session "+str(session))
+    if (not 'is_client_active' in session):
+        flash("You are not connected. You must login before using a grid.")
+        return redirect("/login")
     is_client_active=session["is_client_active"]
+        
     if request.method == 'POST' and "new room" in request.form :
         psession = request.form['new room']
         # TODO: properly close the old socket, or remove it from the room 
@@ -1313,7 +1319,7 @@ def show_grid():
 
     tiles_data["config"] = config
     psgeom={}
-    if (not session["is_client_active"]):
+    if (not is_client_active):
         try:
             psgeom=json.loads(session["geometry"])
             logging.warning("geom for passive client :"+str(psgeom)+" "+str(type(psgeom)))
@@ -1416,7 +1422,7 @@ def ClickShare(cdata):
     croom=cdata["room"]
     action=cdata["action"]
     logging.info(action+"Share :"+str(cdata))
-    logging.warning("[->] Click on "+action+ " "+ str(action) + " in room " + str(croom))
+    logging.warning("[->] Click on "+action+ " "+ str(cdata["id"]) + " in room " + str(croom))
     sdata = {"action":action,"id":cdata["id"]}
     socketio.emit('receive_click', sdata,room=croom)
 
@@ -1437,6 +1443,15 @@ def addNewTagShare(cdata):
 
     sdata = {"NewTag":cdata["NewTag"]}
     socketio.emit('receive_Add_Tag', sdata,room=croom)
+
+@socketio.on("color_Tag")
+def addNewTagShare(cdata):
+    croom=cdata["room"]
+    logging.info("changeColorTagShare :"+str(cdata))
+    logging.warning("[->] Change color for the tag " + str(cdata["OldTag"]) + " for " + str(cdata["TagColor"]) +" in room " + str(croom))
+
+    sdata = {"OldTag":cdata["OldTag"],"TagColor":cdata["TagColor"]}
+    socketio.emit('receive_Color_Tag', sdata,room=croom)
 
 # Draw    
 sidDraw=""
@@ -1484,11 +1499,19 @@ def config_client(cdata):
         logging.info("[+] " + croom + " : Now " + str(len(room_dict[croom])) + " sockets connected to the room")
     else:
         room_dict[croom] = [request.sid]
-        logging.info("[+] " + croom + " : First client to join the room "+session["username"])
+        if ("username" in session):
+            logging.info("[+] " + croom + " : First client to join the room "+session["username"])
+        else:
+            logging.info("[+] " + croom + " : Anonymous client to join the room.")
     croomsid = cdata['session']+str(request.sid) # c[lient]room
     join_room(croomsid)
     room_dict[croomsid] = [request.sid]
-    logging.info("[+] " + croomsid + " : Individual room "+session["username"])
+    if ("username" in session):
+        logging.info("[+] " + croomsid + " : Individual room "+session["username"])
+    else:
+        logging.info("[+] " + croomsid + " : Individual room for Anonymous client.")
+
+    clean_rooms()
     logging.info("room_dict are : "+ str(room_dict) + " my rooms "+ str(croom)+ " and "+str(croomsid))
 
     sdata = {"part_nbr_update": str(len(room_dict[croom])-1)}
@@ -1505,10 +1528,17 @@ def disconnect_socket():
             logging.info ("[-] " + key + " : Socket " + tmp_sid + " disconnected")
             sdata = {"part_nbr_update": str(len(room_dict[key])-1)}
             socketio.emit("new_client", sdata, room=key)
-            return room_dict
+    return room_dict
 
-    return "no socket found !"
-
+def clean_rooms():
+    try: 
+        for key in room_dict:
+            if (not room_dict[key]):
+                room_dict.pop(key)
+    except:
+        time.sleep(2)
+        clean_rooms()
+        
 @socketio.on("get_link")
 def handle_invite_link_request(cdata):
     croom = cdata["session"]

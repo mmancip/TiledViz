@@ -4,21 +4,6 @@
 
 $(document).ready(    function (){
 
-    newTag_conformance = function(tmpNewTag) {
-	tmpNewTag = tmpNewTag.replace(/\s[+]\s/g, "_and_");
-	var forbiddenCharacters = ["'", "(", ")", " + ", " ", ".", ",", '"', "@", "+", "/", "*", "=", "%", ":", "__"]; // TO DO: create a function, to also use with the filters?
-	var replacementCharacters = ["", "", "", "_and_","_", "_", "_", "", "_at_", "_", "_", "_", "_", "_", "", "_"];
-
-	for(var i=0; i<forbiddenCharacters.length; i++)  { 
-	    while($.inArray(forbiddenCharacters[i], tmpNewTag)!=-1)  { 
-		tmpNewTag = tmpNewTag.replace(forbiddenCharacters[i],replacementCharacters[i]);
-	    }
-	}
-	tmpNewTag = tmpNewTag.replace(/_+$/g, ""); // Trailing underscores
-	tmpNewTag = tmpNewTag.replace(/_+/g, "_"); // Multiple underscores
-	return tmpNewTag;
-    }
-    
 Tile = function(Mesh) {
 
     var touchok=('ontouchstart' in document);
@@ -755,15 +740,8 @@ Tile = function(Mesh) {
     for(var k=0;k < nodeTagList.length;k++)  { 
 	if ($.inArray(nodeTagList[k], globalTagsList) == -1)  { 
 	    globalTagsList.push(nodeTagList[k]);
-	    if (globalTagsList.length <= colorTagStickersTab.length)  { 
-		attributedTagsColorsArray[globalTagsList[globalTagsList.length-1]] = colorTagStickersTab[globalTagsList.length-1];
-	    } else if (globalTagsList.length<(colorTagStickersTab.length + colorFilterStickersTab.length-2))  { 
-		attributedTagsColorsArray[globalTagsList[globalTagsList.length-1]] = 
-		    colorFilterStickersTab[globalTagsList.length-colorTagStickersTab.length];
-	    } else { 
-		attributedTagsColorsArray[globalTagsList[globalTagsList.length-1]] = 
-		    "rgb("+Math.floor(Math.random()*255) + ", " + Math.floor(Math.random()*255)+ ", " + Math.floor(Math.random()*255)+")";
-	    }
+	    var l=globalTagsList.length-1;
+	    attributedTagsColorsArray[globalTagsList[l]] = ColorSticker(l);
 	}
 	if (configTagsBehaviour.showAll)  { 
 	    stickers.addSticker(nodeTagList[k],attributedTagsColorsArray[nodeTagList[k]]);
@@ -915,6 +893,7 @@ Tile = function(Mesh) {
 	    }
 
 	}
+	stickers.removeSticker(text_);
 	//console.log("after removing", nodeTagList);
     };
 
