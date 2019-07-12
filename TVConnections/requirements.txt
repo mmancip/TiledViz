@@ -1,0 +1,3 @@
+sqlacodegen
+pexpect
+sqlalchemy

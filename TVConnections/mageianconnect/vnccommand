@@ -1,0 +1,2 @@
+#!/bin/sh
+x11vnc -forever -rfbport 5902 -noncache -cursor arrow -shared -nowf -display :1 -rfbauth /home/myuser/.vnc/passwd -http > /home/myuser/.vnc/x11vnc 2>&1 &

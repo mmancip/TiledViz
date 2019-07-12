@@ -1,0 +1,44 @@
+services:
+  - postgres:9.6-alpine
+  - docker:dind
+
+variables:
+  POSTGRES_HOST: postgres
+  POSTGRES_DB: TiledViz
+  POSTGRES_USER: tiledviz
+  POSTGRES_PASSWORD: "m_test/@03"
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_DRIVER: overlay2
+  SECRET_KEY: "Gmifwo4rxPk33Cs4P4N9ViULrhDlC4Oi"
+  
+connect:
+  image: mmancip/ubuntu:18.04-dind-18.09.6-ce
+  script:
+    - df
+    - apt-get update
+    - apt-get install -y python3-pip postgresql-client libpq-dev
+    - apt-get clean
+    - pip3 install virtualenv
+    - export DATE=$(date +%F_%H-%M-%S)
+    - mkdir testTVWeb_${DATE}
+    - virtualenv testTVWeb_${DATE}
+    - source testTVWeb_${DATE}/bin/activate
+    - pip3 install -r requirements.txt
+    - TVDatabase/filledDatabase.sh
+    - sqlacodegen postgres://${POSTGRES_USER}:"${POSTGRES_PASSWORD}"@${POSTGRES_HOST}/${POSTGRES_DB} --outfile=TVDatabase/TVDb/models.py
+    - docker build -t flaskimage -f TVWeb/FlaskDocker/Dockerfile.web .
+    - docker build -t mageiaconnect -f TVConnections/mageianconnect/Dockerfile .
+    - docker images
+    - export IPPOST=$(grep ${POSTGRES_HOST} /etc/hosts | tr '[:space:]*' '\n' | head -1)
+    - echo ${POSTGRES_HOST} IP $IPPOST
+    - groupadd -r -g 1005 myuser && useradd -r -u 1005 -g myuser -G docker myuser && cp -rp /etc/skel /home/myuser && chown -R myuser:myuser /home/myuser
+    - su - myuser -c "cd /builds/mmancip/TiledViz; /bin/bash -vx TVSecure/tvsecure.sh ${DOCKER_HOST} ${POSTGRES_HOST} ${POSTGRES_DB} ${POSTGRES_USER} ${POSTGRES_PASSWORD} ${SECRET_KEY} /tmp/out_TVSecure testTVWeb_${DATE}"
+    - cat /tmp/out_TVSecure
+    - docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' flaskdock
+    - export IPFlask=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' flaskdock)
+    - TVDatabase/getDatabase.sh
+    - $(pwd)/TVWeb/Selenium/selenium_tests.sh
+    - docker exec -t flaskdock cat /TiledViz/TVWeb/TiledViz.log
+    - docker rm -f -v flaskdock
+    - docker ps -a
+
