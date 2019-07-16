@@ -29,6 +29,7 @@
 		"spaceBetweenColumns" : 100, 
 		"spaceBetweenLines" : 120, 
 		"targetSize" : 2.1, 
+	        "primaryZoomSlider" : false,
 		"onlyOneOption" : false, 
 		"draw":{ 
 			"style" : "round",

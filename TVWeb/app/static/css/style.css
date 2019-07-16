@@ -5,9 +5,20 @@
 }
 
 /* Global menu icons */
+
+[class~=updownGlobalMenuButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/updown/up_arrow.png);
+}
+
+[class~=closeUpdownGlobalMenuButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/updown/down_arrow.png);
+}
+
 [class~=upArrowButtonIcon]
 {
-	background-image: url(../images/up_arrow.png);
+	background-image: url(../images/icons/globalmenu/updown/up_arrow.png);
 }
 [class~=nodeMenuButtonIcon]
 {
@@ -29,36 +40,75 @@
 	background-image: url(../images/icons/globalmenu/closeSearch.png);
 }
 
-[class~=tagsButtonIcon]
+[class~=tagsGlobalMenuButtonIcon]
 {
 	background-image: url(../images/icons/globalmenu/tags.png);
 }
 
-[class~=closeTagsButtonIcon]
+[class~=closeTagsGlobalMenuButtonIcon]
 {
 	background-image: url(../images/icons/globalmenu/closeTags.png);
 }
 
+[class~=selectionButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/selection.png);
+}
+
+[class~=closeSelectionButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/closeSelection.png);
+}
+
+[class~=clearSelectionButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/clearSelection.png);
+}
+
+[class~=closeClearSelectionButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/closeClearSelection.png);
+}
+
+[class~=nextTilesButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/nextTiles.png);
+}
+
+[class~=closeNextTilesButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/closeNextTiles.png);
+}
+
+[class~=zoomGlobalMenuButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/zoommenu/zoom.png);
+}
+
+[class~=closeZoomGlobalMenuButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/zoommenu/closeZoom.png);
+}
+
 [class~=zoomButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/zoom.png);
+	background-image: url(../images/icons/globalmenu/zoommenu/zoom.png);
 }
 
 [class~=closezoomButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/closeZoom.png);
+	background-image: url(../images/icons/globalmenu/zoommenu/closeZoom.png);
 }
-
 
 [class~=disablezoomButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/disableZoom.png);
+	background-image: url(../images/icons/globalmenu/zoommenu/disableZoom.png);
 }
 
 
 [class~=expandZoomButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/validateZoomSelection.png);
+	background-image: url(../images/icons/globalmenu/zoommenu/validateZoomSelection.png);
 }
 
 [class~=explain-zoom]
@@ -68,7 +118,7 @@
 
 [class~=unzoomButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/closeZoomButton.png);
+	background-image: url(../images/icons/globalmenu/zoommenu/closeZoomButton.png);
 }
 
 [class~=explain-MS]
@@ -77,62 +127,72 @@
 
 [class~=MSButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/masterslave.png);
+	background-image: url(../images/icons/globalmenu/zoommenu/masterslave.png);
 }
 
 [class~=closeMSButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/closemasterslave.png);
+	background-image: url(../images/icons/globalmenu/zoommenu/closemasterslave.png);
 }
 
 [class~=disableMSButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/disablemasterslave.png);
+	background-image: url(../images/icons/globalmenu/zoommenu/disablemasterslave.png);
 }
 
 [class~=startMSButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/masterslave.png);
+	background-image: url(../images/icons/globalmenu/zoommenu/masterslave.png);
 }
 
 [class~=AllMSButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/masterslaveALL.png);
+	background-image: url(../images/icons/globalmenu/zoommenu/masterslaveALL.png);
 }
 
 [class~=zoomNodesButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/zoomNode.png);
+	background-image: url(../images/icons/globalmenu/zoommenu/zoomNode.png);
 }
 
 [class~=closezoomNodesButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/closezoomNode.png);
+	background-image: url(../images/icons/globalmenu/zoommenu/closezoomNode.png);
 }
 
 
 [class~=disablezoomNodesButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/disableZoomNode.png);
+	background-image: url(../images/icons/globalmenu/zoommenu/disablezoomNode.png);
+}
+
+[class~=stateGlobalMenuButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/statemenu/showInfo.png);
+}
+
+[class~=closeStateGlobalMenuButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/statemenu/closeShowInfo.png);
 }
 
 [class~=QRcodeButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/QRcode.png);
+	background-image: url(../images/icons/globalmenu/statemenu/QRcode.png);
 }
 
 [class~=closeQRcodeButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/closeQRcode.png);
+	background-image: url(../images/icons/globalmenu/statemenu/closeQRcode.png);
 }
 [class~=OnOffButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/OnOff.png);
+	background-image: url(../images/icons/globalmenu/statemenu/OnOff.png);
 }
 
 [class~=closeOnOffButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/closeOnOff.png);
+	background-image: url(../images/icons/globalmenu/statemenu/closeOnOff.png);
 }
 
 [class~=RotateButtonIcon]
@@ -145,14 +205,24 @@
 	background-image: url(../images/icons/globalmenu/closeRotate.png);
 }
 
+[class~=managementGlobalMenuButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/management/options.png);	
+}
+
+[class~=closeManagementGlobalMenuButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/management/closeOptions.png);	
+}
+
 [class~=DrawsButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/drawManagement.png);
+	background-image: url(../images/icons/globalmenu/management/drawManagement.png);
 }
 
 [class~=closeDrawsButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/closeDrawManagement.png);
+	background-image: url(../images/icons/globalmenu/management/closeDrawManagement.png);
 }
 
 
@@ -163,61 +233,72 @@
 
 [class~=DrawOnAllNodesIcon]
 {
-	background-image: url(../images/icons/globalmenu/masterslave.png);
+	background-image: url(../images/icons/globalmenu/zoommenu/masterslave.png);
 }
 
 [class~=showInfoButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/showInfo.png);
+	background-image: url(../images/icons/globalmenu/statemenu/showInfo.png);
 }
 
 [class~=closeShowInfoButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/closeShowInfo.png);
+	background-image: url(../images/icons/globalmenu/statemenu/closeShowInfo.png);
 }
 
 [class~=refreshButtonIcon]
 {
 	background-image: url(../images/icons/globalmenu/refresh.png);
 }
+
+[class~=cancelGlobalMenuButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/cancel/back.png);
+}
+
+[class~=closeCancelGlobalMenuButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/cancel/forward.png);
+}
+
 [class~=moveBackButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/back.png);
+	background-image: url(../images/icons/globalmenu/cancel/back.png);
 }
 
 [class~=moveForwardButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/forward.png);
+	background-image: url(../images/icons/globalmenu/cancel/forward.png);
 }
 
 [class~=saveButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/save.png);
+	background-image: url(../images/icons/globalmenu/management/save.png);
 }
 
 [class~=optionsButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/options.png);	
+	background-image: url(../images/icons/globalmenu/management/options.png);	
 }
 
 [class~=closeOptionsButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/closeOptions.png);	
+	background-image: url(../images/icons/globalmenu/management/closeOptions.png);	
 }
 
 [class~=helpButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/help.png);
+	background-image: url(../images/icons/globalmenu/management/help.png);
 }
 
 [class~=closeHelpButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/closeHelp.png);
+	background-image: url(../images/icons/globalmenu/management/closeHelp.png);
 }
 
 [class~=downArrowButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/down_arrow.png);
+	background-image: url(../images/icons/globalmenu/updown/down_arrow.png);
 }
 
 /* Node menu */
@@ -268,24 +349,54 @@
 }
 
 /* Tag menu */
+[class~=managementTagMenuButtonIcon]
+{
+	background-image: url(../images/icons/tagmenu/management/addTag.png);
+}
+
+[class~=closeManagementTagMenuButtonIcon]
+{
+	background-image: url(../images/icons/tagmenu/management/closeAddTag.png);
+}
+
 [class~=addTagButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/addTag.png);
+	background-image: url(../images/icons/tagmenu/management/addTag.png);
 }
 
 [class~=closeAddTagButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/closeAddTag.png);
+	background-image: url(../images/icons/tagmenu/management/closeAddTag.png);
 }
 
 [class~=selectTagButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/selectTags.png);
+	background-image: url(../images/icons/tagmenu/selection/selectTags.png);
 }
 
 [class~=closeSelectTagButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/closeSelectTags.png);
+	background-image: url(../images/icons/tagmenu/selection/closeSelectTags.png);
+}
+
+[class~=selectTagMenuButtonIcon]
+{
+	background-image: url(../images/icons/tagmenu/selection/selectTags.png);
+}
+
+[class~=closeSelectTagMenuButtonIcon]
+{
+	background-image: url(../images/icons/tagmenu/selection/closeSelectTags.png);
+}
+
+[class~=selectionToTagButtonIcon]
+{
+	background-image: url(../images/icons/tagmenu/selection/selectionToTag.png);
+}
+
+[class~=closeSelectionToTagButtonIcon]
+{
+	background-image: url(../images/icons/tagmenu/selection/closeSelectionToTag.png);
 }
 
 [class~=alignTagButtonIcon]
@@ -320,12 +431,12 @@
 
 [class~=removeTagButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/removeTag.png);
+	background-image: url(../images/icons/tagmenu/management/removeTag.png);
 }
 
 [class~=closeRemoveTagButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/closeRemoveTag.png);
+	background-image: url(../images/icons/tagmenu/management/closeRemoveTag.png);
 }
 
 /* Draw menu */
@@ -348,6 +459,16 @@
 [class~=DrawOnNodeButtonIcon]
 {
 	background-image: url(../images/icons/drawmenu/drawonNode.png);
+}
+
+[class~=BlinkIcon]
+{
+     animation: Test 2s infinite;
+}
+@keyframes Test{
+     0%{opacity: 1;}
+     50%{opacity: 0;}
+     100%{opacity: 1;}
 }
 
 iframe
@@ -761,7 +882,7 @@ output
 	position : absolute;
 	top : 80%;
 	left: 40%;
-	background-image: url(../images/icons/globalmenu/checkOptions.png);
+	background-image: url(../images/icons/globalmenu/management/checkOptions.png);
 }
 
 #buttonCancel
@@ -773,7 +894,7 @@ output
 	position : absolute;
 	top : 80%;
 	left: 50%;
-	background-image: url(../images/icons/globalmenu/closeZoomButton.png);
+	background-image: url(../images/icons/globalmenu/zoommenu/closeZoomButton.png);
 }
 
 #buttonShare
@@ -785,7 +906,7 @@ output
 	position : absolute;
 	top : 80%;
 	left: 60%;
-	background-image: url(../images/icons/globalmenu/save.png);
+	background-image: url(../images/icons/globalmenu/management/save.png);
 }
 
 ul.ui-autocomplete.ui-menu{
@@ -837,3 +958,68 @@ ul.ui-autocomplete.ui-menu{font-size:70px}
 }
 @-webkit-keyframes blink { 50% { visibility: hidden; }}
 @keyframes blink { 50% { visibility: hidden; }}
+
+/*Tooltip and Pointer CSS*/
+.ui-corner-all {
+    border-bottom-right-radius: 30px;
+    border-bottom-left-radius: 30px;
+    border-top-left-radius: 30px;
+    border-top-right-radius: 30px;
+}
+.fg-tooltip {
+    padding: .2em;
+    width: intrinsic;           /* Safari/WebKit utilisent un nom non-standard */
+    width: -moz-max-content;    /* Firefox/Gecko */
+    width: -webkit-max-content; /* Chrome */
+    position: absolute;
+    background-color: darkgoldenrod;
+    z-index: 280;
+}
+.fg-tooltip .fg-tooltip-pointer-up, .fg-tooltip .fg-tooltip-pointer-up-inner,
+.fg-tooltip .fg-tooltip-pointer-down, .fg-tooltip .fg-tooltip-pointer-down-inner {
+    position: absolute;
+    width:0;
+    height:0;
+    border-bottom-width: 0;
+    border-color: darkgoldenrod;
+    background: none;
+    z-index: 180;
+}
+.fg-tooltip .fg-tooltip-pointer-up {
+    border-left: 21px solid transparent;
+    border-right: 21px solid transparent;
+    border-bottom-width: 42px;
+    top: -40px;
+    right: auto;
+    left: 10%;
+    margin-left: 0px;
+    z-index: 180;
+}
+.fg-tooltip .fg-tooltip-pointer-up-inner {
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 10px solid #fff;
+    top: auto;
+    bottom: -14px;
+    left: -5px;
+    z-index: 180;
+}
+.fg-tooltip .fg-tooltip-pointer-down {
+    border-left: 21px solid transparent;
+    border-right: 21px solid transparent;
+    border-top-width: 42px;
+    bottom: -40px;
+    right: auto;
+    left: 10%;
+    margin-left: 0px;
+    z-index: 180;
+}
+.fg-tooltip .fg-tooltip-pointer-down-inner {
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 10px solid #fff;
+    bottom: auto;
+    top: -14px;
+    left: -5px;
+    z-index: 180;
+}

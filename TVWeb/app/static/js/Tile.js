@@ -200,6 +200,7 @@ Tile = function(Mesh) {
 
 
     */
+    var menuTitleTab = new Array();
     var menuEventTab = new Array();
 
 
@@ -215,6 +216,7 @@ Tile = function(Mesh) {
     var MenuShareEvent = new Array();
     
     // To make a node transparent and enable to overlap other nodes
+    menuTitleTab.push("Transparent mode to overlay")
     menuEventTab.push(    function(v, nodeId, optionNumber){
 	    if (v==true)  { 
 		if (configBehaviour.onlyOneTransparentTile && me.getTransparent()!=-1)  { 
@@ -234,7 +236,8 @@ Tile = function(Mesh) {
     menuIconClassAttributesTab.push("transparentButtonIcon");
     MenuShareEvent.push(true);
     
-    //The options to display or not node's postIt
+    // The options to display or not node's postIt
+    menuTitleTab.push("Display tile's postIt")
     menuEventTab.push(    function(v,nodeId,optionNumber){
 
 	    if(v==true)  {    
@@ -308,10 +311,10 @@ Tile = function(Mesh) {
 
 		// Activate draw menu
 		menuDraw.css("visibility", "visible");
+		menuDraw.css("top", TagHeight+"px");
 
 		// Deactivate other magnify menus
-		menuGlobal.children("[class*=zoomButtonIcon]").removeClass("zoomButtonIcon").addClass("disablezoomButtonIcon");
-		menuGlobal.children("[class*=MSButtonIcon]").removeClass("MSButtonIcon").addClass("disableMSButtonIcon");
+		me.disableOtherZoom("draw")
 
 		// Creation of the layer $("#drawCanvas") on the support if it doesn’t already exist
 		var supp = document.getElementById("drawCanvas"+nodeId);
@@ -508,8 +511,10 @@ Tile = function(Mesh) {
 		}
 	    };
 	})()
+
     /**Here is created a menu which uses the previous function
        Users have to select a node and this node will be rescaled and the users can draw on it */
+    menuTitleTab.push("Draw on tile")
     menuEventTab.push(    function(v,nodeId,optionNumber){
 
 	    if(v==true)  {    
@@ -521,8 +526,8 @@ Tile = function(Mesh) {
 			    // Hide draw menu
 			    menuDraw.css("visibility", "hidden");
 			    // Activate other magnify menus
-			    menuGlobal.children("[class*=disablezoomButtonIcon]").removeClass("disablezoomButtonIcon").addClass("zoomButtonIcon");
-			    menuGlobal.children("[class*=disableMSButtonIcon]").removeClass("disableMSButtonIcon").addClass("MSButtonIcon");
+			    me.enableOtherZoom("draw")
+
 			    $('#drawCanvas'+nodeId).hide();
 			    $("#button").off();
 			    //console.log("unzoom", $('#button'));
@@ -546,8 +551,7 @@ Tile = function(Mesh) {
 			    // Hide draw menu
 			    menuDraw.css("visibility", "hidden");
 			    // Activate other magnify menus
-			    menuGlobal.children("[class*=disablezoomButtonIcon]").removeClass("disablezoomButtonIcon").addClass("zoomButtonIcon");
-			    menuGlobal.children("[class*=disableMSButtonIcon]").removeClass("disableMSButtonIcon").addClass("MSButtonIcon");
+			    me.enableOtherZoom("draw")
 
 			    $('#drawCanvas'+nodeId).hide();
 			    me.meshEventReStart();
@@ -563,6 +567,7 @@ Tile = function(Mesh) {
     MenuShareEvent.push(false);
     
     // To switch columns
+    menuTitleTab.push("To switch columns")
     menuEventTab.push(    function(v,nodeId,optionNumber){
 
 	    if(v==true)  {    
@@ -629,6 +634,7 @@ Tile = function(Mesh) {
     MenuShareEvent.push(true);
 
     // To switch lines
+    menuTitleTab.push("To switch lines")
     menuEventTab.push(    function(v,nodeId,optionNumber){
 
 	    if(v==true)  {    
@@ -693,7 +699,7 @@ Tile = function(Mesh) {
     MenuShareEvent.push(true);
 
     /** Here is created the menu of the node*/
-    var nodeMenu = new Menu(id,htmlNode,menuEventTab,menuIconClassAttributesTab,MenuShareEvent,{
+    var nodeMenu = new Menu(id,htmlNode,menuTitleTab,menuEventTab,menuIconClassAttributesTab,MenuShareEvent,{
 
 	    // Position
 	    position : "absolute",  
@@ -716,20 +722,36 @@ Tile = function(Mesh) {
 	    menubox : false
 	});
 
-    $('#menu'+id).append("<div id=tile-opacity-"+id+" class=tile-opacity-menu-zone></div>");
+    $('#menu'+id).append("<div id=fake-tile-opacity-"+id+"></div>");
+    $(OpacityZone).append("<div id=tile-opacity-"+id+" class=tile-opacity-menu-zone></div>");
     // tileOpacitySlider is placed after the transparentButtonIcon (in first place)
     tileOpacityLeft=parseInt($($('#menu'+id)[0].childNodes[1]).css("left"))+20;
-    $('#tile-opacity-'+id).css({
-	    position : "relative",
-		visibility : "hidden",
-		top :0,
-		left : tileOpacityLeft,
-		//parseInt($('#menu'+id).css("width")),
-		//backgroundColor : "red",
-		height : parseInt($('#menu'+id).css("height")),
-		width : parseInt($('#'+id).css("width")) - tileOpacityLeft
+    $('#fake-tile-opacity-'+id).css({
+	position : "relative",
+	visibility : "hidden",
+	top :0,
+	left : tileOpacityLeft,
+	//parseInt($('#menu'+id).css("width")),
+	//backgroundColor : "red",
+	height : parseInt($('#menu'+id).css("height")),
+	width : parseInt($('#'+id).css("width")) - tileOpacityLeft,
+	zIndex : 0
+    });
+    this.setOpacityLocation = function () {
+	$('#tile-opacity-'+id).css({
+	    position : "absolute",
+	    top : $('#fake-tile-opacity-'+id).offset().top,
+	    left : $('#fake-tile-opacity-'+id).offset().left,
+	    //parseInt($('#menu'+id).css("width")),
+	    //backgroundColor : "red",
+	    height : parseInt($('#menu'+id).css("height")),
+	    width : parseInt($('#'+id).css("width")) - tileOpacityLeft,
+	    zIndex : 130
+	});
+    }
+    this.setOpacityLocation();
+    $('#tile-opacity-'+id).css("visibility","hidden")
 
-		});
     //$('#tile-opacity-'+id).append("<input id=tileOpacitySlider"+id+" class=tile-opacity-slider type='range' name=tileOpacitySlider"+id+" min=0 max=100 value="+nodeOpacity*100+">");
 
     /** Stickers to tag the node 
@@ -1134,7 +1156,8 @@ Tile = function(Mesh) {
 						 var slocy=loc.getY()-currentLoc.getY();
 						 var distLoc=Math.sqrt(slocx*slocx+slocy*slocy);
 						 if(distLoc>speed+1 && u<50)  { 
-						     move();				
+						     move();
+						     hnode.setOpacityLocation();
 						 } else { 
 						     hnode.setLocation(me.locationProvider(hnode.getIdLocation()) );
 						     //return 0;
@@ -1151,7 +1174,7 @@ Tile = function(Mesh) {
 	    this.updateHtmlNodeFromLoc(location, boolAnimation);
 	}
 	this.setIsMoving(false);
-
+	this.setOpacityLocation();
     }
 
 

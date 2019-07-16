@@ -3,7 +3,7 @@
 CAUTION: Do not modify this file unless you know what you are doing.
          Unexpected results may occur if the code is changed deliberately.
 -->
-<dbmodel pgmodeler-ver="0.9.0" last-position="0,411" last-zoom="0.95"
+<dbmodel pgmodeler-ver="0.9.0" last-position="0,0" last-zoom="0.95"
 	 default-schema="public" default-owner="postgres">
 <role name="tiledviz"
       superuser="true"
@@ -286,6 +286,9 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	<column name="creation_date">
 		<type name="timestamp" length="0"/>
 	</column>
+	<column name="IdLocation">
+		<type name="smallint" length="0"/>
+	</column>
 	<constraint name="tiles_pkey" type="pk-constr" table="public.tiles">
 		<columns names="id" ref-type="src-columns"/>
 	</constraint>
@@ -333,9 +336,6 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	</column>
 	<constraint name="tile_sets_pkey" type="pk-constr" table="public.tile_sets">
 		<columns names="id" ref-type="src-columns"/>
-	</constraint>
-	<constraint name="uniq_tileset" type="uq-constr" table="public.tile_sets">
-		<columns names="name" ref-type="src-columns"/>
 	</constraint>
 
 	<customidxs object-type="column">

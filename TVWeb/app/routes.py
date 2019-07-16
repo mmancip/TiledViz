@@ -2,15 +2,16 @@
 
 # routes are defined here, then imported in __init__.py
 
-from flask import render_template, flash, Markup, redirect, session, request, jsonify, make_response, url_for
+from flask import render_template, flash, Markup, redirect, session, request, jsonify, make_response, url_for, Response
 from sqlalchemy.orm.session import make_transient
 from sqlalchemy.orm.attributes import flag_modified
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func
+import requests
 
 from app import app, socketio, db
 
-from app.forms import RegisterForm, BuildLoginForm, BuildNewProjectForm, BuildAllProjectSessionForm, BuildOldProjectForm, BuildNewSessionForm, BuildTilesSetForm, BuildCopySessionForm, BuildOldTileSetForm, BuildConfigSessionForm, BuildTilesSetForm
+from app.forms import RegisterForm, BuildLoginForm, BuildNewProjectForm, BuildAllProjectSessionForm, BuildOldProjectForm, BuildNewSessionForm, BuildTilesSetForm, BuildCopySessionForm, BuildOldTileSetForm, BuildConfigSessionForm, BuildTilesSetForm, BuildConnectionsForm
 #HomeForm, SettingsForm,
 
 import app.models as models # DB management
@@ -26,6 +27,7 @@ from werkzeug.utils import secure_filename
 
 import sys,re,traceback
 import datetime,time
+import random
 
 sys.path.append(os.path.abspath('../TVDatabase'))
 from TVDb import tvdb
@@ -41,6 +43,9 @@ tiles_data={}
 tiles_data["nodes"]=[]
 
 jsontransfert={}
+
+#SecureConnectionKey={}
+vnctransfert={}
 
 # Global functions : creation and copy DB elements
 
@@ -97,7 +102,7 @@ def convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath):
 
     # TODO : add connectionbool test
     ConnectionPort=0
-    if (urlbool):
+    if (urlbool and len(datapath) > 0):
         # Detect if path is already in tiles source url
         searchPath=re.search(r''+datapath,url)
         # if no add Dataset_path in url
@@ -160,7 +165,7 @@ def convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath):
     return title,name,comment,tags,variable,pos_px_x,pos_px_y,IdLocation,url,ConnectionPort
 
 # Define new session
-def save_session(oldsessionname, newsuffix, alltiles):
+def save_session(oldsessionname, newsuffix, newdescription, alltiles):
     creation_date=datetime.datetime.now()
     oldsession=db.session.query(models.Session).filter_by(name=oldsessionname).one()
     projectid=oldsession.id_projects
@@ -169,7 +174,7 @@ def save_session(oldsessionname, newsuffix, alltiles):
     #=> notion of heritage for session and tilsets in DB    
     newsessionname=session["sessionname"]+'_'+newsuffix
     newsession = models.Session(name=newsessionname,
-                                description=str(oldsession.description),
+                                description=newdescription,
                                 id_projects=projectid,
                                 creation_date=creation_date)
     newsession.id=db.session.query(models.Session.id).order_by(models.Session.id.desc()).first().id+1
@@ -405,6 +410,13 @@ def login():
             return render_template("main_login.html", title="Unknown user : Login TiledViz", form=myform)
     return render_template("main_login.html", title="Login TiledViz", form=myform)        
 
+# For display in form list, specify length of elements
+sessionl=str(80)
+tilesetl=str(80)
+projectl=str(15)
+datel=str(19)
+descrl=str(62)    
+
 # Create new project
 @app.route('/project', methods=["GET", "POST"])
 def project():
@@ -416,12 +428,24 @@ def project():
         return redirect("/login")
 
     # All projects own by user
+    printstr="{0:\xa0<"+projectl+"."+projectl+"}|\xa0{2:\xa0<"+datel+"."+datel+"}\xa0|\xa0{1:\xa0<"+descrl+"."+descrl+"}|\xa0{3:\xa0<"+descrl+"}"
+    
     projects = db.session.query(models.Project).filter_by(id_users=user.id)
     myprojects=[]
+    myprojects.append(('NoChoice',printstr.format("Project name","Date and Time","Description","All sessions")))
+
     for theproject in projects:
         ListsessionsTheproject=db.session.query(models.Session.name).filter_by(id_projects=theproject.id)
         allsessionsname=[ asessionTheproject.name for asessionTheproject in ListsessionsTheproject ]
-        myprojects.append((str(theproject.id),theproject.name+" "+theproject.description+" with sessions : "+str(allsessionsname)))
+        thedate=theproject.creation_date.isoformat().replace("T"," ")
+        
+        myprojects.append((str(theproject.id),
+                           printstr.format(
+                               theproject.name,
+                               theproject.description,
+                               thedate,
+                               str(allsessionsname)
+                           )))
 
     myform = BuildNewProjectForm(myprojects)()
     if myform.validate_on_submit():
@@ -429,14 +453,21 @@ def project():
         logging.info("in project")
         
         # TODO : Add test if the user is authorized to use this project ? ==> NO only own project
-        if (myform.chosen_project.data=="None"):
-            project_id = db.session.query(models.Project.id).filter_by(name=myform.projectname.data).scalar()
+        if (myform.chosen_project.data=="NoChoice"):
+            if (myform.projectname.data != ""):
+                project_id = db.session.query(models.Project.id).filter_by(name=myform.projectname.data).scalar()
+            else:
+                # Impossible to be here ?
+                logging.warning("You must create a new project or choose an old one.")
+                flash("You must create a new project or choose an old one.")
+                return redirect("/project")
+            
         else:
             project_id = int(myform.chosen_project.data)
         exists = project_id is not None
         logging.debug("Project exists "+str(exists)+" id : "+str(project_id))
         if exists:
-            if (myform.chosen_project.data == "None"):
+            if (myform.chosen_project.data == "NoChoice"):
                 session["projectname"]=myform.projectname.data
             else:
                 session["projectname"]=db.session.query(models.Project.name).filter_by(id=project_id).scalar()
@@ -448,7 +479,7 @@ def project():
             else:
                 logging.debug("Use old sessions ")
                 return redirect("/oldsessions")
-        elif (myform.chosen_project.data == "None"):
+        elif (myform.chosen_project.data=="NoChoice"):
             creation_date=datetime.datetime.now()
             project = models.Project(name=str(myform.projectname.data),
                                      creation_date=str(creation_date),
@@ -471,6 +502,9 @@ def allmysessions():
     if ("username" in session):
         flash("All projects and sessions for user {}".format(session["username"]))
         user=db.session.query(models.User.id).filter_by(name=session["username"]).one()
+    elif (not 'is_client_active' in session):
+        flash("You are not connected. You must login before using a grid.")
+        return redirect("/login")
     else:
         flash("All projects and sessions : User must login !")
         return redirect("/login")
@@ -480,41 +514,66 @@ def allmysessions():
 
     message='{"username": '+session["username"]+'}'
     logging.info("in allmysessions")
-    
+
     # All projects own by user
-    projects = db.session.query(models.Project).filter_by(id_users=user.id)
+    projects = db.session.query(models.Project).filter_by(id_users=user)
     # All sessions own of those projects
     mysessions=[]
     for theproject in projects:
         ListsessionsTheproject=db.session.query(models.Session.name).filter_by(id_projects=theproject.id)
         [ mysessions.append((theproject.name,ListsessionTheproject)) for ListsessionTheproject in ListsessionsTheproject ]
 
-    listsessions=[]
+    printstr="{1:\xa0<"+sessionl+"."+sessionl+"}|{0:\xa0<"+projectl+"."+projectl+"}|\xa0{2:\xa0<"+datel+"."+datel+"}\xa0|\xa0{3:\xa0<"+descrl+"."+descrl+"}"
+    listmyprojectssession=[]
+    listmyprojectssession.append(('NoChoice',printstr.format("Project name","Session name","Date and Time","Description")))
+    listmysession=[]
     for thissessions in mysessions:
-        #logging.debug("Build listsessions for project "+str(thissessions[0]))
-        #logging.debug("List sessions for this project "+str(thissessions[1]))
+
         for thissession in thissessions[1]:
-            listsessions.append((str(thissession),"Project "+str(thissessions[0])+" session "+str(thissession)+" : "+db.session.query(models.Session).filter_by(name=thissession).one().description))
+            listmysession.append(thissession)
+            thedate=db.session.query(models.Session.creation_date).filter_by(name=str(thissession)).one()[0].isoformat().replace("T"," ")
+
+            listmyprojectssession.append((str(thissession),printstr.
+                                          format(str(thissessions[0]),
+                                                 str(thissession),
+                                                 thedate,
+                                                 db.session.query(models.Session).filter_by(name=thissession).one().description)))
             
     # All sessions this user has been invited to
-    invite_sessions = db.session.query(models.Session.name).filter(models.Session.users.any(id=user.id)).all()
-
+    invite_sessions = db.session.query(models.Session.name).filter(models.Session.users.any(id=user)).all()
+    printstr="{0:\xa0<"+sessionl+"."+sessionl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"
+    listsessions=[]
+    listsessions.append(('NoChoice',printstr.format("Session name","Date and Time","Description")))
     for thissession in invite_sessions:
         logging.debug("Build listsessions for invite_session "+str(thissession.name))
-        listsessions.append((str(thissession.name),"Invite session "+str(thissession.name)+" : "+db.session.query(models.Session).filter_by(name=thissession).one().description))
+        if (thissession.name not in listmysession):
+            thedate=db.session.query(models.Session.creation_date).filter_by(name=thissession.name).one()[0].isoformat().replace("T"," ")
+            listsessions.append((str(thissession.name),printstr.
+                                 format(str(thissession.name),
+                                        thedate,
+                                        db.session.query(models.Session).filter_by(name=thissession.name).one().description)))
 
-    myform = BuildAllProjectSessionForm(listsessions)()
+    myform = BuildAllProjectSessionForm(listmyprojectssession,listsessions)()
     if myform.validate_on_submit():
-        session["sessionname"]=myform.chosen_session.data
-        logging.debug("Chosen session "+str(myform.chosen_session.data))
+        if (myform.chosen_project_session.data != "NoChoice"):
+            logging.debug("Chosen project session "+str(myform.chosen_project_session.data))
+            session["sessionname"]=myform.chosen_project_session.data
+        elif (myform.chosen_session_invited.data != "NoChoice"):
+            logging.debug("Chosen session invited "+str(myform.chosen_session_invited.data))
+            session["sessionname"]=myform.chosen_session_invited.data
+        else:
+            logging.warning("You must choose a session")
+            flash("You must choose a session in your projects or one you were invited on.")
+            return redirect("/allsessions")
+            
         logging.debug("Which is session "+str(db.session.query(models.Session.id).filter_by(name=session["sessionname"]).one()[0]))
         its_project_id=db.session.query(models.Session).filter_by(name=session["sessionname"]).one().id_projects
         session["projectname"]=db.session.query(models.Project).filter_by(id=its_project_id).one().name
         logging.debug("And have project id "+str(its_project_id)+" which is "+str(session["projectname"]))
         session["is_client_active"]=True
         if(myform.edit.data):
-            logging.debug("go to edit old session : "+myform.chosen_session.data)
-            message = '{"oldsessionname":"'+myform.chosen_session.data+'"}'
+            logging.debug("go to edit old session : "+session["sessionname"])
+            message = '{"oldsessionname":"'+session["sessionname"]+'"}'
             return redirect(url_for(".editsession",message=message))
         return redirect("/grid")
         
@@ -743,29 +802,37 @@ def searchtileset():
     oldsession = db.session.query(models.Session).filter_by(name=oldsessionname).one()    
 
     querysessions= models.Session.query.filter(models.Session.users.any(name=session["username"])).all()
-    logging.warning("querysessions = "+str(querysessions))
+
+    printstr="{0:\xa0<"+tilesetl+"."+tilesetl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"
 
     listtilesets=[]
+    listtilesets.append(('NoChoice',printstr.format("Tileset name","Date and Time","Data Path")))
     for thissession in querysessions:
         #thissession=db.session.query(model.Session).filter_by(id=thissessionid[0])
         for tileset in thissession.tile_sets:
-            elem=(str(tileset.id),str(tileset.name))
-            if ( elem not in listtilesets ):
-                listtilesets.append(elem)
-    logging.debug("For user : "+session["username"]+" list old tilesets :"+str(listtilesets))
-    flash("Search TileSet for user with name {} creation problem :".format(session["username"]))    
+            if ( tileset.name not in listtilesets ):
+                thedate=db.session.query(models.TileSet.creation_date).filter_by(name=tileset.name).one()[0].isoformat().replace("T"," ")
+                listtilesets.append((str(tileset.id),
+                                     printstr.format(
+                                         str(tileset.name),
+                                         thedate,
+                                         tileset.Dataset_path)))
+    # logging.warning("For user : "+session["username"]+" list old tilesets :"+str(listtilesets).replace("\xa0"," ").replace("('","\n('"))
+
     myform = BuildOldTileSetForm(session["username"], listtilesets)()
     if myform.validate_on_submit():
-        try:
-            thisTS=db.session.query(models.TileSet).filter_by(id=myform.chosen_tileset.data[0]).one()
-            oldsession.tile_sets.append(thisTS)
-            db.session.commit()
-        except:
-            message = '{"oldsessionname":"'+session["sessionname"]+'"}'
+        if (myform.chosen_tileset.data=="NoChoice"):
             flash("Error : no TileSet Selected.")
             return redirect(url_for(".searchtileset",message=message))
-        message = '{"oldsessionname":"'+oldsessionname+'"}'
-        return redirect(url_for(".editsession",message=message))
+        else:
+            logging.warning("Out of forms, add tilesets :"+str(myform.chosen_tileset.data))
+            thisTS=db.session.query(models.TileSet).filter_by(id=myform.chosen_tileset.data).one()
+            logging.warning("For user : "+session["username"]+", add tilesets :"+str(thisTS.name))
+            oldsession.tile_sets.append(thisTS)
+            db.session.commit()
+            message = '{"oldsessionname":"'+oldsessionname+'"}'
+            flash("Add tileSet {}.".format(thisTS.name))
+            return redirect(url_for(".editsession",message=message))
 
     return render_template("main_login.html", title="Old projects TiledViz", form=myform)
 
@@ -872,8 +939,7 @@ def addtileset():
         elif(myform.type_of_tiles.data == "CONNECTION"):
             #TODO: TVSecure Creation of the tiles and launch connection to remote machine.
             connectionbool=True
-            # Wait ? for connection ?
-        
+
         #print(session["sessionname"])
         conn_session=db.session.query(models.Session).filter_by(name=session["sessionname"]).one()
         creation_date=datetime.datetime.now()
@@ -892,11 +958,7 @@ def addtileset():
         
         # Insert tiles into DB :
         tiles=[]
-        #TODO We must add connection id in tiles"
-        id_connection=-1
-        if (connectionbool):
-            #id_connection=newtileset.connection.id
-            pass
+
         for i in range(nbr_of_tiles):
             Mynode=jsonTileSet["nodes"][i]
 
@@ -914,7 +976,6 @@ def addtileset():
                                   pos_px_y= pos_px_y,
                                   IdLocation=IdLocation,
                                   creation_date= creation_date)
-                                  # id_connections=id_connection,
             newtile.id=db.session.query(models.Tile.id).order_by(models.Tile.id.desc()).first().id+1
             db.session.add(newtile)
             db.session.commit()
@@ -926,21 +987,26 @@ def addtileset():
 
         session["is_client_active"]=True
 
-        message = '{"oldsessionname":"'+session["sessionname"]+'"}'
-        return redirect(url_for(".editsession",message=message))
+        if (connectionbool):
+            message = '{"oldtilesetid":'+str(newtileset.id)+',"oldsessionname":"'+session["sessionname"]+'"}'
+            return redirect(url_for(".addconnection",message=message))
+        else:        
+            message = '{"oldsessionname":"'+session["sessionname"]+'"}'
+            return redirect(url_for(".editsession",message=message))
     
     return render_template("main_login.html", title="New TileSet TiledViz", form=myform, message=message)
 
 
-# Copy and edit an old TileSet
-# Only copy old tiles and search for last (title, comment) in DB
+# Copy an old TileSet
+# Only copy old tiles in DB
 @app.route('/copytileset', methods=["GET", "POST"])
 def copytileset():
     message=json.loads(request.args["message"])
     logging.warning("copytileset : "+str(message))
     oldtilesetid=message["oldtilesetid"]
     oldtileset=db.session.query(models.TileSet).filter_by(id=oldtilesetid).one()
-    myform = BuildTilesSetForm(oldtileset)()
+
+    myform = BuildTilesSetForm(oldtileset,onlycopy=True)()
 
     flash("Tileset {} copy for user {} in session {}".format(oldtileset.name,session["username"],session["sessionname"]))
     if myform.validate_on_submit():
@@ -949,36 +1015,15 @@ def copytileset():
         if (myform.name.data == oldtileset.name):
             message = '{"oldtilsetid":"'+str(oldtilesetid)+'"}'
             flash("You must change tilsetname to copy tileset {}".format(oldtileset.name))
+            #return redirect(url_for(".copytileset",message=message))
             return render_template("main_login.html", title="Copy tileset TiledViz", form=myform, message=message)
 
-        # Detect how the data of tiles has been inserted :
-        # if json structure is inserted with testarea
-        json_tiles = myform.json_tiles_text.data
-        
-        # Translate json text in structure
-        jsonTileSet = json.loads(json_tiles)
-        nbr_of_tiles = len(jsonTileSet["nodes"])
-        logging.info("Number of tiles "+str(nbr_of_tiles))
-
-        # json_tiles_file = FileField("File json object for tileset ")
-        # json_file = open(json_file_name).read()
-    
-        # openports_between_tiles = FieldList(IntegerField("port :",validators=[Optional()]),description="Open port in visualisation network",min_entries=2,max_entries=5) 
-        # option_input_json_file = FileField(u'Json configuration input File', [wtforms.validators.regexp(u'json$')])
-        # script_launch_file = FileField(u'bash script to launch each tile')
-        
-        urlbool=False
-        connectionbool=False
-        if (myform.type_of_tiles.data == "PICTURE" or myform.type_of_tiles.data == "URL"):
-            urlbool=True
-        elif(myform.type_of_tiles.data == "CONNECTION"):
-            # Creation of the tiles and launch connection to remote machine.
-            connectionbool=True
+        nbr_of_tiles = len(oldtileset.tiles)
         
         sessioncopy=db.session.query(models.Session).filter_by(name=session["sessionname"]).one()
         creation_date=datetime.datetime.now()
         tilesetname=myform.name.data
-        newtileset, exist=create_newtileset(myform.name.data, sessioncopy, myform.type_of_tiles.data, myform.dataset_path.data, creation_date)
+        newtileset, exist=create_newtileset(myform.name.data, sessioncopy, oldtileset.type_of_tiles, oldtileset.Dataset_path, creation_date)
         if (not exist):
             try:
                 db.session.add(newtileset)
@@ -986,39 +1031,22 @@ def copytileset():
             except Exception:
                 traceback.print_exc(file=sys.stderr)
 
-                flash("TileSet creation with name {} problem :".format(tilesetname))    
+                flash("TileSet creation with name {} already exist :".format(tilesetname))    
                 return render_template("main_login.html", title="New TileSet TiledViz", form=myform, message=message)
 
 
         newtileset.tiles=[]
         for i in range(nbr_of_tiles):
-            Mynode=jsonTileSet["nodes"][i]
-
-            urlbool=False
-            datapath=""
-
-            title,name,comment,tags,variable,pos_px_x,pos_px_y,IdLocation,url,ConnectionPort = convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath)
-            
-            # search last tile with (title, comment) => in oldtileset ??
-            try:
-                oldtile=db.session.query(models.Tile).filter_by(title=title,comment=comment).order_by(models.Tile.id.desc()).first()
-                if (oldtile is not None):
-                    newtileset.tiles.append(oldtile)
-                    logging.warning(str(i)+" add tile "+str(oldtile.id))
-                else:
-                    message = '{"oldtilsetid":"'+str(oldtilesetid)+'"}'
-                    flash("You can't change tileset during copy for  {}".format(oldtileset.name))
-                    return render_template("main_login.html", title="Copy tileset TiledViz", form=myform, message=message)
-
-            except Exception:
-                traceback.print_exc(file=sys.stderr)
-                
-                logging.error("Tile not found "+str(Mynode["title"])+" "+str(Mynode["comment"])+" "+str(Mynode["tags"]))
-
+            oldtile=oldtileset.tiles[i]
+            newtileset.tiles.append(oldtile)
             db.session.commit()
 
-        
         session["is_client_active"]=True
+
+        # if (connectionbool):
+        #     #TODO: TVSecure Creation of the tiles and launch connection to remote machine.
+        #     # Wait ? for connection ?
+
         message = '{"oldsessionname":"'+session["sessionname"]+'"}'
         return redirect(url_for(".editsession",message=message))
             
@@ -1049,13 +1077,13 @@ def edittileset():
                 flash("Error from json editor. Please try again.")
                 return redirect(url_for(".edittileset",message=message))
         else:
-            myform = BuildTilesSetForm(oldtileset)()
+            myform = BuildTilesSetForm(oldtileset)() #,editconnection=True
     else:
         myform = BuildTilesSetForm(oldtileset)()
 
     flash("Tileset {} edit for user {} in session {}".format(oldtileset.name,session["username"],session["sessionname"]))
     if myform.validate_on_submit():
-        logging.info("in tileset")
+        logging.info("in tileset editor")
         
         # Detect how the data of tiles has been inserted :
         # if json structure is inserted with testarea
@@ -1147,7 +1175,7 @@ def edittileset():
                     # search with url ? (if comment has changed)
                     oldtile=db.session.query(models.Tile).filter_by(title=title,source={"name":name,"url":url,"connection":ConnectionPort,"variable":variable}).order_by(models.Tile.id.desc()).first()
                 oldtileid=oldtile.id
-                logging.warning(str(i)+" Modify old tile "+str(oldtileid))
+                logging.warning(str(i)+" update old tile "+str(oldtileid))
                 oldtile.tags=tags
                 oldtile.source= {"name" : name,
                                  "connection" : ConnectionPort,
@@ -1184,10 +1212,16 @@ def edittileset():
                 db.session.commit()
         
         session["is_client_active"]=True
+
+        # if (connectionbool):
+        #     #TODO: TVSecure Creation of the tiles and launch connection to remote machine.
+        #     # Wait ? for connection ?
+        #     message = '{"oldtilesetid":'+str(oldtileset.id)+',"oldsessionname":"'+session["sessionname"]+'"}'
+        #     return redirect(url_for(".editconnection",message=message))
+        # else:        
         message = '{"oldsessionname":"'+session["sessionname"]+'"}'
         return redirect(url_for(".editsession",message=message))
-        #return redirect("/grid")
-        
+
         # json_tiles_file = FileField("File json object for tileset ")
     # json_file = open(json_file_name).read()
     
@@ -1196,6 +1230,143 @@ def edittileset():
     # script_launch_file = FileField(u'bash script to launch each tile')
     
     return render_template("main_login.html", title="Edit TileSet TiledViz", form=myform, message=message)
+
+# New Connection
+def linkrandom(nbchar):
+    ALPHABET = "B6P8VbhZoGp9JYd0.uLCsAT4DX%F1xqIUSyQMniNgje5_~3crvlHR-7W2f!=kEtmazwKO$"
+    mystring=''.join(random.choice(ALPHABET) for i in range(nbchar)).encode('utf-8')
+    return mystring
+
+PORTVNC=54040
+
+# Build iframe with noVNC (in template/noVNC ?) inside a come-back html script to be abble to go back to addconnection with new message
+# Then kill connection link
+@app.route('/vncconnection', methods=['GET', 'POST'])
+def vncconnection():
+    if ( session["sessionname"] in  vnctransfert):
+        callfunction=json.loads(vnctransfert[session["sessionname"]]["callfunction"])
+        if ( request.method == 'POST'):
+            message=json.JSONEncoder().encode(callfunction["args"])
+            logging.debug("message after vncconnection.html :"+str(message))
+            return redirect(url_for("."+callfunction["function"],message=message))
+
+        return render_template("vncconnection.html",
+                               port=PORTVNC,
+                               id=vnctransfert[session["sessionname"]]["id"],
+                               vncpassword=vnctransfert[session["sessionname"]]["vncpassword"],
+                               flaskaddr="172.17.0.2")
+    # AFAIRE : changer flaskaddr ici !
+    
+# @app.route("/vncconnection/<link>")
+# @app.route("/vncconnection/<link>/<path:p>")
+# def _link(link,p=''):
+#     SITE_NAME = "localhost:/{0}".format(p)
+#     if (link == SecureConnectionKey[session["username"]]):
+#         return requests.get(f'{SITE_NAME}{path}').content
+
+
+@app.route('/addconnection', methods=["GET", "POST"])
+def addconnection():
+    myform = BuildConnectionsForm()()
+    print('message=',str(request.args["message"]))
+    message=json.loads(request.args["message"])
+    logging.debug("ConnectionForm built."+str(message))
+    if myform.validate_on_submit():
+        logging.info("in addconnection")
+        logging.info(str(session["username"])+" "+str(myform.host_address.data)+"  "+str(myform.auth_type.data)+"  "+str(myform.container.data))
+        
+        creation_date=datetime.datetime.now()
+        newConnection = models.Connection(host_address=myform.host_address.data,
+                                          auth_type=myform.auth_type.data,
+                                          container=myform.container.data,
+                                          scheduler=myform.scheduler.data,
+                                          scheduler_file=myform.scheduler_file.data,
+                                          id_users=db.session.query(models.User.id).filter_by(name=session["username"]).one(),
+                                          creation_date= creation_date)
+             
+        newConnection.id=db.session.query(models.Connection.id).order_by(models.Connection.id.desc()).first().id+1
+        db.session.add(newConnection)
+        db.session.commit()
+
+        logging.warning("addconnection: "
+                        +str(session["username"])+" ; "
+                        +str(myform.host_address.data)+" ; "
+                        +str(myform.auth_type.data)+" ; "
+                        +str(myform.container.data)+" ; "
+                        +str(myform.scheduler.data)+" ; "
+                        +str(newConnection.id))
+        
+        # We must add connection id in the tile_set
+        newtileset=db.session.query(models.TileSet).filter_by(id=message["oldtilesetid"]).one()
+        newtileset.id_connections=newConnection.id
+        db.session.commit()
+
+        # SecureConnectionKey[session["username"]]=str(linkrandom(10),'utf-8')
+        # logging.debug("SecureConnectionKey : "+str(SecureConnectionKey[session["username"]]))
+
+        #  Wait for TVSecure to get VNC view to put connection datas.
+        while(True):
+            # GET VNC password in 
+            passpath="/home/connect"+str(newConnection.id)+"/vncpassword"
+            logging.debug("Go to vnc with path "+passpath)
+            if (os.path.isfile(passpath)):
+                with open(passpath,'r') as f:
+                    vncpassword=re.sub(r'\n',r'',f.read())
+                f.close()
+                logging.debug("and password : "+vncpassword)
+
+                connection_config={}
+                vnctransfert[session["sessionname"]]={"callfunction": '{"function":"editsession",'+'"args":{"oldsessionname":"'+str(session["sessionname"])+'"}}',
+                                                      "id":newConnection.id,
+                                                      "vncpassword":vncpassword}
+                # vnctransfert[session["sessionname"]]={"callfunction": '{"function":"edittileset",'+'"args":{"oldtilesetid":"'+str(message["oldtilesetid"])+'"}}',
+                #                                       "id":newConnection.id,
+                #                                       "vncpassword":vncpassword}
+                return redirect(url_for(".vncconnection"))
+        
+            # # modify tileset with message["oldtilesetid"]
+            # message = '{"oldsessionname":"'+message["oldsessionname"]+'"}'
+            # #return redirect(url_for("secure/"+SecureConnectionKey[session["username"]],message=message))
+            # return render_template("main_login.html", title="Edit Connection TiledViz", form=myform, message=message)
+
+    return render_template("main_login.html", title="Add new Connection TiledViz", form=myform, message=message)
+
+# Edit old Connection related to a tileset
+@app.route('/editconnection', methods=["GET", "POST"])
+def editconnection():
+    logging.warning('message='+str(request.args["message"]))
+    message=json.loads(request.args["message"])
+    
+    myform = BuildConnectionsForm(oldtileset)()
+    logging.debug("ConnectionForm built."+str(message))
+    if myform.validate_on_submit():
+        logging.info("in editconnection")
+        logging.info(str(myform.host_address.data)+"  "+str(myform.auth_type.data)+"  "+str(myform.container.data))
+        
+        creation_date=datetime.datetime.now()
+        newConnection = models.Connection(host_address=myform.host_address.data,
+                          auth_type=myform.auth_type.data,
+                          container=myform.container.data,
+                          id_users=db.session.query(models.User.id).filter_by(name=session["username"]).one(),
+                          creation_date= creation_date)
+        newConnection.id=db.session.query(models.Connection.id).order_by(models.Connection.id.desc()).first().id+1
+        db.session.add(newConnection)
+        db.session.commit()
+        
+        # We must add connection id in the tile_set
+        newtileset=db.session.query(models.TileSet).filter_by(id=message["oldtilesetid"]).one()
+        newtileset.id_connection=newConnection.id
+        db.session.commit()
+
+        # TODO :
+        #  Test connection type dans launch a form dedicated.
+        #  Wait for TVSecure to get VNC view to put connection datas.
+                        
+        # modify tileset with message["oldtilesetid"]
+        message = '{"oldsessionname":"'+message["oldsessionname"]+'"}'
+        return redirect(url_for(".editsession",message=message))
+
+    return render_template("main_login.html", title="Edit Connection TiledViz", form=myform, message=message)
 
 # Call json editor on a structure           
 # TODO : no more GET method to test ?
@@ -1212,16 +1383,14 @@ def jsoneditor():
     logging.debug("jsoneditor : "+str(callfunction))
     if ( request.method == 'POST'):
         message=callfunction["args"]
-        # print("message before redirect :",str(message))
-        #print("request ",request.form.get("submit"))
         TheJson=json.loads(request.form.get("submit"))
         OutJson=json.dumps(TheJson).replace("'", '"')
-        #print("message OutJson :",OutJson)
+        #logging.debug("jsoneditor OutJson :"+OutJson)
         jsontransfert[session["sessionname"]]={"TheJson":TheJson}
         # message["TheJson"]=str(base64.b64encode(gzip.compress(OutJson.encode('utf-8'))))
-        #print("message json :",message)
         message=json.dumps(message) #.replace("'", '"')
-        #print("message str :",message)
+        #logging.debug("jsoneditor message :"+str(message))
+
         return redirect(url_for("."+callfunction["function"],message=message))
     return render_template("jsoneditor.html",TheJson=TheJson)
 
@@ -1229,7 +1398,7 @@ def jsoneditor():
 # Grid/main page
 @app.route('/grid', methods=['GET', 'POST'])
 def show_grid():
-    #user = "Anonymous", project = "test", psession = "stest", is_client_active = True
+
     global is_client_active
     #logging.debug("Enter in show_grid: with session "+str(session))
     if (not 'is_client_active' in session):
@@ -1352,6 +1521,7 @@ def show_grid():
                            title="TiledViz on "+project,
                            project=project, 
                            session=psession,
+                           description=str(ThisSession.description),
                            json_geom=psgeom,
                            participants=part_nbr,
                            is_client_active=is_client_active,
@@ -1362,9 +1532,17 @@ def show_grid():
 @socketio.on("save_Session")
 def saveSession(cdata):
     croom=cdata["room"]
-    logging.warning("[->] saveSession " + str(cdata["NewSuffix"]) + " in room " + str(croom))
+    logging.warning("[->] saveSession \"" + str(cdata["NewSuffix"]) + "\" with description \"" + str(cdata["NewDescription"]) + "\" in room " + str(croom))
     alltilesjson=json.loads(cdata["Session"].replace("'", '"'));
-    save_session(str(session["sessionname"]),str(cdata["NewSuffix"]),alltilesjson)
+    save_session(str(session["sessionname"]),str(cdata["NewSuffix"]),str(cdata["NewDescription"]),alltilesjson)
+
+@socketio.on("share_Selection")
+def shareSelection(cdata):
+    croom=cdata["room"]
+    listSelectionIds=json.loads(cdata["Selection"]);
+    logging.warning("[->] shareSelection " + str(len(listSelectionIds)) + " nodes in room " + str(croom))
+    sdata = {"Selection":cdata["Selection"]}
+    socketio.emit('receive_deploy_Selection', sdata,room=croom)
 
 @socketio.on("deploy_Session")
 def deploySession(cdata):
@@ -1619,3 +1797,29 @@ def handle_join_with_invite_link(link):
 @app.route('/404')
 def not_found():
     return "please try again"
+
+# Proxy VNC
+# Thank's to https://stackoverflow.com/posts/36601467/revisions
+@app.route('/<path:dummy>')
+def routevnc(dummy=None):
+    logging.warning("request : "+str(request))
+    logging.warning("routevnc : method "+str(request.method)+" header"+str(request.headers)+" args "+str(request.args))
+    VNCurl="http://127.0.0.1/noVNC/"
+    logging.warning("routevnc Connect with url : "+VNCurl+dummy)
+
+    logging.warning(dummy+" header :"+str(request.headers))
+    resp = requests.request(
+        method=request.method,
+        url=request.url.replace(request.host_url, VNCurl),
+        headers={key: value for (key, value) in request.headers if key != 'Host'},
+        data=request.get_data(),
+        cookies=request.cookies,
+        allow_redirects=False)
+    
+    excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+    headers = [(name, value) for (name, value) in resp.raw.headers.items()
+               if name.lower() not in excluded_headers]
+    
+    response = Response(resp.content, resp.status_code, headers)
+    return response
+

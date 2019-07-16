@@ -30,18 +30,38 @@
 
 */
 $(document).ready(    function (){
-    Menu = function(id,htmlSupport,menuEventTab_,menuIconClassAttributesTab_,menuShareEvent_,parameters)  { 
+    Menu = function(id,htmlSupport,menuTitleTab_,menuEventTab_,menuIconClassAttributesTab_,menuShareEvent_,parameters)  { 
 
 	    var id=id;
 	    var menuEventTab = menuEventTab_;
 	    var numOfEvents = menuEventTab.length;
 	    var menuShareEvent = menuShareEvent_;
 	    var eventSelectedTab= new Array();
+
+	    this.getId = function() {
+	       return id;
+	    };
 	
 	    this.getEventSelectedTab = function(){
 	    
 		return eventSelectedTab;
 	    };
+
+	    this.getMenuIconClassAttributesTab = function(){
+	    
+		return menuIconClassAttributesTab_;
+	    };
+		
+	    this.getMenuShareEvent = function(){
+	    
+		return menuShareEvent;
+	    };
+		
+	    this.setMenuShareEvent = function(option_, menuShareEvent_){
+	    
+		menuShareEvent[option_] = menuShareEvent_;
+	    };
+	
 
 	    if(typeof parameters == 'undefined'){
 
@@ -58,6 +78,7 @@ $(document).ready(    function (){
 		    width : 100,
 		    margin : "0px 0px 0px 0px", 
 		    rightMargin : 0, 
+		    backgroundColor: "rgba(0, 0, 0, 0.0)",
 		    //borderStyle : "solid",
 		    //borderSize : "20px",
 		    //borderColor : "blue",
@@ -76,6 +97,7 @@ $(document).ready(    function (){
 	    var height_=parameters.height;
 	    var width_=parameters.width;
 	    var src_unselect = "unselectdefault100";
+	    var backgroundColor_ = parameters.backgroundColor;
 	    var borderStyle_ = parameters.borderStyle;
 	    var borderWidth_ = parameters.borderWidth;
 	    var borderColor_ = parameters.borderColor;
@@ -91,11 +113,11 @@ $(document).ready(    function (){
 	    var touchspeed = configBehaviour.touchSpeed; // speed of touch move;
 
 	    if (orientation_ == "V")  { 
-		var H = false;
-		var V = true;
+		var H = 0;
+		var V = 1;
 	    } else { 
-		var H = true;
-		var V = false;
+		var H = 1;
+		var V = 0;
 	    }
 
 	    this.buildHtmlMenu = function(){	    
@@ -124,8 +146,8 @@ $(document).ready(    function (){
 
 		for(optionNumber=0;optionNumber<numOfEvents;optionNumber++)  { 	
 		    eventSelectedTab.push(false);
-		    myMenu.append('<div id=option'+optionNumber+' class=optionfrom'+id+' ></div>');
-		    var Option=$('#menu'+id+'>#option'+optionNumber);
+		    myMenu.append('<div id='+id+'option'+optionNumber+' class=optionfrom'+id+' title="'+menuTitleTab_[optionNumber]+'" ></div>');
+		    var Option=$('#'+id+'option'+optionNumber);
 		
 		    Option.addClass(menuIconClassAttributesTab_[optionNumber]).addClass(myMenu.attr("class")+"Button");
 
@@ -137,14 +159,39 @@ $(document).ready(    function (){
 				width : width_,
 				//backgroundColor : 'red'  ,
 				zIndex: 130,
+			        backgroundColor: backgroundColor_,
 				//borderStyle : borderStyle_,
-				//borderWidth: borderWidth_,
+			//borderWidth: borderWidth_,
 				//borderColor : borderColor_,
 		    
 				});
 
-		
-		    $('#menu'+id+'>#option'+optionNumber).on({
+
+		    Option.on('mouseover',function() {
+			if (configBehaviour.tooltip) {
+		    	$(this).append('<div id=tooltip class="tooltipfrom'+id
+		    		       +' fg-tooltip ui-widget ui-widget-content ui-corner-all" style="font-size: 40px"></div>');
+		    	var tooltip=$('#tooltip');
+		    	tooltip.html($(this).attr("title"));
+			$(this).attr("title","");
+		    	if (orientation_ == "V") {
+		    	    tooltip.append('<div class="fg-tooltip-pointer-down ui-widget-content"><div class="fg-tooltip-pointer-down-inner"></div></div></div>');
+			    tooltip.css("top","-180px");
+		    	} else { 
+		    	    tooltip.append('<div class="fg-tooltip-pointer-up ui-widget-content"><div class="fg-tooltip-pointer-down-inner"></div></div></div>');
+			    tooltip.css("top","240px");
+		    	}
+		    	tooltip.fadeIn('500');
+		    	tooltip.fadeTo('10',10);
+			}
+		    }).on('mouseout',function() {
+			if (configBehaviour.tooltip) {
+			$(this).attr("title",$(this).children('div#tooltip').text());
+		    	$(this).children('div#tooltip').remove();
+			}
+		    })
+
+		    $('#'+id+'option'+optionNumber).on({
 		    
 			    mouseleave : function(e){
 			
@@ -164,11 +211,11 @@ $(document).ready(    function (){
 		    
 				click : function(e){
 			
-				var optionNumber = parseInt(this.id.replace('option',''));	
-				var id = parseInt(this.className.replace('optionfrom',''));	
+				    var optionNumber = parseInt(this.id.replace(this.parentNode.id.replace("menu","")+'option',''));	
+				    var id = this.className.match(/optionfrom\w+/g)[0].replace('optionfrom','');
 
 			
-				if (menuShareEvent[optionNumber] && ! $('#menu'+id+'>#option'+optionNumber).hasClass("NotSharedAgain")) {
+				if (menuShareEvent[optionNumber] && ! $('#'+id+'option'+optionNumber).hasClass("NotSharedAgain")) {
 				    cdata={"room":my_session,"Menu":id,"optionNumber":optionNumber,"optionButton":menuIconClassAttributesTab_[optionNumber]};
 				    socket.emit("click_Menu", cdata, function(sdata){
  					console.log("socket send Menu ", cdata);				
@@ -226,12 +273,20 @@ $(document).ready(    function (){
 		    myMenu.append('<div id=MenuBox'+id+'></div>');
 		    var MenuBox=$('#MenuBox'+id);
 		    MenuBox.append('<div id=handleMenu'+id+' class=menu-handle-off ></div>');
+		    if (orientation_ == "V")  {
+			var MenuBoxWidth=width_;
+			var MenuBoxHeight=HandleDecalTop;
+		    } else { 
+			var MenuBoxWidth=HandleDecalLeft;
+			var MenuBoxHeight=height_;
+		    }
+
 		    MenuBox.css({
 			    position :'absolute',
 			    top : 0,
 			    left : 0,
-			    height : HandleDecalTop,
-			    width : width_,
+			    height : MenuBoxHeight,
+			    width : MenuBoxWidth,
 			    //backgroundColor : 'red'  ,
 			    zIndex: 130,
 			    //borderStyle : borderStyle_,
@@ -378,7 +433,7 @@ $(document).ready(    function (){
 			    click : function(e){
 				if (DropDownState) {
 				    for(optionNumber=0;optionNumber<numOfEvents;optionNumber++)  { 	
-					var Option=$('#menu'+id+'>#option'+optionNumber);
+					var Option=$('#'+id+'option'+optionNumber);
 					Option.hide();
 				    }
 				    DropDownState=false;
@@ -389,7 +444,7 @@ $(document).ready(    function (){
 				    }
 				} else {
 				    for(optionNumber=0;optionNumber<numOfEvents;optionNumber++)  { 	
-					var Option=$('#menu'+id+'>#option'+optionNumber);
+					var Option=$('#'+id+'option'+optionNumber);
 					Option.show();
 				    }
 				    DropDownState=true;

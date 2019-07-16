@@ -146,7 +146,8 @@ $(document).ready( function(){
        #009 Set the lateral gap between two nodes
        #010 Set the vertical gap between two nodes
        #011 Size of the target zone for drag and drop
-       #013 When you choose an option, other options are automtically disabled
+       #012 Bool to show the zoom slider for primary section (table of tiles)
+       #013 When you choose an option, other options are automatically disabled
     */	
 
     //Global variables
@@ -232,11 +233,24 @@ $(document).ready( function(){
     gapBetweenLines = configBehaviour.spaceBetweenLines;
 
     //#011 size of the targetZone for drag and drop 
-    //Must be ( targetSize > 2) strict inequality is very important | the target  a targetSize value close to 2 means : the size of the drop zone is equal to the size of an node 
-    //The target zone is a rectangle centered on top-left of the target node
+    //Must be ( targetSize > 2) strict inequality is very important | the target  a targetSize value close to 2 means : the size of the drop zone is equal to the size of an node
+    //The target zone is a rectangle centered on top-left of the target node.
+    // See Mesh -> RealdropNode function.
     targetSize = configBehaviour.targetSize;
+
+    //#012 Bool to show the zoom slider for primary section (table of tiles) :
+    // WARNING : set this to True can give serious disfunctions when moving tiles.
+    primaryZoomSlider = configBehaviour.primaryZoomSlider;    
+
     //#013
     only_one_option = configBehaviour.onlyOneOption;
+
+    // Initial zoom for grid :
+    if ( primaryZoomSlider ) {
+	$('#primarySliderLabel').show();
+	$('#primarySlider').show();
+	$('#primarySlider').click();
+    } else configBehaviour.primaryZoomSlider=false;
     
     // MODAL	
     is_new_client_active = true // DEFAULT behavior
@@ -300,7 +314,7 @@ $(document).ready( function(){
 	} else {
 	    var thisoption=$('#menu'+sdata.Menu+'>.close'+sdata.optionButton);
 	}
-	//$('#menu'+sdata.Menu+'>#option'+sdata.optionNumber);
+	//$('#'+sdata.Menu+'option'+sdata.optionNumber);
 	var listClass=thisoption.attr("class").split(" ");
 	if ( listClass.find(function(s) {return s.toLowerCase().indexOf(sdata.optionButton.toLowerCase()) != -1 }) != undefined) {
 	    thisoption.addClass("NotSharedAgain");
@@ -309,7 +323,7 @@ $(document).ready( function(){
 	} else {
 	    var numOfEvents=$('#menu'+sdata.Menu).children().length;
 	    for(var optionNumber=0; optionNumber<numOfEvents; optionNumber++)  {
-		thisoption=$('#menu'+sdata.Menu+'>#option'+optionNumber);
+		thisoption=$('#'+sdata.Menu+'option'+optionNumber);
 		listClass=thisoption.attr("class").split(" ");
 		if (listClass.find(function(s) {return s.toLowerCase().indexOf(sdata.optionButton.toLowerCase()) != -1 }) != undefined) {
 		    thisoption.addClass("NotSharedAgain");

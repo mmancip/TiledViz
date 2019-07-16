@@ -103,6 +103,7 @@ class TestTemplate(unittest.TestCase):
         thedriver=self.driver
         finddriver=self.finddriver
         try:
+            time.sleep(Nsec)
             thedriver.get(self.URL)
 
             button=finddriver.find_element_by_xpath("//button[@name='buttonLogin']")

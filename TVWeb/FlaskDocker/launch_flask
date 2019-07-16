@@ -16,6 +16,7 @@ pwd
 export LC_ALL=C.UTF-8
 export LANG=C.UTF-8
 export FLASK_APP=TVWeb.py
+#export FLASK_ENV=development
 
 echo $LC_ALL $LANG $FLASK_APP
 flask run --debugger --host=0.0.0.0

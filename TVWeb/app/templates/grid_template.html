@@ -22,6 +22,7 @@
     my_user    = "{{ user }}";
     my_project = "{{ project }}";
     my_session = "{{ session }}";
+    my_description = "{{ description }}";
     my_geometry = {{ json_geom|safe }};
     json_data = {{ json_data|safe }};
     json_config = {{ json_config|safe }};
@@ -71,7 +72,7 @@
 <div class="main-legend-zone">
 	<div class="legend-zone" id="legend"><h1>Working on {{ session }}</h1> 
 	</div>
-	<div class="notif-zone" id="notifications">Test notifications
+	<div class="notif-zone" id="notifications" style="font-size: 40px">Test notifications
 	</div>
 	<form id="gotoGrid" action="/grid" method="post">
 	  <input type="text" id="gGnewroom" name="new room" value="{{ session }}">
@@ -79,18 +80,18 @@
 	</form>
 	{% if is_client_active %}
 	<div id="home">
-	  <a class="btn btn-large btn-info" href="/">Home</a>
+	  <a class="btn btn-large btn-info" href="/" style="font-size: 40px">Home</a>
 	</div>
 	<div id="allsessions">
-	  <a class="btn btn-large btn-info" href="/allsessions">Sessions</a>
+	  <a class="btn btn-large btn-info " href="/allsessions" style="font-size: 40px">Sessions</a>
 	</div>
 	<div id="editsession">
-	  <a class="btn btn-large btn-info" href="/editsession?message=%7B&quot;oldsessionname&quot;%3A&quot;{{ session }}&quot;%7D">Editsession</a>
+	  <a class="btn btn-large btn-info" href="/editsession?message=%7B&quot;oldsessionname&quot;%3A&quot;{{ session }}&quot;%7D" style="font-size: 40px">Editsession</a>
 	</div>
 	<div class="join-zone" id="join">
-		<span id="join-clients"></span><!--participants (ie, their number) will be inserted
+		<span id="join-clients" style="font-size: 30px"></span><!--participants (ie, their number) will be inserted
 		through JS events and websocket to adapt with new clients-->
-		<button type="button" class="btn btn-info" data-toggle="modal" data-target="#inviteModal">
+		<button type="button" class="btn btn-info" data-toggle="modal" data-target="#inviteModal" style="font-size: 40px">
 		Invite others ?<i class="fas fa-user-plus"></i>
 		</button>
 	</div>
@@ -178,6 +179,67 @@
 	  src="{{ url_for('static', filename=helpPath) }}" height="50%" width="20%"></iframe>
   <script type="text/javascript">
   $('#helpSupport').append($('#helpframe'));
+  </script>
+  <script type="text/javascript">
+    $('.main-legend-zone').append("<div id=primarySliderLabel "+
+				  "style='background-image: none; color: white; background-color: black; font-size: 80px; padding: 20px; padding-top: 5px; padding-bottom: 5px;'>"+
+                                  "Primary Zoom</div>");
+    $('#primarySliderLabel').css({
+	position: "fixed",
+	fontSize : "60px",
+	left : parseInt($('#gGsubmit').position().left),
+	top: 10+parseInt($('#gGsubmit').css("height")),
+	//color: "white",
+	zIndex: 802,
+	padding: "0px 20px",
+	width : "600px",
+	height : "100px",
+	backgroundColor: "rgba(0, 0, 0, 0.5)"
+    });
+    
+    $('#primarySliderLabel').append("<input id=primarySlider type='range' name=primarySlider "+
+				    "min="+window.devicePixelRatio*50+" max="+8*window.devicePixelRatio*100+" value= " + 100 + ">");
+
+    $('#primarySlider').css({
+	position : "fixed",
+	top: parseInt($('#primarySliderLabel').css("top"))+parseInt($('#primarySliderLabel').css("height"))/2,
+	width: parseInt($('header').css("width")) - (parseInt($('#primarySliderLabel').css("left"))+parseInt($('#primarySliderLabel').css("width"))),
+	//padding : parseInt($('#primarySliderLabel').css("height"))/2,
+    });
+
+    $('#primarySlider').change(function () {
+	var val = ($(this).val() - $(this).attr('min')) / ($(this).attr('max') - $(this).attr('min'));
+	
+	$(this).css('background-image',
+		    '-webkit-gradient(linear, left top, right top, '
+		    + 'color-stop(' + val + ', rgb(255, 0, 0)), '
+		    + 'color-stop(' + val + ', rgb(0, 255, 0))'
+		    + ')'
+		   );
+    });
+
+    var valPrimary = ($("#primarySlider").val() - $("#primarySlider").attr('min')) / ($("#primarySlider").attr('max') - $("#primarySlider").attr('min'));
+    $('#primarySlider').css('background-image',
+			    '-webkit-gradient(linear, left top, right top, '
+			    + 'color-stop(' + valPrimary + ', rgb(255, 0, 0)), '
+			    + 'color-stop(' + valPrimary + ', rgb(0, 255, 0))'
+			    + ')'
+			   );
+
+    $('#primarySlider').off("click").on({
+	click : function(e){
+	    var newZoom = $('#primarySlider').val();
+            if (Math.abs(newZoom - 100) < 6) newZoom=100;
+
+            var ratio = newZoom/100;
+	    $('#primaryparent').css("-moz-transform","scale("+ratio+")").css("-webkit-transform","scale("+ratio+")").css("transform-origin", "0 0 0");
+            //style="transform: scale(1);transform-origin: 0px 0px 0px;"
+	}
+    });
+
+    $('#primarySliderLabel').hide();
+    $('#primarySlider').hide();
+
   </script>
   {% endif %}
 

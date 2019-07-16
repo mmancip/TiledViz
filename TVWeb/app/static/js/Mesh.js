@@ -1,4 +1,3 @@
-
 	/** Mesh Class 
 	    This object will manage all the nodes
 	    The mesh here is a grid but it's possible to modify (add options)
@@ -12,6 +11,27 @@
 	*/
 
 $(document).ready(    function (){
+
+    addBlink=function(myButton) {
+	if (typeof(myButton.addClass) == "undefined") {
+	    $('#'+myButton.id).addClass('BlinkIcon');
+	} else { 
+	    myButton.addClass('BlinkIcon');
+	}
+
+	myButtonUnBlink=function(myButton) {
+	    if (typeof(myButton.removeClass) == "undefined") {
+		$('#'+myButton.id).removeClass('BlinkIcon');
+		var theId=myButton.id;
+	    } else { 
+		myButton.removeClass('BlinkIcon');
+		var theId=myButton.prop('id');
+	    }
+	    //console.log("myButtonUnBlink",theId);
+	}
+	setTimeout(myButtonUnBlink,2000,myButton);
+    };
+    
 Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
     $('#legend').html("<h1>Working on "+my_session+"</h1> <h2>Number of nodes : "+cardinal.toString()+"</h2>");
@@ -67,10 +87,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     var HideNodeTagFlag=false; // Flag indicated the use of HideTag menu to hide nodes with selected tag in tagMenu.
 
     var KillNodeTagFlag=false; // Flag indicated the use of KillTag menu to suppress nodes with selected tag in tagMenu.
-
+    var SelectionNodeToTagFlag=false; // Flag indicated the use of SelectionNodeToTag menu to add tag for nodes in selection.
     var PaletteNodeTagFlag=false; // Flag indicated the use of ChoosingColor menu to change tag color with selected tag in tagMenu.
 
-    var TagHeight=0; // tag-legend zone height
+    TagHeight=0; // tag-legend zone height
     
     // Getter and setter for zoomSelection
     this.getZoomSelection = function(){
@@ -139,6 +159,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	hideNodeTags = bool;
     };
 
+    // Add Opacity sliders zone
+    $('header').append("<div id=OpacityZone ></div>")
+    
     // Getter and setter for the transparency
     this.getTransparent = function(){
 	return transparentNode;
@@ -197,7 +220,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 				+ 'color-stop(' + val + ', rgb(255, 0, 0)), '
 				+ 'color-stop(' + val + ', rgb(0, 255, 0))'
 				+ ')'
-				);
+			       );
 		});
 
 	} else { 
@@ -329,11 +352,11 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	// Size of the support for the zoomed node
 	var initScale_ = initScale || false;
 	if (initScale_) {
-	    var supportW = parseInt(window.innerWidth*initScale_)-100;
+	    var supportW = parseInt(window.innerWidth*initScale_)-90;
 	    var supportH = parseInt(ratio*(parseInt(window.innerWidth*initScale_)-500));
 	    var Zscale=initScale_;
 	} else {
-	    var supportW = parseInt(window.innerWidth)-100;
+	    var supportW = parseInt(window.innerWidth)-90;
 	    var supportH = parseInt(ratio*(parseInt(window.innerWidth)-500));
 	    var Zscale=1;
 	}
@@ -356,7 +379,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			height : "100%",
 			width : "100%",
 			backgroundColor : "black",
-			opacity : "0.7",
+			opacity : "0.9",
 			zIndex : 200,
 			});
 	    $("#superSail").off('touchstart');
@@ -364,13 +387,13 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    $("#superSail").off('touchend');
 	    $('#superSail').append('<div id=buttonUnzoom class=unzoomButtonIcon></div>');
 	    $('#buttonUnzoom').css({	// GLOBALCSS !					
-		position : "relative", 
+		position : "fixed", 
 		top : 0 ,
 		left : parseInt($(me.menu.getHtmlMenuSelector()).css("width")),
 		height : 200,
 		width : 200,
 		zIndex : 802,	
-		backgroundColor: "rgba(0, 0, 0, 0.5)"
+		backgroundColor: "rgba(0, 0, 0, 0.95)"
 	    });
 
 
@@ -380,6 +403,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		nodes[O].setLoadedStatus(false);
 	    }
 
+	    // Additionnal space between columns
+	    shiftcol=105
 
 	    // Definition of the support $(#zoomSupport) for the node
 	    // (only the first time, then it will be hidden and shown again)
@@ -390,9 +415,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			position: "fixed",
 			    //top: (parseInt(window.innerHeight)-ratio*(parseInt(window.innerWidth)-500))/2,
 		    top:Math.max(450,TagHeight+240),
-			    left: 20,
+			    left: -shiftcol-50,
 			    marginTop: "0",
-			    width: supportW,
+			    width: supportW*1.03,
 			    height: "98%",
 			    backgroundColor : "grey",
 			    opacity : "1.",
@@ -479,7 +504,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		thiszoom.css({ // GLOBALCSS !
 			position : 'absolute',
 		    	    top : shifttop(e),
-		            left : shiftleft(e)+110,
+		            left : shiftleft(e)+shiftcol,
 			    height : H,
 			    width : W,
 			    backgroundColor : "black",
@@ -582,9 +607,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		Zsticker.css('-webkit-transform','scale('+Zscale/2+')').css('-moz-transform','scale('+Zscale/2+')');
 		Zsticker.css({
 		    left: spread.X*Zscale+80,
-		    top: parseInt(Zclose.css("height"))+10,
+		    top: (parseInt(Zclose.css("top"))+
+			  parseInt(Zclose.css("height")))*Zscale,
 		    position: "absolute",
-		    display: "block"});
+		    display: "block",
+		    zIndex:999		  
+		});
 		Zsticker.children('.sticker').on({
 		    click : ZclickSticker
 		});
@@ -596,7 +624,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	zoomValue = zoomValue.replace("matrix(", "").replace(")", "").split(",")[0];
 	//console.log("zoom value", zoomValue);
 	$('#superSail').append("<div id=zoom-slider-label>Zoom level</div>")
-	.append("<input id=zoomSlider name=zoomSlider type=range min="+zoomValue/2+" max="+4*zoomValue+" step=0.1 value="+zoomValue+" oninput='zoom.value=zoomSlider.value.toString()'>")
+	.append("<input id=zoomSlider name=zoomSlider type=range min="+zoomValue/2+" max="+2*zoomValue+" step=0.01 value="+zoomValue+" oninput='zoom.value=zoomSlider.value.toString()'>")
 	.append("<output name=zoom id=zoom for=zoomSlider>"+zoomValue+"</output>");
 
 	$('#zoomSlider').change(function () {
@@ -610,18 +638,19 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			    );
 	    });
 	$('#zoom-slider-label').css({
-		position : "absolute",
+		position : "fixed",
 		    fontSize : "150px",
 		    top :0,
 		    left : "50%",
 		    color : "white",
-		    backgroundColor: "rgba(0, 0, 0, 0.5)"
+		    backgroundColor: "rgba(0, 0, 0, 1)"
 		    });
 	$('#zoomSlider').css({
-		position : "absolute",
+		position : "fixed",
 		    top : parseInt($('#buttonUnzoom').css("height")),
 		    left : "60%",
-		    width : 30/100 * parseInt($('header').css("width"))
+	            width : 30/100 * parseInt($('header').css("width")),
+		    backgroundColor: "rgba(0, 0, 0, 1)"
 		    });
 	var val = (zoomValue - $('#zoomSlider').attr('min')) / ($('#zoomSlider').attr('max') - $('#zoomSlider').attr('min'));
 			
@@ -639,9 +668,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    color: "white",
 		    zIndex: 802,
 		    padding: "0px 50px",
-		    backgroundColor: "rgba(0, 0, 0, 0.5)"
+		    backgroundColor: "black"
 		    });
-	$('#zoom').css('background-image','none');
+	//$('#zoom').css('background-image','none');
 
 	$('#zoomSlider').on({
 		click : function(e){
@@ -672,6 +701,96 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     };
 
 
+    
+    var moveMesh = function(direction)  { 
+	numOfLines = Math.floor(nodeCardinal / numOfColumns);
+	numOfLines = Math.min(numOfLines, nodeCardinal);
+
+	for (var i=0;i<(numOfLines-1);i++)  { 
+	    //console.log(i, numOfLines);
+	    if (direction == "up")  { 
+		//console.log("going up", i);
+		var firstLine = i;
+		var secondLine = i+1 == numOfLines ? 0 : i+1;
+	    }
+	    else if (direction == "down")  { 
+		//console.log("going down", i);
+		var firstLine = numOfLines - 1 - i;
+		var secondLine = numOfLines - 2 - i;
+	    }
+
+	    var firstLineTab = new Array();
+	    var secondLineTab = new Array();
+
+	    for (O in me.getNodes2())  { 
+		if (me.mlocationProvider(me.getNodes2()[O].getIdLocation()).getnY() == firstLine )  { 
+		    firstLineTab.push(me.getNodes2()[O]);
+		}
+		else if (me.mlocationProvider(me.getNodes2()[O].getIdLocation()).getnY() == secondLine )  { 
+		    secondLineTab.push(me.getNodes2()[O]);
+		}
+	    }
+	    for (var j=0; j<Math.max(firstLineTab.length, secondLineTab.length);j++)  { 
+		var tmpBoolBlockMove = j == 0 ? false : true; 
+		if(typeof firstLineTab[j]!= "undefined" && typeof secondLineTab[j]!= "undefined" )  { 
+		    me.switchLocation(firstLineTab[j],secondLineTab[j],configBehaviour.showAnimationsLineColSwap, true, tmpBoolBlockMove);
+		}
+	    }
+
+	}
+    };
+
+    // Refresh nodes function
+    
+    var refreshNodes = function (node) {
+
+	// check if optionnal argument node is present (node can be "0" == false in javascript)
+	var hasNoNode=false
+	if (typeof(node) == "undefined")
+ 	    hasNoNode = true
+
+	//console.log("test refresh");
+
+	if (hasNoNode) {// ie no node specified -> refresh all nodes
+	    var nodes = me.getNodes();
+	    for (O in nodes) {
+		me.unsetDraggable(nodes[O].getId(), false, false);
+	    }
+	    Onnodes = $('.On').parent().parent().children('iframe');
+	    var oldSrc=[]
+	    for (node in Onnodes) {
+		if (node != "prevObject" && typeof Onnodes[node] == "object") {
+		    oldSrc.push(Onnodes[node].getAttribute("src"));
+		    Onnodes[node].setAttribute("src","")
+		    Onnodes[node].setAttribute("src",oldSrc[node]);
+		}
+	    }
+	    // for (node in Onnodes) {
+	    // 	if (node != "prevObject" && typeof Onnodes[node] == "object") {
+	    // 	    Onnodes[node].setAttribute("src",oldSrc[node]);
+	    // 	}
+	    // }
+	} else {
+	    me.unsetDraggable(node); 
+	} 
+
+	_allowDragAndDrop = true; // Go back to normal behaviour
+	$('.handle').addClass("drag-handle-on");
+    };
+
+    socket.on('receive_deploy_Selection', function(sdata){
+     	console.log("receive_deploy_Selection",sdata);
+	var listSelectionIds = eval(sdata["Selection"]);
+	for (O in listSelectionIds) {
+	    var HB = $('#hitbox' + listSelectionIds[O]);
+	    var node = nodes["node"+listSelectionIds[O]];
+	    node.updateSelectedStatus(true); 
+	    me.addNodeToZoom(node); 
+	    HB.css({backgroundColor : colorHBtoZoom});
+	}
+    });
+
+    
     /**	Here is created a tab menuEventTab related to the parameters menuEventTab_ of the Menu constructor (see below)
 
 
@@ -711,56 +830,285 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
      * - Remove all tags
      */
 
+    var tagMenuTitleTab = new Array();
     var tagMenuEventTab = new Array();
     var tagMenuIconClassAttributesTab = new Array();
     var tagMenuShareEvent = new Array();
 
-    // Select similarly tagged nodes for zoom or MS.
-    tagMenuEventTab.push(    function(v, id, optionNumber){
-	    if(v==true)  { 
-		//console.log("selecting tags");
-		me.setSelectingTags(true);
-		$('#menu'+id+'>#option'+optionNumber).removeClass('selectTagButtonIcon').addClass('closeSelectTagButtonIcon');
-	    } else { 
-		//console.log("end selecting tag");
-		me.setSelectingTags(false);
-		$('#menu'+id+'>#option'+optionNumber).removeClass('closeSelectTagButtonIcon').addClass('selectTagButtonIcon');
+    var tagManagementMenuTitleTab = new Array();
+    var tagManagementMenuEventTab = new Array();
+    var tagManagementMenuIconClassAttributesTab = new Array();
+    var tagManagementMenuShareEvent = new Array();
+
+    var tagSelectionMenuTitleTab = new Array();
+    var tagSelectionMenuEventTab = new Array();
+    var tagSelectionMenuIconClassAttributesTab = new Array();
+    var tagSelectionMenuShareEvent = new Array();
+
+    // User interaction
+    // Tags	
+    clickTagInLegend = function(){
+	if (! PaletteNodeTagFlag)
+	    if (emit_click("tag",this.id))
+		return
+	var nodes = me.getNodes2();
+	if(me.getRemovingTag())  { 
+	    var tagToRemove = document.getElementById(this.id);
+	    for(O in nodes)  { 
+		nodes[O].removeElementFromNodeTagList(this.id);
 	    }
-	});
-    tagMenuIconClassAttributesTab.push("selectTagButtonIcon");
-    tagMenuShareEvent.push(true);
+	    $('#tag-notif').text("Tag " + this.id + " removed from tag list and tiles.");
+	    $('.tag#'+this.id).remove();//removeChild(tagToRemove);
+	    delete globalTagsList[globalTagsList.indexOf(this.id)];
+	    currentSelectedTag = "";
+
+	} else if (me.getSelectingTags())  { 
+	    var tagToSelect = this.id;
+	    var nodes_tmp = nodes;
+	    var w = 0;
+	    for (O in nodes)  { 
+		if (me.hasTag(nodes[O], tagToSelect))  {
+		    var HB = $('#hitbox' + nodes[O].getId());
+		    nodeSelect(nodes[O],HB);
+		    w ++;
+		}
+	    }
+	    if (w==0){
+		$('#tag-notif').text("No matching tiles for tag " + tagToSelect + " found");
+	    } else {
+		$('#tag-notif').text(w + " matching tiles for tag " + tagToSelect + " found");
+		addBlink(this);
+	    }
+
+	} else if (me.getGroupingTags())  { 
+	    var tagToGroup = this.id;
+	    var nodes_tmp = nodes;
+	    var w = 0;
+	    for (O in nodes)  { 
+		if (me.hasTag(nodes[O], tagToGroup))  { 
+		    mesh.switchLocation(nodes_tmp[O], nodes2[w], false, true);
+		    w ++;
+		}
+	    }
+	    if (w==0){
+		$('#tag-notif').text("No matching tiles for tag " + tagToGroup + " found");
+	    } else {
+		$('#tag-notif').text(w + " matching tiles for tag " + tagToGroup + " found");
+		addBlink(this);
+	    }
+
+	    if(chargeAllContentOnStart==false)  { 
+		for(O in nodes ){
+		    node = nodes[O];
+		    if( node.getLoadedStatus() == false && mesh.locationProvider(node.getIdLocation()).getY()<window.innerHeight  )  { 
+			//console.log(node.getmLocation().getnX());
+			ratio=mesh.loadContent(node.getId());
+			node.setLoadedStatus(true);
+		    }
+		}
+	    }
+
+	} else if (HideNodeTagFlag) {
+	    var tagToGroup = this.id;
+	    if (me.getHideNodeTags())  { 
+		// Hide nodes for this tag 
+		for (O in nodes2)  { 
+		    if (me.hasTag(nodes2[O], tagToGroup))  { 
+			Id=nodes2[O].getId();
+			SetOff(Id);
+		    }
+		}
+		$('#tag-notif').text("Hiding the tiles bearing " + tagToGroup + " tag. (To make them visible again, click on the icon in the tag menu, then on the tag again)")
+		addBlink(this);
+ 	    } else {
+		// Show nodes for this tag 
+		for (O in nodes2)  { 
+		    if (me.hasTag(nodes2[O], tagToGroup))  { 
+			Id=nodes2[O].getId();
+			SetOn(Id);
+		    }
+		}
+		$('#tag-notif').text("Showing the tiles bearing " + tagToGroup + " tag.")
+		addBlink(this);
+ 	    }
+	    //			HideNodeTagFlag=false;
+	} else if (KillNodeTagFlag) {
+	    var tagToKill = this.id;
+	    // Kill nodes for this tag 
+	    for (O in nodes2)  { 
+		if (me.hasTag(nodes2[O], tagToKill))  { 
+		    Id=nodes2[O].getId();
+		    nodeCardinal--;
+		    node=$('#'+Id);
+		    var OOF = $('#onoff'+Id);
+		    OOF.css('background-color', "red");
+		    nodes2[O].setOnOffStatus(false);
+		    node.children("iframe").hide();
+		    nodes2[O].setLoadedStatus(false);
+		    nodes2[O].removeElementFromNodeTagList(tagToKill);
+		    nodeEnd=nodes2[nodeCardinal];
+		    mesh.switchLocationShiftColumnLine(nodes2[O],nodeEnd,false,false);
+		    nodes2.splice(nodeCardinal,1);
+		    //node.hide();
+		}
+ 	    }
+	    $('#tag-notif').text("Killing the tiles bearing " + tagToKill + " tag.")
+	    $('.tag#'+tagToKill).remove();
+	    addBlink(this);
+	} else if (SelectionNodeToTagFlag) {
+	    currentSelectedTag = this.id;
+	    // Add tag for nodes in selection
+	    var listSectionTiles=me.getSelectedNodes()
+	    for(O in listSectionTiles)  { 
+		var HBid = "hitbox"+listSectionTiles[O].getId();
+		clickHBTag(HBid);
+	    }
+	    addBlink(this);
+	} else if (PaletteNodeTagFlag) {
+	    var tagToColor = this.id;
+	    var colorChoose;
+	    var defaultColor = colourNameToHex(configBehaviour.draw.defaultColor);
+	    colorChoose = document.querySelector("#colorChoose");
+	    colorChoose.value = defaultColor;
+
+	    $('#'+tagToColor).css("outline-style", "solid");
+	    
+	    var TagColor = defaultColor;
+
+	    window["updateFirst"+tagToColor] = function (event) {
+		TagColor = event.target.value;
+	    }
+	    window["updateAll"+tagToColor] = function (event) {
+		$('#'+tagToColor).css("outline-style", "none");
+		cdata={"room":my_session,"OldTag":tagToColor,"TagColor":TagColor};
+		socket.emit("color_Tag", cdata, function(sdata){
+ 		    console.log("socket change color Tag ", cdata);
+		});
+		colorChoose.removeEventListener("input", window["updateFirst"+tagToColor]);
+		colorChoose.removeEventListener("change", window["updateAll"+tagToColor]);
+		delete window["updateFirst"+tagToColor];
+		delete window["updateAll"+tagToColor];
+	    }
+	    
+	    colorChoose.addEventListener("input", window["updateFirst"+tagToColor], false);
+	    colorChoose.addEventListener("change", window["updateAll"+tagToColor], false);
+	    colorChoose.select();
+	    
+	} else { // DEFAULT behaviour: click on a tag = make it ready to be given to a tile
+	    if (currentSelectedTag != this.id)  { // Click on a different tag than the previous one
+		$('#'+this.id).css("outline-style", "solid");
+		$('#'+this.id).css("z-index", 500);
+		if (currentSelectedTag != "")  { // Previous tag was existing (and not blank) : un-select it
+		    $('#'+currentSelectedTag).css("outline-style", "none");
+		    $('#'+currentSelectedTag).css("z-index", 149);
+		}
+		currentSelectedTag = this.id;
+		$('#tag-notif').text("Selected tag: " + currentSelectedTag + "; you may now click on the left border of a tile to give it the tag.");
+	    }
+	    else // Un-select current tag
+	    {
+		$('#'+this.id).css("outline-style", "none");
+		$('#'+this.id).css("z-index", 149);
+		currentSelectedTag = "";
+		$('#tag-notif').text("No selected tag.");
+	    }
+	}
+    };
+
+    // Stickers : on click, erase the sticker from the node
+    clickSticker = function(){
+	//console.log("sticker clicked", this.id);
+	if (emit_click("sticker",this.id))
+	    return
+	var splittedId = this.id.split("_");
+	var nodeId = splittedId.pop();
+	var node = me.getNodes()["node"+nodeId];
+	node.removeElementFromNodeTagList(splittedId.join("_"));
+    };
 
     // Align/group similarly tagged nodes
+    tagMenuTitleTab.push("Align/group similarly tagged nodes")
     tagMenuEventTab.push(    function(v, id, optionNumber){
 	    if(v==true)  { 
 		//console.log("grouping tags");
 		me.setGroupingTags(true);
-		$('#menu'+id+'>#option'+optionNumber).removeClass('alignTagButtonIcon').addClass('closeAlignTagButtonIcon');
+		$('#'+id+'option'+optionNumber).removeClass('alignTagButtonIcon').addClass('closeAlignTagButtonIcon');
 	    } else { 
 		//console.log("end grouping tag");
 		me.setGroupingTags(false);
-		$('#menu'+id+'>#option'+optionNumber).removeClass('closeAlignTagButtonIcon').addClass('alignTagButtonIcon');
+		$('#'+id+'option'+optionNumber).removeClass('closeAlignTagButtonIcon').addClass('alignTagButtonIcon');
 	    }
 	});
     tagMenuIconClassAttributesTab.push("alignTagButtonIcon");
     tagMenuShareEvent.push(true);
 
     // Hide/Show nodes with tags menu
+    tagMenuTitleTab.push("Hide/Show nodes with tags menu")
     tagMenuEventTab.push(    function(v, id, optionNumber){
 	    if(v==true)  { 
 		//console.log("Hide nodes with tags");
 		HideNodeTagFlag=true;
 		me.setHideNodeTags(true);
-		$('#menu'+id+'>#option'+optionNumber).removeClass('HideTagButtonIcon').addClass('closeHideTagButtonIcon');
+		$('#'+id+'option'+optionNumber).removeClass('HideTagButtonIcon').addClass('closeHideTagButtonIcon');
 	    } else { 
 		HideNodeTagFlag=true;
 		//console.log("Show nodes with tags");
 		me.setHideNodeTags(false);
-		$('#menu'+id+'>#option'+optionNumber).removeClass('closeHideTagButtonIcon').addClass('HideTagButtonIcon');
+		$('#'+id+'option'+optionNumber).removeClass('closeHideTagButtonIcon').addClass('HideTagButtonIcon');
 	    }
 	});
     tagMenuIconClassAttributesTab.push("HideTagButtonIcon");
     tagMenuShareEvent.push(true);
+
+    // Kill nodes with selected tags menu
+    tagMenuTitleTab.push("Kill tiles with selected tag")
+    tagMenuEventTab.push(    function(v, id, optionNumber){
+	    if(v==true)  { 
+		//console.log("Kill nodes with tags");
+		KillNodeTagFlag=true;
+		$('#'+id+'option'+optionNumber).removeClass('KillTagButtonIcon').addClass('closeKillTagButtonIcon');
+	    } else { 
+		mesh.globalLocationProvider();
+		KillNodeTagFlag=false;
+		//console.log("Show nodes with tags");
+		$('#'+id+'option'+optionNumber).removeClass('closeKillTagButtonIcon').addClass('KillTagButtonIcon');
+	    }
+	});
+    tagMenuIconClassAttributesTab.push("KillTagButtonIcon");
+    tagMenuShareEvent.push(true);
+
+    // Selection sub-menu.
+    tagMenuTitleTab.push("Selection menu.")
+    tagMenuEventTab.push(    function(v, id, optionNumber){
+	if(v==true)  { 
+	    menuSelectionTags
+		.css("top",menuTags.position()["top"]+200)
+		.css("left",$('.selectTagMenuButtonIcon').position()["left"]+menuTags.position()["left"])
+		.css("visibility", "visible");
+	    $('#'+id+'option'+optionNumber).removeClass('selectTagMenuButtonIcon').addClass('closeSelectTagMenuButtonIcon');
+	} else { 
+	    menuSelectionTags.css("visibility", "hidden");
+	    $('#'+id+'option'+optionNumber).removeClass('closeSelectTagMenuButtonIcon').addClass('selectTagMenuButtonIcon');
+	}
+    });
+    tagMenuIconClassAttributesTab.push("selectTagMenuButtonIcon");
+    tagMenuShareEvent.push(true);
+
+    // Select similarly tagged nodes for zoom or MS.
+    tagSelectionMenuTitleTab.push("Select tiles with a tag.")
+    tagSelectionMenuEventTab.push(    function(v, id, optionNumber){
+	    if(v==true)  { 
+		//console.log("selecting tags");
+		me.setSelectingTags(true);
+		$('#'+id+'option'+optionNumber).removeClass('selectTagButtonIcon').addClass('closeSelectTagButtonIcon');
+	    } else { 
+		//console.log("end selecting tag");
+		me.setSelectingTags(false);
+		$('#'+id+'option'+optionNumber).removeClass('closeSelectTagButtonIcon').addClass('selectTagButtonIcon');
+	    }
+	});
+    tagSelectionMenuIconClassAttributesTab.push("selectTagButtonIcon");
+    tagSelectionMenuShareEvent.push(true);
 
     // Add a tag
     this.AddNewTag=function(tmpNewTag) {
@@ -802,23 +1150,42 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	}
     }
     
-    // Kill nodes with selected tags menu
-    tagMenuEventTab.push(    function(v, id, optionNumber){
+    // Add selected tag to all nodes in current selection 
+    tagSelectionMenuTitleTab.push("Add tag for nodes in selection")
+    tagSelectionMenuEventTab.push(    function(v, id, optionNumber){
 	    if(v==true)  { 
-		//console.log("Kill nodes with tags");
-		KillNodeTagFlag=true;
-		$('#menu'+id+'>#option'+optionNumber).removeClass('KillTagButtonIcon').addClass('closeKillTagButtonIcon');
-	    } else { 
-		mesh.globalLocationProvider();
-		KillNodeTagFlag=false;
-		//console.log("Show nodes with tags");
-		$('#menu'+id+'>#option'+optionNumber).removeClass('closeKillTagButtonIcon').addClass('KillTagButtonIcon');
+		//console.log("Add tag for nodes in selection");
+		SelectionNodeToTagFlag=true;
+		$('#'+id+'option'+optionNumber).removeClass('selectionToTagButtonIcon').addClass('closeSelectionToTagButtonIcon');
+	    } else {
+		SelectionNodeToTagFlag=false;
+		$('#'+id+'option'+optionNumber).removeClass('closeSelectionToTagButtonIcon').addClass('selectionToTagButtonIcon');
 	    }
 	});
-    tagMenuIconClassAttributesTab.push("KillTagButtonIcon");
+    tagSelectionMenuIconClassAttributesTab.push("selectionToTagButtonIcon");
+    tagSelectionMenuShareEvent.push(true);
+
+
+    // Management sub-menu.
+    tagMenuTitleTab.push("Management menu.")
+    tagMenuEventTab.push(    function(v, id, optionNumber){
+	if(v==true)  {
+	    menuManagementTags
+		.css("top",menuTags.position()["top"]+200)
+		.css("left",$('.managementTagMenuButtonIcon').position()["left"]+menuTags.position()["left"])
+		.css("visibility", "visible");
+	    $('#'+id+'option'+optionNumber).removeClass('managementTagMenuButtonIcon').addClass('closeManagementTagMenuButtonIcon');
+	} else { 
+	    menuManagementTags.css("visibility", "hidden");
+	    $('#'+id+'option'+optionNumber).removeClass('closeManagementTagMenuButtonIcon').addClass('managementTagMenuButtonIcon');
+	}
+    });
+    tagMenuIconClassAttributesTab.push("managementTagMenuButtonIcon");
     tagMenuShareEvent.push(true);
 
-    tagMenuEventTab.push(    function(v, id, optionNumber){
+    // Add new tag
+    tagManagementMenuTitleTab.push("Add new tag")
+    tagManagementMenuEventTab.push(    function(v, id, optionNumber){
 	    if(v==true)  { 
 		//console.log("adding tag");
 
@@ -898,35 +1265,37 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    });
 
 
-		$('#menu'+id+'>#option'+optionNumber).removeClass('addTagButtonIcon').addClass('closeAddTagButtonIcon');
+		$('#'+id+'option'+optionNumber).removeClass('addTagButtonIcon').addClass('closeAddTagButtonIcon');
 	    } else { 
 			//console.log("end adding tag");
 			$('#add-tag').hide();
 			$('#new-tag').hide();
-			$('#menu'+id+'>#option'+optionNumber).removeClass("closeAddTagButtonIcon").addClass("addTagButtonIcon");
+			$('#'+id+'option'+optionNumber).removeClass("closeAddTagButtonIcon").addClass("addTagButtonIcon");
 	    }
 	});
 
-    tagMenuIconClassAttributesTab.push("addTagButtonIcon");
-    tagMenuShareEvent.push(false);
+    tagManagementMenuIconClassAttributesTab.push("addTagButtonIcon");
+    tagManagementMenuShareEvent.push(false);
 
     // Remove tag
-    tagMenuEventTab.push(    function(v, id, optionNumber){
+    tagManagementMenuTitleTab.push("Remove tag")
+    tagManagementMenuEventTab.push(    function(v, id, optionNumber){
 	    if(v==true)  { 
 		//console.log("removing tag");
-		$('#menu'+id+'>#option'+optionNumber).removeClass("removeTagButtonIcon").addClass("closeRemoveTagButtonIcon");
+		$('#'+id+'option'+optionNumber).removeClass("removeTagButtonIcon").addClass("closeRemoveTagButtonIcon");
 		me.setRemovingTag(true);
 	    } else { 
 		//console.log("end removing tag");
-		$('#menu'+id+'>#option'+optionNumber).removeClass("closeRemoveTagButtonIcon").addClass("removeTagButtonIcon");
+		$('#'+id+'option'+optionNumber).removeClass("closeRemoveTagButtonIcon").addClass("removeTagButtonIcon");
 		me.setRemovingTag(false);
 	    }
 	});
-    tagMenuIconClassAttributesTab.push("removeTagButtonIcon");
-    tagMenuShareEvent.push(true);
+    tagManagementMenuIconClassAttributesTab.push("removeTagButtonIcon");
+    tagManagementMenuShareEvent.push(true);
 
     // Brush icon : to erase the tags all at once (is also triggered to clean legend and stickers when exitting tag mode)
-    tagMenuEventTab.push(    function(id, optionNumber){
+    tagManagementMenuTitleTab.push("Erase all the tags")
+    tagManagementMenuEventTab.push(    function(v,id, optionNumber){
 	    //console.log("erasing tags");
 	var buffer=0;
 	//$('header')
@@ -964,28 +1333,30 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		$('#validateDelTags').remove()
 	    }})
 	});
-    tagMenuIconClassAttributesTab.push("brushButtonIcon");
-    tagMenuShareEvent.push(true);
+    tagManagementMenuIconClassAttributesTab.push("brushButtonIcon");
+    tagManagementMenuShareEvent.push(true);
 
-    // Choose color !
-    tagMenuEventTab.push(    function(v, id, optionNumber){
+    // Choose stickers color
+    tagManagementMenuTitleTab.push("Choose stickers color")
+    tagManagementMenuEventTab.push(    function(v, id, optionNumber){
 	    if(v)  { 
 		var defaultColor = colourNameToHex(configBehaviour.draw.defaultColor);
 		$('#menu'+id).append('<div id=color-picker-zone style="position: absolute; top: 200px; left: 1100px"></div>');
 		$('#color-picker-zone').append('<label for="colorChoose" style="height: 200px; width: 400px; color: white; font-size: 4em">Color:</label>');
 		$('#color-picker-zone').append('<input type="color" value="'+defaultColor+'" id="colorChoose" style="height: 200px; width: 200px; font-size: 2em">');
 		PaletteNodeTagFlag=true;
-		$('#menu'+id+'>#option'+optionNumber).removeClass('paletteButtonIcon').addClass('closePaletteButtonIcon');
+		$('#'+id+'option'+optionNumber).removeClass('paletteButtonIcon').addClass('closePaletteButtonIcon');
 	    } else { 
 		$('#color-picker-zone').remove();
 		PaletteNodeTagFlag=false;
-		$('#menu'+id+'>#option'+optionNumber).removeClass('closePaletteButtonIcon').addClass('paletteButtonIcon');
+		$('#'+id+'option'+optionNumber).removeClass('closePaletteButtonIcon').addClass('paletteButtonIcon');
 	    }
 	});
-    tagMenuIconClassAttributesTab.push("paletteButtonIcon");
-    tagMenuShareEvent.push(false);
+    tagManagementMenuIconClassAttributesTab.push("paletteButtonIcon");
+    tagManagementMenuShareEvent.push(false);
 
     
+
 
     /** DRAW MENU
      * Functions :
@@ -996,11 +1367,13 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
      * - Close drawing
      */
 
+    var drawMenuTitleTab = new Array();
     var drawMenuEventTab = new Array();
     var drawMenuIconClassAttributesTab = new Array();
     var drawMenuShareEvent = new Array();
 
-    // Choose color !
+    // Choose drawing color
+    drawMenuTitleTab.push("Choose drawing color")
     drawMenuEventTab.push(    function(v, id, optionNumber){
 	    if(v)  { 
 		var defaultColor = colourNameToHex(configBehaviour.draw.defaultColor);
@@ -1023,25 +1396,26 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    drawingColor = event.target.value;
 		}
 
-		$('#menu'+id+'>#option'+optionNumber).removeClass('paletteButtonIcon').addClass('closePaletteButtonIcon');
+		$('#'+id+'option'+optionNumber).removeClass('paletteButtonIcon').addClass('closePaletteButtonIcon');
 	    } else { 
 		$('#color-picker-zone').remove();
-		$('#menu'+id+'>#option'+optionNumber).removeClass('closePaletteButtonIcon').addClass('paletteButtonIcon');
+		$('#'+id+'option'+optionNumber).removeClass('closePaletteButtonIcon').addClass('paletteButtonIcon');
 	    }
 	});
     drawMenuIconClassAttributesTab.push("paletteButtonIcon");
     drawMenuShareEvent.push(false);
 
     // Choose line width !
+    drawMenuTitleTab.push("Choose line width !")
     drawMenuEventTab.push(    function(v, id, optionNumber){
 	    if(v)  { 
 		//console.log("choose style");
 		$('#menu'+id).append("<input name=lineWidthSelector id=lineWidthSelector min=0 type=number>");
 		$('#lineWidthSelector').css({
 			position : "absolute",
-			    top : parseInt($('#menu'+id+'>#option'+optionNumber).css("height")),
-			    left : parseInt($('#menu'+id+'>#option'+optionNumber).css("left")),
-			    width : parseInt($('#menu'+id+'>#option'+optionNumber).css("width")),
+			    top : parseInt($('#'+id+'option'+optionNumber).css("height")),
+			    left : parseInt($('#'+id+'option'+optionNumber).css("left")),
+			    width : parseInt($('#'+id+'option'+optionNumber).css("width")),
 			    });
 		$('#lineWidthSelector').val(configBehaviour.draw.width);
 
@@ -1054,18 +1428,19 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			change : changeLineWidth
 			    });
 
-		$('#menu'+id+'>#option'+optionNumber).removeClass('lineWidthButtonIcon').addClass('closeLineWidthButtonIcon');
+		$('#'+id+'option'+optionNumber).removeClass('lineWidthButtonIcon').addClass('closeLineWidthButtonIcon');
 	    } else { 
 		//console.log("end choose style");
 		$('#lineWidthSelector').remove();
-		$('#menu'+id+'>#option'+optionNumber).removeClass("closeLineWidthButtonIcon").addClass("lineWidthButtonIcon");
+		$('#'+id+'option'+optionNumber).removeClass("closeLineWidthButtonIcon").addClass("lineWidthButtonIcon");
 	    }
 	});
     drawMenuIconClassAttributesTab.push("lineWidthButtonIcon");
     drawMenuShareEvent.push(false);
 
     // Brush icon : to erase the drawing
-    drawMenuEventTab.push(    function(id, optionNumber){
+    drawMenuTitleTab.push("Brush icon : to erase the drawing")
+    drawMenuEventTab.push(    function(v,id, optionNumber){
 	    context.clearRect(0, 0, context.canvas.width, context.canvas.height);
 	    clickX = new Array();
 	    clickY = new Array();
@@ -1076,7 +1451,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     drawMenuShareEvent.push(false);
 
     // Save drawing
-    drawMenuEventTab.push(    function(id, optionNumber){
+    drawMenuTitleTab.push("Save drawing")
+    drawMenuEventTab.push(    function(v,id, optionNumber){
 	    var canvasName = $('#zoomSupport').find(".drawing").filter(":visible").attr("id");
 	    var srcImage = $('#iframe' + canvasName.replace(/\D/g, "")).attr("src").replace(".png", "").replace(/^.*[\\\/]/, "");
 	    document.getElementById(canvasName).toBlob(    function(blob) {
@@ -1240,7 +1616,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     }
 
     // Node drawing
-    drawMenuEventTab.push(    function(id, optionNumber){
+    drawMenuTitleTab.push("Node drawing")
+    drawMenuEventTab.push(    function(v,id, optionNumber){
 	    var canvasName = $('#zoomSupport').find(".drawing").filter(":visible").attr("id");
 	    var nodeId=canvasName.replace(/drawCanvas/g, "");
 	    var thisDrawBlob=[];
@@ -1272,7 +1649,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 
     // Duplicate draw on other nodes
-    drawMenuEventTab.push(    function(id, optionNumber){
+    drawMenuTitleTab.push("Duplicate draw on other nodes")
+    drawMenuEventTab.push(    function(v,id, optionNumber){
 	    var canvasName = $('#zoomSupport').find(".drawing").filter(":visible").attr("id");
 	    var nodeId=canvasName.replace(/drawCanvas/g, "");
 
@@ -1304,7 +1682,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     drawMenuIconClassAttributesTab.push("DrawOnAllNodesIcon");
     drawMenuShareEvent.push(false);
 
-    // // Share draws
+    // Share draws
     socket.on('receive_draw_img', function(sdatai){
      	console.log("receive_draw_img",sdatai);
 
@@ -1409,118 +1787,1532 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    
     // Close
 
-    /** GLOBAL MENU	
-     * List of implemented functions : 
+    /** MasterSlave MENU
+     * Functions :
+     * - Apply MS after selection
+     * - Select all nodes and zoom
+     * - Help zoom
+     */
+ 
+    var MSMenuTitleTab = new Array();
+    var MSMenuEventTab = new Array();
+    var MSMenuIconClassAttributesTab = new Array();
+    var MSMenuShareEvent = new Array();
 
-     - Move up all lines and place first line on last one
-     - Display/Hide the node menu
-     - Search/Filter option
-     - Zoom on selected nodes
-     - Master-slave interaction on selected nodes
-     - Draws on tile management 
-     - Only if touchOk : Show rotate button on each node
-     - Show OnOff button
-     - show zoom Node fast zoom button to each node
-     - Show node info
-     - Refresh button
-     - Undo last operation (Ctrl+Z)
-     - Redo last operation (Ctrl+Y)
-     - Save work session (at the moment only the post-its)
-     - Options menu 
-     - Move down all lines and place last line on first
+    /** MasterSlave Menu
+	After activation (the icon becomes white on black background), select node by clicking on it,
+	First node is the master and lasts nodes are slave. 
+	All mouse interactions on master are gathered on slaves. 
+	click on the button on the upper-right to zoom and begin mode, then to unzoom. 
     */
-    var menuEventTab = new Array();
-    var menuIconClassAttributesTab = new Array();
-    var MenuShareEvent = new Array();
-    
-    var moveMesh = function(direction)  { 
-	numOfLines = Math.floor(nodeCardinal / numOfColumns);
-	numOfLines = Math.min(numOfLines, nodeCardinal);
 
-	for (var i=0;i<(numOfLines-1);i++)  { 
-	    //console.log(i, numOfLines);
-	    if (direction == "up")  { 
-		//console.log("going up", i);
-		var firstLine = i;
-		var secondLine = i+1 == numOfLines ? 0 : i+1;
-	    }
-	    else if (direction == "down")  { 
-		//console.log("going down", i);
-		var firstLine = numOfLines - 1 - i;
-		var secondLine = numOfLines - 2 - i;
-	    }
+    // Apply MS on selection
+    MSMenuTitleTab.push("Apply MS on selection")
+    MSMenuEventTab.push(    function( id, optionNumber){
+	    // Zoomed div and Handlered div over it
+	    var handleMaster,Handled;
+	    // iframe of the Handled
+	    var iframeHandled;
+	    // number of the master
+	    var iHandled;
+ 
+	    // Variables for magnifyingGlass 
+	    var nodeMSTab = me.getNodesToZoom();
+	    var ratio =spread.Y/spread.X;
+	    var initSpread = spread;
+		    
+	    if(nodeMSTab.length>0) {
+		menuMS.css("visibility", "hidden");
 
-	    var firstLineTab = new Array();
-	    var secondLineTab = new Array();
+		// We repeat first node because its div will be used as master.
+		nodeMSTab=Array(nodeMSTab[0]).concat(nodeMSTab);
+		if (nodeMSTab.length > configBehaviour.allMSShowMax+1) {
+		    nodeMSTab_=nodeMSTab.slice(0, configBehaviour.allMSShowMax+1);
+		    me.magnifyingGlass(nodeMSTab_,ratio,initSpread);
+		} else {
+		    me.magnifyingGlass(nodeMSTab,ratio,initSpread);
+		}			
+		iHandled=0;
+			
+		// We begin with first selected as Master
+		handleMaster=$("#Zoomed"+iHandled);
+			
+		// We create the listened div
+		$("#zoomSupport").append('<div id=Handled class=handled></div>');
+			
+		iframeHandled=handleMaster.children("iframe");
+		handleMaster.children(".info").html("MASTER Tile");
+		handleMaster.children(".stickers_zone").remove()
+		
+		urlMaster=nodeMSTab[iHandled].getJsonData().url;
+		urlMasterPath=urlMaster.slice(0,urlMaster.search("vnc_auto.html"));
 
-	    for (O in me.getNodes2())  { 
-		if (me.mlocationProvider(me.getNodes2()[O].getIdLocation()).getnY() == firstLine )  { 
-		    firstLineTab.push(me.getNodes2()[O]);
+		// We set the property of the iframe
+		var HandledJQ=$("#Handled");
+		HandledJQ.css({ 
+			height : iframeHandled.css('height'),
+			    width : iframeHandled.css('width'),
+			    });
+			
+		// DOM path to this handled div
+		Handled=$("#zoomSupport").children(".handled")[0];
+			
+		$('header').append("<div id=explain-StartMS>First node is duplicated to have the master to interact.</div>");
+		$('#explain-StartMS').css({
+			position : "fixed", 
+			    backgroundColor : "green",
+			    color : "black",
+			    fontSize : 100,
+			    left : "15%",
+			    top : 0 ,
+			    zIndex : 121
+			    });
+			
+		// Start Master-Slave function
+		function initMSList() {
+		    // This function will work only for VNC connections
+		    try {
+			MSPath=urlMasterPath+"vnc_multi.html?NbRFB="+nodeMSTab.length+"&";
+			for(i=0;i<nodeMSTab.length;i++) {
+			    var urlNode=nodeMSTab[i].getJsonData().url;
+			    //urlNodePath=urlNode.slice(0,urlNode.search("vnc_auto.html"));
+			    urlNodeParam=urlNode.slice(urlNode.search("vnc_auto.html")+14);
+			    NodeParams=urlNodeParam.split('&');
+			    for (P in NodeParams) {
+				thisparam=NodeParams[P].slice(0,NodeParams[P].search("="));
+				switch(thisparam) {
+				case("host"):
+				case("port"):
+				case("password"):
+				case("path"):
+				case("token"):
+				case("encrypt"):
+				    NodeParams[P]=NodeParams[P].replace("=",i+"=");
+				}
+			    }
+			    MSPath=MSPath+NodeParams.join('&')+'&';
+			}
+			iframeHandled.attr("src",MSPath+"&true_color=1");
+		    } catch(e) {
+			console.log("Master-Slave function will work only for VNC connections.");
+		    }
 		}
-		else if (me.mlocationProvider(me.getNodes2()[O].getIdLocation()).getnY() == secondLine )  { 
-		    secondLineTab.push(me.getNodes2()[O]);
-		}
-	    }
-	    for (var j=0; j<Math.max(firstLineTab.length, secondLineTab.length);j++)  { 
-		var tmpBoolBlockMove = j == 0 ? false : true; 
-		if(typeof firstLineTab[j]!= "undefined" && typeof secondLineTab[j]!= "undefined" )  { 
-		    me.switchLocation(firstLineTab[j],secondLineTab[j],configBehaviour.showAnimationsLineColSwap, true, tmpBoolBlockMove);
-		}
-	    }
+			
+ 					
+		// Start Master-Slave 
+		initMSList();
 
+		// unZoom function
+		$('#buttonUnzoom').on({
+			click : function(){
+			    $('#explain-StartMS').remove();
+				    
+			    try {
+				var	Handled=$("#zoomSupport").children(".handled")[0];
+				Handled.remove();
+			    } catch (err) {
+			    }
+			    menuMS.css("visibility", "visible");
+				    
+			    for(O in nodes)  { 
+				me.removeNodeToZoom(O);
+			    }
+			    me.setZoomSelection(true);
+			}
+		    });
+	    }
+	});			
+    MSMenuIconClassAttributesTab.push("expandZoomButtonIcon");
+    MSMenuShareEvent.push(false);
+
+    // Apply MS on all tiles
+    MSMenuTitleTab.push("Apply MS on all tiles")
+    MSMenuEventTab.push(    function(v, id, optionNumber){
+	    me.resetNodesToZoom(); 					
+	    var nodeMSTab = me.getNodesToZoom();
+		    
+	    for(O in nodes)  { 
+		nodeMSTab.push(nodes[O]);
+	    }
+	    menuMS.children("[class*=expandZoomButtonIcon]").click();
+
+	    for(O in nodes)  { 
+		me.removeNodeToZoom(O);
+	    }
+	    me.setZoomSelection(true);
+
+	});
+    MSMenuIconClassAttributesTab.push("AllMSButtonIcon");
+    MSMenuShareEvent.push(false);
+
+    // explain MS
+    MSMenuTitleTab.push("Master-Slave explain area")    
+    MSMenuEventTab.push(    function(v, id, optionNumber){
+	});
+    MSMenuIconClassAttributesTab.push("explain-MS");
+    MSMenuShareEvent.push(false);
+
+    /** ZOOM MENU
+     * Functions :
+     * - Disable or enable or zoom functions
+     * - Apply zooming after selection
+     * - Help zoom
+     */
+
+    /** Disable or enable other zoom functions
+     */
+    this.disableOtherZoom = function (myzoomfunction) {
+	ListZoomFunction=["zoomNodes","zoom","MS","draw"];
+	for (otherZoom in ListZoomFunction) {
+	    thisZoom=ListZoomFunction[otherZoom];
+	    if ( thisZoom != myzoomfunction )
+		$("."+thisZoom+"ButtonIcon").removeClass(thisZoom+"ButtonIcon").addClass("disable"+thisZoom+"ButtonIcon");
 	}
     };
+    
+    /** Enable or enable other zoom functions
+     */
+    this.enableOtherZoom = function (myzoomfunction) {
+	ListZoomFunction=["zoomNodes","zoom","MS","draw"];
+	for (otherZoom in ListZoomFunction) {
+	    thisZoom=ListZoomFunction[otherZoom];
+	    if ( thisZoom != myzoomfunction )
+		$(".disable"+thisZoom+"ButtonIcon").removeClass("disable"+thisZoom+"ButtonIcon").addClass(thisZoom+"ButtonIcon");
+	}
+    };
+    
+    /** Zoom Global Menu functions 
+	After activation (the icon becomes white on black background), select node by clicking on it, 
+	click on the button on the upper-right to zoom, then to unzoom. 
+    */
 
-    /** Move up all lines and place first line on last one */
+    var zoomMenuTitleTab = new Array();
+    var zoomMenuEventTab = new Array();
+    var zoomMenuIconClassAttributesTab = new Array();
+    var zoomMenuShareEvent = new Array();
 
-    menuEventTab.push(    function(v, id, optionNumber){
+    // Apply Zoom button
+    zoomMenuTitleTab.push("Apply zoom button")
+    zoomMenuEventTab.push( function(v, id, optionNumber) {		
+
+	    // Variables for magnifyingGlass 
+	    var nodeZoomTab = me.getNodesToZoom();
+	    var ratio =spread.Y/spread.X;
+	    var initSpread = spread;
+
+	    if(nodeZoomTab.length>0)  { 
+		$("#menu"+id).css("visibility", "hidden");
+
+		//$('#buttonUnzoom').hide();
+		me.magnifyingGlass(nodeZoomTab,ratio,initSpread);
+		me.resetNodesToZoom();
+
+		// unZoom function
+		$('#buttonUnzoom').on({
+			click: function(){		
+				    
+			    //console.log("click unzoom");
+			    menuZoom.css("visibility", "visible");
+			}
+		    });
+			
+	    }
+	});
+    zoomMenuIconClassAttributesTab.push("expandZoomButtonIcon");
+    zoomMenuShareEvent.push(false);
+
+    zoomMenuTitleTab.push("Zoom explain area")    
+    zoomMenuEventTab.push( function(v, id, optionNumber) {		
+	});
+
+    zoomMenuIconClassAttributesTab.push("explain-zoom");
+    zoomMenuShareEvent.push(false);
+
+
+    /** Zoom Global menu
+     * List of implemented functions : 
+     - Zoom on selected nodes
+     - Master-slave interaction on selected nodes
+     - show zoom Node fast zoom button to each node
+    */
+
+    var zoomGlobalMenuTitleTab = new Array();
+    var zoomGlobalMenuEventTab = new Array();
+    var zoomGlobalMenuIconClassAttributesTab = new Array();
+    var zoomGlobalMenuShareEvent = new Array();
+
+    // Zoom menu with selection
+    zoomGlobalMenuTitleTab.push("Zoom menu with selection")
+    zoomGlobalMenuEventTab.push(	(  function(){
+
+		return function(v,id,optionNumber){
+
+		    // for(O in nodes)  { 
+		    // 	nodes[O].updateSelectedStatus(false);
+		    // }
+
+		    if(v==true)  { 
+			//me.setZoomSelection(true); // To change the behaviour of a hitbox click, cf clickHB method // DEPRECATED ?
+
+			$('.node').off();
+			$('.hitbox').off("click").on("click", clickHBZoom);
+			$('.hitbox').off("mouseenter");
+			_allowDragAndDrop = false;
+
+			menuZoom.children('[class*=explain-zoom]')[0].innerText="Click on the left of the nodes to select them. Green nodes will be selected.";
+			menuZoom.children('[class*=explain-zoom]').css({
+				backgroundColor : "green",
+				    color : "black",
+				    fontSize : 100,
+				    width: 2000,
+				    });
+
+			menuZoom.css("visibility", "visible");
+			menuZoom.css("top", TagHeight+"px");
+
+			$('#'+id+'option'+optionNumber).removeClass('zoomButtonIcon').addClass("closezoomButtonIcon");
+			// Deactivate other magnify menus
+			me.disableOtherZoom("zoom")
+		    } else { 
+
+			me.setZoomSelection(false);
+			me.resetNodesToZoom();
+			$('#buttonUnzoom').click();
+			me.meshEventReStart();
+
+			menuZoom.css("visibility", "hidden");
+
+			$('#'+id+'option'+optionNumber).removeClass("closezoomButtonIcon").addClass("zoomButtonIcon");
+			// Activate other magnify menus
+			me.enableOtherZoom("zoom")
+		    }
+		    return 0;
+		};		
+	    })());		
+
+    zoomGlobalMenuIconClassAttributesTab.push("zoomButtonIcon");
+    zoomGlobalMenuShareEvent.push(false);
+	
+
+    // MasterSlave Menu
+    zoomGlobalMenuTitleTab.push("MasterSlave Menu")
+    zoomGlobalMenuEventTab.push(	(function(){
+ 
+ 		return function(v,id,optionNumber){
+ 		    
+		    me.setZoomSelection(true);
+ 
+ 		    // for(O in nodes)  {
+		    // 	nodes[O].updateSelectedStatus(false);
+		    // }
+ 
+		    if(v==true) {
+			//me.setZoomSelection(true); // To change the behaviour of a hitbox click, cf clickHB method // DEPRECATED ?
+ 
+			$('.node').off();
+			$('.hitbox').off("click").on("click", clickHBZoom);
+			$('.hitbox').off("mouseenter");
+			_allowDragAndDrop = false;
+			
+
+			menuMS.children('[class*=explain-MS]')[0].innerText="Click on the left of the nodes to select them. Click on left \"validate button\" or right \"ALL selected\" button.";
+			menuMS.children('[class*=explain-MS]').css({
+				backgroundColor : "green",
+				    color : "black",
+				    fontSize : 100,
+				    width: 2800,
+				    });			
+
+			menuMS.css("visibility", "visible");
+			menuMS.css("top", TagHeight+"px");
+
+			$('#'+id+'option'+optionNumber).removeClass("MSButtonIcon").addClass("closeMSButtonIcon");
+			// Deactivate other magnify menus
+			me.disableOtherZoom("MS")
+		    } else {
+
+			me.setZoomSelection(false);
+			me.resetNodesToZoom();
+			// We must replace iframes on their right place in the DOM !
+			try {
+			    var Handled=$("#zoomSupport").children(".handled")[0];
+			    Handled.remove();
+			} catch(err) {
+			}
+			$('#buttonUnzoom').click();
+			me.meshEventReStart();
+			
+			menuMS.css("visibility", "hidden");
+			
+			$('#'+id+'option'+optionNumber).removeClass("closeMSButtonIcon").addClass("MSButtonIcon");
+			// Activate other magnify menus
+			me.enableOtherZoom("MS")
+		    };
+
+		    return 0;
+ 		};		
+	    }) ());		
+ 
+    zoomGlobalMenuIconClassAttributesTab.push("MSButtonIcon");
+    zoomGlobalMenuShareEvent.push(false);
+
+    /** show zoom Node fast zoom button to each node */
+    zoomGlobalMenuTitleTab.push("Show fast zoom button")
+    zoomGlobalMenuEventTab.push( (    function(){
+
+		return function(v, id, optionNumber){
+		    if (v==true)  { 
+			$('.zoomNodeButtonIcon').show();
+			$('#'+id+'option'+optionNumber).removeClass('zoomNodesButtonIcon').addClass('closezoomNodesButtonIcon');
+			me.disableOtherZoom("zoomNode")
+		    } else { 
+			$('.zoomNodeButtonIcon').hide();
+			$('#'+id+'option'+optionNumber).removeClass("closezoomNodesButtonIcon").addClass("zoomNodesButtonIcon");
+			// Activate other magnify menus
+			me.enableOtherZoom("zoomNode")
+		    }
+		};
+
+	    })());
+    zoomGlobalMenuIconClassAttributesTab.push("zoomNodesButtonIcon");
+    zoomGlobalMenuShareEvent.push(false);
+
+    /** State of tiles menu
+     * List of implemented functions : 
+
+     - Show OnOff button
+     - Show node info
+     */
+
+    // State Menu Global
+    
+    var stateGlobalMenuTitleTab = new Array();
+    var stateGlobalMenuEventTab = new Array();
+    var stateGlobalMenuIconClassAttributesTab = new Array();
+    var stateGlobalMenuShareEvent = new Array();    
+    
+    // Show OnOff button
+    stateGlobalMenuTitleTab.push("Show OnOff button")
+    stateGlobalMenuEventTab.push( (    function(){
+
+		return function(v, id, optionNumber){
+		    if (v==true)  { 
+			$('.onoff').show();
+			$('#'+id+'option'+optionNumber).removeClass('OnOffButtonIcon').addClass('closeOnOffButtonIcon');
+		    } else { 
+			$('.onoff').hide();
+			$('#'+id+'option'+optionNumber).removeClass("closeOnOffButtonIcon").addClass("OnOffButtonIcon");
+
+		    }
+		};
+
+	    })());
+
+    stateGlobalMenuIconClassAttributesTab.push("OnOffButtonIcon");
+    stateGlobalMenuShareEvent.push(true);
+    
+    /** show QR code link to each node */
+    stateGlobalMenuTitleTab.push("Show QR code link")
+    stateGlobalMenuEventTab.push( (    function(){
+
+		return function(v, id, optionNumber){
+		    if (v==true)  { 
+			$('.qrcode').show();
+			$('#'+id+'option'+optionNumber).removeClass('QRcodeButtonIcon').addClass('closeQRcodeButtonIcon');
+		    } else { 
+			$('.qrcode').hide();
+			$('#'+id+'option'+optionNumber).removeClass("closeQRcodeButtonIcon").addClass("QRcodeButtonIcon");
+
+		    }
+		};
+
+	    })());
+
+    stateGlobalMenuIconClassAttributesTab.push("QRcodeButtonIcon");
+    stateGlobalMenuShareEvent.push(true);
+
+    /** Show node info */
+    stateGlobalMenuTitleTab.push("Show node info")
+    stateGlobalMenuEventTab.push( (    function(){
+
+		return function(v, id, optionNumber){
+		    if (v==true)  { 
+			$('.info').show();
+			$('#'+id+'option'+optionNumber).removeClass('showInfoButtonIcon').addClass('closeShowInfoButtonIcon');
+		    } else { 
+			if(! configBehaviour.alwaysShowInfo)  { 
+			    $('.info').hide();
+			}
+			$('#'+id+'option'+optionNumber).removeClass("closeShowInfoButtonIcon").addClass("showInfoButtonIcon");
+
+		    }
+		};
+
+	    })());
+
+    stateGlobalMenuIconClassAttributesTab.push("showInfoButtonIcon");
+    stateGlobalMenuShareEvent.push(true);
+    
+    /** Management menu
+     * List of implemented functions : 
+
+     - Draws on tile management 
+     - Save work session (at the moment only the post-its)
+     - Options menu
+     - help frame
+     */
+        
+    var managementGlobalMenuTitleTab = new Array();
+    var managementGlobalMenuEventTab = new Array();
+    var managementGlobalMenuIconClassAttributesTab = new Array();
+    var managementGlobalMenuShareEvent = new Array();
+
+    /** Draws on tile management */
+    managementGlobalMenuTitleTab.push("Draws management")
+    managementGlobalMenuEventTab.push( (    function(){
+
+		return function(v, id, optionNumber){
+   		    if (v==true)  { 
+   			$('header').append("<div id=DrawsMenu class=option-draws></div>");
+			$('#DrawsMenu').css({
+				backgroundColor : "SkyBlue",
+				    color : "black",
+				    fontSize : 50,
+				    left: 500,
+				    width: 1000,
+				    zIndex: 801
+				    });
+   			// maps blob IDs to drawing objects
+   			DrawBlobs.forEach(function(thisblob) { 
+				$('#DrawsMenu').append("<div id='draws"+thisblob.nodeId+"'> </div>");
+   				$('#draws'+thisblob.nodeId).append("<input type='checkbox' name='drawNode"+thisblob.nodeId+"' value='yes'> supress Node "+thisblob.nodeId+" | </input>");
+   				$('#draws'+thisblob.nodeId).append("<input type='checkbox' name='drawOtherNodes"+thisblob.nodeId+"' value='yes'> Hide all clone "+ thisblob.listNodeImg.length+"</br></input>");
+				$('input[name=drawNode'+thisblob.nodeId+'][value=yes]').attr("checked", true);
+   			    $('input[name=drawNode'+thisblob.nodeId+'][value=yes]').off("change").on({
+   					change : function(){
+					    // Unchecked : delete the blob and all pictures on tiles.
+					    var newImg=thisblob.image;
+					    var canvasName=thisblob.canvasName;
+					    for (ind in thisblob.listNodeImg) {
+						Id=thisblob.listNodeImg[ind];
+						DrawNodeId=canvasName+"_img_"+Id;
+						$("#"+DrawNodeId).remove();
+					    }
+					    DrawBlobs.delete(thisblob.nodeId.toString());
+					    $('#'+newImg.id).remove();
+					    $('#draws'+thisblob.nodeId).remove();
+					    URL.revokeObjectURL(thisblob.url);
+   					}
+   				    });
+				$('input[name=drawOtherNodes'+thisblob.nodeId+'][value=yes]').attr("checked", true);
+   			    $('input[name=drawOtherNodes'+thisblob.nodeId+'][value=yes]').off("change").on({
+   					change : function(){
+					    if ($('input[name=drawOtherNodes'+thisblob.nodeId+']').attr("checked")) {
+						// Unchecked : Hide all pictures of this blob on tiles.
+						$('input[name=drawOtherNodes'+thisblob.nodeId+']').val('no').attr("checked",false);
+						var canvasName=thisblob.canvasName;
+						for (ind in thisblob.listNodeImg) {
+						    Id=thisblob.listNodeImg[ind];
+						    DrawNodeId=canvasName+"_img_"+Id;
+						    $("#"+DrawNodeId).hide();
+						}
+					    } else {
+						$('input[name=drawOtherNodes'+thisblob.nodeId+']').val('yes').attr("checked",true);
+						// Checked : Show all pictures of this blob on tiles.
+						var canvasName=thisblob.canvasName;
+						for (ind in thisblob.listNodeImg) {
+						    Id=thisblob.listNodeImg[ind];
+						    DrawNodeId=canvasName+"_img_"+Id;
+						    $("#"+DrawNodeId).show();
+						}
+					    }
+   					}
+   				    });
+   			    });
+   			$('#'+id+'option'+optionNumber).removeClass('DrawsButtonIcon').addClass('closeDrawsButtonIcon');
+
+   		    } else { 
+   			$('header').children("#DrawsMenu").remove();
+   			$('#'+id+'option'+optionNumber).removeClass("closeDrawsButtonIcon").addClass("DrawsButtonIcon");
+   		    }
+		};
+
+		})() );
+
+    managementGlobalMenuIconClassAttributesTab.push("DrawsButtonIcon");
+    managementGlobalMenuShareEvent.push(true);
+    
+    /** Save working session : post its and position for each node will be copied to a .js file. */
+    managementGlobalMenuTitleTab.push("Save working session")
+    managementGlobalMenuEventTab.push(    function(v,id,optionNumber){
+	nodes2=me.getNodes2();
+	    // Concatenate json data
+	    idFinalLocation=0;
+	    for(O in nodes2)  { 	
+		var id=nodes2[O].getId();
+		// Save positions
+		if (nodes2[O].getOnOffStatus()) {
+		    nodes2[O].getJsonData().IdLocation = nodes2[O].getIdLocation();
+		    idFinalLocation++;
+		    // Save usernotes
+		    nodes2[O].getJsonData().usersNotes = $("#pia_editable_postit"+id).text();
+		    // Save tags
+		    nodes2[O].getJsonData().tags = nodes2[O].getNodeTagList();
+		}
+	    }
+	    // Reconstruct another nodes.js with the same structure
+	    var temp = "{'nodes': [XXX] }";
+	    var id=0;
+
+	    for(O in nodes2)  { 
+
+	    	if (nodes2[O].getOnOffStatus()) {
+	    	    id=nodes2[O].getId();
+	    	    //console.log(id);
+
+	    	    var temp3 ="\n{{***}}";
+
+	    	    for(W in nodes2[O].getJsonData())  {
+ 			if (W == "tags" ) {
+			    var ListTags=new Array();
+			    nodes2[O].getNodeTagList().forEach(function(currentValue) { ListTags.push("'"+currentValue + "'")})
+			    var mytext = "\""+W+"\""+" : "+"["+ListTags.toString()+"],\n {***}"
+			} else if ( W == "usersNotes") {
+			    comment=nodes2[O].getJsonData()["usersNotes"].toString().replace(/\"/g,"'")
+			    var mytext = "\"comment\""+" : "+"'"+comment+"'"+",\n {***}"
+			// } else if ( W == "IdLocation") {
+			//     var mytext = "\""+W+"\""+" : "+"\""+nodes2[0].getIdLocation().toString()+"\""+",\n {***}";
+			} else {
+	    		    var mytext = "\""+W+"\""+" : "+"\""+nodes2[O].getJsonData()[W].toString().replace(/\"/g,"'")+"\""+",\n {***}";
+			}
+	    		temp3=temp3.replace("{***}",mytext);
+	    	    }
+	    	    temp3=temp3.replace(",\n {***}","");
+	    	    temp=temp.replace("XXX",temp3+",XXX");
+	    	}
+	    }
+	    // Save the file with a clear name (date and time, name of the project) 
+	    temp=temp.replace(",XXX","");
+	    tempFile = "var text_ = \n     "+temp+";\nvar jsDataTab = text_.nodes;";
+
+	    var sessionDate = new Date();
+	    var strDate=sessionDate.toLocaleDateString({day: "2-digit", month: "2-digit"}).replace(/\//g, "-") + "_" + sessionDate.toLocaleTimeString("fr-FR").replace(/:/g, "-")
+	    var fileName = my_session + "_" + "tiles_" + strDate + ".js"; 
+	    var file = new File([tempFile], fileName, {type: "text/plain;charset=utf-8"});
+
+	// socket save new session ??
+	$('#notifications').html('<div id=saveValidate height="10%" width="50%"></div>');
+	// TODO method POST with
+	//<form method="POST">
+	$('#saveValidate').append('<form style="font-size: 45px"> New suffix for save '+my_session+'&nbsp;&nbsp;'
+				  + '<input type=text id="newSuffix" value="'+strDate+'" style="width:20%"></input>&nbsp;&nbsp;'
+				  + 'Change description : <input type=text id="newDescr" value="'+my_description+'" style="width:50%"></input>&nbsp;&nbsp;'
+			+'<button id="submitSave" name="submitSave" class="btn btn-info" style="font-size: 40px"> Submit</button>&nbsp;&nbsp;'
+			+'<button id="submitCancel" name="submitCancel" class="btn btn-info" style="font-size: 40px"> Cancel</button></form>');
+	$('#submitSave').off("click").on("click",function() {
+	    saveAs(file);
+
+	    new_suffix=$('#newSuffix').val();
+	    new_description=$('#newDescr').val();
+	    new_room=my_session+'_'+new_suffix;
+	    cdata ={"room":my_session, "NewSuffix": new_suffix,"NewDescription": new_description,"Session": temp }
+	    console.log("Save session : "+new_room);
+	    socket.emit("save_Session", cdata);
+	    $('#saveValidate').remove();
+
+	    $('#notifications').html('<div id=gotoNewRoom height="10%" width="50%" style="font-size:75"></div>');
+	    $('#gotoNewRoom').append('Goto new room ?<br>'		                     
+				     + '<input type="text" id="gNRnew_room" name="new room" value="'+ new_room +'" style="width:40%"></input>&nbsp;&nbsp;'
+			+'<button id="ChangeRoomYes" name="ChangeRoomYes" class="btn btn-info" style="font-size: 40px">Yes</button>&nbsp;'
+			+'<button id="ChangeRoomNo" name="ChangeRoomNo" class="btn btn-info" style="font-size: 40px">No</button>');
+
+	    $('#ChangeRoomYes').off("click").on("click",function() {
+		new_room=$('#gNRnew_room').val();
+		cdata ={"room":my_session, "NewRoom": new_room }
+		$('#gGnewroom').val(new_room);
+		socket.emit("deploy_Session", cdata);
+	    });
+	    
+	    $('#ChangeRoomNo').off("click").on("click",function() {
+		$('#gotoNewRoom').remove();
+	    });
+	});
+	$('#submitCancel').off("click").on("click",function() {
+	    $('#saveValidate').remove();
+	});
+    });
+    managementGlobalMenuIconClassAttributesTab.push("saveButtonIcon");
+    managementGlobalMenuShareEvent.push(false);
+
+    /** Options menu
+	- How the selection of iframes is done, but ... it shall be widened in the future
+	-  */
+    managementGlobalMenuTitleTab.push("Option menu")
+    managementGlobalMenuEventTab.push(    function(v, id, optionNumber){
+	    if(v == true)  { 
+		$('header').append("<div id=options class='dropbtn'></div>");
+		$("#options").css({//GLOBALCSS 
+			position : "fixed", 
+			    top : 0, 
+			    left: parseInt($(me.menu.getHtmlMenuSelector()).css("width")), 
+			    height: "100%",
+			    zIndex: 902,	
+			    width :window.innerWidth - parseInt($(me.menu.getHtmlMenuSelector()).css("width")), // To have the upper right part of the screen
+			    //backgroundColor : "white", // TO DO : unify color style with the help menu + set color change for the wall
+			    //color : "black",
+			    fontSize : 100
+			    });
+
+		$('#options').append("<div id=options-zone></div>");
+		$('#options-zone').append("<div id=options-menus class=option-group></div>");
+
+		// Menus behaviour
+		//$('#options-zone').append("<div id=options-menus class=option-group></div>");
+		//$('#options-menus').append("<div id=options-menus-label class=label>Menus</div>");
+		$('#options-menus').append("<div id=options-global-menu-label class=label>Share global menu</div>");
+		var thisMenuShareEvent=me.menu.getMenuShareEvent();
+		var thisIconTab=me.menu.getMenuIconClassAttributesTab();
+		var LocalMenus=Array();
+		for (var theOption in thisIconTab) {
+		    $('#options-menus').append("<input type='checkbox' id='shareMenu_"+thisIconTab[theOption]+"' name='shareMenu_"+thisIconTab[theOption]+"' value='yes'>"+thisIconTab[theOption].replace("GlobalMenu","Menu").replace("ButtonIcon","")+"</br>");
+		    $('input[name=shareMenu_'+thisIconTab[theOption]+']').attr("checked",thisMenuShareEvent[theOption]);
+		    if (thisIconTab[theOption].search("GlobalMenu") > -1)
+			LocalMenus.push(thisIconTab[theOption])
+		}
+		$('#options-menus').append("<div id=options-submenus class=label>Share sub-menus: </div>");
+		for (var locMenu in LocalMenus) {
+		    var menuname=LocalMenus[locMenu].replace("GlobalMenuButtonIcon","Global")
+		    var thismenu=subMenusGlobal.filter(menu=>menu.getId()==menuname)[0];
+		    var thismenuShareEvent=thismenu.getMenuShareEvent();
+		    var thisiconTab=thismenu.getMenuIconClassAttributesTab();
+		    $('#options-menus').append("<div id=options-submenu-"+menuname+"-label class=label>"+menuname+"</div>");
+		    for (var theOption in thisiconTab) {
+			$('#options-menus').append("<input type='checkbox' id='shareMenu_"+thisiconTab[theOption]+"' name='shareMenu_"+thisiconTab[theOption]+"' value='yes'>"+thisiconTab[theOption].replace("ButtonIcon","")+"</br>");
+			$('input[name=shareMenu_'+thisiconTab[theOption]+']').attr("checked",thismenuShareEvent[theOption]);
+		    }
+		}
+
+		setColorTheme(configColors.colorTheme);	
+
+		$('#options-zone').append("<div id=options-look class=option-group></div>");
+
+		// Color theme 
+		$('#options-look').append("<div id=options-color-theme-label class=label>Color theme</div>");
+		$('#options-look').append("<form id=options-color-theme-form>");
+		$('#options-look').append("<input type='radio' name='color-theme-radio' value='dark'/>Dark<br />");
+		$('#options-look').append("<input type='radio' name='color-theme-radio' value='light'/>Light<br />");
+		$('#options-look').append("</form><br>");
+		$('input[name=color-theme-radio][value=' + configColors.colorTheme + ']').attr("checked", true);
+
+		// Help tooltip
+		$('#options-look').append("<div id=options-tooltip-label class=label>Tooltip</div>");
+		$('#options-look').append("<input type='checkbox' name=enable-tooltip value="+ configBehaviour.tooltip +">Enable Tooltip<br /><br />");
+		$('input[name=enable-tooltip]').attr("checked",configBehaviour.tooltip);
+
+		// Opacity slider
+		$('#options-look').append("<div id=options-opacity-label class=label>Opacity</div>");
+		$('#options-look').append("<input id=opacitySlider type='range' name=opacitySlider min=0 max=100 value= " + 
+					     configBehaviour.opacity*100 + " oninput='opacitySliderOutputId.value=opacitySlider.value.toString()+ \"%\"'>");		
+		$('#options-look').append("<output name=opacitySliderOutput id=opacitySliderOutputId for=opacitySlider "+
+					     "style='font-size: 80px; padding: 20px; padding-top: 5px; padding-bottom: 5px;'>"+
+					  configBehaviour.opacity*100 +"%</output><br /><br />");
+		$('#opacitySlider').change(function () {
+			var val = ($(this).val() - $(this).attr('min')) / ($(this).attr('max') - $(this).attr('min'));
+				
+			$(this).css('background-image',
+				    '-webkit-gradient(linear, left top, right top, '
+				    + 'color-stop(' + val + ', rgb(255, 0, 0)), '
+				    + 'color-stop(' + val + ', rgb(0, 255, 0))'
+				    + ')'
+				    );
+		    });
+		//$('#opacitySliderOutputId').css('background-image', '');
+
+		// Primary Zoom Slider
+		$('#options-look').append("<div id=options-primaryZoomSlider-label class=label>Global Zoom Slider</div>");
+		$('#options-look').append("<input type='checkbox' name=enable-primaryZoom value="+ configBehaviour.primaryZoomSlider +">Enable primary Zoom Slider<br />");
+		$('input[name=enable-primaryZoom]').attr("checked",configBehaviour.primaryZoomSlider);
+		
+		// Spread
+		$('#options-zone').append("<div id=options-spread class=option-group></div>");
+		$('#options-spread').append("<div id=options-spread-label class=label>Tile size</div>");
+		$('#options-spread').append("<input type='checkbox' name=spread-keepratio value="+ configBehaviour.defaultKeepRatio +">Keep ratio<br />");
+		$('input[name=spread-keepratio]').attr("checked",configBehaviour.defaultKeepRatio);
+
+		$('#options-spread').append("X: <input id=spreadX name=spreadX type='number' value=" +spread.X +">px   ");
+		$('#options-spread').append("Y: <input id=spreadY name=spreadY type='number' value=" +spread.Y +">px <br />");
+		$('#options-spread').append("Number of columns:</br><input id=colNumber name=colNumber type='number' value=" +numOfColumns+ "><br />");
+		$('#options-spread').append("Space Between </br>Columns:<input id=spaceBetweenColumns name=spaceBetweenColumns type='number' value=" +configBehaviour.spaceBetweenColumns+ "><br />");
+		$('#options-spread').append("Lines:<input id=spaceBetweenLines name=spaceBetweenLines type='number' value=" +configBehaviour.spaceBetweenLines+ "><br />");
+
+		var clickKR = function(){
+		    if ($('input[name=spread-keepratio]').is(":checked"))  { 
+			//console.log("KR checked");
+			$('input[name=spreadX]').off("change").on({
+				change : function(){
+				    //console.log("changeX");
+				    var ratioX = $('input[name=spreadX]').val()/spread.X;
+				    //console.log(ratioX);
+				    $('input[name=spreadY]').val(spread.Y*ratioX);
+				}
+			    });
+			$('input[name=spreadY]').off("change").on({
+				change : function(){
+				    //console.log("changeY");
+				    var ratioY = $('input[name=spreadY]').val()/spread.Y;
+				    //console.log(ratioY);
+				    $('input[name=spreadX]').val(spread.X*ratioY);
+				}
+			    });
+		    } else { 
+			//console.log("KR unchecked");
+		    }
+		};
+
+		$('input[name=spread-keepratio]').off("click").on({
+			click : clickKR
+			    });
+		if(configBehaviour.defaultKeepRatio)  { // Simulate first click to check the box if default behaviour means it should be checked
+		    $('input[name=spread-keepratio]').click();
+		}
+
+		// Always show info
+		$('#options-zone').append("<div id=options-info class=option-group></div>");
+		$('#options-info').append("<div id=options-showinfo-label class=label>Informations</div>");
+		$('#options-info').append("<input type='checkbox' id='showinfo-cb' name='showinfo-cb' value='yes'>Always show</input>");
+		// Info style
+		$('#options-info').append("<div id=options-info-font-label class=label>Font</div>");
+		$('#options-info').append("<select id=options-info-font-select></select>");
+		for (var it = 0;it<configBehaviour.infoFonts.length;it++)  { 
+		    $('#options-info-font-select').append("<option value='"+it+"'>"+configBehaviour.infoFonts[it].split(",")[0]+"</option>");
+		    if(it==configBehaviour.defaultFontIndex)  { 
+			$('#options-info-font-select').val(it);
+		    }
+		}
+		$('#options-info').append("<div id=options-info-size-label class=label>Size</div>");
+		$('#options-info').append("<input id=infoSize name=infoSize type='number' value="+ parseInt($('.info').css("font-size"))  +"><h1> less than "+configBehaviour.maxInfoFontSize+"</h1>");
+		$('input[name=showinfo-cb][value=yes]').attr("checked", configBehaviour.alwaysShowInfo);
+
+		// Drag and drop behaviour
+		$('#options-zone').append("<div id=options-dragdrop class=option-group></div>");
+		$('#options-dragdrop').append("<div id=options-dragdrop-label class=label>Drag & drop</div>");
+		$('#options-dragdrop').append("<input type='checkbox' id='show-only-border-cb' name='show-only-border-cb' value='yes'>Show only the border</br></input>");
+		$('input[name=show-only-border-cb]').attr("checked", configBehaviour.moveOnlyABorder);
+		$('#options-dragdrop').append("<input type='checkbox' id='move-on-menu-item-cb' name='move-on-menu-item-cb' value='yes'>Enable in menu items</br></input>");
+		//console.log(configBehaviour.moveOnMenuOption);
+		$('input[name=move-on-menu-item-cb]').attr("checked", configBehaviour.moveOnMenuOption);
+		$('#options-dragdrop').append("<input type='checkbox' id='move-on-grid-cb' name='move-on-grid-cb' value='yes'>Move on a grid</br></br></input>");
+		$('input[name=move-on-grid-cb]').attr("checked", configBehaviour.moveOnGrid);
+		$('#options-dragdrop').append("<input type='checkbox' id='showAnimationsLineColSwap' name='showAnimationsLineColSwap' value='yes'>Animate moves</br></input>");
+		$('input[name=showAnimationsLineColSwap]').attr("checked", configBehaviour.showAnimationsLineColSwap);
+
+		$('#options-dragdrop').append("<br>Speed of animations:</br><input id=AnimationSpeed name=AnimationSpeed type='number' value=" +configBehaviour.animationSpeed+ "></br>");
+
+		// Drag and drop behaviour
+		$('#options-zone').append("<div id=options-masterslave class=option-group></div>");
+		$('#options-masterslave').append("<div id=options-masterslave-label class=label>Parallel interaction</div>");
+		$('#options-masterslave').append("<br>Number of tiles showed:</br><input id=allMSShowMax name=allMSShowMax type='number' value=" +configBehaviour.allMSShowMax+ "></br>");
+
+		if (touchok) {
+		    // Touch behaviour
+		    $('#options-zone').append("<div id=options-touch class=option-group></div>");
+		    $('#options-touch').append("<div id=options-touch-label class=label>Touchable device</div>");
+
+		    $('#options-touch').append("<br>Speed of touch:</br><input id=touchSpeed name=touchSpeed type='number' value=" +configBehaviour.touchSpeed+ "></br>");
+			    
+		    $('#options-touch').append("<input type='checkbox' id='smooth-rotation' name='smooth-rotation' value='no'>Smooth rotation</input>");
+		    $('input[name=smooth-rotation]').attr("checked", configBehaviour.smoothRotation);
+			    
+		    $('#options-touch').append("<br>Speed of rotation:</br><input id=RotInc name=RotInc type='number' step='0.1' value=" +configBehaviour.RotationSpeed+ "></br>");
+		}
+
+		// Button to save and exit the options menu
+		$('#options').append("<div id=buttonSave></div>");
+
+		$('#options').append("<div id=buttonCancel></div>");
+
+		// Button to share config to all clients in room
+		$('#options').append("<div id=buttonShare></div>");
+		
+		$('#'+id+'option'+optionNumber).attr('class', $('#'+id+'option'+optionNumber).attr('class').replace('optionsButtonIcon', 'closeOptionsButtonIcon'));
+
+		// Get all values
+		ApplyParameters = function() {
+		    var tempColors = "'colors': {***}";
+		    // var tempJsonData = "'jsonData': {***}";
+		    var tempBehaviour = "'behaviour': {***}";
+		    // var tempTagBehaviour = "'tagBehaviour': {***}";
+		    // var tempCSSProperties = "'cssProperties': {***}";
+
+		    if(configColors.colorTheme != $('input[name=color-theme-radio]').filter(':checked').val())  { 
+			configColors.colorTheme = $('input[name=color-theme-radio]').filter(':checked').val();
+			setColorTheme(configColors.colorTheme);
+		    }
+		    tempColors=tempColors.replace("***","'colorTheme':'"+configColors.colorTheme+"'"+",\n ***");
+
+		    configBehaviour.tooltip = $('input[name=enable-tooltip]').is(":checked");
+		    tempBehaviour=tempBehaviour.replace("***","'tooltip': '"+configBehaviour.tooltip+"',\n ***");
+		    
+		    if(configBehaviour.opacity*100 != $('#opacitySlider').val())  { 
+			configBehaviour.opacity = Math.max($('#opacitySlider').val()/100, 0.1);
+			for (O in nodes)  { 
+			    nodes[O].setNodeOpacity(configBehaviour.opacity);
+			}
+		    }
+		    tempBehaviour=tempBehaviour.replace("***","'opacity':"+configBehaviour.opacity+",\n ***");
+
+		    configBehaviour.primaryZoomSlider = $('input[name=enable-primaryZoom]').is(":checked");
+		    if ( configBehaviour.primaryZoomSlider ) {
+			$('#primarySliderLabel').show();
+			$('#primarySlider').show();
+			$('#primarySlider').click();
+		    } else {
+			$('#primarySliderLabel').hide();
+			$('#primarySlider').hide();
+			$('#primaryparent').css("transform","")
+			$('#primaryparent').css("transform-origin","")
+		    }
+		    
+		    var hasSpreadChanged = false;
+		    if(spread.X != $('input[name=spreadX]').val())  { 
+			//console.log("change X, new", $('input[name=spreadX]').val());
+			hasSpreadChanged = true;
+		    }
+		    if(spread.Y != $('input[name=spreadY]').val())  { 
+			//console.log("change Y, new", $('input[name=spreadY]').val());
+			hasSpreadChanged = true;
+		    }
+
+		    if(hasSpreadChanged)  { 
+			var newSpread = {
+			    X : parseInt($('input[name=spreadX]').val()),
+			    Y : parseInt($('input[name=spreadY]').val())
+			    
+			};
+			me.updateSpread(newSpread);
+			
+			temp3="'spread': {\n 'X':"+newSpread.X+", \n 'Y':"+newSpread.Y+"\n}";
+			tempBehaviour=tempBehaviour.replace("***",temp3+",\n ***");
+		    }
+
+		    //console.log(parseInt($('input[name=colNumber]').val()));
+		    numOfColumns = parseInt($('input[name=colNumber]').val());
+                    tempBehaviour=tempBehaviour.replace("***","'maxNumOfColumns': "+numOfColumns+",\n ***");
+
+		    gapBetweenColumns = parseInt($('input[name=spaceBetweenColumns]').val());
+                    tempBehaviour=tempBehaviour.replace("***","'spaceBetweenColumns': "+gapBetweenColumns+",\n ***");
+
+		    gapBetweenLines = parseInt($('input[name=spaceBetweenLines]').val());
+                    tempBehaviour=tempBehaviour.replace("***","'spaceBetweenLines': "+gapBetweenLines+",\n ***");
+
+	            maxNumOfColumns=numOfColumns;
+		    mesh.globalLocationProvider(numOfColumns);
+		    
+		    configBehaviour.alwaysShowInfo = $('input[name=showinfo-cb]').is(":checked");
+		    tempBehaviour=tempBehaviour.replace("***","'alwaysShowInfo': '"+configBehaviour.alwaysShowInfo+"',\n ***");
+
+		    if(parseInt($('.info').css("font-size"))!=$('#infoSize').val())  { 
+			$('.info').css("font-size",  Math.min($('#infoSize').val(), configBehaviour.maxInfoFontSize) + "px");
+			configBehaviour.defaultInfoFontSize = $('.info').css("font-size");
+
+			tempBehaviour=tempBehaviour.replace("***","'defaultInfoFontSize': '"+configBehaviour.defaultInfoFontSize+"',\n ***");
+		    }
+		    configBehaviour.defaultFontIndex = $('#options-info-font-select').val();
+		    $('.info').css("font-family", configBehaviour.infoFonts[configBehaviour.defaultFontIndex]);
+
+		    tempBehaviour=tempBehaviour.replace("***","'defaultFontIndex': "+configBehaviour.defaultFontIndex+",\n ***");
+
+		    configBehaviour.moveOnlyABorder = $('input[name=show-only-border-cb]').is(":checked");
+		    tempBehaviour=tempBehaviour.replace("***","'moveOnlyABorder': '"+configBehaviour.moveOnlyABorder+"',\n ***");
+		    configBehaviour.moveOnMenuOption = $('input[name=move-on-menu-item-cb]').is(":checked");
+                    tempBehaviour=tempBehaviour.replace("***","'moveOnMenuOption': '"+configBehaviour.moveOnMenuOption+"',\n ***");
+		    configBehaviour.moveOnGrid = $('input[name=move-on-grid-cb]').is(":checked");
+                    tempBehaviour=tempBehaviour.replace("***","'moveOnGrid': '"+configBehaviour.moveOnGrid+"',\n ***");
+		    configBehaviour.showAnimationsLineColSwap = $('input[name=showAnimationsLineColSwap]').is(":checked");
+                    tempBehaviour=tempBehaviour.replace("***","'showAnimationsLineColSwap': '"+configBehaviour.showAnimationsLineColSwap+"',\n ***");
+		    
+		    configBehaviour.animationSpeed = $('#AnimationSpeed').val();
+                    tempBehaviour=tempBehaviour.replace("***","'animationSpeed': "+configBehaviour.animationSpeed+",\n ***");
+		    
+		    configBehaviour.allMSShowMax = $('#allMSShowMax').val();
+                    tempBehaviour=tempBehaviour.replace("***","'allMSShowMax': "+configBehaviour.allMSShowMax+",\n ***");
+		    
+		    if (touchok) {
+			configBehaviour.touchSpeed = $('#touchSpeed').val();
+			tempBehaviour=tempBehaviour.replace("***","'touchSpeed': "+configBehaviour.touchSpeed+",\n ***");
+			
+			configBehaviour.smoothRotation = $('input[name=smooth-rotation]').is(":checked");
+			tempBehaviour=tempBehaviour.replace("***","'smoothRotation': '"+configBehaviour.smoothRotation+"',\n ***");
+			if (configBehaviour.smoothRotation) {
+			    RotInc=configBehaviour.RotationSpeed; //for a smooth touchmove rotation
+			} else {
+			    // for a turn over with only touchstart / touchend (no touchmove) events
+			    RotInc=180; 
+			}
+		    } else {
+			configBehaviour.smoothRotation = false;
+		    }
+
+		    for (var theOption in thisIconTab) {
+			me.menu.setMenuShareEvent(theOption, $('input[name=shareMenu_'+thisIconTab[theOption]+']').is(":checked"));
+		    }
+		    for (var locMenu in LocalMenus) {
+			var menuname=LocalMenus[locMenu].replace("GlobalMenuButtonIcon","Global")
+			var thismenu=subMenusGlobal.filter(menu=>menu.getId()==menuname)[0];
+			var thisiconTab=thismenu.getMenuIconClassAttributesTab();
+			for (var theOption in thisiconTab) {
+			    thismenu.setMenuShareEvent(theOption, $('input[name=shareMenu_'+thisiconTab[theOption]+']').is(":checked"));
+			}
+		    }
+		    
+		    var tempConfigJson="{\n"
+			+ tempColors.replace(",\n ***","").replace("***","")+",\n"
+			// + tempJsonData.replace(",\n ***","").replace("***","")+",\n"
+			+ tempBehaviour.replace(",\n ***","").replace("***","")+"\n"
+			// + tempTagBehaviour.replace(",\n ***","").replace("***","")+",\n"
+			// + tempCSSProperties.replace(",\n ***","").replace("***","")+"\n"
+			+ "}";
+
+		    return tempConfigJson;
+		}
+
+		
+		// Interactions
+		$('#buttonSave').off("click").on({
+
+			click : function(){
+			    ApplyParameters();
+			    $('#buttonCancel').click();
+			}
+		    });
+
+		$('#buttonCancel').off("click").on('click',function() { 
+		    $('#'+id+'option'+optionNumber).click();
+		});
+
+		$('#buttonShare').off("click").on({
+			click : function(){				
+			    ConfigJson = ApplyParameters();
+			    
+			    var sessionDate = new Date();
+			    var strDate=sessionDate.toLocaleDateString({day: "2-digit", month: "2-digit"}).replace(/\//g, "-") + "_" + sessionDate.toLocaleTimeString("fr-FR").replace(/:/g, "-")
+			    var fileName = my_session + "_" + "Config_" + strDate + ".json"; 
+			    var file = new File([ConfigJson], fileName, {type: "text/plain;charset=utf-8"});
+			    saveAs(file);
+
+			    cdata ={"room":my_session, "Config": ConfigJson }
+			    console.log("Share config : "+ConfigJson);
+			    // used to deploy config but not on the user that have emited the signal.
+			    myOwnConfig=true;
+			    socket.emit("save_Config", cdata);
+			}
+		    });
+		
+	    } else {
+		$('#options').remove();
+		$('#options-content-select').remove();
+		$('#'+id+'option'+optionNumber).removeClass("closeOptionsButtonIcon").addClass("optionsButtonIcon");
+	    }
+	});
+
+    managementGlobalMenuIconClassAttributesTab.push("optionsButtonIcon");
+    managementGlobalMenuShareEvent.push(false);
+
+
+    // Update parameters for options
+    UpdateParameters = function(configJson) {
+	var tempColors = configJson.colors;
+	// var tempJsonData = configJson.jsonData;
+	var tempBehaviour = configJson.behaviour;
+	// var tempTagBehaviour = configJson.tagBehaviour;
+	// var tempCSSProperties = configJson.cssProperties;
+
+	if (tempColors.hasOwnProperty('colorTheme')) {
+	    configColors.colorTheme = tempColors.colorTheme
+	    setColorTheme(configColors.colorTheme);
+	}
+
+	if(tempBehaviour.hasOwnProperty('tooltip'))
+	    configBehaviour.tooltip = $.parseJSON(tempBehaviour.tooltip);
+
+	if(tempBehaviour.hasOwnProperty('opacity')) {
+	    configBehaviour.opacity = tempBehaviour.opacity;
+	    for (O in nodes)  { 
+		nodes[O].setNodeOpacity(configBehaviour.opacity);
+	    }
+	}
+
+	if(tempBehaviour.hasOwnProperty('spread'))  { 
+	    var newSpread = {
+		X : parseInt(tempBehaviour.spread.X),
+		Y : parseInt(tempBehaviour.spread.Y)
+		
+	    };
+	    me.updateSpread(newSpread);			
+	}
+
+        if(tempBehaviour.hasOwnProperty('maxNumOfColumns'))
+	    numOfColumns = tempBehaviour.maxNumOfColumns;
+	
+        if(tempBehaviour.hasOwnProperty('spaceBetweenColumns'))
+	    gapBetweenColumns = tempBehaviour.spaceBetweenColumns
+        if(tempBehaviour.hasOwnProperty('spaceBetweenLines'))
+	    gapBetweenLines = tempBehaviour.spaceBetweenLines
+	    
+	maxNumOfColumns=numOfColumns;
+	mesh.globalLocationProvider(numOfColumns);
+
+	if(tempBehaviour.hasOwnProperty('alwaysShowInfo'))
+	    configBehaviour.alwaysShowInfo = $.parseJSON(tempBehaviour.alwaysShowInfo);
+
+	if(tempBehaviour.hasOwnProperty('defaultInfoFontSize'))  {
+	    configBehaviour.defaultInfoFontSize = tempBehaviour.defaultInfoFontSize;
+	    $('.info').css("font-size",configBehaviour.defaultInfoFontSize) 
+	}
+	if(tempBehaviour.hasOwnProperty('defaultFontIndex'))  { 
+	    configBehaviour.defaultFontIndex = tempBehaviour.defaultFontIndex;
+	    $('.info').css("font-family", configBehaviour.infoFonts[configBehaviour.defaultFontIndex]);
+	}
+
+	if(tempBehaviour.hasOwnProperty('moveOnlyABorder'))
+	    configBehaviour.moveOnlyABorder = $.parseJSON(tempBehaviour.moveOnlyABorder);
+
+	if(tempBehaviour.hasOwnProperty('moveOnMenuOption'))
+	    configBehaviour.moveOnMenuOption = $.parseJSON(tempBehaviour.moveOnMenuOption);
+
+	if(tempBehaviour.hasOwnProperty('moveOnGrid'))
+	    configBehaviour.moveOnGrid = $.parseJSON(tempBehaviour.moveOnGrid);
+
+        if(tempBehaviour.hasOwnProperty('showAnimationsLineColSwap'))
+	    configBehaviour.showAnimationsLineColSwap = $.parseJSON(tempBehaviour.showAnimationsLineColSwap);
+		    
+        if(tempBehaviour.hasOwnProperty('animationSpeed'))
+	    configBehaviour.animationSpeed = tempBehaviour.animationSpeed;
+		    
+        if(tempBehaviour.hasOwnProperty('allMSShowMax'))
+	    configBehaviour.allMSShowMax = tempBehaviour.allMSShowMax;
+	
+	if (touchok) {
+
+            if(tempBehaviour.hasOwnProperty('touchSpeed'))
+		configBehaviour.touchSpeed = tempBehaviour.touchSpeed;
+			
+
+            if(tempBehaviour.hasOwnProperty('smoothRotation'))
+		configBehaviour.smoothRotation = $.parseJSON(tempBehaviour.smoothRotation);
+
+	    if (configBehaviour.smoothRotation) {
+		RotInc=configBehaviour.RotationSpeed; //for a smooth touchmove rotation
+	    } else {
+		// for a turn over with only touchstart / touchend (no touchmove) events
+		RotInc=180; 
+	    }
+	} else {
+	    configBehaviour.smoothRotation = false;
+	}
+				    
+    }
+
+    /** Help icon : 
+     */
+
+    var initHelp=null;
+
+    managementGlobalMenuTitleTab.push("Show help page")
+    managementGlobalMenuEventTab.push(    function(v, id, optionNumber){
+	    if (v==true)  { 
+		//var support = document.getElementById("helpframe");
+
+		if (initHelp == null)  { // First time opening the help menu: Help page will be loaded
+		    htmlPrimaryParent.prepend($('#helpSupport'));	
+		    $('#helpSupport').css({ // TO BE CONTINUED !
+			    position : "absolute",
+				//top : parseInt($('#header').css('height')),
+				top : 0, 
+				//padding : "100px",
+				left : parseInt($(me.menu.getHtmlMenuSelector()).css("width")),
+				zIndex : 750,
+				height : "100%",
+				width : "100%",
+				backgroundColor : "black",
+				opacity : 1
+				});
+
+
+		    $('#helpframe').attr("height","30%").attr("width","30%").css({
+			    height: "30%",
+				width : "30%"
+		    });
+		    
+		    console.log(helpPath);
+		    $('#helpSupport').append('<div id=buttonClosehelp class=unzoomButtonIcon></div>');
+		    $('#helpSupport').append("<div id=helpSliderLabel style='background-image: none; color: white; background-color: black; font-size: 80px; padding: 20px; padding-top: 5px; padding-bottom: 5px;'>Zoom</div>");
+		    $('#buttonClosehelp').css({
+			position : "fixed", 
+			top : 0 ,
+			left : parseInt($(me.menu.getHtmlMenuSelector()).css("width")),
+			height : 200,
+			width : 200,
+			zIndex : 802,	
+			backgroundColor: "rgba(0, 0, 0, 0.5)"
+		    });
+		    $('#buttonClosehelp').off("click").on('click',function() { 
+			$('#helpSupport').hide();	
+			$('#'+id +'option'+optionNumber).removeClass("closeHelpButtonIcon").addClass("helpButtonIcon")
+		    });
+		    
+		    $('#helpSliderLabel').css({
+			position: "fixed",
+			fontSize : "150px",
+			left : parseInt($(me.menu.getHtmlMenuSelector()).css("width"))
+			    +parseInt($('#buttonClosehelp').css("width")),
+			top: 10,
+			//color: "white",
+			zIndex: 802,
+			padding: "0px 50px",
+			width : "600px",
+			height : "200px"
+			//backgroundColor: "rgba(0, 0, 0, 0.5)"
+		    });
+
+		    $('#helpSliderLabel').append("<input id=helpSlider type='range' name=helpSlider min="+window.devicePixelRatio*100+" max="+5*window.devicePixelRatio*100+" value= " + 
+						 3*window.devicePixelRatio*100 + ">");
+
+		    $('#helpSlider').css({
+			position : "fixed", 
+			top: parseInt($('#helpSliderLabel').css("height"))/2,
+			left : (parseInt($('#helpSliderLabel').css("width"))
+				+parseInt($('#buttonClosehelp').css("width")))*1.1,
+			//width : 30/100 * parseInt($('header').css("width"))
+			width: parseInt($('header').css("width"))/2 - parseInt($(me.menu.getHtmlMenuSelector()).css("width")),
+			//padding : parseInt($('#helpSliderLabel').css("height"))/2,
+		    });
+		    
+		    $('#helpSlider').change(function () {
+			    var val = ($(this).val() - $(this).attr('min')) / ($(this).attr('max') - $(this).attr('min'));
+				
+			    $(this).css('background-image',
+					'-webkit-gradient(linear, left top, right top, '
+					+ 'color-stop(' + val + ', rgb(255, 0, 0)), '
+					+ 'color-stop(' + val + ', rgb(0, 255, 0))'
+					+ ')'
+					);
+			});
+
+		    var val = ($("#helpSlider").val() - $("#helpSlider").attr('min')) / ($("#helpSlider").attr('max') - $("#helpSlider").attr('min'));
+		    $('#helpSlider').css('background-image',
+					 '-webkit-gradient(linear, left top, right top, '
+					 + 'color-stop(' + val + ', rgb(255, 0, 0)), '
+					 + 'color-stop(' + val + ', rgb(0, 255, 0))'
+					 + ')'
+					 );
+
+
+		    $('#helpframe').css({
+			    position: "fixed",
+				top : parseInt($('#helpSliderLabel').css("height"))
+				});
+
+		    $('#helpSlider').off("click").on({
+			    click : function(e){
+				var newZoom = $('#helpSlider').val();
+				var ratio = newZoom/(window.devicePixelRatio*100);
+				$('#helpframe').css("-moz-transform","scale("+ratio+")").css("-webkit-transform","scale("+ratio+")").css("transform-origin", "0 0 0");
+			    }
+			});
+
+		    $('#helpSlider').click();
+		    //$('#helpSupport').load("doc/user_doc_EN.html");
+
+		    setColorTheme(configColors.colorTheme); // First time: set colors	
+		    $('#helpSupport').show();
+			
+		    initHelp="ok";
+		} else // Simply show the previous (hidden since) help page.
+		    {
+			$('#helpSupport').show();
+		    }	
+
+		$('#'+id+'option'+optionNumber).removeClass("helpButtonIcon").addClass("closeHelpButtonIcon");
+	    } else
+		$('#buttonClosehelp').click();
+	});
+    managementGlobalMenuIconClassAttributesTab.push("helpButtonIcon");
+    managementGlobalMenuShareEvent.push(false);
+
+    /** Cancel menu
+     - Undo last operation (Ctrl+Z)
+     - Redo last operation (Ctrl+Y)
+     */
+    
+    var cancelGlobalMenuTitleTab = new Array();
+    var cancelGlobalMenuEventTab = new Array();
+    var cancelGlobalMenuIconClassAttributesTab = new Array();
+    var cancelGlobalMenuShareEvent = new Array();
+
+    // Cancel last movement
+    cancelGlobalMenuTitleTab.push("Cancel last movement")
+    cancelGlobalMenuEventTab.push((    function(){
+
+		return function(v){
+		    if(!(nodesOldPositions.length-stepBack == -1))  { // ie nodesOldPositions.length != 0, ie there is/are movement(s) to cancel			
+			if(stepBack==1)  { 
+			    //console.log("stepback == 1");
+			    me.savePositions();
+			    stepBack++;
+			}
+
+			var back = function(){
+
+			    var u = 0;
+
+			    for(u=0;u<nodes2.length;u++)  { 	
+				me.switchLocation(me.getNode(nodesOldPositions[nodesOldPositions.length-stepBack][u]),nodes2[u],true,false);
+			    }
+			    // If the last movement was a "block movement", ie column or line swap, undo the
+			    // swap with only one click
+			    if (nodesOldPositions[nodesOldPositions.length - stepBack][nodes2.length])  { 
+				stepBack ++;
+				back();	
+			    }
+			}
+
+			if(v==true)  { 	
+			    back();
+			} else { 		
+			    back();
+			}
+
+			stepBack++;
+
+		    }	
+
+		};
+	    })());
+
+    cancelGlobalMenuIconClassAttributesTab.push("moveBackButtonIcon");
+    cancelGlobalMenuShareEvent.push(true);
+    
+    /** Define keyboard shortcuts Ctrl+Z and Alt+Z to undo last movement */
+
+    // var ctrlpress = false;
+    // var altpress = false;
+    // var sizeMenuEventTab = menuEventTab.length-1;
+    // $("body").on({
+    // 	    keydown : function(e){
+    // 		//CTRL
+    // 		if(e.keyCode==17)  { 
+    // 		    ctrlpress=true;
+
+    // 		    $("body").on({
+
+    // 			    keydown : function(e){
+    // 				//Z
+    // 				if(e.keyCode==90 && ctrlpress==true)  { 
+
+    // 				    menuGlobal.children(menuGlobal.attr("id").replace("menu","")+'option'+sizeMenuEventTab).click();//MARK
+    // 				}
+    // 			    },
+    // 				keyup : function(e){
+    // 				//CTRL
+    // 				if(e.keyCode==17)  { 
+    // 				    ctrlpress=false;
+    // 				}
+    // 			    }				
+    // 			});
+    // 		} //alt
+    // 		// else 
+    // 		// if(e.keyCode==18)
+    // 		// {
+    // 		//     altpress=true;
+
+    // 		//     $("body").on({
+
+    // 		//	keydown : function(e){
+    // 		//	    //Z
+    // 		//	    if(e.keyCode==90 && altpress==true)
+    // 		//	    {
+
+    // 		//		menuGlobal.children(menuGlobal.attr("id").replace("menu","")+'option'+sizeMenuEventTab).click();
+    // 		//	    }
+    // 		//	},
+    // 		//	keyup : function(e){
+    // 		//	    //ALT
+    // 		//	    if(e.keyCode==18)
+    // 		//	    {
+    // 		//		altpress=false;
+    // 		//	    }
+    // 		//	}				
+    // 		//     });
+    // 		// }
+    // 	    }
+    // 	});
+
+
+    /** Re-do last cancelled action */
+    cancelGlobalMenuTitleTab.push("Redo last cancelled")
+    cancelGlobalMenuEventTab.push((    function(){
+
+
+		return function(v){
+
+		    var stepForward = 1-stepBack; // It was 2-stepBack in Yacouba's code, and caused an error when trying to undo movements at the beginning, when they weren’t any (stepForward = 2-1 = 1, the loop was entered, but nodesOldPositions[nodes….length + 1] didn’t exist).
+		    //console.log(stepForward, stepBack);	
+		    if(stepForward<0 && stepForward + nodesOldPositions.length >= 0)  { 
+
+
+
+			var forward = function(){
+
+			    var u = 0;
+
+			    //console.log(nodesOldPositions.length+stepForward);
+			    for(u=0;u<nodes2.length;u++)  { 	
+				me.switchLocation(me.getNode(nodesOldPositions[nodesOldPositions.length+stepForward][u]),nodes2[u],true,false);
+			    }
+			    // If the last undone movement was a block move, we want to detect it and re-do
+			    // it in one click
+			    if (stepForward + 1 <= -1)  { // Condition on length : we want the "nodesOldPositions.length + stepForward +1"-th element, this index has to be smaller than "nodesOldPositions.length - 1"
+				var boolCurrIdx = nodesOldPositions[nodesOldPositions.length+stepForward][nodes2.length];
+				var boolNextIdx = nodesOldPositions[nodesOldPositions.length+stepForward+1][nodes2.length];
+				//console.log(boolCurrIdx, boolNextIdx);
+				if (boolNextIdx  || boolCurrIdx)  { 
+				    //console.log("detected block");
+				    stepBack --;
+				    stepForward = 1-stepBack;
+				    //console.log(stepBack, stepForward);
+
+				    if(stepForward<0 && stepForward >= -nodesOldPositions.length)  { // Ensure no forbidden operations / access to unaccessible index in the array
+					forward();
+				    }
+				}
+			    } else { 
+				console.log("not in range (forward)");
+			    }
+			}
+
+			if(v==true)  { 	
+			    forward();
+			} else { 		
+			    forward();
+			}
+
+			stepBack--;
+		    }
+		};
+	    })());
+
+    cancelGlobalMenuIconClassAttributesTab.push("moveForwardButtonIcon");
+    cancelGlobalMenuShareEvent.push(true);
+    
+    /** Keyboard shortcuts Ctrl+Y or Alt+Y to re-do last cancelled action. */
+
+    // var ctrlpress = false;
+    // //var altpress = false;
+    // var sizeMenuEventTab2 = menuEventTab.length-1;
+    // $("body").on({
+    // 	    keydown : function(e){
+    // 		//CTRL
+    // 		if(e.keyCode==17)  { 
+    // 		    ctrlpress=true;
+
+    // 		    $("body").on({
+
+    // 			    keydown : function(e){
+    // 				//Y
+    // 				if(e.keyCode==89 && ctrlpress==true)  { 
+
+    // 				    menuGlobal.children(menuGlobal.attr("id").replace("menu","")+'option'+sizeMenuEventTab2).click();
+    // 				}
+    // 			    },
+    // 				keyup : function(e){
+    // 				//CTRL
+    // 				if(e.keyCode==17)  { 
+    // 				    ctrlpress=false;
+    // 				}
+    // 			    }				
+    // 			});
+    // 		} // alt
+    // 		// else 
+    // 		// if(e.keyCode==18)
+    // 		// {
+    // 		//     altpress=true;
+
+    // 		//     $("body").on({
+
+    // 		//	keydown : function(e){
+    // 		//	    //Y
+    // 		//	    if(e.keyCode==89 && altpress==true)
+    // 		//	    {
+    // 		//		menuGlobal.children(menuGlobal.attr("id").replace("menu","")+'option'+sizeMenuEventTab2).click();
+
+    // 		//	    } 
+    // 		//	},
+    // 		//	keyup : function(e){
+    // 		//	    //ALT
+    // 		//	    if(e.keyCode==18)
+    // 		//	    {
+    // 		//		altpress=false;
+    // 		//	    }
+    // 		//	}				
+    // 		//     });
+    // 		// } 
+    // 	    }
+    // 	});
+
+    /** Updown menu
+     - Move up all lines and place first line on last one
+     - Move down all lines and place last line on first
+    */    
+
+    var updownGlobalMenuTitleTab = new Array();
+    var updownGlobalMenuEventTab = new Array();
+    var updownGlobalMenuIconClassAttributesTab = new Array();
+    var updownGlobalMenuShareEvent = new Array();
+
+    // Move up all lines and place first line on last one
+    updownGlobalMenuTitleTab.push("Move up all lines and place first line on last one")
+    updownGlobalMenuEventTab.push(    function(v, id, optionNumber){
 	    if (v==true)  { 
 		moveMesh("up");
 	    } else { 
 		moveMesh("up");
 	    }
 	});
-    menuIconClassAttributesTab.push("upArrowButtonIcon");
-    MenuShareEvent.push(true);
+    updownGlobalMenuIconClassAttributesTab.push("upArrowButtonIcon");
+    updownGlobalMenuShareEvent.push(true);
     
-    // Display/Hide the node menu
-    menuEventTab.push(    function(v,id,optionNumber){
-
-	    if(v==true)  { 	
-		if (!configBehaviour.moveOnNodeMenuOption)  { 
-		    $('.node').off();
-		    $('.hitbox').off();
-		}
-
-		$(".nodemenu").css({visibility : "visible"});	
-
-		$('#menu'+id+'>#option'+optionNumber).attr('class',$('#menu'+id+'>#option'+optionNumber).attr('class').replace('nodeMenuButton','closeNodeMenuButton'));
-	    } else { 	
-		var nodeId =0;
-
-		for(nodeId = 0 ; nodeId < nodeCardinal; nodeId++)  { 
-
-		    var p =0 ;
-
-		    for(p=0;p<nodes["node"+nodeId].getNodeMenu().getEventSelectedTab().length;p++)  { 
-			if(nodes["node"+nodeId].getNodeMenu().getEventSelectedTab()[p]==true)  { 
-			    $("#menu"+nodeId+">#option"+p).click();
-			    //console.log("obscure if condition in NodeMenu");
-			}
-		    }
-
-		}
-
-		me.meshEventReStart();
-		$(".nodemenu").css({visibility : "hidden"});
-		$('#menu'+id+'>#option'+optionNumber).attr('class',$('#menu'+id+'>#option'+optionNumber).attr('class').replace('closeNodeMenuButton','nodeMenuButton'));
+    // Move down all lines and place last line on first
+    updownGlobalMenuTitleTab.push("Move down all lines and place last line on first")
+    updownGlobalMenuEventTab.push(    function(v, id, optionNumber){
+	    if (v==true)  { 
+		moveMesh("down");
+	    } else { 
+		moveMesh("down");
 	    }
-
 	});
+    updownGlobalMenuIconClassAttributesTab.push("downArrowButtonIcon");
+    updownGlobalMenuShareEvent.push(true);
 
-    // Add the icon to the tab of menu icons 
-    menuIconClassAttributesTab.push("nodeMenuButtonIcon");
-    MenuShareEvent.push(true);
+    /** GLOBAL MENU	
+     * List of implemented functions : 
+
+     - Search/Filter option
+     - Clear all selections
+     - Next "Off" tiles move up
+     - Only if touchable browser : Show rotate button on each node.
+     - Refresh button
+     - Tag menu : Zoom on selection, Master-Slave mode, zoom on one node.
+     - Management menu : manage of overlay draws, save session, options, help frame. 
+     - Info on node menu : OnOff buttons, QRcodes, title information.
+     - Node menu : transparency, text on nodes, draw mode, sort lines or columns 
+     - Cancel Global Menu
+     - Up/Down on lines menu
+    */
+    var menuTitleTab = new Array();
+    var menuEventTab = new Array();
+    var menuIconClassAttributesTab = new Array();
+    var menuShareEvent = new Array();
 
     /** Filter node through tags and zoom on filtered nodes
 	- Launch a simple research 
@@ -1531,7 +3323,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	a legend with different colors will be shown at the top of the screen.
 	- Clean search : click on the Eraser icon on the upper-right corner.
 	This filter use Jquery UI modules : autocompletes, see https://jqueryui.com/autocomplete/ for details
-    */				
+    */
+    // Filter node through tags and zoom on filtered nodes
+    menuTitleTab.push("Filter node through tags and zoom on filtered nodes")
     menuEventTab.push(    function(v,id,optionNumber){
 
 	    me.savePositions();	
@@ -1746,7 +3540,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		    });	
 		// Replace icons		    
-		$('#menu'+id+'>#option'+optionNumber).attr('class',$('#menu'+id+'>#option'+optionNumber).attr('class').replace('searchButtonIcon','closeSearchButtonIcon'));		
+		$('#'+id+'option'+optionNumber).attr('class',$('#'+id+'option'+optionNumber).attr('class').replace('searchButtonIcon','closeSearchButtonIcon'));		
 	    } else { 	
 		$("#brush").click();
 		$('#blackboard').remove();
@@ -1754,16 +3548,162 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		$("filter").remove();
 		$("#search").remove();
 		$("#brush").remove();
-		$('#menu'+id+'>#option'+optionNumber).attr('class',$('#menu'+id+'>#option'+optionNumber).attr('class').replace('closeSearchButtonIcon','searchButtonIcon'));	
+		$('#'+id+'option'+optionNumber).attr('class',$('#'+id+'option'+optionNumber).attr('class').replace('closeSearchButtonIcon','searchButtonIcon'));	
 
 	    }		
 	});	
 
     menuIconClassAttributesTab.push("searchButtonIcon");
-    MenuShareEvent.push(false)
+    menuShareEvent.push(false)
 
+    // /** Share selection to other participants in session. */
+    // menuTitleTab.push("Share selection")
+    // menuEventTab.push(    function(v,id,optionNumber){
+	
+    // 	$('#'+id+'option'+optionNumber).removeClass('selectionButtonIcon').addClass('closeSelectionButtonIcon');
+    // 	var listSelectionIds = [];
+    // 	var listSectionTiles=me.getSelectedNodes()
+    // 	for(O in listSectionTiles)  { 
+    // 	    listSelectionIds.push(listSectionTiles[O].getId());
+    // 	}
+    //  	console.log("share_Selection",listSelectionIds);
+    // 	var cdata ={"room":my_session, "Selection": "["+listSelectionIds.toString()+"]" }
+    // 	socket.emit("share_Selection", cdata);
+
+    // 	$('#'+id+'option'+optionNumber).removeClass('closeSelectionButtonIcon').addClass('selectionButtonIcon');
+    // });
+    // menuIconClassAttributesTab.push("selectionButtonIcon");
+    // menuShareEvent.push(false);
+    
+    /** Clear selection to all participants in session. */
+    menuTitleTab.push("Clear selection")
+    menuEventTab.push(    function(v,id,optionNumber){
+	
+	$('#'+id+'option'+optionNumber).removeClass('clearSelectionButtonIcon').addClass('closeClearSelectionButtonIcon');
+	for(O in nodes)  { 
+	    nodes[O].updateSelectedStatus(false);
+	}
+	$('#'+id+'option'+optionNumber).removeClass('closeClearSelectionButtonIcon').addClass('clearSelectionButtonIcon');
+	addBlink($('#'+id+'option'+optionNumber));
+    });
+    menuIconClassAttributesTab.push("clearSelectionButtonIcon");
+    menuShareEvent.push(true);
+
+    /** Show next tiles. */
+    nextList=[]
+    menuTitleTab.push("Show next tiles.")
+    menuEventTab.push(    function(v,id,optionNumber){
+	
+	$('#'+id+'option' + optionNumber).removeClass('nextTilesButtonIcon').addClass('closeNextTilesButtonIcon');
+
+	if ($('#'+globalTagsList[0]).position() == undefined)
+	    $('.tagsGlobalMenuButtonIcon').click()
+	
+        SelectOff=function(){
+	    me.setSelectingTags(true);
+	    $('#tag-legend>#Off').click();
+     	    //console.log("Selection Off");
+	    addBlink($('.selectTagButtonIcon'))
+	}
+	setTimeout(SelectOff,500)
+
+	ShareSelectionOff=function() {
+	    me.setSelectingTags(false);
+	    //$('#tag-legend>#Off').click();
+	    addBlink($('#tag-legend>#Off'))
+     	    //console.log("unSelection Off");
+
+    	    var listSelectionIds = [];
+    	    var listSectionTiles=me.getSelectedNodes()
+    	    for(O in listSectionTiles)  { 
+    		listSelectionIds.push(listSectionTiles[O].getId());
+    	    }
+     	    //console.log("share_Selection",listSelectionIds);
+    	    var cdata ={"room":my_session, "Selection": "["+listSelectionIds.toString()+"]" }
+    	    socket.emit("share_Selection", cdata);
+	    addBlink($('.selectTagButtonIcon'))
+	}
+	setTimeout(ShareSelectionOff,800)
+
+	var newtag="Next"+nextList.length
+	nextList.push(newtag)
+	newTagFun=function(){
+	    cdata={"room":my_session,"NewTag":newtag};
+	    socket.emit("add_Tag", cdata, function(sdata){
+ 		console.log("socket add New Tag ", cdata);
+	    });
+	}
+	setTimeout(newTagFun,1500)
+
+	selectionToNewTagFun=function(){
+	    $('.selectionToTagButtonIcon').click()
+	    $('#tag-legend>#'+newtag).click();
+	    $('.selectionToTagButtonIcon').click()
+	    addBlink($('.selectionToTagButtonIcon'))
+     	    console.log("selectionToTagButtonIcon");
+	}
+	setTimeout(selectionToNewTagFun,2000)
+	    
+	GroupOff=function(){
+	    $('.alignTagButtonIcon').click();
+	    $('#tag-legend>#'+newtag).click();
+	    $('.alignTagButtonIcon').click();
+	    addBlink($('.alignTagButtonIcon'));
+     	    console.log("GroupOff");
+	    $('.clearSelectionButtonIcon').click();
+	}
+	setTimeout(GroupOff,3000)
+
+	$('#'+id+'option'+optionNumber).removeClass('closeNextTilesButtonIcon').addClass('nextTilesButtonIcon');
+    });
+    menuIconClassAttributesTab.push("nextTilesButtonIcon");
+    menuShareEvent.push(false);
+
+    /** Show rotate button on each node */
+    if (touchok) {
+	menuTitleTab.push("Show rotate button")
+	menuEventTab.push( (    function(){
+
+		    return function(v, id, optionNumber){
+			if (v==true)  { 
+			    $('.rotate').show();
+			    $('#'+id+'option'+optionNumber).removeClass('RotateButtonIcon').addClass('closeRotateButtonIcon');
+			} else { 
+			    $('.rotate').hide();
+			    $('#'+id+'option'+optionNumber).removeClass("closeRotateButtonIcon").addClass("RotateButtonIcon");
+
+			}
+		    };
+
+		})());
+
+	menuIconClassAttributesTab.push("RotateButtonIcon");
+	menuShareEvent.push(false);
+    }
+
+    
+    /** Refresh button: 
+	designed to reset nodes when something goes wrong 
+	(reload their content, remove draggable classes).
+    **/
+	
+    // Refresh all nodes
+    menuTitleTab.push("Refresh all nodes")
+    menuEventTab.push(    function (v){
+	    if (v==true)  { 
+		refreshNodes();
+	    } else { 
+		refreshNodes();
+	    }
+	});
+
+    menuIconClassAttributesTab.push("refreshButtonIcon");
+    menuShareEvent.push(false);
+    
     /** Tags: opens tag menu and let the user manipulate tags
      */
+    // Tag menu
+    menuTitleTab.push("Tag menu")
     menuEventTab.push(    function(v, id, optionNumber){
 	    if (v == true)  { 
 		$('.hitbox').off("click");
@@ -1812,7 +3752,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		}
 		if (computedTagsList.length == 0)  { 
 		    if (configTagsBehaviour.showAll)  { 
-			computedTagsList = globalTagsList;
+			computedTagsList = globalTagsList.sort();
 		    }
 		    else if (configTagsBehaviour.selectionMethod =="frequency")  { 
 			// Calculations on the dico
@@ -1906,18 +3846,18 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			click : clickSticker
 			    });
 			
-		$('#menu' + id  + '>#option' + optionNumber).removeClass('tagsButtonIcon').addClass('closeTagsButtonIcon');
+		$('#'+id+'option'+optionNumber).removeClass('tagsGlobalMenuButtonIcon').addClass('closeTagsGlobalMenuButtonIcon');
 
 	    } else { 	
 		menuTags.css("visibility", "hidden");
 		$('#tag-notif').hide();
 		for (var i=0; i<tagMenuEventTab.length;i++)  { 
-		    var tmp_class = $('#menu2017>#option'+i).attr("class").split(" ")[1];
+		    var tmp_class = $('#'+id+'option'+i).attr("class").match(/\w+ButtonIcon/g)[0];
 		    var isNotClosed = tmp_class.match("close"); 
 		    if (isNotClosed)  { 
 			var new_class = tmp_class.replace("close", "");
 			new_class = new_class[0].toLowerCase() + new_class.slice(1);
-			$('#menu2017>#option'+i).removeClass(tmp_class).addClass(new_class);
+			menuTags.children('#'+id+'option'+i).removeClass(tmp_class).addClass(new_class);
 		    }
 		}
 		//console.log(menuTags.children());
@@ -1939,1579 +3879,146 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		//     htmlPrimaryParent.css("marginTop",TopPP+"px");
 		//     //htmlPrimaryParent.css("margin", "0px 0px 0px 300px");
 		// }
-		$('#menu' + id  + '>#option' + optionNumber).removeClass('closeTagsButtonIcon').addClass('tagsButtonIcon');
+		$('#'+id+'option'+optionNumber).removeClass('closeTagsGlobalMenuButtonIcon').addClass('tagsGlobalMenuButtonIcon');
 
 	    }
 	});
-    menuIconClassAttributesTab.push('tagsButtonIcon');
-    MenuShareEvent.push(true)
+    menuIconClassAttributesTab.push('tagsGlobalMenuButtonIcon');
+    menuShareEvent.push(true)
     
-    // User interaction
-    // Tags	
-    clickTagInLegend = function(){
-	if (! PaletteNodeTagFlag)
-	    if (emit_click("tag",this.id))
-		return
-	var nodes = me.getNodes2();
-	if(me.getRemovingTag())  { 
-	    var tagToRemove = document.getElementById(this.id);
-	    for(O in nodes)  { 
-		nodes[O].removeElementFromNodeTagList(this.id);
-	    }
-	    $('#tag-notif').text("Tag " + this.id + " removed from tag list and tiles.");
-	    $('.tag#'+this.id).remove();//removeChild(tagToRemove);
-	    delete globalTagsList[globalTagsList.indexOf(this.id)];
-	    currentSelectedTag = "";
-
-	} else if (me.getSelectingTags())  { 
-	    var tagToSelect = this.id;
-	    var nodes_tmp = nodes;
-	    var w = 0;
-	    for (O in nodes)  { 
-		if (me.hasTag(nodes[O], tagToSelect))  {
-		    var HB = $('#hitbox' + nodes[O].getId());
-		    nodeSelect(nodes[O],HB);
-		    w ++;
-		}
-	    }
-	    if (w==0){
-		$('#tag-notif').text("No matching tiles for tag " + tagToSelect + " found");
-	    } else {
-		$('#tag-notif').text(w + " matching tiles for tag " + tagToSelect + " found");
-	    }
-
-	} else if (me.getGroupingTags())  { 
-	    var tagToGroup = this.id;
-	    var nodes_tmp = nodes;
-	    var w = 0;
-	    for (O in nodes)  { 
-		if (me.hasTag(nodes[O], tagToGroup))  { 
-		    mesh.switchLocation(nodes_tmp[O], nodes2[w], false, true);
-		    w ++;
-		}
-	    }
-	    if (w==0){
-		$('#tag-notif').text("No matching tiles for tag " + tagToGroup + " found");
-	    } else {
-		$('#tag-notif').text(w + " matching tiles for tag " + tagToGroup + " found");
-	    }
-
-	    if(chargeAllContentOnStart==false)  { 
-		for(O in nodes ){
-		    node = nodes[O];
-		    if( node.getLoadedStatus() == false && mesh.locationProvider(node.getIdLocation()).getY()<window.innerHeight  )  { 
-			//console.log(node.getmLocation().getnX());
-			ratio=mesh.loadContent(node.getId());
-			node.setLoadedStatus(true);
-		    }
-		}
-	    }
-
-	} else if (HideNodeTagFlag) {
-	    var tagToGroup = this.id;
-	    if (me.getHideNodeTags())  { 
-		// Hide nodes for this tag 
-		for (O in nodes2)  { 
-		    if (me.hasTag(nodes2[O], tagToGroup))  { 
-			Id=nodes2[O].getId();
-			SetOff(Id);
-		    }
-		}
-		$('#tag-notif').text("Hiding the tiles bearing " + tagToGroup + " tag. (To make them visible again, click on the icon in the tag menu, then on the tag again)")
- 	    } else {
-		// Show nodes for this tag 
-		for (O in nodes2)  { 
-		    if (me.hasTag(nodes2[O], tagToGroup))  { 
-			Id=nodes2[O].getId();
-			SetOn(Id);
-		    }
-		}
-		$('#tag-notif').text("Showing the tiles bearing " + tagToGroup + " tag.")
- 	    }
-	    //			HideNodeTagFlag=false;
-	} else if (KillNodeTagFlag) {
-	    var tagToKill = this.id;
-	    // Kill nodes for this tag 
-	    for (O in nodes2)  { 
-		if (me.hasTag(nodes2[O], tagToKill))  { 
-		    Id=nodes2[O].getId();
-		    nodeCardinal--;
-		    node=$('#'+Id);
-		    var OOF = $('#onoff'+Id);
-		    OOF.css('background-color', "red");
-		    nodes2[O].setOnOffStatus(false);
-		    node.children("iframe").hide();
-		    nodes2[O].setLoadedStatus(false);
-		    nodes2[O].removeElementFromNodeTagList(tagToKill);
-		    nodeEnd=nodes2[nodeCardinal];
-		    mesh.switchLocationShiftColumnLine(nodes2[O],nodeEnd,false,false);
-		    nodes2.splice(nodeCardinal,1);
-		    //node.hide();
-		}
- 	    }
-	    $('#tag-notif').text("Killing the tiles bearing " + tagToKill + " tag.")
-	    $('.tag#'+tagToKill).remove();
-	} else if (PaletteNodeTagFlag) {
-	    var tagToColor = this.id;
-	    var colorChoose;
-	    var defaultColor = colourNameToHex(configBehaviour.draw.defaultColor);
-	    colorChoose = document.querySelector("#colorChoose");
-	    colorChoose.value = defaultColor;
-
-	    $('#'+tagToColor).css("outline-style", "solid");
-	    
-	    var TagColor = defaultColor;
-
-	    window["updateFirst"+tagToColor] = function (event) {
-		TagColor = event.target.value;
-	    }
-	    window["updateAll"+tagToColor] = function (event) {
-		$('#'+tagToColor).css("outline-style", "none");
-		cdata={"room":my_session,"OldTag":tagToColor,"TagColor":TagColor};
-		socket.emit("color_Tag", cdata, function(sdata){
- 		    console.log("socket change color Tag ", cdata);
-		});
-		colorChoose.removeEventListener("input", window["updateFirst"+tagToColor]);
-		colorChoose.removeEventListener("change", window["updateAll"+tagToColor]);
-		delete window["updateFirst"+tagToColor];
-		delete window["updateAll"+tagToColor];
-	    }
-	    
-	    colorChoose.addEventListener("input", window["updateFirst"+tagToColor], false);
-	    colorChoose.addEventListener("change", window["updateAll"+tagToColor], false);
-	    colorChoose.select();
-	    
-	} else { // DEFAULT behaviour: click on a tag = make it ready to be given to a tile
-	    if (currentSelectedTag != this.id)  { // Click on a different tag than the previous one
-		$('#'+this.id).css("outline-style", "solid");
-		$('#'+this.id).css("z-index", 500);
-		if (currentSelectedTag != "")  { // Previous tag was existing (and not blank) : un-select it
-		    $('#'+currentSelectedTag).css("outline-style", "none");
-		    $('#'+currentSelectedTag).css("z-index", 149);
-		}
-		currentSelectedTag = this.id;
-		$('#tag-notif').text("Selected tag: " + currentSelectedTag + "; you may now click on the left border of a tile to give it the tag.");
-	    }
-	    else // Un-select current tag
-	    {
-		$('#'+this.id).css("outline-style", "none");
-		$('#'+this.id).css("z-index", 149);
-		currentSelectedTag = "";
-		$('#tag-notif').text("No selected tag.");
-	    }
+    // Zoom Global Menu
+    menuTitleTab.push("All zoom functions Menu")
+    menuEventTab.push(    function(v, id, optionNumber){
+	if(v==true)  { 
+	    menuZoomGlobal
+		.css("top",menuGlobal.position()["top"]+$('.zoomGlobalMenuButtonIcon').position()["top"])
+		.css("left",200)
+		.css("visibility", "visible");
+	    $('#'+id+'option'+optionNumber).removeClass('zoomGlobalMenuButtonIcon').addClass('closeZoomGlobalMenuButtonIcon');
+	} else { 
+	    menuZoomGlobal.css("visibility", "hidden");
+	    $('#'+id+'option'+optionNumber).removeClass('closeZoomGlobalMenuButtonIcon').addClass('zoomGlobalMenuButtonIcon');
 	}
-    };
-
-    // Stickers : on click, erase the sticker from the node
-    clickSticker = function(){
-	//console.log("sticker clicked", this.id);
-	if (emit_click("sticker",this.id))
-	    return
-	var splittedId = this.id.split("_");
-	var nodeId = splittedId.pop();
-	var node = me.getNodes()["node"+nodeId];
-	node.removeElementFromNodeTagList(splittedId.join("_"));
-    };
-
-    /** Zoom function 
-	After activation (the icon becomes white on black background), select node by clicking on it, 
-	click on the button on the upper-right to zoom, then to unzoom. 
-    */
-
-    /** ZOOM MENU
-     * Functions :
-     * - Apply zooming after selection
-     * - Help zoom
-     */
-
-    var zoomMenuEventTab = new Array();
-    var zoomMenuIconClassAttributesTab = new Array();
-    var zoomMenuShareEvent = new Array();
-
-    // Apply Zoom button
-    zoomMenuEventTab.push( function(v, id, optionNumber) {		
-
-	    // Variables for magnifyingGlass 
-	    var nodeZoomTab = me.getNodesToZoom();
-	    var ratio =spread.Y/spread.X;
-	    var initSpread = spread;
-
-	    if(nodeZoomTab.length>0)  { 
-		$("#menu"+id).css("visibility", "hidden");
-
-		//$('#buttonUnzoom').hide();
-		me.magnifyingGlass(nodeZoomTab,ratio,initSpread);
-		me.resetNodesToZoom();
-
-		// unZoom function
-		$('#buttonUnzoom').on({
-			click: function(){		
-				    
-			    //console.log("click unzoom");
-			    menuZoom.css("visibility", "visible");
-			}
-		    });
-			
-	    }
-	});
-    zoomMenuIconClassAttributesTab.push("expandZoomButtonIcon");
-    zoomMenuShareEvent.push(false);
-
-    zoomMenuEventTab.push( function(v, id, optionNumber) {		
-	});
-
-    zoomMenuIconClassAttributesTab.push("explain-zoom");
-    zoomMenuShareEvent.push(false);
-
-    menuEventTab.push(	(  function(){
-
-		return function(v,id,optionNumber){
-
-		    for(O in nodes)  { 
-			nodes[O].updateSelectedStatus(false);
-		    }
-
-		    if(v==true)  { 
-			//me.setZoomSelection(true); // To change the behaviour of a hitbox click, cf clickHB method // DEPRECATED ?
-
-			$('.node').off();
-			$('.hitbox').off("click").on("click", clickHBZoom);
-			$('.hitbox').off("mouseenter");
-			_allowDragAndDrop = false;
-
-			menuZoom.children('[class*=explain-zoom]')[0].innerText="Click on the left of the nodes to select them. Green nodes will be selected.";
-			menuZoom.children('[class*=explain-zoom]').css({
-				backgroundColor : "green",
-				    color : "black",
-				    fontSize : 100,
-				    width: 2000,
-				    });
-
-			menuZoom.css("visibility", "visible");
-			menuZoom.css("top", TagHeight+"px");
-
-			$('#menu'+id+'>#option'+optionNumber).removeClass('zoomButtonIcon').addClass("closezoomButtonIcon");
-			// Deactivate other magnify menus
-			menuGlobal.children("[class*=MSButtonIcon]").removeClass("MSButtonIcon").addClass("disableMSButtonIcon");
-			$('.node').children("[class*=menu]").children("[class*=drawButtonIcon]").removeClass("drawButtonIcon").addClass("disabledrawButtonIcon");
-
-		    } else { 
-
-			me.setZoomSelection(false);
-			me.resetNodesToZoom();
-			$('#buttonUnzoom').click();
-			me.meshEventReStart();
-
-			menuZoom.css("visibility", "hidden");
-
-			$('#menu'+id+'>#option'+optionNumber).removeClass("closezoomButtonIcon").addClass("zoomButtonIcon");
-			// Activate other magnify menus
-			menuGlobal.children("[class*=disableMSButtonIcon]").removeClass("disableMSButtonIcon").addClass("MSButtonIcon");
-			$('.node').children("[class*=menu]").children("[class*=disabledrawButtonIcon]").removeClass("disabledrawButtonIcon").addClass("drawButtonIcon");
-		    }
-		    return 0;
-		};		
-	    })());		
-
-    menuIconClassAttributesTab.push("zoomButtonIcon");
-    MenuShareEvent.push(false);
-	
-    /** MasterSlave MENU
-     * Functions :
-     * - Apply MS after selection
-     * - Select all nodes and zoom
-     * - Help zoom
-     */
- 
-    var MSMenuEventTab = new Array();
-    var MSMenuIconClassAttributesTab = new Array();
-    var MSMenuShareEvent = new Array();
-
-    // Apply MS
-    MSMenuEventTab.push(    function( id, optionNumber){
-	    // Zoomed div and Handlered div over it
-	    var handleMaster,Handled;
-	    // iframe of the Handled
-	    var iframeHandled;
-	    // number of the master
-	    var iHandled;
- 
-	    // Variables for magnifyingGlass 
-	    var nodeMSTab = me.getNodesToZoom();
-	    var ratio =spread.Y/spread.X;
-	    var initSpread = spread;
-		    
-	    if(nodeMSTab.length>0) {
-		menuMS.css("visibility", "hidden");
-
-		// We repeat first node because its div will be used as master.
-		nodeMSTab=Array(nodeMSTab[0]).concat(nodeMSTab);
-		if (nodeMSTab.length > configBehaviour.allMSShowMax+1) {
-		    nodeMSTab_=nodeMSTab.slice(0, configBehaviour.allMSShowMax+1);
-		    me.magnifyingGlass(nodeMSTab_,ratio,initSpread);
-		} else {
-		    me.magnifyingGlass(nodeMSTab,ratio,initSpread);
-		}			
-		iHandled=0;
-			
-		// We begin with first selected as Master
-		handleMaster=$("#Zoomed"+iHandled);
-			
-		// We create the listened div
-		$("#zoomSupport").append('<div id=Handled class=handled></div>');
-			
-		iframeHandled=handleMaster.children("iframe");
-			
-		urlMaster=nodeMSTab[iHandled].getJsonData().url;
-		urlMasterPath=urlMaster.slice(0,urlMaster.search("vnc_auto.html"));
-
-		// We set the property of the iframe
-		var HandledJQ=$("#Handled");
-		HandledJQ.css({ 
-			height : iframeHandled.css('height'),
-			    width : iframeHandled.css('width'),
-			    });
-			
-		// DOM path to this handled div
-		Handled=$("#zoomSupport").children(".handled")[0];
-			
-		$('header').append("<div id=explain-StartMS>First node is duplicated to have the master to interact.</div>");
-		$('#explain-StartMS').css({
-			position : "fixed", 
-			    backgroundColor : "green",
-			    color : "black",
-			    fontSize : 100,
-			    left : "15%",
-			    top : 0 ,
-			    zIndex : 121
-			    });
-			
-		// Start Master-Slave function
-		function initMSList() {
-		    // This function will work only for VNC connections
-		    try {
-			MSPath=urlMasterPath+"vnc_multi.html?NbRFB="+nodeMSTab.length+"&";
-			for(i=0;i<nodeMSTab.length;i++) {
-			    var urlNode=nodeMSTab[i].getJsonData().url;
-			    //urlNodePath=urlNode.slice(0,urlNode.search("vnc_auto.html"));
-			    urlNodeParam=urlNode.slice(urlNode.search("vnc_auto.html")+14);
-			    NodeParams=urlNodeParam.split('&');
-			    for (P in NodeParams) {
-				thisparam=NodeParams[P].slice(0,NodeParams[P].search("="));
-				switch(thisparam) {
-				case("host"):
-				case("port"):
-				case("password"):
-				case("path"):
-				case("token"):
-				case("encrypt"):
-				    NodeParams[P]=NodeParams[P].replace("=",i+"=");
-				}
-			    }
-			    MSPath=MSPath+NodeParams.join('&')+'&';
-			}
-			iframeHandled.attr("src",MSPath+"&true_color=1");
-		    } catch(e) {
-			console.log("Master-Slave function will work only for VNC connections.");
-		    }
-		}
-			
- 					
-		// Start Master-Slave 
-		initMSList();
-
-		// unZoom function
-		$('#buttonUnzoom').on({
-			click : function(){
-			    $('#explain-StartMS').remove();
-				    
-			    try {
-				var	Handled=$("#zoomSupport").children(".handled")[0];
-				Handled.remove();
-			    } catch (err) {
-			    }
-			    menuMS.css("visibility", "visible");
-				    
-			    for(O in nodes)  { 
-				me.removeNodeToZoom(O);
-			    }
-			    me.setZoomSelection(true);
-			}
-		    });
-	    }
-	});			
-    MSMenuIconClassAttributesTab.push("expandZoomButtonIcon");
-    MSMenuShareEvent.push(false);
-
-    MSMenuEventTab.push(    function(v, id, optionNumber){
-	    me.resetNodesToZoom(); 					
-	    var nodeMSTab = me.getNodesToZoom();
-		    
-	    for(O in nodes)  { 
-		nodeMSTab.push(nodes[O]);
-	    }
-	    menuMS.children("[class*=expandZoomButtonIcon]").click();
-
-	    for(O in nodes)  { 
-		me.removeNodeToZoom(O);
-	    }
-	    me.setZoomSelection(true);
-
-	});
-
-    MSMenuIconClassAttributesTab.push("AllMSButtonIcon");
-    MSMenuShareEvent.push(false);
-
-    MSMenuEventTab.push(    function(v, id, optionNumber){
-	});
-
-    MSMenuIconClassAttributesTab.push("explain-MS");
-    MSMenuShareEvent.push(false);
-
-    /** MasterSlave Menu
-	After activation (the icon becomes white on black background), select node by clicking on it,
-	First node is the master and lasts nodes are slave. 
-	All mouse interactions on master are gathered on slaves. 
-	click on the button on the upper-right to zoom and begin mode, then to unzoom. 
-    */
-    menuEventTab.push(	(function(){
- 
- 		return function(v,id,optionNumber){
- 		    
-		    me.setZoomSelection(true);
- 
- 		    for(O in nodes)  {
-			nodes[O].updateSelectedStatus(false);
-		    }
- 
-		    if(v==true) {
-			//me.setZoomSelection(true); // To change the behaviour of a hitbox click, cf clickHB method // DEPRECATED ?
- 
-			$('.node').off();
-			$('.hitbox').off("click").on("click", clickHBZoom);
-			$('.hitbox').off("mouseenter");
-			_allowDragAndDrop = false;
-			
-
-			menuMS.children('[class*=explain-MS]')[0].innerText="Click on the left of the nodes to select them. Click on left \"validate button\" or right \"ALL selected\" button.";
-			menuMS.children('[class*=explain-MS]').css({
-				backgroundColor : "green",
-				    color : "black",
-				    fontSize : 100,
-				    width: 2800,
-				    });			
-
-			menuMS.css("visibility", "visible");
-			menuMS.css("top", TagHeight+"px");
-
-			$('#menu'+id+'>#option'+optionNumber).removeClass("MSButtonIcon").addClass("closeMSButtonIcon");
-			// Deactivate other magnify menus
-			menuGlobal.children("[class*=zoomButtonIcon]").removeClass("zoomButtonIcon").addClass("disablezoomButtonIcon");
-			$('.node').children("[class*=menu]").children("[class*=drawButtonIcon]").removeClass("drawButtonIcon").addClass("disabledrawButtonIcon");
-		    } else {
-
-			me.setZoomSelection(false);
-			me.resetNodesToZoom();
-			// We must replace iframes on their right place in the DOM !
-			try {
-			    var Handled=$("#zoomSupport").children(".handled")[0];
-			    Handled.remove();
-			} catch(err) {
-			}
-			$('#buttonUnzoom').click();
-			me.meshEventReStart();
-			
-			menuMS.css("visibility", "hidden");
-			
-			$('#menu'+id+'>#option'+optionNumber).removeClass("closeMSButtonIcon").addClass("MSButtonIcon");
-			// Activate other magnify menus
-			menuGlobal.children("[class*=disablezoomButtonIcon]").removeClass("disablezoomButtonIcon").addClass("zoomButtonIcon");
-			$('.node').children("[class*=menu]").children("[class*=disabledrawButtonIcon]").removeClass("disabledrawButtonIcon").addClass("drawButtonIcon");
-		    };
-
-		    return 0;
- 		};		
-	    }) ());		
- 
-    menuIconClassAttributesTab.push("MSButtonIcon");
-    MenuShareEvent.push(false);
-
-    /** Draws on tile management */
-    menuEventTab.push( (    function(){
-
-		return function(v, id, optionNumber){
-   		    if (v==true)  { 
-   			$('header').append("<div id=DrawsMenu class=option-draws></div>");
-			$('#DrawsMenu').css({
-				backgroundColor : "SkyBlue",
-				    color : "black",
-				    fontSize : 50,
-				    left: 500,
-				    width: 1000,
-				    zIndex: 801
-				    });
-   			// maps blob IDs to drawing objects
-   			DrawBlobs.forEach(function(thisblob) { 
-				$('#DrawsMenu').append("<div id='draws"+thisblob.nodeId+"'> </div>");
-   				$('#draws'+thisblob.nodeId).append("<input type='checkbox' name='drawNode"+thisblob.nodeId+"' value='yes'> supress Node "+thisblob.nodeId+" | </input>");
-   				$('#draws'+thisblob.nodeId).append("<input type='checkbox' name='drawOtherNodes"+thisblob.nodeId+"' value='yes'> Hide all clone "+ thisblob.listNodeImg.length+"</br></input>");
-				$('input[name=drawNode'+thisblob.nodeId+'][value=yes]').attr("checked", true);
-   			    $('input[name=drawNode'+thisblob.nodeId+'][value=yes]').off("change").on({
-   					change : function(){
-					    // Unchecked : delete the blob and all pictures on tiles.
-					    var newImg=thisblob.image;
-					    var canvasName=thisblob.canvasName;
-					    for (ind in thisblob.listNodeImg) {
-						Id=thisblob.listNodeImg[ind];
-						DrawNodeId=canvasName+"_img_"+Id;
-						$("#"+DrawNodeId).remove();
-					    }
-					    DrawBlobs.delete(thisblob.nodeId.toString());
-					    $('#'+newImg.id).remove();
-					    $('#draws'+thisblob.nodeId).remove();
-					    URL.revokeObjectURL(thisblob.url);
-   					}
-   				    });
-				$('input[name=drawOtherNodes'+thisblob.nodeId+'][value=yes]').attr("checked", true);
-   			    $('input[name=drawOtherNodes'+thisblob.nodeId+'][value=yes]').off("change").on({
-   					change : function(){
-					    if ($('input[name=drawOtherNodes'+thisblob.nodeId+']').attr("checked")) {
-						// Unchecked : Hide all pictures of this blob on tiles.
-						$('input[name=drawOtherNodes'+thisblob.nodeId+']').val('no').attr("checked",false);
-						var canvasName=thisblob.canvasName;
-						for (ind in thisblob.listNodeImg) {
-						    Id=thisblob.listNodeImg[ind];
-						    DrawNodeId=canvasName+"_img_"+Id;
-						    $("#"+DrawNodeId).hide();
-						}
-					    } else {
-						$('input[name=drawOtherNodes'+thisblob.nodeId+']').val('yes').attr("checked",true);
-						// Checked : Show all pictures of this blob on tiles.
-						var canvasName=thisblob.canvasName;
-						for (ind in thisblob.listNodeImg) {
-						    Id=thisblob.listNodeImg[ind];
-						    DrawNodeId=canvasName+"_img_"+Id;
-						    $("#"+DrawNodeId).show();
-						}
-					    }
-   					}
-   				    });
-   			    });
-   			$('#menu'+id+'>#option'+optionNumber).removeClass('DrawsButtonIcon').addClass('closeDrawsButtonIcon');
-
-   		    } else { 
-   			$('header').children("#DrawsMenu").remove();
-   			$('#menu'+id+'>#option'+optionNumber).removeClass("closeDrawsButtonIcon").addClass("DrawsButtonIcon");
-   		    }
-		};
-
-		})() );
-
-    menuIconClassAttributesTab.push("DrawsButtonIcon");
-    MenuShareEvent.push(false);
-    
-    if (touchok) {
-	/** Show rotate button on each node */
-	menuEventTab.push( (    function(){
-
-		    return function(v, id, optionNumber){
-			if (v==true)  { 
-			    $('.rotate').show();
-			    $('#menu'+id+'>#option'+optionNumber).removeClass('RotateButtonIcon').addClass('closeRotateButtonIcon');
-			} else { 
-			    $('.rotate').hide();
-			    $('#menu'+id+'>#option'+optionNumber).removeClass("closeRotateButtonIcon").addClass("RotateButtonIcon");
-
-			}
-		    };
-
-		})());
-
-	menuIconClassAttributesTab.push("RotateButtonIcon");
-	MenuShareEvent.push(false);
-    }
-
-    /** Show OnOff button */
-    menuEventTab.push( (    function(){
-
-		return function(v, id, optionNumber){
-		    if (v==true)  { 
-			$('.onoff').show();
-			$('#menu'+id+'>#option'+optionNumber).removeClass('OnOffButtonIcon').addClass('closeOnOffButtonIcon');
-		    } else { 
-			$('.onoff').hide();
-			$('#menu'+id+'>#option'+optionNumber).removeClass("closeOnOffButtonIcon").addClass("OnOffButtonIcon");
-
-		    }
-		};
-
-	    })());
-
-    menuIconClassAttributesTab.push("OnOffButtonIcon");
-    MenuShareEvent.push(true);
-    
-    /** show zoom Node fast zoom button to each node */
-    menuEventTab.push( (    function(){
-
-		return function(v, id, optionNumber){
-		    if (v==true)  { 
-			$('.zoomNodeButtonIcon').show();
-			$('#menu'+id+'>#option'+optionNumber).removeClass('zoomNodesButtonIcon').addClass('closezoomNodesButtonIcon');
-		    } else { 
-			$('.zoomNodeButtonIcon').hide();
-			$('#menu'+id+'>#option'+optionNumber).removeClass("closezoomNodesButtonIcon").addClass("zoomNodesButtonIcon");
-		    }
-		};
-
-	    })());
-
-    menuIconClassAttributesTab.push("zoomNodesButtonIcon");
-    MenuShareEvent.push(false);
-    
-    /** show QR code link to each node */
-    menuEventTab.push( (    function(){
-
-		return function(v, id, optionNumber){
-		    if (v==true)  { 
-			$('.qrcode').show();
-			$('#menu'+id+'>#option'+optionNumber).removeClass('QRcodeButtonIcon').addClass('closeQRcodeButtonIcon');
-		    } else { 
-			$('.qrcode').hide();
-			$('#menu'+id+'>#option'+optionNumber).removeClass("closeQRcodeButtonIcon").addClass("QRcodeButtonIcon");
-
-		    }
-		};
-
-	    })());
-
-    menuIconClassAttributesTab.push("QRcodeButtonIcon");
-    MenuShareEvent.push(true);
-
-    /** Show node info */
-    menuEventTab.push( (    function(){
-
-		return function(v, id, optionNumber){
-		    if (v==true)  { 
-			$('.info').show();
-			$('#menu'+id+'>#option'+optionNumber).removeClass('showInfoButtonIcon').addClass('closeShowInfoButtonIcon');
-		    } else { 
-			if(!configBehaviour.alwaysShowInfo)  { 
-			    $('.info').hide();
-			}
-			$('#menu'+id+'>#option'+optionNumber).removeClass("closeShowInfoButtonIcon").addClass("showInfoButtonIcon");
-
-		    }
-		};
-
-	    })());
-
-    menuIconClassAttributesTab.push("showInfoButtonIcon");
-    MenuShareEvent.push(true);
-    
-    /** Refresh button: 
-	designed to reset nodes when something goes wrong 
-	(reload their content, remove draggable classes).
-    **/
-	
-    var refreshNodes = function (node) {
-
-	// check if optionnal argument node is present (node can be "0" == false in javascript)
-	var hasNoNode=false
-	if (typeof(node) == "undefined")
- 	    hasNoNode = true
-
-	//console.log("test refresh");
-
-	if (hasNoNode) {// ie no node specified -> refresh all nodes
-	    var nodes = me.getNodes();
-	    for (O in nodes) {
-		me.unsetDraggable(nodes[O].getId(), false, false);
-	    }
-	    Onnodes = $('.On').parent().parent().children('iframe');
-	    var oldSrc=[]
-	    for (node in Onnodes) {
-		if (node != "prevObject" && typeof Onnodes[node] == "object") {
-		    oldSrc.push(Onnodes[node].getAttribute("src"));
-		    Onnodes[node].setAttribute("src","")
-		    Onnodes[node].setAttribute("src",oldSrc[node]);
-		}
-	    }
-	    // for (node in Onnodes) {
-	    // 	if (node != "prevObject" && typeof Onnodes[node] == "object") {
-	    // 	    Onnodes[node].setAttribute("src",oldSrc[node]);
-	    // 	}
-	    // }
-	} else {
-	    me.unsetDraggable(node); 
-	} 
-
-	_allowDragAndDrop = true; // Go back to normal behaviour
-	$('.handle').addClass("drag-handle-on");
-    };
-
-    menuEventTab.push(    function (v){
-	    if (v==true)  { 
-		refreshNodes();
-	    } else { 
-		refreshNodes();
-	    }
-	});
-
-    menuIconClassAttributesTab.push("refreshButtonIcon");
-    MenuShareEvent.push(false);
-    
-    /** Cancel last movement */
-    menuEventTab.push((    function(){
-
-		return function(v){
-		    if(!(nodesOldPositions.length-stepBack == -1))  { // ie nodesOldPositions.length != 0, ie there is/are movement(s) to cancel			
-			if(stepBack==1)  { 
-			    //console.log("stepback == 1");
-			    me.savePositions();
-			    stepBack++;
-			}
-
-			var back = function(){
-
-			    var u = 0;
-
-			    for(u=0;u<nodes2.length;u++)  { 	
-				me.switchLocation(me.getNode(nodesOldPositions[nodesOldPositions.length-stepBack][u]),nodes2[u],true,false);
-			    }
-			    // If the last movement was a "block movement", ie column or line swap, undo the
-			    // swap with only one click
-			    if (nodesOldPositions[nodesOldPositions.length - stepBack][nodes2.length])  { 
-				stepBack ++;
-				back();	
-			    }
-			}
-
-			if(v==true)  { 	
-			    back();
-			} else { 		
-			    back();
-			}
-
-			stepBack++;
-
-		    }	
-
-		};
-	    })());
-
-    menuIconClassAttributesTab.push("moveBackButtonIcon");
-    MenuShareEvent.push(true);
-    
-    /** Define keyboard shortcuts Ctrl+Z and Alt+Z to undo last movement */
-
-    // var ctrlpress = false;
-    // var altpress = false;
-    // var sizeMenuEventTab = menuEventTab.length-1;
-    // $("body").on({
-    // 	    keydown : function(e){
-    // 		//CTRL
-    // 		if(e.keyCode==17)  { 
-    // 		    ctrlpress=true;
-
-    // 		    $("body").on({
-
-    // 			    keydown : function(e){
-    // 				//Z
-    // 				if(e.keyCode==90 && ctrlpress==true)  { 
-
-    // 				    $('#menu999>#option'+sizeMenuEventTab).click();//MARK
-    // 				}
-    // 			    },
-    // 				keyup : function(e){
-    // 				//CTRL
-    // 				if(e.keyCode==17)  { 
-    // 				    ctrlpress=false;
-    // 				}
-    // 			    }				
-    // 			});
-    // 		} //alt
-    // 		// else 
-    // 		// if(e.keyCode==18)
-    // 		// {
-    // 		//     altpress=true;
-
-    // 		//     $("body").on({
-
-    // 		//	keydown : function(e){
-    // 		//	    //Z
-    // 		//	    if(e.keyCode==90 && altpress==true)
-    // 		//	    {
-
-    // 		//		$('#menu999>#option'+sizeMenuEventTab).click();
-    // 		//	    }
-    // 		//	},
-    // 		//	keyup : function(e){
-    // 		//	    //ALT
-    // 		//	    if(e.keyCode==18)
-    // 		//	    {
-    // 		//		altpress=false;
-    // 		//	    }
-    // 		//	}				
-    // 		//     });
-    // 		// }
-    // 	    }
-    // 	});
-
-
-    /** Re-do last cancelled action */
-    menuEventTab.push((    function(){
-
-
-		return function(v){
-
-		    var stepForward = 1-stepBack; // It was 2-stepBack in Yacouba's code, and caused an error when trying to undo movements at the beginning, when they weren’t any (stepForward = 2-1 = 1, the loop was entered, but nodesOldPositions[nodes….length + 1] didn’t exist).
-		    //console.log(stepForward, stepBack);	
-		    if(stepForward<0 && stepForward + nodesOldPositions.length >= 0)  { 
-
-
-
-			var forward = function(){
-
-			    var u = 0;
-
-			    //console.log(nodesOldPositions.length+stepForward);
-			    for(u=0;u<nodes2.length;u++)  { 	
-				me.switchLocation(me.getNode(nodesOldPositions[nodesOldPositions.length+stepForward][u]),nodes2[u],true,false);
-			    }
-			    // If the last undone movement was a block move, we want to detect it and re-do
-			    // it in one click
-			    if (stepForward + 1 <= -1)  { // Condition on length : we want the "nodesOldPositions.length + stepForward +1"-th element, this index has to be smaller than "nodesOldPositions.length - 1"
-				var boolCurrIdx = nodesOldPositions[nodesOldPositions.length+stepForward][nodes2.length];
-				var boolNextIdx = nodesOldPositions[nodesOldPositions.length+stepForward+1][nodes2.length];
-				//console.log(boolCurrIdx, boolNextIdx);
-				if (boolNextIdx  || boolCurrIdx)  { 
-				    //console.log("detected block");
-				    stepBack --;
-				    stepForward = 1-stepBack;
-				    //console.log(stepBack, stepForward);
-
-				    if(stepForward<0 && stepForward >= -nodesOldPositions.length)  { // Ensure no forbidden operations / access to unaccessible index in the array
-					forward();
-				    }
-				}
-			    } else { 
-				console.log("not in range (forward)");
-			    }
-			}
-
-			if(v==true)  { 	
-			    forward();
-			} else { 		
-			    forward();
-			}
-
-			stepBack--;
-		    }
-		};
-	    })());
-
-    menuIconClassAttributesTab.push("moveForwardButtonIcon");
-    MenuShareEvent.push(true);
-    
-    /** Keyboard shortcuts Ctrl+Y or Alt+Y to re-do last cancelled action. */
-
-    // var ctrlpress = false;
-    // //var altpress = false;
-    // var sizeMenuEventTab2 = menuEventTab.length-1;
-    // $("body").on({
-    // 	    keydown : function(e){
-    // 		//CTRL
-    // 		if(e.keyCode==17)  { 
-    // 		    ctrlpress=true;
-
-    // 		    $("body").on({
-
-    // 			    keydown : function(e){
-    // 				//Y
-    // 				if(e.keyCode==89 && ctrlpress==true)  { 
-
-    // 				    $('#menu999>#option'+sizeMenuEventTab2).click();
-    // 				}
-    // 			    },
-    // 				keyup : function(e){
-    // 				//CTRL
-    // 				if(e.keyCode==17)  { 
-    // 				    ctrlpress=false;
-    // 				}
-    // 			    }				
-    // 			});
-    // 		} // alt
-    // 		// else 
-    // 		// if(e.keyCode==18)
-    // 		// {
-    // 		//     altpress=true;
-
-    // 		//     $("body").on({
-
-    // 		//	keydown : function(e){
-    // 		//	    //Y
-    // 		//	    if(e.keyCode==89 && altpress==true)
-    // 		//	    {
-    // 		//		$('#menu999>#option'+sizeMenuEventTab2).click();
-
-    // 		//	    } 
-    // 		//	},
-    // 		//	keyup : function(e){
-    // 		//	    //ALT
-    // 		//	    if(e.keyCode==18)
-    // 		//	    {
-    // 		//		altpress=false;
-    // 		//	    }
-    // 		//	}				
-    // 		//     });
-    // 		// } 
-    // 	    }
-    // 	});
-
-    /** Save work session : post its and position for each node will be copied to a .js file. */
-    menuEventTab.push(    function(id,optionNumber){
-	nodes2=me.getNodes2();
-	    // Concatenate json data
-	    idFinalLocation=0;
-	    for(O in nodes2)  { 	
-		var id=nodes2[O].getId();
-		// Save positions
-		if (nodes2[O].getOnOffStatus()) {
-		    nodes2[O].getJsonData().IdLocation = nodes2[O].getIdLocation();
-		    idFinalLocation++;
-		    // Save usernotes
-		    nodes2[O].getJsonData().usersNotes = $("#pia_editable_postit"+id).text();
-		    // Save tags
-		    nodes2[O].getJsonData().tags = nodes2[O].getNodeTagList();
-		}
-	    }
-	    // Reconstruct another nodes.js with the same structure
-	    var temp = "{'nodes': [XXX] }";
-	    var id=0;
-
-	    for(O in nodes2)  { 
-
-	    	if (nodes2[O].getOnOffStatus()) {
-	    	    id=nodes2[O].getId();
-	    	    //console.log(id);
-
-	    	    var temp3 ="\n{{***}}";
-
-	    	    for(W in nodes2[O].getJsonData())  {
- 			if (W == "tags" ) {
-			    var ListTags=new Array();
-			    nodes2[O].getNodeTagList().forEach(function(currentValue) { ListTags.push("'"+currentValue + "'")})
-			    var mytext = "\""+W+"\""+" : "+"["+ListTags.toString()+"],\n {***}"
-			} else if ( W == "usersNotes") {
-			    comment=nodes2[O].getJsonData()["usersNotes"].toString().replace(/\"/g,"'")
-			    var mytext = "\"comment\""+" : "+"'"+comment+"'"+",\n {***}"
-			// } else if ( W == "IdLocation") {
-			//     var mytext = "\""+W+"\""+" : "+"\""+nodes2[0].getIdLocation().toString()+"\""+",\n {***}";
-			} else {
-	    		    var mytext = "\""+W+"\""+" : "+"\""+nodes2[O].getJsonData()[W].toString().replace(/\"/g,"'")+"\""+",\n {***}";
-			}
-	    		temp3=temp3.replace("{***}",mytext);
-	    	    }
-	    	    temp3=temp3.replace(",\n {***}","");
-	    	    temp=temp.replace("XXX",temp3+",XXX");
-	    	}
-	    }
-	    // Save the file with a clear name (date and time, name of the project) 
-	    temp=temp.replace(",XXX","");
-	    tempFile = "var text_ = \n     "+temp+";\nvar jsDataTab = text_.nodes;";
-
-	    var sessionDate = new Date();
-	    var strDate=sessionDate.toLocaleDateString({day: "2-digit", month: "2-digit"}).replace(/\//g, "-") + "_" + sessionDate.toLocaleTimeString("fr-FR").replace(/:/g, "-")
-	    var fileName = my_session + "_" + "tiles_" + strDate + ".js"; 
-	    var file = new File([tempFile], fileName, {type: "text/plain;charset=utf-8"});
-	    saveAs(file);
-
-	// socket save new session ??
-	$('#notifications').html('<div id=saveValidate height="10%" width="50%"></div>');
-	// TODO method POST with
-	//<form method="POST">
-	$('#saveValidate').append('<form><p> New suffix for save '+my_session+'</p>'
-					+ '<input type=text id="newSuffix" value="'+strDate+'" style="width:40%"></input>&nbsp;&nbsp;'
-					+'<button id="submitSave" name="submitSave" class="btn btn-info"><h2> Submit</h2></button></form>');
-	$('#submitSave').off("click").on("click",function() {
-	    new_suffix=$('#newSuffix').val();
-	    new_room=my_session+'_'+new_suffix;
-	    cdata ={"room":my_session, "NewSuffix": new_suffix,"Session": temp }
-	    console.log("Save session : "+new_room);
-	    socket.emit("save_Session", cdata);
-	    $('#saveValidate').remove();
-
-	    $('#notifications').html('<div id=gotoNewRoom height="10%" width="50%" style="font-size:75"></div>');
-	    $('#gotoNewRoom').append('Goto new room ?<br>'		                     
-				     + '<input type="text" id="gNRnew_room" name="new room" value="'+ new_room +'" style="width:40%"></input>&nbsp;&nbsp;'
-			+'<button id="ChangeRoomYes" name="ChangeRoomYes" class="btn btn-info" ><h2>Yes</h2></button>&nbsp;'
-			+'<button id="ChangeRoomNo" name="ChangeRoomNo" class="btn btn-info" ><h2>No</h2></button>');
-
-	    $('#ChangeRoomYes').off("click").on("click",function() {
-		new_room=$('#gNRnew_room').val();
-		cdata ={"room":my_session, "NewRoom": new_room }
-		$('#gGnewroom').val(new_room);
-		socket.emit("deploy_Session", cdata);
-	    });
-	    
-	    $('#ChangeRoomNo').off("click").on("click",function() {
-		$('#gotoNewRoom').remove();
-	    });
-	});
-
     });
-    menuIconClassAttributesTab.push("saveButtonIcon");
-    MenuShareEvent.push(false);
+    menuIconClassAttributesTab.push("zoomGlobalMenuButtonIcon");
+    menuShareEvent.push(false);
+    
+    // Management menu
 
-    /** Options menu
-	- How the selection of iframes is done, but ... it shall be widened in the future
-	-  */
-
+    menuTitleTab.push("All management functions Menu")
     menuEventTab.push(    function(v, id, optionNumber){
-	    if(v == true)  { 
-		$('header').append("<div id=options class='dropbtn'></div>");
-		$("#options").css({//GLOBALCSS 
-			position : "fixed", 
-			    top : 0, 
-			    left: parseInt($(me.menu.getHtmlMenuSelector()).css("width")), 
-			    height: "100%",
-			    zIndex: 902,	
-			    width :window.innerWidth - parseInt($(me.menu.getHtmlMenuSelector()).css("width")), // To have the upper right part of the screen
-			    //backgroundColor : "white", // TO DO : unify color style with the help menu + set color change for the wall
-			    //color : "black",
-			    fontSize : 100
-			    });
-
-		setColorTheme(configColors.colorTheme);	
-
-		// Color theme 
-		$('#options').append("<div id=options-zone></div>");
-		$('#options-zone').append("<div id=options-color-theme class=option-group></div>");
-		$('#options-color-theme').append("<div id=options-color-theme-label class=label>Color theme</div>");
-		$('#options-color-theme').append("<form id=options-color-theme-form>");
-		$('#options-color-theme').append("<input type='radio' name='color-theme-radio' value='dark'/>Dark<br />");
-		$('#options-color-theme').append("<input type='radio' name='color-theme-radio' value='light'/>Light<br />");
-		$('#options-color-theme').append("</form>");
-		$('input[name=color-theme-radio][value=' + configColors.colorTheme + ']').attr("checked", true);
-
-		// Opacity slider
-		$('#options-zone').append("<div id=options-opacity class=option-group></div>");
-		$('#options-opacity').append("<div id=options-opacity-label class=label>Opacity</div>");
-		$('#options-opacity').append("<input id=opacitySlider type='range' name=opacitySlider min=0 max=100 value= " + 
-					     configBehaviour.opacity*100 + " oninput='opacitySliderOutputId.value=opacitySlider.value.toString()+ \"%\"'>");		
-		$('#options-opacity').append("<output name=opacitySliderOutput id=opacitySliderOutputId for=opacitySlider "+
-					     "style='font-size: 80px; padding: 20px; padding-top: 5px; padding-bottom: 5px;'>"+
-					     configBehaviour.opacity*100 +"%</output>");			
-		$('#opacitySlider').change(function () {
-			var val = ($(this).val() - $(this).attr('min')) / ($(this).attr('max') - $(this).attr('min'));
-				
-			$(this).css('background-image',
-				    '-webkit-gradient(linear, left top, right top, '
-				    + 'color-stop(' + val + ', rgb(255, 0, 0)), '
-				    + 'color-stop(' + val + ', rgb(0, 255, 0))'
-				    + ')'
-				    );
-		    });
-		//$('#opacitySliderOutputId').css('background-image', '');
-
-		// Spread
-		$('#options-zone').append("<div id=options-spread class=option-group></div>");
-		$('#options-spread').append("<div id=options-spread-label class=label>Tile size</div>");
-		$('#options-spread').append("<input type='checkbox' name=spread-keepratio value="+ configBehaviour.defaultKeepRatio +">Keep ratio<br />");
-		$('#options-spread').append("X: <input id=spreadX name=spreadX type='number' value=" +spread.X +">px   ");
-		$('#options-spread').append("Y: <input id=spreadY name=spreadY type='number' value=" +spread.Y +">px <br />");
-		$('#options-spread').append("Number of columns:</br><input id=colNumber name=colNumber type='number' value=" +numOfColumns+ "><br />");
-		$('#options-spread').append("Space Between </br>Columns:<input id=spaceBetweenColumns name=spaceBetweenColumns type='number' value=" +configBehaviour.spaceBetweenColumns+ "><br />");
-		$('#options-spread').append("Lines:<input id=spaceBetweenLines name=spaceBetweenLines type='number' value=" +configBehaviour.spaceBetweenLines+ "><br />");
-
-		var clickKR = function(){
-		    if ($('input[name=spread-keepratio]').is(":checked"))  { 
-			//console.log("KR checked");
-			$('input[name=spreadX]').off("change").on({
-				change : function(){
-				    //console.log("changeX");
-				    var ratioX = $('input[name=spreadX]').val()/spread.X;
-				    //console.log(ratioX);
-				    $('input[name=spreadY]').val(spread.Y*ratioX);
-				}
-			    });
-			$('input[name=spreadY]').off("change").on({
-				change : function(){
-				    //console.log("changeY");
-				    var ratioY = $('input[name=spreadY]').val()/spread.Y;
-				    //console.log(ratioY);
-				    $('input[name=spreadX]').val(spread.X*ratioY);
-				}
-			    });
-		    } else { 
-			//console.log("KR unchecked");
-		    }
-		};
-
-		$('input[name=spread-keepratio]').off("click").on({
-			click : clickKR
-			    });
-		if(configBehaviour.defaultKeepRatio)  { // Simulate first click to check the box if default behaviour means it should be checked
-		    $('input[name=spread-keepratio]').click();
-		}
-
-		// Always show info
-		$('#options-zone').append("<div id=options-info class=option-group></div>");
-		$('#options-info').append("<div id=options-showinfo-label class=label>Informations</div>");
-		$('#options-info').append("<input type='checkbox' id='showinfo-cb' name='showinfo-cb' value='yes'>Always show</input>");
-		// Info style
-		$('#options-info').append("<div id=options-info-font-label class=label>Font</div>");
-		$('#options-info').append("<select id=options-info-font-select></select>");
-		for (var it = 0;it<configBehaviour.infoFonts.length;it++)  { 
-		    $('#options-info-font-select').append("<option value='"+it+"'>"+configBehaviour.infoFonts[it].split(",")[0]+"</option>");
-		    if(it==configBehaviour.defaultFontIndex)  { 
-			$('#options-info-font-select').val(it);
-		    }
-		}
-		$('#options-info').append("<div id=options-info-size-label class=label>Size</div>");
-		$('#options-info').append("<input id=infoSize name=infoSize type='number' value="+ parseInt($('.info').css("font-size"))  +"><h1> less than "+configBehaviour.maxInfoFontSize+"</h1>");
-		$('input[name=showinfo-cb][value=yes]').attr("checked", configBehaviour.alwaysShowInfo);
-
-		// Drag and drop behaviour
-		$('#options-zone').append("<div id=options-dragdrop class=option-group></div>");
-		$('#options-dragdrop').append("<div id=options-dragdrop-label class=label>Drag & drop</div>");
-		$('#options-dragdrop').append("<input type='checkbox' id='show-only-border-cb' name='show-only-border-cb' value='yes'>Show only the border</br></input>");
-		$('input[name=show-only-border-cb]').attr("checked", configBehaviour.moveOnlyABorder);
-		$('#options-dragdrop').append("<input type='checkbox' id='move-on-menu-item-cb' name='move-on-menu-item-cb' value='yes'>Enable in menu items</br></input>");
-		//console.log(configBehaviour.moveOnMenuOption);
-		$('input[name=move-on-menu-item-cb]').attr("checked", configBehaviour.moveOnMenuOption);
-		$('#options-dragdrop').append("<input type='checkbox' id='move-on-grid-cb' name='move-on-grid-cb' value='yes'>Move on a grid</br></br></input>");
-		$('input[name=move-on-grid-cb]').attr("checked", configBehaviour.moveOnGrid);
-		$('#options-dragdrop').append("<input type='checkbox' id='showAnimationsLineColSwap' name='showAnimationsLineColSwap' value='yes'>Animate moves</br></input>");
-		$('input[name=showAnimationsLineColSwap]').attr("checked", configBehaviour.showAnimationsLineColSwap);
-
-		$('#options-dragdrop').append("<br>Speed of animations:</br><input id=AnimationSpeed name=AnimationSpeed type='number' value=" +configBehaviour.animationSpeed+ "></br>");
-
-		// Drag and drop behaviour
-		$('#options-zone').append("<div id=options-masterslave class=option-group></div>");
-		$('#options-masterslave').append("<div id=options-masterslave-label class=label>Parallel interaction</div>");
-		$('#options-masterslave').append("<br>Number of tiles showed:</br><input id=allMSShowMax name=allMSShowMax type='number' value=" +configBehaviour.allMSShowMax+ "></br>");
-
-		if (touchok) {
-		    // Touch behaviour
-		    $('#options-zone').append("<div id=options-touch class=option-group></div>");
-		    $('#options-touch').append("<div id=options-touch-label class=label>Touchable device</div>");
-
-		    $('#options-touch').append("<br>Speed of touch:</br><input id=touchSpeed name=touchSpeed type='number' value=" +configBehaviour.touchSpeed+ "></br>");
-			    
-		    $('#options-touch').append("<input type='checkbox' id='smooth-rotation' name='smooth-rotation' value='no'>Smooth rotation</input>");
-		    $('input[name=smooth-rotation]').attr("checked", configBehaviour.smoothRotation);
-			    
-		    $('#options-touch').append("<br>Speed of rotation:</br><input id=RotInc name=RotInc type='number' step='0.1' value=" +configBehaviour.RotationSpeed+ "></br>");
-		}
-
-		// Button to save and exit the options menu
-		$('#options').append("<div id=buttonSave></div>");
-
-		$('#options').append("<div id=buttonCancel></div>");
-
-		// Button to share config to all clients in room
-		$('#options').append("<div id=buttonShare></div>");
-		
-		$('#menu' + id  + '>#option' + optionNumber).attr('class', $('#menu' + id + '>#option' + optionNumber).attr('class').replace('optionsButtonIcon', 'closeOptionsButtonIcon'));
-
-		// Get all values
-		ApplyParameters = function() {
-		    var tempColors = "'colors': {***}";
-		    // var tempJsonData = "'jsonData': {***}";
-		    var tempBehaviour = "'behaviour': {***}";
-		    // var tempTagBehaviour = "'tagBehaviour': {***}";
-		    // var tempCSSProperties = "'cssProperties': {***}";
-
-		    if(configColors.colorTheme != $('input[name=color-theme-radio]').filter(':checked').val())  { 
-			configColors.colorTheme = $('input[name=color-theme-radio]').filter(':checked').val();
-			setColorTheme(configColors.colorTheme);
-		    }
-		    tempColors=tempColors.replace("***","'colorTheme':'"+configColors.colorTheme+"'"+",\n ***");
-		    
-		    if(configBehaviour.opacity*100 != $('#opacitySlider').val())  { 
-			configBehaviour.opacity = Math.max($('#opacitySlider').val()/100, 0.1);
-			for (O in nodes)  { 
-			    nodes[O].setNodeOpacity(configBehaviour.opacity);
-			}
-		    }
-		    tempBehaviour=tempBehaviour.replace("***","'opacity':"+configBehaviour.opacity+",\n ***");
-
-		    var hasSpreadChanged = false;
-		    if(spread.X != $('input[name=spreadX]').val())  { 
-			//console.log("change X, new", $('input[name=spreadX]').val());
-			hasSpreadChanged = true;
-		    }
-		    if(spread.Y != $('input[name=spreadY]').val())  { 
-			//console.log("change Y, new", $('input[name=spreadY]').val());
-			hasSpreadChanged = true;
-		    }
-
-		    if(hasSpreadChanged)  { 
-			var newSpread = {
-			    X : parseInt($('input[name=spreadX]').val()),
-			    Y : parseInt($('input[name=spreadY]').val())
-			    
-			};
-			me.updateSpread(newSpread);
-			
-			temp3="'spread': {\n 'X':"+newSpread.X+", \n 'Y':"+newSpread.Y+"\n}";
-			tempBehaviour=tempBehaviour.replace("***",temp3+",\n ***");
-		    }
-
-		    //console.log(parseInt($('input[name=colNumber]').val()));
-		    numOfColumns = parseInt($('input[name=colNumber]').val());
-                    tempBehaviour=tempBehaviour.replace("***","'maxNumOfColumns': "+numOfColumns+",\n ***");
-
-		    gapBetweenColumns = parseInt($('input[name=spaceBetweenColumns]').val());
-                    tempBehaviour=tempBehaviour.replace("***","'spaceBetweenColumns': "+gapBetweenColumns+",\n ***");
-
-		    gapBetweenLines = parseInt($('input[name=spaceBetweenLines]').val());
-                    tempBehaviour=tempBehaviour.replace("***","'spaceBetweenLines': "+gapBetweenLines+",\n ***");
-
-	            maxNumOfColumns=numOfColumns;
-		    mesh.globalLocationProvider(numOfColumns);
-
-		    if(configBehaviour.alwaysShowInfo != $('input[name=showinfo-cb]').is(":checked"))  { 
-			configBehaviour.alwaysShowInfo = $('input[name=showinfo-cb]').is(":checked");
-			if (configBehaviour.alwaysShowInfo)  { 
-			    $('.info').show();
-			} else { 
-			    $('.info').hide();
-			}
-
-			tempBehaviour=tempBehaviour.replace("***","'alwaysShowInfo': '"+configBehaviour.alwaysShowInfo+"',\n ***");
-		    }
-
-		    if(parseInt($('.info').css("font-size"))!=$('#infoSize').val())  { 
-			$('.info').css("font-size",  Math.min($('#infoSize').val(), configBehaviour.maxInfoFontSize) + "px");
-			configBehaviour.defaultInfoFontSize = $('.info').css("font-size");
-
-			tempBehaviour=tempBehaviour.replace("***","'defaultInfoFontSize': '"+configBehaviour.defaultInfoFontSize+"',\n ***");
-		    }
-		    configBehaviour.defaultFontIndex = $('#options-info-font-select').val();
-		    $('.info').css("font-family", configBehaviour.infoFonts[configBehaviour.defaultFontIndex]);
-
-		    tempBehaviour=tempBehaviour.replace("***","'defaultFontIndex': "+configBehaviour.defaultFontIndex+",\n ***");
-
-		    configBehaviour.moveOnlyABorder = $('input[name=show-only-border-cb]').is(":checked");
-		    tempBehaviour=tempBehaviour.replace("***","'moveOnlyABorder': '"+configBehaviour.moveOnlyABorder+"',\n ***");
-		    configBehaviour.moveOnMenuOption = $('input[name=move-on-menu-item-cb]').is(":checked");
-                    tempBehaviour=tempBehaviour.replace("***","'moveOnMenuOption': '"+configBehaviour.moveOnMenuOption+"',\n ***");
-		    configBehaviour.moveOnGrid = $('input[name=move-on-grid-cb]').is(":checked");
-                    tempBehaviour=tempBehaviour.replace("***","'moveOnGrid': '"+configBehaviour.moveOnGrid+"',\n ***");
-		    configBehaviour.showAnimationsLineColSwap = $('input[name=showAnimationsLineColSwap]').is(":checked");
-                    tempBehaviour=tempBehaviour.replace("***","'showAnimationsLineColSwap': '"+configBehaviour.showAnimationsLineColSwap+"',\n ***");
-		    
-		    configBehaviour.animationSpeed = $('#AnimationSpeed').val();
-                    tempBehaviour=tempBehaviour.replace("***","'animationSpeed': "+configBehaviour.animationSpeed+",\n ***");
-		    
-		    configBehaviour.allMSShowMax = $('#allMSShowMax').val();
-                    tempBehaviour=tempBehaviour.replace("***","'allMSShowMax': "+configBehaviour.allMSShowMax+",\n ***");
-		    
-		    if (touchok) {
-			configBehaviour.touchSpeed = $('#touchSpeed').val();
-			tempBehaviour=tempBehaviour.replace("***","'touchSpeed': "+configBehaviour.touchSpeed+",\n ***");
-			
-			configBehaviour.smoothRotation = $('input[name=smooth-rotation]').is(":checked");
-			tempBehaviour=tempBehaviour.replace("***","'smoothRotation': '"+configBehaviour.smoothRotation+"',\n ***");
-			if (configBehaviour.smoothRotation) {
-			    RotInc=configBehaviour.RotationSpeed; //for a smooth touchmove rotation
-			} else {
-			    // for a turn over with only touchstart / touchend (no touchmove) events
-			    RotInc=180; 
-			}
-		    } else {
-			configBehaviour.smoothRotation = false;
-		    }
-		    
-		    var tempConfigJson="{\n"
-			+ tempColors.replace(",\n ***","").replace("***","")+",\n"
-			// + tempJsonData.replace(",\n ***","").replace("***","")+",\n"
-			+ tempBehaviour.replace(",\n ***","").replace("***","")+"\n"
-			// + tempTagBehaviour.replace(",\n ***","").replace("***","")+",\n"
-			// + tempCSSProperties.replace(",\n ***","").replace("***","")+"\n"
-			+ "}";
-
-		    return tempConfigJson;
-		}
-
-		
-		// Interactions
-		$('#buttonSave').off("click").on({
-
-			click : function(){
-			    ApplyParameters();
-			    $('#buttonCancel').click();
-			}
-		    });
-
-		$('#buttonCancel').off("click").on('click',function() { 
-		    $('#options').remove();
-		    $('#options-content-select').remove();
-		    $('#menu' + id + '>#option' + optionNumber).removeClass("closeOptionsButtonIcon").addClass("optionsButtonIcon");
-		});
-
-		$('#buttonShare').off("click").on({
-			click : function(){				
-			    ConfigJson = ApplyParameters();
-			    
-			    var sessionDate = new Date();
-			    var strDate=sessionDate.toLocaleDateString({day: "2-digit", month: "2-digit"}).replace(/\//g, "-") + "_" + sessionDate.toLocaleTimeString("fr-FR").replace(/:/g, "-")
-			    var fileName = my_session + "_" + "Config_" + strDate + ".json"; 
-			    var file = new File([ConfigJson], fileName, {type: "text/plain;charset=utf-8"});
-			    saveAs(file);
-
-			    cdata ={"room":my_session, "Config": ConfigJson }
-			    console.log("Share config : "+ConfigJson);
-			    // used to deploy config but not on the user that have emited the signal.
-			    myOwnConfig=true;
-			    socket.emit("save_Config", cdata);
-			}
-		    });
-		
-	    } else
-		$('#buttonCancel').click();
-	});
-
-    menuIconClassAttributesTab.push("optionsButtonIcon");
-    MenuShareEvent.push(false);
-
-    UpdateParameters = function(configJson) {
-	var tempColors = configJson.colors;
-	// var tempJsonData = configJson.jsonData;
-	var tempBehaviour = configJson.behaviour;
-	// var tempTagBehaviour = configJson.tagBehaviour;
-	// var tempCSSProperties = configJson.cssProperties;
-
-	if (tempColors.hasOwnProperty('colorTheme')) {
-	    configColors.colorTheme = tempColors.colorTheme
-	    setColorTheme(configColors.colorTheme);
+	if(v==true)  { 
+	    menuManagementGlobal
+		.css("top",menuGlobal.position()["top"]+menuGlobal.height())
+		.css("left",menuGlobal.position()["left"])
+		.css("visibility", "visible");
+	    $('#'+id+'option'+optionNumber).removeClass('managementGlobalMenuButtonIcon').addClass('closeManagementGlobalMenuButtonIcon');
+	} else { 
+	    menuManagementGlobal.css("visibility", "hidden");
+	    $('#'+id+'option'+optionNumber).removeClass('closeManagementGlobalMenuButtonIcon').addClass('managementGlobalMenuButtonIcon');
 	}
-	
-	if(tempBehaviour.hasOwnProperty('opacity')) {
-	    configBehaviour.opacity = tempBehaviour.opacity;
-	    for (O in nodes)  { 
-		nodes[O].setNodeOpacity(configBehaviour.opacity);
-	    }
-	}
-
-
-	if(tempBehaviour.hasOwnProperty('spread'))  { 
-	    var newSpread = {
-		X : parseInt(tempBehaviour.spread.X),
-		Y : parseInt(tempBehaviour.spread.Y)
-		
-	    };
-	    me.updateSpread(newSpread);			
-	}
-
-        if(tempBehaviour.hasOwnProperty('maxNumOfColumns'))
-	    numOfColumns = tempBehaviour.maxNumOfColumns;
-	
-        if(tempBehaviour.hasOwnProperty('spaceBetweenColumns'))
-	    gapBetweenColumns = tempBehaviour.spaceBetweenColumns
-        if(tempBehaviour.hasOwnProperty('spaceBetweenLines'))
-	    gapBetweenLines = tempBehaviour.spaceBetweenLines
-	    
-	maxNumOfColumns=numOfColumns;
-	mesh.globalLocationProvider(numOfColumns);
-
-	if(tempBehaviour.hasOwnProperty('alwaysShowInfo'))  { 
-	    configBehaviour.alwaysShowInfo = tempBehaviour.alwaysShowInfo;
-	    if (configBehaviour.alwaysShowInfo)  { 
-		$('.info').show();
-	    } else { 
-		$('.info').hide();
-	    }
-	}
-
-	if(tempBehaviour.hasOwnProperty('defaultInfoFontSize'))  {
-	    configBehaviour.defaultInfoFontSize = tempBehaviour.defaultInfoFontSize;
-	    $('.info').css("font-size",configBehaviour.defaultInfoFontSize) 
-	}
-	if(tempBehaviour.hasOwnProperty('defaultFontIndex'))  { 
-	    configBehaviour.defaultFontIndex = tempBehaviour.defaultFontIndex;
-	    $('.info').css("font-family", configBehaviour.infoFonts[configBehaviour.defaultFontIndex]);
-	}
-
-	if(tempBehaviour.hasOwnProperty('moveOnlyABorder'))
-	    configBehaviour.moveOnlyABorder = tempBehaviour.moveOnlyABorder;
-
-	if(tempBehaviour.hasOwnProperty('moveOnMenuOption'))
-	    configBehaviour.moveOnMenuOption = tempBehaviour.moveOnMenuOption;
-
-	if(tempBehaviour.hasOwnProperty('moveOnGrid'))
-	    configBehaviour.moveOnGrid = tempBehaviour.moveOnGrid;
-
-        if(tempBehaviour.hasOwnProperty('showAnimationsLineColSwap'))
-	    configBehaviour.showAnimationsLineColSwap = tempBehaviour.showAnimationsLineColSwap;
-		    
-        if(tempBehaviour.hasOwnProperty('animationSpeed'))
-	    configBehaviour.animationSpeed = tempBehaviour.animationSpeed;
-		    
-        if(tempBehaviour.hasOwnProperty('allMSShowMax'))
-	    configBehaviour.allMSShowMax = tempBehaviour.allMSShowMax;
-	
-	if (touchok) {
-
-            if(tempBehaviour.hasOwnProperty('touchSpeed'))
-		configBehaviour.touchSpeed = tempBehaviour.touchSpeed;
-			
-
-            if(tempBehaviour.hasOwnProperty('smoothRotation'))
-		configBehaviour.smoothRotation = tempBehaviour.smoothRotation;
-
-	    if (configBehaviour.smoothRotation) {
-		RotInc=configBehaviour.RotationSpeed; //for a smooth touchmove rotation
-	    } else {
-		// for a turn over with only touchstart / touchend (no touchmove) events
-		RotInc=180; 
-	    }
-	} else {
-	    configBehaviour.smoothRotation = false;
-	}
-				    
-    }
-
-    /** Help icon : 
-     * TO DO : when selected, hovering over items in the page gives info about them
-     */
-
-    var initHelp=null;
+    });
+    menuIconClassAttributesTab.push("managementGlobalMenuButtonIcon");
+    menuShareEvent.push(false);
+    
+    // State of tiles Menu
+    menuTitleTab.push("All state of tile functions")
     menuEventTab.push(    function(v, id, optionNumber){
-	    if (v==true)  { 
-		//var support = document.getElementById("helpframe");
+	if(v==true)  { 
+	    menuStateGlobal
+		.css("top",menuGlobal.position()["top"]+$('.stateGlobalMenuButtonIcon').position()["top"])
+		.css("left",200)
+		.css("visibility", "visible");
+	    $('#'+id+'option'+optionNumber).removeClass('stateGlobalMenuButtonIcon').addClass('closeStateGlobalMenuButtonIcon');
+	} else { 
+	    menuStateGlobal.css("visibility", "hidden");
+	    $('#'+id+'option'+optionNumber).removeClass('closeStateGlobalMenuButtonIcon').addClass('stateGlobalMenuButtonIcon');
+	}
+    });
+    menuIconClassAttributesTab.push("stateGlobalMenuButtonIcon");
+    menuShareEvent.push(false);
 
-		if (initHelp == null)  { // First time opening the help menu: Help page will be loaded
-		    htmlPrimaryParent.prepend($('#helpSupport'));	
-		    $('#helpSupport').css({ // TO BE CONTINUED !
-			    position : "absolute",
-				//top : parseInt($('#header').css('height')),
-				top : 0, 
-				//padding : "100px",
-				left : parseInt($(me.menu.getHtmlMenuSelector()).css("width")),
-				zIndex : 750,
-				height : "100%",
-				width : "100%",
-				backgroundColor : "black",
-				opacity : 1
-				});
+    // Display/Hide the node menu
+    menuTitleTab.push("Display/Hide the node menu")
+    menuEventTab.push(    function(v,id,optionNumber){
 
-		    console.log(helpPath);
-		    $('#helpSupport').append('<div id=buttonClosehelp class=unzoomButtonIcon></div>');
-		    $('#helpSupport').append("<div id=helpSliderLabel style='background-image: none; color: white; background-color: black; font-size: 80px; padding: 20px; padding-top: 5px; padding-bottom: 5px;'>Zoom</div>");
-		    $('#buttonClosehelp').css({
-			position : "fixed", 
-			top : 0 ,
-			left : parseInt($(me.menu.getHtmlMenuSelector()).css("width")),
-			height : 200,
-			width : 200,
-			zIndex : 802,	
-			backgroundColor: "rgba(0, 0, 0, 0.5)"
-		    });
-		    $('#buttonClosehelp').off("click").on('click',function() { 
-			$('#helpSupport').hide();	
-			$('#menu' + id  + '>#option' + optionNumber).removeClass("closeHelpButtonIcon").addClass("helpButtonIcon")
-		    });
-		    
-		    $('#helpSliderLabel').css({
-			position: "fixed",
-			fontSize : "150px",
-			left : parseInt($(me.menu.getHtmlMenuSelector()).css("width"))
-			    +parseInt($('#buttonClosehelp').css("width")),
-			top: 10,
-			//color: "white",
-			zIndex: 802,
-			padding: "0px 50px",
-			width : "600px",
-			height : "200px"
-			//backgroundColor: "rgba(0, 0, 0, 0.5)"
-		    });
+	    if(v==true)  { 	
+		if (!configBehaviour.moveOnNodeMenuOption)  { 
+		    $('.node').off();
+		    $('.hitbox').off();
+		}
 
-		    $('#helpSliderLabel').append("<input id=helpSlider type='range' name=helpSlider min="+window.devicePixelRatio*100+" max="+5*window.devicePixelRatio*100+" value= " + 
-						 3*window.devicePixelRatio*100 + ">");
+		$(".nodemenu").css({visibility : "visible"});	
 
-		    $('#helpSlider').css({
-			position : "fixed", 
-			top: parseInt($('#helpSliderLabel').css("height"))/2,
-			left : (parseInt($('#helpSliderLabel').css("width"))
-				+parseInt($('#buttonClosehelp').css("width")))*1.1,
-			//width : 30/100 * parseInt($('header').css("width"))
-			width: parseInt($('header').css("width"))/2 - parseInt($(me.menu.getHtmlMenuSelector()).css("width")),
-			//padding : parseInt($('#helpSliderLabel').css("height"))/2,
-		    });
-		    
-		    $('#helpSlider').change(function () {
-			    var val = ($(this).val() - $(this).attr('min')) / ($(this).attr('max') - $(this).attr('min'));
-				
-			    $(this).css('background-image',
-					'-webkit-gradient(linear, left top, right top, '
-					+ 'color-stop(' + val + ', rgb(255, 0, 0)), '
-					+ 'color-stop(' + val + ', rgb(0, 255, 0))'
-					+ ')'
-					);
-			});
+		$('#'+id+'option'+optionNumber).attr('class',$('#'+id+'option'+optionNumber).attr('class').replace('nodeMenuButton','closeNodeMenuButton'));
+	    } else { 	
+		var nodeId =0;
 
-		    var val = ($("#helpSlider").val() - $("#helpSlider").attr('min')) / ($("#helpSlider").attr('max') - $("#helpSlider").attr('min'));
-		    $('#helpSlider').css('background-image',
-					 '-webkit-gradient(linear, left top, right top, '
-					 + 'color-stop(' + val + ', rgb(255, 0, 0)), '
-					 + 'color-stop(' + val + ', rgb(0, 255, 0))'
-					 + ')'
-					 );
+		for(nodeId = 0 ; nodeId < nodeCardinal; nodeId++)  { 
 
+		    var p =0 ;
 
-		    $('#helpframe').css({
-			    position: "fixed",
-				top : parseInt($('#helpSliderLabel').css("height"))
-				});
+		    for(p=0;p<nodes["node"+nodeId].getNodeMenu().getEventSelectedTab().length;p++)  { 
+			if(nodes["node"+nodeId].getNodeMenu().getEventSelectedTab()[p]==true)  { 
+			    $("#menu"+nodeId+">#option"+p).click();
+			    //console.log("obscure if condition in NodeMenu");
+			}
+		    }
 
-		    $('#helpSlider').off("click").on({
-			    click : function(e){
-				var newZoom = $('#helpSlider').val();
-				var ratio = newZoom/(window.devicePixelRatio*100);
-				$('#helpframe').css("-moz-transform","scale("+ratio+")").css("-webkit-transform","scale("+ratio+")").css("transform-origin", "0 0 0");
-			    }
-			});
+		}
 
-		    $('#helpSlider').click();
-		    //$('#helpSupport').load("doc/user_doc_EN.html");
-
-		    setColorTheme(configColors.colorTheme); // First time: set colors	
-		    $('#helpSupport').show();
-			
-		    initHelp="ok";
-		} else // Simply show the previous (hidden since) help page.
-		    {
-			$('#helpSupport').show();
-		    }	
-
-		$('#menu' + id  + '>#option' + optionNumber).removeClass("helpButtonIcon").addClass("closeHelpButtonIcon");
-	    } else
-		$('#buttonClosehelp').click();
-	});
-    menuIconClassAttributesTab.push("helpButtonIcon");
-    MenuShareEvent.push(false);
-
-    /** Move down all lines and place last line on first' */
-    menuEventTab.push(    function(v, id, optionNumber){
-	    if (v==true)  { 
-		moveMesh("down");
-	    } else { 
-		moveMesh("down");
+		me.meshEventReStart();
+		$(".nodemenu").css({visibility : "hidden"});
+		$('#'+id+'option'+optionNumber).attr('class',$('#'+id+'option'+optionNumber).attr('class').replace('closeNodeMenuButton','nodeMenuButton'));
 	    }
+
 	});
-    menuIconClassAttributesTab.push("downArrowButtonIcon");
-    MenuShareEvent.push(true);
+    menuIconClassAttributesTab.push("nodeMenuButtonIcon");
+    menuShareEvent.push(true);
+
+    // Cancel Global Menu
+    
+    menuTitleTab.push("cancel/redo Menu")
+    menuEventTab.push(    function(v, id, optionNumber){
+	if(v==true)  { 
+	    menuCancelGlobal
+		.css("top",menuGlobal.position()["top"]+$('.cancelGlobalMenuButtonIcon').position()["top"])
+		.css("left",200)
+		.css("visibility", "visible");
+	    $('#'+id+'option'+optionNumber).removeClass('cancelGlobalMenuButtonIcon').addClass('closeCancelGlobalMenuButtonIcon');
+	} else { 
+	    menuCancelGlobal.css("visibility", "hidden");
+	    $('#'+id+'option'+optionNumber).removeClass('closeCancelGlobalMenuButtonIcon').addClass('cancelGlobalMenuButtonIcon');
+	}
+    });
+    menuIconClassAttributesTab.push("cancelGlobalMenuButtonIcon");
+    menuShareEvent.push(false);
+
+    // Updown Global Menu
+    
+    menuTitleTab.push("up/down Menu")
+    menuEventTab.push(    function(v, id, optionNumber){
+	if(v==true)  { 
+	    menuUpdownGlobal
+		.css("top",menuGlobal.position()["top"]+$('.updownGlobalMenuButtonIcon').position()["top"])
+		.css("left",200)
+		.css("visibility", "visible");
+	    $('#'+id+'option'+optionNumber).removeClass('updownGlobalMenuButtonIcon').addClass('closeUpdownGlobalMenuButtonIcon');
+	} else { 
+	    menuUpdownGlobal.css("visibility", "hidden");
+	    $('#'+id+'option'+optionNumber).removeClass('closeUpdownGlobalMenuButtonIcon').addClass('updownGlobalMenuButtonIcon');
+	}
+    });
+    menuIconClassAttributesTab.push("updownGlobalMenuButtonIcon");
+    menuShareEvent.push(false);
 
     /** Here is created a tab menuIconClassAttributesTab related to the parameters menuIconClassAttributesTab_ of the Menu constructor (see below)
 	This table contains the name of the class which allows to give some backgroundImage to the various buttons
     */
     
-    this.menu = new Menu(999,$('header'),menuEventTab,menuIconClassAttributesTab,MenuShareEvent,{
+    this.menu = new Menu("Global",$('header'),menuTitleTab,menuEventTab,menuIconClassAttributesTab,menuShareEvent,{
 	    position : "fixed",
-	    top : 0,
+	    top : $('#notifications').height(),
 	    left : 0,
 	    visible : "visible",
 	    classN : "super",
@@ -3520,9 +4027,11 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    rightMargin :0,
 	    orientation : "V"
 	});
-    menuGlobal=$('#menu999');
+    menuGlobal=$('#menuGlobal');
+
+    subMenusGlobal=Array();
     
-    this.tagMenu = new Menu(2017, $('header'), tagMenuEventTab, tagMenuIconClassAttributesTab, tagMenuShareEvent,{
+    this.tagMenu = new Menu("tagsGlobal", $('header'), tagMenuTitleTab, tagMenuEventTab, tagMenuIconClassAttributesTab, tagMenuShareEvent,{
 	    position : "fixed",
 	    top : 0,
 	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')), //parseInt(window.innerWidth) - tagMenuEventTab.length*200,
@@ -3538,12 +4047,113 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    zIndex : 149
 
 	});
-    menuTags=$('#menu2017');
+    menuTags=$('#menutagsGlobal');
+    subMenusGlobal.push(this.tagMenu);
     
-    this.drawMenu = new Menu(2018, $('header'), drawMenuEventTab, drawMenuIconClassAttributesTab, drawMenuShareEvent,{
+    this.zoomGlobalMenu = new Menu("zoomGlobal", $('header'), zoomGlobalMenuTitleTab, zoomGlobalMenuEventTab, zoomGlobalMenuIconClassAttributesTab, zoomGlobalMenuShareEvent,{
+	    position : "fixed",
+	    top : parseInt($(me.menu.getHtmlMenuSelector()).css('height')),
+	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')),
+	    visible : 'hidden',
+	    classN : 'super',
+	    height : 200,
+	    width : 200,
+	    rightMargin :0,
+	    backgroundColor: "rgba(0, 0, 0, 0.6)",
+	    //borderStyle : "solid",
+	    //borderWidth : "5px", 
+	    //borderColor : "green",
+	    orientation : "H",
+	    zIndex : 149
+
+	});
+    menuZoomGlobal=$('#menuzoomGlobal');
+    subMenusGlobal.push(this.zoomGlobalMenu);
+    
+    this.stateGlobalMenu = new Menu("stateGlobal", $('header'), stateGlobalMenuTitleTab, stateGlobalMenuEventTab, stateGlobalMenuIconClassAttributesTab, stateGlobalMenuShareEvent,{
+	    position : "fixed",
+	    top : parseInt($(me.menu.getHtmlMenuSelector()).css('height')),
+	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')),
+	    visible : 'hidden',
+	    classN : 'super',
+	    height : 200,
+	    width : 200,
+	    rightMargin :0,
+	    backgroundColor: "rgba(0, 0, 0, 0.6)",
+	    //borderStyle : "solid",
+	    //borderWidth : "5px", 
+	    //borderColor : "green",
+	    orientation : "H",
+	    zIndex : 149
+
+	});
+    menuStateGlobal=$('#menustateGlobal');
+    subMenusGlobal.push(this.stateGlobalMenu);
+    
+    this.managementGlobalMenu = new Menu("managementGlobal", $('header'), managementGlobalMenuTitleTab, managementGlobalMenuEventTab, managementGlobalMenuIconClassAttributesTab, managementGlobalMenuShareEvent,{
+	    position : "fixed",
+	    top : parseInt($(me.menu.getHtmlMenuSelector()).css('height')),
+	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('left')),
+	    visible : 'hidden',
+	    classN : 'super',
+	    height : 200,
+	    width : 200,
+	    rightMargin :0,
+	    backgroundColor: "rgba(0, 0, 0, 0.6)",
+	    //borderStyle : "solid",
+	    //borderWidth : "5px", 
+	    //borderColor : "green",
+	    orientation : "V",
+	    zIndex : 149
+
+	});
+    menuManagementGlobal=$('#menumanagementGlobal');
+    subMenusGlobal.push(this.managementGlobalMenu);
+    
+    this.cancelGlobalMenu = new Menu("cancelGlobal", $('header'), cancelGlobalMenuTitleTab, cancelGlobalMenuEventTab, cancelGlobalMenuIconClassAttributesTab, cancelGlobalMenuShareEvent,{
+	    position : "fixed",
+	    top : parseInt($(me.menu.getHtmlMenuSelector()).css('height')),
+	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')),
+	    visible : 'hidden',
+	    classN : 'super',
+	    height : 200,
+	    width : 200,
+	    rightMargin :0,
+	    backgroundColor: "rgba(0, 0, 0, 0.6)",
+	    //borderStyle : "solid",
+	    //borderWidth : "5px", 
+	    //borderColor : "green",
+	    orientation : "H",
+	    zIndex : 149
+
+	});
+    menuCancelGlobal=$('#menucancelGlobal');
+    subMenusGlobal.push(this.cancelGlobalMenu);
+    
+    this.updownGlobalMenu = new Menu("updownGlobal", $('header'), updownGlobalMenuTitleTab, updownGlobalMenuEventTab, updownGlobalMenuIconClassAttributesTab, updownGlobalMenuShareEvent,{
+	    position : "fixed",
+	    top : parseInt($(me.menu.getHtmlMenuSelector()).css('height')),
+	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')),
+	    visible : 'hidden',
+	    classN : 'super',
+	    height : 200,
+	    width : 200,
+	    rightMargin :0,
+	    backgroundColor: "rgba(0, 0, 0, 0.6)",
+	    //borderStyle : "solid",
+	    //borderWidth : "5px", 
+	    //borderColor : "green",
+	    orientation : "H",
+	    zIndex : 149
+
+	});
+    menuUpdownGlobal=$('#menuupdownGlobal');
+    subMenusGlobal.push(this.updownGlobalMenu);
+    
+    this.drawMenu = new Menu("Draw", $('header'), drawMenuTitleTab, drawMenuEventTab, drawMenuIconClassAttributesTab, drawMenuShareEvent,{
 	    position : "fixed",
 	    top : 0,
-	    left : 200 + parseInt($(me.menu.getHtmlMenuSelector()).css('width')), //parseInt(window.innerWidth) - tagMenuEventTab.length*200,
+ 	    left : $('#menutagsGlobal').offset().left+$('#menutagsGlobal').width(),
 	    visible : 'hidden',
 	    classN : 'super',
 	    height : 200,
@@ -3556,12 +4166,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    zIndex : 801
 
 	});
-    menuDraw=$('#menu2018');
+    menuDraw=$('#menuDraw');
     
-    this.zoomMenu = new Menu(2019, $('header'), zoomMenuEventTab, zoomMenuIconClassAttributesTab, zoomMenuShareEvent, {
+    this.zoomMenu = new Menu("Zoom", $('header'), zoomMenuTitleTab, zoomMenuEventTab, zoomMenuIconClassAttributesTab, zoomMenuShareEvent, {
 	    position : "fixed",
 	    top : 0,
-	    left : 200 + parseInt($(me.menu.getHtmlMenuSelector()).css('width')), //parseInt(window.innerWidth) - tagMenuEventTab.length*200,
+	    left : $('#menutagsGlobal').offset().left+$('#menutagsGlobal').width(),
 	    visible : 'hidden',
 	    classN : 'super',
 	    height : 200,
@@ -3574,12 +4184,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    zIndex : 801
 
 	});
-    menuZoom=$('#menu2019');
+    menuZoom=$('#menuZoom');
     
-    this.MSMenu = new Menu(2020, $('header'), MSMenuEventTab, MSMenuIconClassAttributesTab, MSMenuShareEvent, {
+    this.MSMenu = new Menu("MS", $('header'), MSMenuTitleTab, MSMenuEventTab, MSMenuIconClassAttributesTab, MSMenuShareEvent, {
 	    position : "fixed",
 	    top : 0,
-	    left : 200 + parseInt($(me.menu.getHtmlMenuSelector()).css('width')), //parseInt(window.innerWidth) - tagMenuEventTab.length*200,
+	    left : $('#menutagsGlobal').offset().left+$('#menutagsGlobal').width(),
 	    visible : 'hidden',
 	    classN : 'super',
 	    height : 200,
@@ -3592,8 +4202,46 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    zIndex : 801
 
 	});
-    menuMS=$('#menu2020');	
+    menuMS=$('#menuMS');	
 
+    this.tagSelectionMenu = new Menu("SelectionTags", $('header'), tagSelectionMenuTitleTab, tagSelectionMenuEventTab, tagSelectionMenuIconClassAttributesTab, tagSelectionMenuShareEvent,{
+	    position : "fixed",
+	    top : 100,
+	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')), //parseInt(window.innerWidth) - tagMenuEventTab.length*200,
+	    visible : 'hidden',
+	    classN : 'super',
+	    height : 200,
+	    width : 200,
+	    rightMargin :0,
+	    backgroundColor: "rgba(0, 0, 0, 0.5)",
+	    //borderStyle : "solid",
+	    //borderWidth : "5px", 
+	    //borderColor : "green",
+	    orientation : "V",
+	    zIndex : 150
+
+	});
+    menuSelectionTags=$('#menuSelectionTags');
+
+    this.tagManagementMenu = new Menu("ManagementTags", $('header'), tagManagementMenuTitleTab, tagManagementMenuEventTab, tagManagementMenuIconClassAttributesTab, tagManagementMenuShareEvent,{
+	    position : "fixed",
+	    top : 100,
+	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')), //parseInt(window.innerWidth) - tagMenuEventTab.length*200,
+	    visible : 'hidden',
+	    classN : 'super',
+	    height : 200,
+	    width : 200,
+	    rightMargin :0,
+	    backgroundColor: "rgba(0, 0, 0, 0.5)",
+	    //borderStyle : "solid",
+	    //borderWidth : "5px", 
+	    //borderColor : "green",
+	    orientation : "V",
+	    zIndex : 150
+
+	});
+    menuManagementTags=$('#menuManagementTags');
+    
     //******select column and line******//	
 
     //--getter 
@@ -4296,8 +4944,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 	if(configBehaviour.showInfoAtLoading)  { 
 	    $('.info').show();
-	    var optionId = mesh.menu.getHtmlMenuSelector() + ">#" +$("[class*=showInfoButtonIcon]").attr('id');
-	    $(optionId).removeClass('showInfoButtonIcon').addClass('closeShowInfoButtonIcon');
+	    $(".showInfoButtonIcon").removeClass('showInfoButtonIcon').addClass('closeShowInfoButtonIcon');
 	}
 
 	for(O in mesh.getNodes()){
@@ -4794,6 +5441,7 @@ dblclick: dblclickFunction*/
 		//console.log("enter", this.id);
 		if($('#' + this.id).hasClass("drag-handle-on")) {
 		    $('.node').off("mouseenter");
+		    $('#'+this.id).css('-webkit-transform','scale(2)').css('-moz-transform','scale(2)');
 		    var nodeToDrag = this.id.replace("handle", "");
 		    if(_allowDragAndDrop && $('.node').filter('.ui-draggable').length == 0) {
 			// To adapt for multiple draggable tiles at the same time
@@ -4806,6 +5454,7 @@ dblclick: dblclickFunction*/
 		    $("#" + this.id).on("mouseup", function(e){
 			    var nodeToDrop = this.id.replace("handle", "");
 			    me.dropNode(nodeToDrop);
+			    $('#'+this.id).css('-webkit-transform','scale(1)').css('-moz-transform','scale(1)');
 			    refreshNodes(nodeToDrop);
 			    me.globalLocationProvider();
 			    me.meshEventReStart();
@@ -4822,6 +5471,8 @@ dblclick: dblclickFunction*/
 			    $("#" + this.id).mouseenter();
 			});
 			$('#'+nodeToDrag).on(NodeEvent);
+		    }).on("mouseleave", function(e){
+			$('#'+this.id).css('-webkit-transform','scale(1)').css('-moz-transform','scale(1)');
 		    });
 		}
 		if ($('.node').filter('.ui-draggable').length == 0)
@@ -5082,23 +5733,7 @@ dblclick: dblclickFunction*/
 	    $('.hitbox').off("mouseenter");
 	    _allowDragAndDrop = false;
  
-	    // // Deactivate other magnify menus
-	    // menuGlobal.children("[class*=zoomButtonIcon]").removeClass("zoomButtonIcon").addClass("disablezoomButtonIcon");
-	    // menuGlobal.children("[class*=MSButtonIcon]").removeClass("MSButtonIcon").addClass("disableMSButtonIcon");
-	    // $('.node').children("[class*=menu]").children("[class*=drawButtonIcon]").removeClass("drawButtonIcon").addClass("disabledrawButtonIcon");
-
 	    me.magnifyingGlass(nodeZoomTab,ratio,initSpread);
-
-	    $('#buttonUnzoom').on({
-		    // Delete all tools created on magnifyingGlass and zoomAndDrawOnNodes
-		    click : function(){
-			// // Activate other magnify menus
-			// menuGlobal.children("[class*=disableMSButtonIcon]").removeClass("disableMSButtonIcon").addClass("MSButtonIcon");
-			// menuGlobal.children("[class*=disablezoomButtonIcon]").removeClass("disablezoomButtonIcon").addClass("zoomButtonIcon");
-			// $('.node').children("[class*=menu]").children("[class*=disabledrawButtonIcon]").removeClass("disabledrawButtonIcon").addClass("drawButtonIcon");
-				
-		    }
-		});
 	};
 		    
 	$('.zoomNodeButtonIcon').on({

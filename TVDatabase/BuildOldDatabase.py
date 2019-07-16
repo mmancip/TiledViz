@@ -209,7 +209,11 @@ if __name__ == '__main__':
         id_users_sessions, uniq = tvdb.insert_table('many_users_has_many_sessions',{"id_sessions":id_sessions,"id_users":id_users})
 
     if (args.haveconnection):
-        id_connection, uniqConnection = tvdb.insert_table('connections',{"host_address":args.connecthost,"id_users":id_users})
+        id_connection, uniqConnection = tvdb.insert_table('connections',{"auth_type":"ssh",
+                                                                         "container":"docker swarm",
+                                                                         "scheduler":"slurm",
+                                                                         "scheduler_file":"#test of scheduler file\\n #param 1",
+                                                                         "host_address":args.connecthost,"id_users":id_users})
         tvdb.print_table("connections")
         
         id_tile_sets, uniqTileSet = tvdb.insert_table('tile_sets',{"name":args.testsets,"type_of_tiles":args.typeoftiles,"Dataset_path":args.datapath,"id_connections":id_connection})
