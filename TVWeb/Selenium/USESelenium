@@ -1,0 +1,16 @@
+Use Gecko driver with Selenium:
+https://github.com/mozilla/geckodriver/releases
+tested with geckodriver-v0.25.0-linux64.tar.gz
+
+Use chromedriver (not tested):
+https://sites.google.com/a/chromium.org/chromedriver/home/
+
+Activate TiledViz virtualenv, for example :
+source ../virtualreq/bin/activate ?
+
+Add Selenium to local python
+pip3 install Selenium
+
+
+Example use of modify_session_with_nodejs (old Tileviz input file):
+TVWeb/Selenium/modify_session_with_nodejs $mylogin $myTiledVizPass "DEMO_E5" "True" 2 "UREEE5" /apps/mdls/WildOS/test/TileVizCases_config/VMD/nodes.js "ANATOM_E5" /apps/mdls/WildOS/test/TileVizCases_config/ANATOMIST/nodes.js

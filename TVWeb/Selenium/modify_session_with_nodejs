@@ -1,0 +1,60 @@
+#!/bin/bash
+
+# Example of usage
+echo "This script must be executed in TiledViz root path : " $(pwd)
+echo $0 ddurandi "OtherP@ssw/31d" "TestSession" "True" 1 WikimediaTest TVWeb/Selenium/WikimediaTest.js
+
+
+#TiledViz user info
+login=$1
+password=$2
+# Session name
+session=$3
+# Is it my own session ? (True/False)
+mysession=$4
+# Number of tilesets to be modified
+nbtileset=$5
+shift 5
+# List of modifications : for each tileset
+# tileset name
+# path to nodes.js file (with filename)
+IFS=' ' read -r -a tilesets <<<$@
+
+
+# Test parameters
+if [ X$mysession == X"True" ]; then 
+    echo 'I am '$login' and want to modify my own session ' $session
+    MY_OWN_SESSION="--mysession"
+elif ( X$mysession == X"False" ); then
+    echo 'I am '$login' and want to modify an invited session ' $session
+    MY_OWN_SESSION="--invitedsession"
+else
+    echo "Error in parameters : mysession $mysession"
+fi
+
+i=0
+it=0
+while [ $i -lt $nbtileset ] ; do
+    Newname=${tilesets[$it]}_$( echo $( basename ${tilesets[$((it+1))]} ) )
+    echo "For tileset " ${tilesets[$it]} " get file " ${tilesets[$((it+1))]} " will be copied in Selenium dir with name " $Newname
+
+    sed -e "s&var text_ =.*&&" -e 's&var jsDataTab = text_.nodes;&&' -e '/^$/d' ${tilesets[$((it+1))]} > TVWeb/Selenium/$Newname
+    ls -la TVWeb/Selenium/$Newname
+    tilesets[$((it+1))]=$Newname
+    
+    i=$((i+1))
+    it=$((it+2))
+done
+
+# get Docker flask IP
+export IPFlask=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' flaskdock)
+
+
+# Launch Selenium script 
+# COMMAND="docker run -t -v /dev/shm:/dev/shm -v $(pwd)/TVWeb/Selenium:/usr/local/Selenium --add-host=flaskdock:$IPFlask --name seleniumsession --rm joyzoursky/python-chromedriver:3.7-alpine3.8-selenium python3 /usr/local/Selenium/modify_session_with_nodejs.py --login '$login' --password '$password' --session '$session' ${MY_OWN_SESSION} --nbtileset $nbtileset '${tilesets[@]}'"
+# echo "Docker command : "  $COMMAND
+
+COMMAND="python3 TVWeb/Selenium/modify_session_with_nodejs.py --login $login --password $password --session $session ${MY_OWN_SESSION} --nbtileset $nbtileset ${tilesets[@]}"
+echo "Python command : "  $COMMAND
+$COMMAND
+
