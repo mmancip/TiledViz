@@ -31,6 +31,48 @@ $(document).ready(    function (){
 	}
 	setTimeout(myButtonUnBlink,2000,myButton);
     };
+
+    // Get style.css StyleSheet Rules
+    var ss = document.styleSheets;
+    var sstyle = "";
+    var RuleBorderBlinkId = "";
+    for (var i = 0; i < ss.length; ++i) {
+	if (ss[i].href) {
+	    if (ss[i].href.includes("style.css")) {
+		sstyle = ss[i];
+		for (var j = 0; j < sstyle.rules.length; ++j ) 
+		    if (sstyle.rules[j].type == 7) 
+			if (sstyle.rules[j].cssRules[0].style.cssText.includes("outline-color"))
+			    RuleBorderBlinkId=j
+		break;
+	    }
+	}
+    }
+	
+    addBorderBlink=function(myElem,myColor) {
+	if (typeof(myElem.addClass) == "undefined") {
+	    //$('#'+myElem.id).css("outline-color",myColor);
+	    sstyle.rules[RuleBorderBlinkId].cssRules[0].style.cssText="outline-color: "+myColor+";"
+	    $('#'+myElem.id).addClass('BlinkBorder');
+	} else if (typeof(myElem[0]) == "object") {
+	    //myElem.css("outline-color",myColor);
+	    sstyle.rules[RuleBorderBlinkId].cssRules[0].style.cssText="outline-color: "+myColor+";"
+	    myElem.addClass('BlinkBorder');
+	}
+
+	myElemBorderUnBlink=function(myElem) {
+	    if (typeof(myElem.removeClass) == "undefined") {
+		$('#'+myElem.id).css("border","hidden");
+		$('#'+myElem.id).removeClass('BlinkBorder');
+		var theId=myElem.id;
+	    } else if (typeof(myElem[0]) == "object") {
+		myElem.css("border","hidden");
+		myElem.removeClass('BlinkBorder');
+		var theId=myElem.prop('id');
+	    }
+	}
+	setTimeout(myElemBorderUnBlink,2000,myElem);
+    };
     
 Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
@@ -417,7 +459,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    top:Math.max(450,TagHeight+240),
 			    left: -shiftcol-50,
 			    marginTop: "0",
-			    width: supportW*1.03,
+			    width: "105%",
 			    height: "98%",
 			    backgroundColor : "grey",
 			    opacity : "1.",
@@ -759,7 +801,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    Onnodes = $('.On').parent().parent().children('iframe');
 	    var oldSrc=[]
 	    for (node in Onnodes) {
-		if (node != "prevObject" && typeof Onnodes[node] == "object") {
+		if (node != "prevObject" && typeof Onnodes[node] == "object"
+		    && nodes2[Onnodes[node].parentElement.id].getLoadedStatus()) {
 		    oldSrc.push(Onnodes[node].getAttribute("src"));
 		    Onnodes[node].setAttribute("src","")
 		    Onnodes[node].setAttribute("src",oldSrc[node]);
@@ -996,7 +1039,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    
 	} else { // DEFAULT behaviour: click on a tag = make it ready to be given to a tile
 	    if (currentSelectedTag != this.id)  { // Click on a different tag than the previous one
-		$('#'+this.id).css("outline-style", "solid");
+		$('#'+this.id).css("outline", "10px solid white");
 		$('#'+this.id).css("z-index", 500);
 		if (currentSelectedTag != "")  { // Previous tag was existing (and not blank) : un-select it
 		    $('#'+currentSelectedTag).css("outline-style", "none");
@@ -1012,6 +1055,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		currentSelectedTag = "";
 		$('#tag-notif').text("No selected tag.");
 	    }
+	    addBlink(this);
 	}
     };
 
@@ -1482,10 +1526,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		var OldUrl = thisDrawBlob.url;
 		 
 		// no longer need to read the blob so it's revoked
-		URL.revokeObjectURL(OldUrl);
+		window.URL.revokeObjectURL(OldUrl);
 		
 		// New blob
-		var BlobUrl = URL.createObjectURL(blob);
+		var BlobUrl = window.URL.createObjectURL(blob);
 		newImg.src = BlobUrl;
 		$('#DrawSupport').append(newImg);
 		thisDrawBlob.url = BlobUrl;
@@ -1493,7 +1537,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		$('#'+newImg.id).show();
 	    } else {
 		var newImg = document.createElement('img');
-		BlobUrl = URL.createObjectURL(blob);
+		BlobUrl = window.URL.createObjectURL(blob);
 		
 		newImg.id=canvasName+'_img';
 		newImg.src = BlobUrl;
@@ -1510,7 +1554,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    }
 	    thisDrawBlob=DrawBlobs.get(nodeId);	
 	    deferred.resolve(thisDrawBlob);
-	},'image/svg');
+	},'image/png');
 	
 	return deferred.promise;
     }
@@ -1742,7 +1786,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    var OldUrl = thisDrawBlob.url;
 	    
 		    // no longer need to read the blob so it's revoked
-		    URL.revokeObjectURL(OldUrl);
+		    window.URL.revokeObjectURL(OldUrl);
 
 		    newImg.src = data;
 		    $("#DrawSupport").append(newImg);
@@ -2268,6 +2312,51 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     var managementGlobalMenuShareEvent = new Array();
 
     /** Draws on tile management */
+
+    // Share modification of draw in Draws Management Menu.
+    emit_ModifDraws=function(action,nodeId) {
+	    cdata={"room":my_session,"action":action,"nodeId":nodeId};
+	    socket.emit("modif_draws", cdata, function(sdata){
+ 		console.log("socket send modif_draws ", cdata);				
+	    });
+    }
+    
+    socket.on('receive_SuppressDraw',function(sdata){
+	var thisblob=DrawBlobs.get(sdata.nodeId.toString());
+	var newImg=thisblob.image;
+	var canvasName=thisblob.canvasName;
+	for (ind in thisblob.listNodeImg) {
+	    Id=thisblob.listNodeImg[ind];
+	    DrawNodeId=canvasName+"_img_"+Id;
+	    $("#"+DrawNodeId).remove();
+	}
+	DrawBlobs.delete(thisblob.nodeId.toString());
+	$('#'+newImg.id).remove();
+	$('#draws'+thisblob.nodeId).remove();
+    });
+
+    socket.on('receive_HideDraw',function(sdata){
+	var thisblob=DrawBlobs.get(sdata.nodeId.toString());
+	var canvasName=thisblob.canvasName;
+	for (ind in thisblob.listNodeImg) {
+	    Id=thisblob.listNodeImg[ind];
+	    DrawNodeId=canvasName+"_img_"+Id;
+	    $("#"+DrawNodeId).hide();
+	}
+	$('input[name=drawOtherNodes'+thisblob.nodeId+']').val('yes').attr("checked",true);
+    });
+    
+    socket.on('receive_ShowDraw',function(sdata){
+	var thisblob=DrawBlobs.get(sdata.nodeId.toString());
+	var canvasName=thisblob.canvasName;
+	for (ind in thisblob.listNodeImg) {
+	    Id=thisblob.listNodeImg[ind];
+	    DrawNodeId=canvasName+"_img_"+Id;
+	    $("#"+DrawNodeId).show();
+	}
+	$('input[name=drawOtherNodes'+thisblob.nodeId+']').val('no').attr("checked",false);
+    });
+    
     managementGlobalMenuTitleTab.push("Draws management")
     managementGlobalMenuEventTab.push( (    function(){
 
@@ -2284,51 +2373,30 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 				    });
    			// maps blob IDs to drawing objects
    			DrawBlobs.forEach(function(thisblob) { 
-				$('#DrawsMenu').append("<div id='draws"+thisblob.nodeId+"'> </div>");
-   				$('#draws'+thisblob.nodeId).append("<input type='checkbox' name='drawNode"+thisblob.nodeId+"' value='yes'> supress Node "+thisblob.nodeId+" | </input>");
-   				$('#draws'+thisblob.nodeId).append("<input type='checkbox' name='drawOtherNodes"+thisblob.nodeId+"' value='yes'> Hide all clone "+ thisblob.listNodeImg.length+"</br></input>");
-				$('input[name=drawNode'+thisblob.nodeId+'][value=yes]').attr("checked", true);
-   			    $('input[name=drawNode'+thisblob.nodeId+'][value=yes]').off("change").on({
-   					change : function(){
-					    // Unchecked : delete the blob and all pictures on tiles.
-					    var newImg=thisblob.image;
-					    var canvasName=thisblob.canvasName;
-					    for (ind in thisblob.listNodeImg) {
-						Id=thisblob.listNodeImg[ind];
-						DrawNodeId=canvasName+"_img_"+Id;
-						$("#"+DrawNodeId).remove();
-					    }
-					    DrawBlobs.delete(thisblob.nodeId.toString());
-					    $('#'+newImg.id).remove();
-					    $('#draws'+thisblob.nodeId).remove();
-					    URL.revokeObjectURL(thisblob.url);
-   					}
-   				    });
-				$('input[name=drawOtherNodes'+thisblob.nodeId+'][value=yes]').attr("checked", true);
-   			    $('input[name=drawOtherNodes'+thisblob.nodeId+'][value=yes]').off("change").on({
-   					change : function(){
-					    if ($('input[name=drawOtherNodes'+thisblob.nodeId+']').attr("checked")) {
-						// Unchecked : Hide all pictures of this blob on tiles.
-						$('input[name=drawOtherNodes'+thisblob.nodeId+']').val('no').attr("checked",false);
-						var canvasName=thisblob.canvasName;
-						for (ind in thisblob.listNodeImg) {
-						    Id=thisblob.listNodeImg[ind];
-						    DrawNodeId=canvasName+"_img_"+Id;
-						    $("#"+DrawNodeId).hide();
-						}
-					    } else {
-						$('input[name=drawOtherNodes'+thisblob.nodeId+']').val('yes').attr("checked",true);
-						// Checked : Show all pictures of this blob on tiles.
-						var canvasName=thisblob.canvasName;
-						for (ind in thisblob.listNodeImg) {
-						    Id=thisblob.listNodeImg[ind];
-						    DrawNodeId=canvasName+"_img_"+Id;
-						    $("#"+DrawNodeId).show();
-						}
-					    }
-   					}
-   				    });
+			    $('#DrawsMenu').append("<div id='draws"+thisblob.nodeId+"'> </div>");
+   			    $('#draws'+thisblob.nodeId).append("<input type='checkbox' id='drawNode"+thisblob.nodeId+"' name='drawNode"+thisblob.nodeId+"' value='no'> supress Node "+thisblob.nodeId+" | </input>");
+   			    $('#draws'+thisblob.nodeId).append("<input type='checkbox' id='drawOtherNodes"+thisblob.nodeId+"' name='drawOtherNodes"+thisblob.nodeId+"' value='no'> Hide all clone "+ thisblob.listNodeImg.length+"</br></input>");
+			    //$('input[name=drawNode'+thisblob.nodeId+'][value=yes]').attr("checked", true);
+   			    $('#drawNode'+thisblob.nodeId).off("change").on({
+   				change : function() {
+				    // Checked : delete the blob and all pictures on tiles.
+				    emit_ModifDraws("SuppressDraw",thisblob.nodeId);
+				    window.URL.revokeObjectURL(thisblob.url);
+				}
    			    });
+			    //$('input[name=drawOtherNodes'+thisblob.nodeId+'][value=yes]').attr("checked", true);
+   			    $('#drawOtherNodes'+thisblob.nodeId).off("change").on({
+   				change : function() {
+				    if (! $('input[name=drawOtherNodes'+thisblob.nodeId+']').attr("checked")) {
+					// Checked : Hide all pictures of this blob on tiles.
+					emit_ModifDraws("HideDraw",thisblob.nodeId);
+				    } else {
+					// unChecked : Show all pictures of this blob on tiles.
+					emit_ModifDraws("ShowDraw",thisblob.nodeId);
+				    }
+				}
+   			    });
+   			});
    			$('#'+id+'option'+optionNumber).removeClass('DrawsButtonIcon').addClass('closeDrawsButtonIcon');
 
    		    } else { 
@@ -2627,9 +2695,13 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		}
 
 		// Button to save and exit the options menu
-		$('#options').append("<div id=buttonSave></div>");
+		$('#options').append("<div id=buttonApply></div>");
 
+		// Button cancel modifications
 		$('#options').append("<div id=buttonCancel></div>");
+
+		// Button to save config in a file
+		$('#options').append("<div id=buttonSave></div>");
 
 		// Button to share config to all clients in room
 		$('#options').append("<div id=buttonShare></div>");
@@ -2778,7 +2850,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		
 		// Interactions
-		$('#buttonSave').off("click").on({
+		$('#buttonApply').off("click").on({
 
 			click : function(){
 			    ApplyParameters();
@@ -2790,7 +2862,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    $('#'+id+'option'+optionNumber).click();
 		});
 
-		$('#buttonShare').off("click").on({
+		$('#buttonSave').off("click").on({
 			click : function(){				
 			    ConfigJson = ApplyParameters();
 			    
@@ -2799,14 +2871,20 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			    var fileName = my_session + "_" + "Config_" + strDate + ".json"; 
 			    var file = new File([ConfigJson], fileName, {type: "text/plain;charset=utf-8"});
 			    saveAs(file);
-
+			}
+		});
+		
+		$('#buttonShare').off("click").on({
+			click : function(){				
+			    ConfigJson = ApplyParameters();
+			    
 			    cdata ={"room":my_session, "Config": ConfigJson }
 			    console.log("Share config : "+ConfigJson);
 			    // used to deploy config but not on the user that have emited the signal.
 			    myOwnConfig=true;
-			    socket.emit("save_Config", cdata);
+			    socket.emit("share_Config", cdata);
 			}
-		    });
+		});
 		
 	    } else {
 		$('#options').remove();
@@ -3650,9 +3728,14 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    $('.alignTagButtonIcon').click();
 	    addBlink($('.alignTagButtonIcon'));
      	    console.log("GroupOff");
-	    $('.clearSelectionButtonIcon').click();
 	}
 	setTimeout(GroupOff,3000)
+
+	ClearSelection=function(){
+	    $('.clearSelectionButtonIcon').click();
+     	    console.log("ClearSelection");
+	}
+	setTimeout(ClearSelection,4000)
 
 	$('#'+id+'option'+optionNumber).removeClass('closeNextTilesButtonIcon').addClass('nextTilesButtonIcon');
     });
@@ -5080,9 +5163,11 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		$('#'+targetNode_).css("z-index", 3);
 	    }
 	    if (boolBorder) {
-		$('#' + targetNode_).css("background-color", "white");
-		$('#' + targetNode_).css("border-display", "none");
-		me.loadContent(targetNode_);
+		if (nodes2[targetNode_].getLoadedStatus()) {
+		    $('#' + targetNode_).css("background-color", "white");
+		    $('#' + targetNode_).css("border-display", "none");
+		    me.loadContent(targetNode_);
+		}
 	    }
 			
 	    //$('#hitbox' + targetNode_).css("background-color", "black");
@@ -5412,6 +5497,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		var id = id_.replace("hitbox", "");
 		var node = me.getNodes()["node"+id];
 		node.getStickers().addSticker(currentSelectedTag, attributedTagsColorsArray[currentSelectedTag]);
+		addBorderBlink($("#iframe"+id),attributedTagsColorsArray[currentSelectedTag])
 		node.addElementToNodeTagList(currentSelectedTag);
 		$('.sticker').off();
 		$('.sticker').on({
@@ -5419,7 +5505,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			    });
 		$('#tag-notif').text("Added tag " + currentSelectedTag + " to tile " + id);
 	    } else {
-			$('#tag-notif').text("No tag currently selected, you may need to click on a tag in the legend to select it, or to create a new one?");
+		$('#tag-notif').text("No tag currently selected, you may need to click on a tag in the legend to select it, or to create a new one?");
 	    }
 	};
 
@@ -5460,11 +5546,11 @@ dblclick: dblclickFunction*/
 			    me.meshEventReStart();
 			    
 			    $("#" + this.id).on("mouseleave", function(e){
-				    var nodeToDrop = this.id.replace("handle", "");
-				    refreshNodes(nodeToDrop);
-				    me.meshEventReStart();
-				    $('#'+nodeToDrag).on(NodeEvent);
-				});
+				var nodeToDrop = this.id.replace("handle", "");
+				refreshNodes(nodeToDrop);
+				me.meshEventReStart();
+				$('#'+nodeToDrag).on(NodeEvent);
+			    });
 			    $("#" + this.id).off("mousedown");
 			    $("#" + this.id).on("mousedown", function(e){
 			    $('#'+nodeToDrag).on(NodeEvent);
