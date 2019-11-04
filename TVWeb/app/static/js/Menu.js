@@ -184,10 +184,16 @@ $(document).ready(    function (){
 		    	tooltip.fadeIn('500');
 		    	tooltip.fadeTo('10',10);
 			}
+			if (touchok) {
+			    $('#'+this.id).css('-webkit-transform','scale(1.5)').css('-moz-transform','scale(1.5)');
+			}
 		    }).on('mouseout',function() {
 			if (configBehaviour.tooltip) {
 			$(this).attr("title",$(this).children('div#tooltip').text());
 		    	$(this).children('div#tooltip').remove();
+			}
+			if (touchok) {
+			    $('#'+this.id).css('-webkit-transform','scale(1)').css('-moz-transform','scale(1)');
 			}
 		    })
 
@@ -499,6 +505,17 @@ $(document).ready(    function (){
 	    
 	    };
 
+	    this.closeAllOptions = function(){		
+		var myMenu=$("#menu"+id);					
+		for(optionNumber=0;optionNumber<numOfEvents;optionNumber++)  { 		
+		    var tmp_class = $('#'+id+'option'+optionNumber).attr("class").match(/\w+ButtonIcon/g)[0];
+		    var isNotClosed = tmp_class.match("close"); 
+		    if (isNotClosed)  { 
+			$('#'+id+'option'+optionNumber).click();
+		    }
+		}
+	    };
+	
 	};
 
     })

@@ -29,9 +29,25 @@ After installing client side of postgresql database, in stage 2, you have to cho
 if you prefer install the TiledViz database in your host system or having a container
 dedicated to database managment.
 
-a. docker + localhost
+a. Environement
+We need those environment variables to be set to the right values :
+{{{
+export POSTGRES_HOST=postgres
+export POSTGRES_USER=tiledviz
+export POSTGRES_DB=TiledViz
+export POSTGRES_PASSWORD="your_postgres_password"
+export passwordDB="$POSTGRES_PASSWORD"
+}}}
+
+b. docker + localhost
+{{{
+export postgresNAME=TiledVizPG
+}}}
+
 For docker container, a simple postgres alpine is very small :
-docker run -d postgres:9.6-alpine
+{{{
+docker run -d -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_DB=$POSTGRES_DB -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD postgres:9.6-alpine --name $postgresNAME
+}}}
 This will download DockerHub version of postgres with alpine system.
 
 For local postgresql db you have to install posrgres "postgresql9.6-server" on your system.
@@ -48,16 +64,6 @@ sed -e "s&	ENCRYPTED PASSWORD 'm_test/@03';&	ENCRYPTED PASSWORD 'your_postgres_p
 }}}
 NOT with 'your_postgres_password' of course.
 
-b. Environement
-We need those environment variables to be set to the right values :
-{{{
-export POSTGRES_HOST=postgres
-export POSTGRES_USER=tiledviz
-export POSTGRES_DB=TiledViz
-export POSTGRES_PASSWORD="your_postgres_password"
-export passwordDB="$POSTGRES_PASSWORD"
-}}}
-
 c. Fill values
 For Gitlab Continuous Integration script file .gitlab-ci.yml, we have prepared fill script of the database with old TileViz demo files :
 - TVDatabase/filledDatabase.sh
@@ -71,9 +77,9 @@ to compile a sqlalchemy python representation of it :
 sqlacodegen postgres://${POSTGRES_USER}:"${POSTGRES_PASSWORD}"@${POSTGRES_HOST}/${POSTGRES_DB} --outfile=TVDatabase/TVDb/models.py
 }}}
 
-c docker run
+e. The IP of postgres container ioos given by command as
 {{{
-export IPPOSTGRES=$(grep postgres /etc/hosts | tr '[:space:]*' '\n' | head -1)
+export IPPOSTGRES=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $postgresNAME)
 }}}
 
 
@@ -81,8 +87,11 @@ export IPPOSTGRES=$(grep postgres /etc/hosts | tr '[:space:]*' '\n' | head -1)
 a. build
 - docker build -t flaskimage -f TVWeb/FlaskDocker/Dockerfile.web .
 b. run
+{{{
 docker rm -f flaskdock
 docker run -it --rm --name flaskdock --add-host="postgres:${IPPOSTGRES}"  -p 0.0.0.0:5000:5000 -v $(pwd):/TiledViz flaskimage ${POSTGRES_HOST} ${POSTGRES_DB} ${POSTGRES_USER} ${POSTGRES_PASSWORD} "my Preci0us secr_t key for t&sts."
+}}}
+
 c. test
     - export IPFlask=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' flaskdock)
     - TVDatabase/getDatabase.sh

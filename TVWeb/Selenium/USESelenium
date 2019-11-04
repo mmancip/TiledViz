@@ -2,8 +2,8 @@ Use Gecko driver with Selenium:
 https://github.com/mozilla/geckodriver/releases
 tested with geckodriver-v0.25.0-linux64.tar.gz
 
-Use chromedriver (not tested):
-https://sites.google.com/a/chromium.org/chromedriver/home/
+Use chromedriver
+https://chromedriver.chromium.org/downloads
 
 Activate TiledViz virtualenv, for example :
 source ../virtualreq/bin/activate ?

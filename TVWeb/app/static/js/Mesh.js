@@ -33,30 +33,58 @@ $(document).ready(    function (){
     };
 
     // Get style.css StyleSheet Rules
-    var ss = document.styleSheets;
-    var sstyle = "";
-    var RuleBorderBlinkId = "";
-    for (var i = 0; i < ss.length; ++i) {
-	if (ss[i].href) {
-	    if (ss[i].href.includes("style.css")) {
-		sstyle = ss[i];
-		for (var j = 0; j < sstyle.rules.length; ++j ) 
-		    if (sstyle.rules[j].type == 7) 
-			if (sstyle.rules[j].cssRules[0].style.cssText.includes("outline-color"))
-			    RuleBorderBlinkId=j
-		break;
-	    }
-	}
+    var stylesheets = document.styleSheets;
+    var sstyleRuleBorderBlink="";
+    var BorderBlinkColor=false;
+    if (stylesheets) {
+      var sstyle = "";
+      var RuleBorderBlinkId = "";
+      for (var i = 0; i < stylesheets.length; ++i) {
+        if (stylesheets[i].href) {
+      	  if (stylesheets[i].href.includes("style.css")) {		    
+      	      sstyle = stylesheets[i];
+      	      // Chrome definition
+      	      try {
+      	          for (var j = 0; j < sstyle.rules.length; ++j ) {
+      	     	      if (sstyle.rules[j].type == 7) 
+      	     		  if (sstyle.rules[j].cssRules[0].style.cssText.includes("outline-color")) {
+      	     		      RuleBorderBlinkId=j;
+      	     		      sstyleRuleBorderBlink=sstyle.rules[j].cssRules[0].style;
+      	     		      BorderBlinkColor=true;
+      	     		      break;
+			  }
+      	          }
+      	      } 	catch(err)  {
+      	          // Firefox definition
+      	          try {
+      	     	      for (var j = 0; j < sstyle.cssRules.length; ++j ) {
+      	     		  if (sstyle.cssRules[j].cssText.includes("outline-color")) {
+      	     		      RuleBorderBlinkId=j;
+      	     		      sstyleRuleBorderBlink=sstyle.cssRules[j];
+      	     		      BorderBlinkColor=true;
+      	     		      break;
+			  }
+      	     	      }
+      	          } catch(err1)  {
+      	     	      // not portable
+      	          }
+      	      }
+      	  }
+        }
+      }
     }
 	
     addBorderBlink=function(myElem,myColor) {
 	if (typeof(myElem.addClass) == "undefined") {
 	    //$('#'+myElem.id).css("outline-color",myColor);
-	    sstyle.rules[RuleBorderBlinkId].cssRules[0].style.cssText="outline-color: "+myColor+";"
+	    if (BorderBlinkColor)
+		sstyleRuleBorderBlink.cssText=sstyleRuleBorderBlink.cssText.replace(/outline-color: .*;/,"outline-color: "+myColor+";");
 	    $('#'+myElem.id).addClass('BlinkBorder');
+	    
 	} else if (typeof(myElem[0]) == "object") {
 	    //myElem.css("outline-color",myColor);
-	    sstyle.rules[RuleBorderBlinkId].cssRules[0].style.cssText="outline-color: "+myColor+";"
+	    if (BorderBlinkColor)
+		sstyleRuleBorderBlink.cssText=sstyleRuleBorderBlink.cssText.replace(/outline-color: .*;/,"outline-color: "+myColor+";");
 	    myElem.addClass('BlinkBorder');
 	}
 
@@ -73,6 +101,16 @@ $(document).ready(    function (){
 	}
 	setTimeout(myElemBorderUnBlink,2000,myElem);
     };
+
+    function download(content, fileName, contentType) {
+	var a = document.createElement("a");
+	var file = new Blob([content], {type: contentType});
+	a.href = URL.createObjectURL(file);
+	a.download = fileName;
+	a.click();
+	URL.revokeObjectURL(a.href)
+    }
+    //download(jsonData, 'json.txt', 'text/plain');
     
 Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
@@ -1070,6 +1108,46 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	node.removeElementFromNodeTagList(splittedId.join("_"));
     };
 
+    // Add a tag
+    this.AddNewTag=function(tmpNewTag) {
+	globalTagsList.push(tmpNewTag); 
+	var k = globalTagsList.length -1;
+	$('#tag-legend').append('<div id =' + globalTagsList[k] + ' class=tag>' + globalTagsList[k] + '</div>');
+	if ($('#'+globalTagsList[k]).position().left==0) {
+	    $("#tag-legend").css({ height: $("#tag-legend").height()+$('#'+globalTagsList[k]).height() });
+	}
+	try  {
+	    $('#'+globalTagsList[k]).css('background-color',ColorSticker(k));
+	    attributedTagsColorsArray[globalTagsList[k]] =$('#'+globalTagsList[k]).css("background-color");
+	    $('#tag-notif').text("New tag added: " + tmpNewTag);
+	}
+	catch(err)  { 
+	    $('#tag-legend div:last').remove();
+	    console.log("Tag not valid", tmpNewTag);
+	    $('#tag-notif').text("Invalid tag: " + tmpNewTag + ", please try again.");
+	}
+	TagHeight=($("#tag-legend").height());
+	
+	if ( my_user != "Anonymous" ) {
+	    TopPP=TagHeight;
+	    htmlPrimaryParent.css("marginTop",TopPP+"px");
+	}
+	$('.tag').off("click").on({
+	    click : clickTagInLegend
+	});
+    }
+
+    // Color tag
+    this.ChangeColorTag = function(thisTag, NewColor) {
+	$('#'+thisTag).css('background-color',NewColor);
+	attributedTagsColorsArray[thisTag] = NewColor;
+	for (O in nodes2)  { 
+	    if (me.hasTag(nodes2[O], thisTag))  { 
+		nodes2[O].getStickers().colorSticker(thisTag,NewColor);
+	    }
+	}
+    }
+    
     // Align/group similarly tagged nodes
     tagMenuTitleTab.push("Align/group similarly tagged nodes")
     tagMenuEventTab.push(    function(v, id, optionNumber){
@@ -1131,6 +1209,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		.css("visibility", "visible");
 	    $('#'+id+'option'+optionNumber).removeClass('selectTagMenuButtonIcon').addClass('closeSelectTagMenuButtonIcon');
 	} else { 
+	    me.tagSelectionMenu.closeAllOptions();
 	    menuSelectionTags.css("visibility", "hidden");
 	    $('#'+id+'option'+optionNumber).removeClass('closeSelectTagMenuButtonIcon').addClass('selectTagMenuButtonIcon');
 	}
@@ -1154,46 +1233,6 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     tagSelectionMenuIconClassAttributesTab.push("selectTagButtonIcon");
     tagSelectionMenuShareEvent.push(true);
 
-    // Add a tag
-    this.AddNewTag=function(tmpNewTag) {
-	globalTagsList.push(tmpNewTag); 
-	var k = globalTagsList.length -1;
-	$('#tag-legend').append('<div id =' + globalTagsList[k] + ' class=tag>' + globalTagsList[k] + '</div>');
-	if ($('#'+globalTagsList[k]).position().left==0) {
-	    $("#tag-legend").css({ height: $("#tag-legend").height()+$('#'+globalTagsList[k]).height() });
-	}
-	try  {
-	    $('#'+globalTagsList[k]).css('background-color',ColorSticker(k));
-	    attributedTagsColorsArray[globalTagsList[k]] =$('#'+globalTagsList[k]).css("background-color");
-	    $('#tag-notif').text("New tag added: " + tmpNewTag);
-	}
-	catch(err)  { 
-	    $('#tag-legend div:last').remove();
-	    console.log("Tag not valid", tmpNewTag);
-	    $('#tag-notif').text("Invalid tag: " + tmpNewTag + ", please try again.");
-	}
-	TagHeight=($("#tag-legend").height());
-	
-	if ( my_user != "Anonymous" ) {
-	    TopPP=TagHeight;
-	    htmlPrimaryParent.css("marginTop",TopPP+"px");
-	}
-	$('.tag').off("click").on({
-	    click : clickTagInLegend
-	});
-    }
-
-    // Color tag
-    this.ChangeColorTag = function(thisTag, NewColor) {
-	$('#'+thisTag).css('background-color',NewColor);
-	attributedTagsColorsArray[thisTag] = NewColor;
-	for (O in nodes2)  { 
-	    if (me.hasTag(nodes2[O], thisTag))  { 
-		nodes2[O].getStickers().colorSticker(thisTag,NewColor);
-	    }
-	}
-    }
-    
     // Add selected tag to all nodes in current selection 
     tagSelectionMenuTitleTab.push("Add tag for nodes in selection")
     tagSelectionMenuEventTab.push(    function(v, id, optionNumber){
@@ -1220,6 +1259,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		.css("visibility", "visible");
 	    $('#'+id+'option'+optionNumber).removeClass('managementTagMenuButtonIcon').addClass('closeManagementTagMenuButtonIcon');
 	} else { 
+	    me.tagManagementMenu.closeAllOptions();
 	    menuManagementTags.css("visibility", "hidden");
 	    $('#'+id+'option'+optionNumber).removeClass('closeManagementTagMenuButtonIcon').addClass('managementTagMenuButtonIcon');
 	}
@@ -2423,13 +2463,13 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    nodes2[O].getJsonData().IdLocation = nodes2[O].getIdLocation();
 		    idFinalLocation++;
 		    // Save usernotes
-		    nodes2[O].getJsonData().usersNotes = $("#pia_editable_postit"+id).text();
+		    nodes2[O].getJsonData().userNotes = $("#pia_editable_postit"+id).text();
 		    // Save tags
 		    nodes2[O].getJsonData().tags = nodes2[O].getNodeTagList();
 		}
 	    }
 	    // Reconstruct another nodes.js with the same structure
-	    var temp = "{'nodes': [XXX] }";
+	    var temp = "{\"nodes\": [XXX] }";
 	    var id=0;
 
 	    for(O in nodes2)  { 
@@ -2444,10 +2484,13 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
  			if (W == "tags" ) {
 			    var ListTags=new Array();
 			    nodes2[O].getNodeTagList().forEach(function(currentValue) { ListTags.push("'"+currentValue + "'")})
-			    var mytext = "\""+W+"\""+" : "+"["+ListTags.toString()+"],\n {***}"
-			} else if ( W == "usersNotes") {
-			    comment=nodes2[O].getJsonData()["usersNotes"].toString().replace(/\"/g,"'")
-			    var mytext = "\"comment\""+" : "+"'"+comment+"'"+",\n {***}"
+			    var mytext = "\""+W+"\""+" : "+"["+ListTags.toString().replace(/\'/g,'\"')+"],\n {***}"
+			} else if ( W == "comment") {
+			    // Don't save old comment because user may have modified it in postit. 
+			    var mytext = "{***}";
+			} else if ( W == "userNotes") {
+			    comment=nodes2[O].getJsonData()["userNotes"].toString().replace(/\"/g,"'")
+			    var mytext = "\"comment\""+" : "+"\""+comment+"\""+",\n {***}"
 			// } else if ( W == "IdLocation") {
 			//     var mytext = "\""+W+"\""+" : "+"\""+nodes2[0].getIdLocation().toString()+"\""+",\n {***}";
 			} else {
@@ -2461,12 +2504,14 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    }
 	    // Save the file with a clear name (date and time, name of the project) 
 	    temp=temp.replace(",XXX","");
-	    tempFile = "var text_ = \n     "+temp+";\nvar jsDataTab = text_.nodes;";
-
+	    // tempFile = "var text_ = \n     "+temp+";\nvar jsDataTab = text_.nodes;";
+	    tempFile=temp;
+	
 	    var sessionDate = new Date();
 	    var strDate=sessionDate.toLocaleDateString({day: "2-digit", month: "2-digit"}).replace(/\//g, "-") + "_" + sessionDate.toLocaleTimeString("fr-FR").replace(/:/g, "-")
-	    var fileName = my_session + "_" + "tiles_" + strDate + ".js"; 
-	    var file = new File([tempFile], fileName, {type: "text/plain;charset=utf-8"});
+	    //var fileName = my_session + "_" + "tiles_" + strDate + ".js"; 
+	//var file = new File([tempFile], fileName, {type: "text/plain;charset=utf-8"},{ autoBom: false });
+	    var fileName = my_session + "_" + "tiles_" + strDate + ".json"; 
 
 	// socket save new session ??
 	$('#notifications').html('<div id=saveValidate height="10%" width="50%"></div>');
@@ -2478,7 +2523,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			+'<button id="submitSave" name="submitSave" class="btn btn-info" style="font-size: 40px"> Submit</button>&nbsp;&nbsp;'
 			+'<button id="submitCancel" name="submitCancel" class="btn btn-info" style="font-size: 40px"> Cancel</button></form>');
 	$('#submitSave').off("click").on("click",function() {
-	    saveAs(file);
+	    //saveAs(file);
+	    download([tempFile], fileName,"text/plain;charset=utf-8")
 
 	    new_suffix=$('#newSuffix').val();
 	    new_description=$('#newDescr').val();
@@ -2869,8 +2915,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			    var sessionDate = new Date();
 			    var strDate=sessionDate.toLocaleDateString({day: "2-digit", month: "2-digit"}).replace(/\//g, "-") + "_" + sessionDate.toLocaleTimeString("fr-FR").replace(/:/g, "-")
 			    var fileName = my_session + "_" + "Config_" + strDate + ".json"; 
-			    var file = new File([ConfigJson], fileName, {type: "text/plain;charset=utf-8"});
-			    saveAs(file);
+			    //var file = new File([ConfigJson], fileName, {type: "text/plain;charset=utf-8"},{ autoBom: false });
+			    //saveAs(file);
+			    download([ConfigJson], fileName, {type: "text/plain;charset=utf-8"})
 			}
 		});
 		
@@ -3932,17 +3979,18 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		$('#'+id+'option'+optionNumber).removeClass('tagsGlobalMenuButtonIcon').addClass('closeTagsGlobalMenuButtonIcon');
 
 	    } else { 	
+		me.tagMenu.closeAllOptions();
 		menuTags.css("visibility", "hidden");
 		$('#tag-notif').hide();
-		for (var i=0; i<tagMenuEventTab.length;i++)  { 
-		    var tmp_class = $('#'+id+'option'+i).attr("class").match(/\w+ButtonIcon/g)[0];
-		    var isNotClosed = tmp_class.match("close"); 
-		    if (isNotClosed)  { 
-			var new_class = tmp_class.replace("close", "");
-			new_class = new_class[0].toLowerCase() + new_class.slice(1);
-			menuTags.children('#'+id+'option'+i).removeClass(tmp_class).addClass(new_class);
-		    }
-		}
+		// for (var i=0; i<tagMenuEventTab.length;i++)  { 
+		//     var tmp_class = $('#'+id+'option'+i).attr("class").match(/\w+ButtonIcon/g)[0];
+		//     var isNotClosed = tmp_class.match("close"); 
+		//     if (isNotClosed)  { 
+		// 	var new_class = tmp_class.replace("close", "");
+		// 	new_class = new_class[0].toLowerCase() + new_class.slice(1);
+		// 	menuTags.children('#'+id+'option'+i).removeClass(tmp_class).addClass(new_class);
+		//     }
+		// }
 		//console.log(menuTags.children());
 		$('.stickers_zone').css("visibility", "hidden");
 		$('#tag-legend').hide();
@@ -3974,11 +4022,18 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     menuEventTab.push(    function(v, id, optionNumber){
 	if(v==true)  { 
 	    menuZoomGlobal
-		.css("top",menuGlobal.position()["top"]+$('.zoomGlobalMenuButtonIcon').position()["top"])
+		.css("top", (function(){
+		    if (touchok) {
+			return TagHeight;
+		    } else {
+			return menuGlobal.position()["top"]+$('.zoomGlobalMenuButtonIcon').position()["top"];
+		    }
+		})() )
 		.css("left",200)
 		.css("visibility", "visible");
 	    $('#'+id+'option'+optionNumber).removeClass('zoomGlobalMenuButtonIcon').addClass('closeZoomGlobalMenuButtonIcon');
 	} else { 
+	    me.zoomGlobalMenu.closeAllOptions();
 	    menuZoomGlobal.css("visibility", "hidden");
 	    $('#'+id+'option'+optionNumber).removeClass('closeZoomGlobalMenuButtonIcon').addClass('zoomGlobalMenuButtonIcon');
 	}
@@ -3997,6 +4052,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		.css("visibility", "visible");
 	    $('#'+id+'option'+optionNumber).removeClass('managementGlobalMenuButtonIcon').addClass('closeManagementGlobalMenuButtonIcon');
 	} else { 
+	    me.managementGlobalMenu.closeAllOptions();
 	    menuManagementGlobal.css("visibility", "hidden");
 	    $('#'+id+'option'+optionNumber).removeClass('closeManagementGlobalMenuButtonIcon').addClass('managementGlobalMenuButtonIcon');
 	}
@@ -4009,11 +4065,19 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     menuEventTab.push(    function(v, id, optionNumber){
 	if(v==true)  { 
 	    menuStateGlobal
-		.css("top",menuGlobal.position()["top"]+$('.stateGlobalMenuButtonIcon').position()["top"])
+		.css("top", (function(){
+		    if (touchok) {
+			return TagHeight;
+		    } else {
+			return menuGlobal.position()["top"]+$('.stateGlobalMenuButtonIcon').position()["top"];
+		    }
+		})() )
 		.css("left",200)
 		.css("visibility", "visible");
 	    $('#'+id+'option'+optionNumber).removeClass('stateGlobalMenuButtonIcon').addClass('closeStateGlobalMenuButtonIcon');
 	} else { 
+	    // We want to keep state info on demand.
+	    //me.stateGlobalMenu.closeAllOptions();
 	    menuStateGlobal.css("visibility", "hidden");
 	    $('#'+id+'option'+optionNumber).removeClass('closeStateGlobalMenuButtonIcon').addClass('stateGlobalMenuButtonIcon');
 	}
@@ -4065,11 +4129,18 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     menuEventTab.push(    function(v, id, optionNumber){
 	if(v==true)  { 
 	    menuCancelGlobal
-		.css("top",menuGlobal.position()["top"]+$('.cancelGlobalMenuButtonIcon').position()["top"])
+		.css("top", (function(){
+		    if (touchok) {
+			return TagHeight;
+		    } else {
+			return menuGlobal.position()["top"]+$('.cancelGlobalMenuButtonIcon').position()["top"];
+		    }
+		})() )
 		.css("left",200)
 		.css("visibility", "visible");
 	    $('#'+id+'option'+optionNumber).removeClass('cancelGlobalMenuButtonIcon').addClass('closeCancelGlobalMenuButtonIcon');
 	} else { 
+	    me.cancelGlobalMenu.closeAllOptions();
 	    menuCancelGlobal.css("visibility", "hidden");
 	    $('#'+id+'option'+optionNumber).removeClass('closeCancelGlobalMenuButtonIcon').addClass('cancelGlobalMenuButtonIcon');
 	}
@@ -4083,7 +4154,13 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     menuEventTab.push(    function(v, id, optionNumber){
 	if(v==true)  { 
 	    menuUpdownGlobal
-		.css("top",menuGlobal.position()["top"]+$('.updownGlobalMenuButtonIcon').position()["top"])
+		.css("top", (function(){
+		    if (touchok) {
+			return TagHeight;
+		    } else {
+			return menuGlobal.position()["top"]+$('.updownGlobalMenuButtonIcon').position()["top"];
+		    }
+		})() )
 		.css("left",200)
 		.css("visibility", "visible");
 	    $('#'+id+'option'+optionNumber).removeClass('updownGlobalMenuButtonIcon').addClass('closeUpdownGlobalMenuButtonIcon');
@@ -4119,7 +4196,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    top : 0,
 	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')), //parseInt(window.innerWidth) - tagMenuEventTab.length*200,
 	    visible : 'hidden',
-	    classN : 'super',
+	    classN : 'tag',
 	    height : 200,
 	    width : 200,
 	    rightMargin :0,
@@ -4138,7 +4215,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    top : parseInt($(me.menu.getHtmlMenuSelector()).css('height')),
 	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')),
 	    visible : 'hidden',
-	    classN : 'super',
+	    classN : 'zoom',
 	    height : 200,
 	    width : 200,
 	    rightMargin :0,
@@ -4153,32 +4230,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     menuZoomGlobal=$('#menuzoomGlobal');
     subMenusGlobal.push(this.zoomGlobalMenu);
     
-    this.stateGlobalMenu = new Menu("stateGlobal", $('header'), stateGlobalMenuTitleTab, stateGlobalMenuEventTab, stateGlobalMenuIconClassAttributesTab, stateGlobalMenuShareEvent,{
-	    position : "fixed",
-	    top : parseInt($(me.menu.getHtmlMenuSelector()).css('height')),
-	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')),
-	    visible : 'hidden',
-	    classN : 'super',
-	    height : 200,
-	    width : 200,
-	    rightMargin :0,
-	    backgroundColor: "rgba(0, 0, 0, 0.6)",
-	    //borderStyle : "solid",
-	    //borderWidth : "5px", 
-	    //borderColor : "green",
-	    orientation : "H",
-	    zIndex : 149
-
-	});
-    menuStateGlobal=$('#menustateGlobal');
-    subMenusGlobal.push(this.stateGlobalMenu);
-    
     this.managementGlobalMenu = new Menu("managementGlobal", $('header'), managementGlobalMenuTitleTab, managementGlobalMenuEventTab, managementGlobalMenuIconClassAttributesTab, managementGlobalMenuShareEvent,{
 	    position : "fixed",
 	    top : parseInt($(me.menu.getHtmlMenuSelector()).css('height')),
 	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('left')),
 	    visible : 'hidden',
-	    classN : 'super',
+	    classN : 'manage',
 	    height : 200,
 	    width : 200,
 	    rightMargin :0,
@@ -4193,12 +4250,32 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     menuManagementGlobal=$('#menumanagementGlobal');
     subMenusGlobal.push(this.managementGlobalMenu);
     
+    this.stateGlobalMenu = new Menu("stateGlobal", $('header'), stateGlobalMenuTitleTab, stateGlobalMenuEventTab, stateGlobalMenuIconClassAttributesTab, stateGlobalMenuShareEvent,{
+	    position : "fixed",
+	    top : parseInt($(me.menu.getHtmlMenuSelector()).css('height')),
+	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')),
+	    visible : 'hidden',
+	    classN : 'state',
+	    height : 200,
+	    width : 200,
+	    rightMargin :0,
+	    backgroundColor: "rgba(0, 0, 0, 0.6)",
+	    //borderStyle : "solid",
+	    //borderWidth : "5px", 
+	    //borderColor : "green",
+	    orientation : "H",
+	    zIndex : 149
+
+	});
+    menuStateGlobal=$('#menustateGlobal');
+    subMenusGlobal.push(this.stateGlobalMenu);
+    
     this.cancelGlobalMenu = new Menu("cancelGlobal", $('header'), cancelGlobalMenuTitleTab, cancelGlobalMenuEventTab, cancelGlobalMenuIconClassAttributesTab, cancelGlobalMenuShareEvent,{
 	    position : "fixed",
 	    top : parseInt($(me.menu.getHtmlMenuSelector()).css('height')),
 	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')),
 	    visible : 'hidden',
-	    classN : 'super',
+	    classN : 'cancel',
 	    height : 200,
 	    width : 200,
 	    rightMargin :0,
@@ -4218,7 +4295,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    top : parseInt($(me.menu.getHtmlMenuSelector()).css('height')),
 	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')),
 	    visible : 'hidden',
-	    classN : 'super',
+	    classN : 'updown',
 	    height : 200,
 	    width : 200,
 	    rightMargin :0,
@@ -4238,7 +4315,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    top : 0,
  	    left : $('#menutagsGlobal').offset().left+$('#menutagsGlobal').width(),
 	    visible : 'hidden',
-	    classN : 'super',
+	    classN : 'draw',
 	    height : 200,
 	    width : 200,
 	    rightMargin :0,
@@ -4256,7 +4333,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    top : 0,
 	    left : $('#menutagsGlobal').offset().left+$('#menutagsGlobal').width(),
 	    visible : 'hidden',
-	    classN : 'super',
+	    classN : 'zoomAction',
 	    height : 200,
 	    width : 200,
 	    rightMargin :0,
@@ -4274,7 +4351,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    top : 0,
 	    left : $('#menutagsGlobal').offset().left+$('#menutagsGlobal').width(),
 	    visible : 'hidden',
-	    classN : 'super',
+	    classN : 'masterslave',
 	    height : 200,
 	    width : 200,
 	    rightMargin :0,
@@ -4292,7 +4369,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    top : 100,
 	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')), //parseInt(window.innerWidth) - tagMenuEventTab.length*200,
 	    visible : 'hidden',
-	    classN : 'super',
+	    classN : 'tagselect',
 	    height : 200,
 	    width : 200,
 	    rightMargin :0,
@@ -4311,7 +4388,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    top : 100,
 	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')), //parseInt(window.innerWidth) - tagMenuEventTab.length*200,
 	    visible : 'hidden',
-	    classN : 'super',
+	    classN : 'tagmanage',
 	    height : 200,
 	    width : 200,
 	    rightMargin :0,

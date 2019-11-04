@@ -432,7 +432,7 @@ def project():
     
     projects = db.session.query(models.Project).filter_by(id_users=user.id)
     myprojects=[]
-    myprojects.append(('NoChoice',printstr.format("Project name","Date and Time","Description","All sessions")))
+    myprojects.append(('NoChoice',printstr.format("Project name","Description","Date and Time","All sessions")))
 
     for theproject in projects:
         ListsessionsTheproject=db.session.query(models.Session.name).filter_by(id_projects=theproject.id)
@@ -1552,12 +1552,11 @@ def deploySession(cdata):
     session["sessionname"]=cdata["NewRoom"];
     socketio.emit('receive_deploy_Session', sdata,room=croom) # change room for new session ?
 
-@socketio.on("save_Config")
+@socketio.on("share_Config")
 def saveSession(cdata):
     croom=cdata["room"]
-    logging.warning("[->] saveConfig in room " + str(croom))
+    logging.warning("[->] shareConfig in room " + str(croom))
     configJson=json.loads(cdata["Config"].replace("'", '"'));
-    #save_config(str(session["sessionname"]),str(cdata["NewSuffix"]),configjson)
     sdata = {"Config":configJson};
     socketio.emit('receive_deploy_Config', sdata,room=croom)
     
@@ -1655,6 +1654,15 @@ def uploadDraw(cdata):
             socketio.emit('receive_draw_part', cdata,room=croom+str(csid))
             #logging.info("Send draw part to client "+croom+str(csid)+" from "+str(cdata["offset"])+" to "+str(cdata["offsetEnd"]))
 
+@socketio.on("modif_draws")
+def ModifDraws(cdata):
+    croom=cdata["room"]
+    action=cdata["action"]
+    logging.debug(action+" Share :"+str(cdata))
+    logging.warning("[->] Modification of draw from "+str(cdata["nodeId"])+ " with "+action + " in room " + str(croom))
+    sdata = {"nodeId":cdata["nodeId"]}
+    socketio.emit('receive_'+action, sdata,room=croom)
+    
 # Connection
 @socketio.on('connected_grid')#, namespace='/grid')
 def config_client(cdata):
@@ -1755,6 +1763,12 @@ def handle_join_with_invite_link(link):
     elif "passive" in link:
         new_client_type = "passive"
         is_client_active=False
+    else:
+        new_client_type = "unknown"
+        is_client_active=False
+        logging.error("Going to handle_join_with_invite_link function with error link : '"+str(link)+"'. New client with unknown type.")
+        return
+    
     session["sessionname"] = link.split("_"+new_client_type+"_")[0]
     logging.warning("Find session :"+str(session["sessionname"]))
     if "passive" in link:

@@ -1,6 +1,6 @@
 services:
   - postgres:9.6-alpine
-  - docker:dind
+  - docker:1.13-dind
 
 variables:
   POSTGRES_HOST: postgres
