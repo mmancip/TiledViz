@@ -62,7 +62,7 @@ ALTER SEQUENCE public.users_id_seq OWNER TO tiledviz;
 -- object: public.users | type: TABLE --
 -- DROP TABLE IF EXISTS public.users CASCADE;
 CREATE TABLE public.users(
-	id serial NOT NULL,
+	id integer NOT NULL DEFAULT nextval('public.users_id_seq'::regclass),
 	name character varying(80) NOT NULL,
 	creation_date timestamp,
 	mail character varying(80),
@@ -84,7 +84,7 @@ ALTER TABLE public.users OWNER TO tiledviz;
 -- object: public.projects | type: TABLE --
 -- DROP TABLE IF EXISTS public.projects CASCADE;
 CREATE TABLE public.projects(
-	id serial NOT NULL,
+	id integer NOT NULL DEFAULT nextval('public.projects_id_seq'::regclass),
 	id_users integer,
 	name character varying(80) NOT NULL,
 	creation_date timestamp,
@@ -114,7 +114,7 @@ ALTER SEQUENCE public.invite_links_id_seq OWNER TO tiledviz;
 -- object: public.invite_links | type: TABLE --
 -- DROP TABLE IF EXISTS public.invite_links CASCADE;
 CREATE TABLE public.invite_links(
-	id serial NOT NULL,
+	id integer NOT NULL DEFAULT nextval('public.invite_links_id_seq'::regclass),
 	link character varying(200) NOT NULL,
 	host_user character varying(80) NOT NULL,
 	host_project character varying(80) NOT NULL,
@@ -147,7 +147,7 @@ ALTER SEQUENCE public.sessions_id_seq OWNER TO tiledviz;
 -- object: public.sessions | type: TABLE --
 -- DROP TABLE IF EXISTS public.sessions CASCADE;
 CREATE TABLE public.sessions(
-	id serial NOT NULL,
+	id integer NOT NULL DEFAULT nextval('public.sessions_id_seq'::regclass),
 	name character varying(80) NOT NULL,
 	id_projects integer NOT NULL,
 	creation_date timestamp,
@@ -186,14 +186,15 @@ ALTER SEQUENCE public.connections_id_seq OWNER TO tiledviz;
 -- object: public.connections | type: TABLE --
 -- DROP TABLE IF EXISTS public.connections CASCADE;
 CREATE TABLE public.connections(
-	id serial NOT NULL,
+	id integer NOT NULL DEFAULT nextval('public.connections_id_seq'::regclass),
 	creation_date timestamp,
 	host_address character varying(40),
 	auth_type character varying(10),
 	container character varying(100),
-	scheduler character varying(15),
 	id_users integer NOT NULL,
-	scheduler_file character varying(1024),
+	scheduler character varying(15),
+	scheduler_file character varying(20),
+	config_files json,
 	CONSTRAINT connections_pkey PRIMARY KEY (id)
 
 );
@@ -218,7 +219,7 @@ ALTER SEQUENCE public.tiles_id_seq OWNER TO tiledviz;
 -- object: public.tiles | type: TABLE --
 -- DROP TABLE IF EXISTS public.tiles CASCADE;
 CREATE TABLE public.tiles(
-	id serial NOT NULL,
+	id integer NOT NULL DEFAULT nextval('public.tiles_id_seq'::regclass),
 	title character varying(80),
 	pos_px_x integer NOT NULL,
 	pos_px_y integer NOT NULL,
@@ -256,13 +257,15 @@ ALTER SEQUENCE public.tile_sets_id_seq OWNER TO tiledviz;
 -- object: public.tile_sets | type: TABLE --
 -- DROP TABLE IF EXISTS public.tile_sets CASCADE;
 CREATE TABLE public.tile_sets(
-	id serial NOT NULL,
+	id integer NOT NULL DEFAULT nextval('public.tile_sets_id_seq'::regclass),
 	name character varying(80) NOT NULL,
 	type_of_tiles character varying(15) NOT NULL,
 	"Dataset_path" character varying(100),
 	id_connections integer,
 	creation_date timestamp,
 	source json,
+	config_files json,
+	launch_file character varying(30),
 	CONSTRAINT tile_sets_pkey PRIMARY KEY (id)
 
 );

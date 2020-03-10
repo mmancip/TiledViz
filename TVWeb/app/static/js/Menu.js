@@ -184,10 +184,16 @@ $(document).ready(    function (){
 		    	tooltip.fadeIn('500');
 		    	tooltip.fadeTo('10',10);
 			}
+			if (touchok) {
+			    $('#'+this.id).css('-webkit-transform','scale(1.5)').css('-moz-transform','scale(1.5)');
+			}
 		    }).on('mouseout',function() {
 			if (configBehaviour.tooltip) {
 			$(this).attr("title",$(this).children('div#tooltip').text());
 		    	$(this).children('div#tooltip').remove();
+			}
+			if (touchok) {
+			    $('#'+this.id).css('-webkit-transform','scale(1)').css('-moz-transform','scale(1)');
 			}
 		    })
 
@@ -240,20 +246,18 @@ $(document).ready(    function (){
 					// Send reference to the options to allow users to change apparence if the default behavior is not convenient
 					menuEventTab[optionNumber](eventSelectedTab[optionNumber],id,optionNumber);
 					    
-					if(this.className.match(/(NodeMenu|Tag|Rotate|OnOff|zoomNode|QRcode|Info|efresh)/g) != null || id < 999) { 
-					    // Regex to select "Info" and "NodeMenu" options; id<999 means: allow when nodeMenu is open
-					    _allowDragAndDrop = true;
-					    $('.handle').addClass("drag-handle-on").removeClass("drag-handle-off");
-					} else {
-					    _allowDragAndDrop = false;
-					    $('.handle').addClass("drag-handle-off").removeClass("drag-handle-on");
-					}
+					// if(this.className.match(/(supermenu|NodeMenu|Tag|Rotate|OnOff|QRcode|Info|efresh)/g) != null || id < 999) { 
+					//     // Regex to select "Info" and "NodeMenu" options; id<999 means: allow when nodeMenu is open
+					//     EnableDragAndDrop();
+					// } else {
+					//     BlockDragAndDrop();
+					// }
 				    }
 				} else { 
 				    eventSelectedTab[optionNumber]=false;
 				    menuEventTab[optionNumber](eventSelectedTab[optionNumber],id,optionNumber);	
-				    _allowDragAndDrop = true;
-				    $('.handle').addClass("drag-handle-on").removeClass("drag-handle-off");
+
+				    EnableDragAndDrop();
 				}
 				//console.log(this.className, this.className.match("ranspa"), this.className.match("nfo"), _allowDragAndDrop);
 			    }
@@ -405,7 +409,7 @@ $(document).ready(    function (){
 		    }
 
 		    MenuBox.append('<div id=dropdown ></div>');
-		    DropDown=$('#MenuBox'+id+'>#dropdown');
+		    var DropDown=$('#MenuBox'+id+'>#dropdown');
 		    if (orientation_=='V') {
 			DropDown.addClass("drop-down-menu");
 			DropDown.css({
@@ -438,9 +442,9 @@ $(document).ready(    function (){
 				    }
 				    DropDownState=false;
 				    if (orientation_=='V') {
-					DropDown.removeClass("drop-down-menu").addClass("drop-up-menu");
+					DropDown.removeClass("drop-down-menu").addClass("drop-left-menu");
 				    } else {
-					DropDown.removeClass("drop-right-menu").addClass("drop-left-menu");
+					DropDown.removeClass("drop-right-menu").addClass("drop-down-menu");
 				    }
 				} else {
 				    for(optionNumber=0;optionNumber<numOfEvents;optionNumber++)  { 	
@@ -449,9 +453,9 @@ $(document).ready(    function (){
 				    }
 				    DropDownState=true;
 				    if (orientation_=='V') {
-					DropDown.removeClass("drop-up-menu").addClass("drop-down-menu");
+					DropDown.removeClass("drop-left-menu").addClass("drop-down-menu");
 				    } else {
-					DropDown.removeClass("drop-left-menu").addClass("drop-right-menu");
+					DropDown.removeClass("drop-down-menu").addClass("drop-right-menu");
 				    }
 				}
 			    }
@@ -499,6 +503,17 @@ $(document).ready(    function (){
 	    
 	    };
 
+	    this.closeAllOptions = function(){		
+		var myMenu=$("#menu"+id);					
+		for(optionNumber=0;optionNumber<numOfEvents;optionNumber++)  { 		
+		    var tmp_class = $('#'+id+'option'+optionNumber).attr("class").match(/\w+ButtonIcon/g)[0];
+		    var isNotClosed = tmp_class.match("close"); 
+		    if (isNotClosed)  { 
+			$('#'+id+'option'+optionNumber).click();
+		    }
+		}
+	    };
+	
 	};
 
     })

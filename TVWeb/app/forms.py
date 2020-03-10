@@ -3,7 +3,7 @@
 from flask_wtf import FlaskForm, recaptcha
 from flask_wtf.recaptcha import RecaptchaField
 import wtforms
-from wtforms import RadioField, SelectField, StringField, PasswordField, BooleanField, SubmitField, IntegerField, TextAreaField, SelectMultipleField, FieldList, FileField, widgets
+from wtforms import RadioField, SelectField, StringField, PasswordField, BooleanField, SubmitField, IntegerField, TextAreaField, SelectMultipleField, FieldList, FileField, MultipleFileField, widgets
 from wtforms.fields.html5 import SearchField
 from wtforms.widgets import core, html5
 from wtforms.validators import InputRequired, Email, Optional, EqualTo
@@ -53,15 +53,23 @@ class mySelect(object):
         html.append('  var suggestion_list'+field.id+'='+str(suggestion_list)+';\n')
         html.append('  $("#search_'+field.id+'").off("autocompleteselect").on( "autocompleteselect", \n')
         html.append('     function( event, ui ) {\n')
-        html.append('          document.getElementById("filter_'+field.id+'").value = ui.item.value});\n')
+        html.append('          document.getElementById("filter_'+field.id+'").value = ui.item.value})\n')
+        html.append('     .on("keypress", function( e ) {\n')
+        html.append('       if (e.which == 13 ) { \n')
+        html.append('          var searchval=$("#filter_'+field.id+'").val().toLowerCase();\n     var ioption=0;\n')
+        html.append('          for (var sugesstr in suggestion_list'+field.id+') {\n')
+        html.append('            if ( suggestion_list'+field.id+'[sugesstr].toLowerCase().includes(searchval) ) {\n ')
+        html.append('                ioption=2*Math.floor(sugesstr/2);\n')
+        html.append('                break}}\n')
+        html.append('          $("#'+field.id+'").val(suggestion_list'+field.id+'[ioption]); } })\n')
         html.append('  $("#filter_'+field.id+'").autocomplete({\n')
         html.append('     source: suggestion_list'+field.id+'});\n')
         html.append('  $("#Valid_'+field.id+'").on("click", function() {\n')
-        html.append('     var searchval=$("#filter_'+field.id+'").val();\n     var sugesstr="";\n')
-        html.append('     for (sugesstr in suggestion_list'+field.id+') {\n')
+        html.append('     var searchval=$("#filter_'+field.id+'").val();\n     var ioption=0;\n')
+        html.append('     for (var sugesstr in suggestion_list'+field.id+') {\n')
         html.append('        if ( suggestion_list'+field.id+'[sugesstr] == searchval ) {\n ')
+        html.append('           ioption=2*Math.floor(sugesstr/2);\n')
         html.append('           break}}\n')
-        html.append('     ioption=2*Math.floor(sugesstr/2);\n')
         html.append('     $("#'+field.id+'").val(suggestion_list'+field.id+'[ioption]);\n')
         html.append('     })\n')
         html.append('</script>')
@@ -143,7 +151,7 @@ def BuildOldProjectForm(thisproject,listsessions):
     
     OldProjectForm.projectname=StringField(label="Project name", default=thisproject["name"],validators=[Optional()])
     OldProjectForm.description=StringField(label="Description of this project", default=thisproject["description"],validators=[Optional()])
-    OldProjectForm.from_session = RadioField(label='Action on session',
+    OldProjectForm.from_session = RadioField(label='Action on session (required)',
                                              description='Choose which action with old session you want :',
                                              choices=[("use","Use a session"),
                                                       ("edit","Edit a session"),
@@ -257,7 +265,7 @@ def BuildTilesSetForm(oldtileset=None,json_tiles_text=None,onlycopy=False,editco
         if (json_tiles_text==None):
             json_tiles_text=tvdb.decode_tileset(oldtileset)
         
-    TilesSetForm.name = StringField("Tiles Set name", default=name, validators=[InputRequired()])
+    TilesSetForm.name = StringField("Tiles Set name (required)", default=name, validators=[InputRequired()])
     if (not onlycopy):
         TilesSetForm.dataset_path = StringField("Path or main URL of dataset (add to tiles)", default=dataset_path, validators=[Optional()])
         TilesSetForm.type_of_tiles = RadioField(label='Type of the tiles',
@@ -270,25 +278,34 @@ def BuildTilesSetForm(oldtileset=None,json_tiles_text=None,onlycopy=False,editco
                                                 validators=[Optional()])
         TilesSetForm.json_tiles_text = TextAreaField("Past json object for tileset ",default=json_tiles_text,
                                                      validators=[Optional()])
-        # TilesSetForm.json_tiles_file = FileField("File json object for tileset ",
-        #                 validators=[Optional()])
+        TilesSetForm.json_tiles_file = FileField("File json object for tileset ",
+                                                 validators=[Optional()])
+
         TilesSetForm.editjson = SubmitField("Use Json editor for this tileset.")
         
-        # TilesSetForm.option_input_json_file = FileField(u'Json configuration input File',
-        #                 validators=[Optional(), wtforms.validators.regexp(u'json$')])
-        # TilesSetForm.script_launch_file = FileField(u'bash script to launch each tile',
-        #                 validators=[Optional()]) 
+        TilesSetForm.script_launch_file = FileField(u'python script for Connection machine to launch the TileSet',
+                        validators=[Optional()])
+
+        # TODO
+        # TilesSetForm.script_launch_text = TextAreaField("u'Edit here python script for Connection machine.',
+
+        # same option as Connection form in TileSet form because of config files that don't depend of connection.
+        TilesSetForm.configfiles = MultipleFileField(description="Configuration files placed in connection dir and upload in CASE dir on HPC frontend.",
+                                                     validators=[Optional()])
 
         if (editconnection):
-            TilesSetForm.editconnection = SubmitField("Add Connection for this tileset.")
-            # = RadioField(label='Edit connection',
-            #                             description='Manage Connection for this tileset.',
-            #                             choices=[("Use","Use an old one."),
-            #                                      ("New","Create a New one."),
-            #                                      ("Save","Save the connection for reuse."),
-            #                                      ],
-            #                             default=type_of_tiles,
-            #                             validators=[Optional()])
+            TilesSetForm.manage_connection= RadioField(label='Connections',
+                                        description='Manage Connection for this tileset.',
+                                        choices=[("Use","Use an old one."),
+                                                 ("Edit","Edit old connection."),
+                                                 ("Quit","Quit running connection."),
+                                                 ("reNew","Create a new one."),
+                                                 ],
+                                        default="Use",
+                                        validators=[Optional()])
+            # ("Save","Save the connection for reuse."),
+            # ("Reload","Reload saved connection."),
+            #TilesSetForm.editconnection = SubmitField("Manage connection for this tileset.")
 
         TilesSetForm.openports_between_tiles = FieldList(IntegerField("port :",validators=[Optional()]),description="Open port in visualisation network",min_entries=2,max_entries=5) 
    
@@ -302,7 +319,7 @@ def BuildConnectionsForm(oldconnection=None,json_tiles_text=None):
         pass
 
     if (oldconnection==None):
-        host_address="localhost"
+        host_address=""
         auth_type="ssh"
         container="docker_swarm"
         scheduler="none"
@@ -312,7 +329,7 @@ def BuildConnectionsForm(oldconnection=None,json_tiles_text=None):
         container=oldconnection.container
         scheduler=oldconnection.scheduler
         
-    ConnectionForm.host_address = StringField("Name or IP of the machine", default=host_address, validators=[InputRequired()])
+    ConnectionForm.host_address = StringField("Name or IP of the machine (required)", default=host_address, validators=[InputRequired()])
 
     #### liste A REVOIR  (cf TVConnection.py)
     ConnectionForm.auth_type = RadioField(label='Authentication type',
@@ -332,9 +349,15 @@ def BuildConnectionsForm(oldconnection=None,json_tiles_text=None):
                                           ],
                                           default=scheduler,
                                           validators=[Optional()])
-    ConnectionForm.scheduler_file = TextAreaField("If you have choosen a scheduler, please past the script here with CONTAINER string in mpirun call in place of container command or specify direct call.",
-                                                  validators=[Optional()])
+    ConnectionForm.scheduler_file = FileField("Script to launch CONTAINERs on remote machine (required for connection) : ",validators=[Optional()])
+    # ConnectionForm.scheduler_text = TextAreaField("Edit here script to launch CONTAINERs on remote machine.",validators=[Optional()])
     
+
+    # Connection files specific for associated TileSet
+    ConnectionForm.configfiles = MultipleFileField(label="Connection configuration files (required for connection). ",
+                                                   description="Configuration files placed in connection dir and upload in CASE dir on HPC frontend.",
+                                                   validators=[Optional()])
+
     ConnectionForm.submit = SubmitField("Next step")
     return ConnectionForm
         

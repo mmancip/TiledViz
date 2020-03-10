@@ -144,7 +144,7 @@ for ts in range(args.nbtileset):
     
     # elem.send_keys("{\"nodes\": [  \n {\n   \"url\": \"https://upload\"IdLocation\": -1} ]}")
     # elem.send_keys(Keys.ENTER)
-    jsfile="TVWeb/Selenium/"+args.tilesetmodifs[2*ts+1]
+    jsfile=args.tilesetmodifs[2*ts+1]
     try:
         fdfile=open(jsfile)
     except Exception as e :

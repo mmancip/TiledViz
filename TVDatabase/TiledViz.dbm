@@ -3,7 +3,7 @@
 CAUTION: Do not modify this file unless you know what you are doing.
          Unexpected results may occur if the code is changed deliberately.
 -->
-<dbmodel pgmodeler-ver="0.9.0" last-position="0,0" last-zoom="0.95"
+<dbmodel pgmodeler-ver="0.9.0" last-position="0,432" last-zoom="0.95"
 	 default-schema="public" default-owner="postgres">
 <role name="tiledviz"
       superuser="true"
@@ -170,7 +170,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 <table name="sessions">
 	<schema name="public"/>
 	<role name="tiledviz"/>
-	<position x="540" y="480"/>
+	<position x="580" y="460"/>
 	<column name="id" not-null="true" sequence="public.sessions_id_seq">
 		<type name="integer" length="0"/>
 	</column>
@@ -238,9 +238,26 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	<column name="container">
 		<type name="character varying" length="100"/>
 	</column>
+	<column name="scheduler">
+		<type name="character varying" length="15"/>
+	</column>
+	<column name="scheduler_file">
+		<type name="character varying" length="20"/>
+	</column>
+	<column name="config_files">
+		<type name="json" length="0"/>
+	</column>
 	<constraint name="connections_pkey" type="pk-constr" table="public.connections">
 		<columns names="id" ref-type="src-columns"/>
 	</constraint>
+
+	<customidxs object-type="column">
+		<object name="id_users" index="5"/>
+	</customidxs>
+
+	<customidxs object-type="constraint">
+		<object name="users_fk" index="1"/>
+	</customidxs>
 </table>
 
 <sequence name="tiles_id_seq"
@@ -333,6 +350,12 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	</column>
 	<column name="source">
 		<type name="json" length="0"/>
+	</column>
+	<column name="config_files">
+		<type name="json" length="0"/>
+	</column>
+	<column name="launch_file">
+		<type name="character varying" length="30"/>
 	</column>
 	<constraint name="tile_sets_pkey" type="pk-constr" table="public.tile_sets">
 		<columns names="id" ref-type="src-columns"/>

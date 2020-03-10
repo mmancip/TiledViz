@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Example of usage
-echo "This script must be executed in TiledViz root path : " $(pwd)
+echo "This script get a nodes.json file and change a given list of tilesets in a given session." $(pwd)
 echo $0 ddurandi "OtherP@ssw/31d" "TestSession" "True" 1 WikimediaTest TVWeb/Selenium/WikimediaTest.js
 
 
@@ -35,11 +35,11 @@ fi
 i=0
 it=0
 while [ $i -lt $nbtileset ] ; do
-    Newname=${tilesets[$it]}_$( echo $( basename ${tilesets[$((it+1))]} ) )
+    Newname=$( dirname ${tilesets[$((it+1))]} )/${tilesets[$it]}_$( echo $( basename ${tilesets[$((it+1))]} ) )
     echo "For tileset " ${tilesets[$it]} " get file " ${tilesets[$((it+1))]} " will be copied in Selenium dir with name " $Newname
 
-    sed -e "s&var text_ =.*&&" -e 's&var jsDataTab = text_.nodes;&&' -e '/^$/d' ${tilesets[$((it+1))]} > TVWeb/Selenium/$Newname
-    ls -la TVWeb/Selenium/$Newname
+    sed -e "s&var text_ =.*&&" -e 's&var jsDataTab = text_.nodes;&&' -e '/^$/d' ${tilesets[$((it+1))]} > $Newname
+    ls -la $Newname
     tilesets[$((it+1))]=$Newname
     
     i=$((i+1))
@@ -47,14 +47,15 @@ while [ $i -lt $nbtileset ] ; do
 done
 
 # get Docker flask IP
-export IPFlask=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' flaskdock)
+#export IPFlask=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' flaskdock)
 
 
 # Launch Selenium script 
 # COMMAND="docker run -t -v /dev/shm:/dev/shm -v $(pwd)/TVWeb/Selenium:/usr/local/Selenium --add-host=flaskdock:$IPFlask --name seleniumsession --rm joyzoursky/python-chromedriver:3.7-alpine3.8-selenium python3 /usr/local/Selenium/modify_session_with_nodejs.py --login '$login' --password '$password' --session '$session' ${MY_OWN_SESSION} --nbtileset $nbtileset '${tilesets[@]}'"
 # echo "Docker command : "  $COMMAND
 
-COMMAND="python3 TVWeb/Selenium/modify_session_with_nodejs.py --login $login --password $password --session $session ${MY_OWN_SESSION} --nbtileset $nbtileset ${tilesets[@]}"
+# Launch Selenium script 
+COMMAND="python3 $(dirname $0)/modify_session_with_nodejs.py --login $login --password $password --session $session ${MY_OWN_SESSION} --nbtileset $nbtileset ${tilesets[@]}"
 echo "Python command : "  $COMMAND
 $COMMAND
 

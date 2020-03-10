@@ -137,7 +137,11 @@ def encode_tileset(thistileset):
 
 def decode_tileset(thistileset):
     # If connection ? Test tileset connection ok ??
-    tile=thistileset.tiles[0]
+    try:
+        tile=thistileset.tiles[0]
+    except:
+        return ""
+
     try:
         tile.source["name"]
         hasname=True
@@ -207,7 +211,10 @@ def decode_tileset(thistileset):
                       "connection" :tile.source["connection"],
                     } for tile in listiles ]}
 
-    json_tiles_text=json.JSONEncoder().encode(json_tiles)
+    try:
+        json_tiles_text=json.JSONEncoder().encode(json_tiles)
+    except:
+        json_tiles_text=""
     return json_tiles_text
 
 def encode_session(sessionNAME,Session):

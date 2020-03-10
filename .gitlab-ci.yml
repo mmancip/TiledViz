@@ -1,6 +1,6 @@
 services:
   - postgres:9.6-alpine
-  - docker:dind
+  - docker:1.13-dind
 
 variables:
   POSTGRES_HOST: postgres
@@ -16,7 +16,7 @@ connect:
   script:
     - df
     - apt-get update
-    - apt-get install -y python3-pip postgresql-client libpq-dev
+    - apt-get install -y --fix-missing python3-pip postgresql-client libpq-dev
     - apt-get clean
     - pip3 install virtualenv
     - export DATE=$(date +%F_%H-%M-%S)

@@ -14,6 +14,8 @@ logging.basicConfig(level=logging.WARNING)
 rootLogger = logging.getLogger()
 rootLogger.setLevel(logging.WARNING)
 fileHandler = logging.FileHandler("TiledViz.log")
+# Attention : TiledViz Log file is watching by TVSecure (hôte?) process
+#             If you change logging level to DEBUG this super process may not work correctly.
 fileHandler.setLevel(logging.WARNING)
 fileHandler.setFormatter(logFormatter)
 rootLogger.addHandler(fileHandler)

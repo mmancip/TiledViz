@@ -1,9 +1,21 @@
+
+Your webdriver must be in your PATH env variable.
+Don't forget
+> export PATH=.:$PATH
+
 Use Gecko driver with Selenium:
 https://github.com/mozilla/geckodriver/releases
 tested with geckodriver-v0.25.0-linux64.tar.gz
+==> Use the import
+from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
+And webdriver definition :
+        firefox_profile = webdriver.FirefoxProfile()
+	self.driver = webdriver.Firefox(firefox_profile=firefox_profile)
+		
 
-Use chromedriver (not tested):
-https://sites.google.com/a/chromium.org/chromedriver/home/
+Use chromedriver with Selenium
+https://chromedriver.chromium.org/downloads
+Note : You must download the same version as your google-chrome browser installed. 
 
 Activate TiledViz virtualenv, for example :
 source ../virtualreq/bin/activate ?

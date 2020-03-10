@@ -17,6 +17,8 @@ from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.events import EventFiringWebDriver, AbstractEventListener
 
+os.system("ls -la /usr/local/Selenium/")
+
 #logging.getLogger().setLevel(logging.INFO)
 
 # display = Display(visible=0, size=(1920, 1080))
@@ -61,7 +63,7 @@ class TestTemplate(unittest.TestCase):
         #    })
 
         #        logging.info('Prepared chrome options..')
-        self.driver = webdriver.Chrome(chrome_options=chrome_options)
+        self.driver = webdriver.Chrome(options=chrome_options)
 
         # firefox_profile = webdriver.FirefoxProfile()
         # firefox_profile.set_preference('browser.download.folderList', 2)
@@ -301,7 +303,7 @@ class TestTemplate(unittest.TestCase):
  
             elem=self.finddriver.find_element_by_xpath("//input[@id='sessionname']")
             elem.clear()
-            elem.send_keys("TestSession")
+            elem.send_keys("TestSelenium")
             elem.send_keys(Keys.TAB)
             
  
@@ -385,8 +387,18 @@ class TestTemplate(unittest.TestCase):
             elem=self.finddriver.find_element_by_xpath("//textarea[@id='json_tiles_text']")
             elem.clear()
 
-            elem.send_keys("{\"nodes\": [  \n {\n   \"url\": \"https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/Lophornis_ornatus%2C_la_coqueta_adornada_o_coqueta_abanico_canela_-_Regina_Gabilondo_Toscano.jpg/512px-Lophornis_ornatus%2C_la_coqueta_adornada_o_coqueta_abanico_canela_-_Regina_Gabilondo_Toscano.jpg\",\n   \"title\": \"Lophornis ornatus - Regina Gabilondo Toscano\", \n   \"name\": \"Lophornis_ornatus\", \n   \"comment\": \"title=Regina Gabilondo Toscano [CC BY-SA 3.0], via Wikimedia Commons https://commons.wikimedia.org/wiki/File:Lophornis_ornatus,_la_coqueta_adornada_o_coqueta_abanico_canela_-_Regina_Gabilondo_Toscano.jpg\", \n   \"connection\": 0, \n   \"pos_px_x\":-1, \n   \"pos_px_y\":-1, \n   \"IdLocation\": -1},  \n {\n   \"url\": \"https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Las_aves_de_Cali_-_Gloria_Sthefany_Muriel_Lorza.jpg/640px-Las_aves_de_Cali_-_Gloria_Sthefany_Muriel_Lorza.jpg\",\n   \"title\": \"Las aves de Cali - Gloria Sthefany Muriel Lorza\", \n   \"name\": \"Las aves de Cali\", \n   \"comment\": \"title=Gloria Sthefany Muriel Lorza [CC BY-SA 3.0], via Wikimedia Commons https://commons.wikimedia.org/wiki/File:Las_aves_de_Cali_-_Gloria_Sthefany_Muriel_Lorza.jpg\", \n   \"connection\": 0, \n   \"pos_px_x\":-1, \n   \"pos_px_y\":-1, \n   \"IdLocation\": -1},  \n {\n   \"url\": \"https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Amanecer_-_Jos%C3%A9_Luis_Ortega_Gir%C3%B3n.jpg/543px-Amanecer_-_Jos%C3%A9_Luis_Ortega_Gir%C3%B3n.jpg\",\n   \"title\": \"Amanecer - José Luis Ortega Giron\", \n   \"name\": \"Amanecer\", \n   \"comment\": \"title=José Luis Ortega Girón [CC BY-SA 3.0], via Wikimedia Commons https://commons.wikimedia.org/wiki/File:Amanecer_-_José_Luis_Ortega_Girón.jpg\", \n   \"connection\": 0, \n   \"pos_px_x\":-1, \n   \"pos_px_y\":-1, \n   \"IdLocation\": -1},  \n {\n   \"url\": \"https://upload.wikimedia.org/wikipedia/commons/thumb/9/9f/Cardenal_norte%C3%B1o_-_Northern_cardinal_-_Cardinalis_cardinalis_-_Ester_G%C3%B3mez_Serra.jpg/640px-Cardenal_norte%C3%B1o_-_Northern_cardinal_-_Cardinalis_cardinalis_-_Ester_G%C3%B3mez_Serra.jpg\",\n   \"title\": \"Cardinalis cardinalis - Ester Gómez Serra\", \n   \"name\": \"Cardinalis cardinalis\", \n   \"comment\": \"title=Ester Gómez Serra [CC BY-SA 3.0], via Wikimedia Commons https://commons.wikimedia.org/wiki/File:Cardenal_norteño_-_Northern_cardinal_-_Cardinalis_cardinalis_-_Ester_Gómez_Serra.jpg\", \n   \"connection\": 0, \n   \"pos_px_x\":-1, \n   \"pos_px_y\":-1, \n   \"IdLocation\": -1},  \n {\n   \"url\": \"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Canis_lupus_occidentalis_%28Etapas_de_crecimiento%29_-_Miren_Leyzaola.jpg/640px-Canis_lupus_occidentalis_%28Etapas_de_crecimiento%29_-_Miren_Leyzaola.jpg\", \n   \"title\": \"Canis lupus occidentalis (Etapas de crecimiento) - Miren Leyzaola\", \n   \"name\": \"Canis lupus occidentalis\", \n   \"comment\": \"title=Miren Leyzaola [CC BY-SA 3.0], via Wikimedia Commons https://commons.wikimedia.org/wiki/File:Canis_lupus_occidentalis_(Etapas_de_crecimiento)_-_Miren_Leyzaola.jpg\", \n   \"connection\": 0, \n   \"pos_px_x\":-1, \n   \"pos_px_y\":-1, \n   \"IdLocation\": -1},  \n {\n   \"url\": \"https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Cats_-_Adrienn_Pomper.jpg/640px-Cats_-_Adrienn_Pomper.jpg\", \n   \"title\": \"Cats - Adrienn Pomper\", \n   \"name\": \"Cats\", \n   \"comment\": \"title=Adrienn Pomper [CC BY-SA 3.0], via Wikimedia Commons https://commons.wikimedia.org/wiki/File:Cats_-_Adrienn_Pomper.jpg\", \n   \"connection\": 0, \n   \"pos_px_x\":-1, \n   \"pos_px_y\":-1, \n   \"IdLocation\": -1},  \n {\n   \"url\": \"https://upload.wikimedia.org/wikipedia/commons/thumb/6/64/Colibri_coruscans_-_David_Barrag%C3%A1n.jpg/640px-Colibri_coruscans_-_David_Barrag%C3%A1n.jpg\", \n   \"title\": \"Colibri coruscans - David Barragán\", \n   \"name\": \"Colibri coruscans\", \n   \"comment\": \"title=David Barragán [CC BY-SA 3.0], via Wikimedia Commons https://commons.wikimedia.org/wiki/File:Colibri_coruscans_-_David_Barragán.jpg\", \n   \"connection\": 0, \n   \"pos_px_x\":-1, \n   \"pos_px_y\":-1, \n   \"IdLocation\": -1},  \n {\n   \"url\": \"https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Corvus_corax_-_Carolina_Fuentes.jpg/640px-Corvus_corax_-_Carolina_Fuentes.jpg\", \n   \"title\": \"Corvus corax - Carolina Fuentes\", \n   \"name\": \"Corvus corax\", \n   \"comment\": \"title=Carolina Fuentes [CC BY-SA 3.0], via Wikimedia Commons https://commons.wikimedia.org/wiki/File:Corvus_corax_-_Carolina_Fuentes.jpg\", \n   \"connection\": 0, \n   \"pos_px_x\":-1, \n   \"pos_px_y\":-1, \n   \"IdLocation\": -1},  \n {\n   \"url\": \"https://upload.wikimedia.org/wikipedia/commons/7/7b/Fiery-throated_hummingbird_-_Amber_Hudson-Peacock.jpg\", \n   \"title\": \"Fiery-throated hummingbird - Amber Hudson-Peacock\", \n   \"name\": \"Fiery-throated hummingbird\", \n   \"comment\": \"title=Amber Hudson-Peacock [CC BY-SA 3.0], via Wikimedia Commons https://commons.wikimedia.org/wiki/File:Fiery-throated_hummingbird_-_Amber_Hudson-Peacock.jpg\", \n   \"connection\": 0, \n   \"pos_px_x\":-1, \n   \"pos_px_y\":-1, \n   \"IdLocation\": -1},  \n {\n   \"url\": \"https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Kingfisher_-_Karolina_Kijak.jpg/724px-Kingfisher_-_Karolina_Kijak.jpg\", \n   \"title\": \"Kingfisher - Karolina Kijak\", \n   \"name\": \"Kingfisher\", \n   \"comment\": \"title=Karolina Kijak [CC BY-SA 3.0], via Wikimedia Commons https://commons.wikimedia.org/wiki/File:Kingfisher_-_Karolina_Kijak.jpg\", \n   \"connection\": 0, \n   \"pos_px_x\":-1, \n   \"pos_px_y\":-1, \n   \"IdLocation\": -1} ]}")
-            elem.send_keys(Keys.ENTER)
+            # elem.send_keys("{\"nodes\": [  \n {...} ]}")
+            # elem.send_keys(Keys.ENTER)
+            jsfile="/usr/local/Selenium/TestSession.json"
+            try:
+                fdfile=open(jsfile)
+            except Exception as e :
+                print("Can't open file "+jsfile)
+                sys.exit(1)
+            data=fdfile.read()
+            thedriver.execute_script("var textnode = document.getElementById('json_tiles_text'); "+
+                         "textnode.value = arguments[0];",
+                         data);
 
             thedriver.save_screenshot('/tmp/tests/test6-jsontext_screenshot.png')
 

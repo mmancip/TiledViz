@@ -2,11 +2,44 @@
     ->id of the node concerned 
     ->htmltag of this node $("#node"+id)*/
 $(document).ready(    function (){
-    ColorSticker = function(k) {
-	if (k<colorTagStickersTab.length)  { 
+
+    ListSymbols=["&#x2295","&#x2296","&#x2297","&#x2298","&#x2299","&#x229a","&#x229b","&#x229c","&#x229d",
+		 "&#x2460","&#x2460","&#x2461","&#x2462","&#x2463","&#x2464","&#x2465","&#x2466","&#x2467","&#x2468","&#x2469",
+		 "&#x2660","&#x2660","&#x2661","&#x2662","&#x2663","&#x2664","&#x2665","&#x2666","&#x2667"]
+
+    rgbFromStr =  function (rgbStr) {
+	return Array.from(rgbStr.replace("rgb(","").replace(")","").split(','), x => parseInt(x))
+    }
+    
+    ColorSticker = function(k, floatingTag) {
+	if ( typeof(floatingTag) != "undefined" ) {
+	    var val=parseFloat(floatingTag["val"]);
+	    var m = parseFloat(floatingTag["m"]);
+	    var M = parseFloat(floatingTag["M"]);
+	    if ( k < ListSymbols.length ) {
+		var symb=ListSymbols[k]
+	    } else {
+		var symb=""
+	    }
+	    
+	    if ( k<colorTagStickersTab.length-1 )  {
+		var cm=getRGBColor(colorTagStickersTab[k]);
+		var cM=getRGBColor(colorTagStickersTab[colorTagStickersTab.length-k+1]);
+		
+		cval=InterpolColor(m,val,M,cm,cM)
+	    } else if (k<(colorTagStickersTab.length + colorFilterStickersTab.length - 1 ))  {
+		var cm=getRGBColor(colorFilterStickersTab[k   -colorTagStickersTab.length]);
+		var cM=getRGBColor(colorFilterStickersTab[colorTagStickersTab.length + colorFilterStickersTab.length - k+1]);
+		
+		cval=InterpolColor(m,val,M,cm,cM)
+	    }
+	    return {"cm":"rgb("+cm[0]+","+cm[1]+","+cm[2]+")",
+		    "cval":"rgb("+cval[0]+","+cval[1]+","+cval[2]+")",
+		    "cM":"rgb("+cM[0]+","+cM[1]+","+cM[2]+")",
+		    "symb": symb}
+	} else if (k<colorTagStickersTab.length)  { 
 	    return colorTagStickersTab[k];
-	}
-	else if (k<(colorTagStickersTab.length + colorFilterStickersTab.length))  { 
+	} else if (k<(colorTagStickersTab.length + colorFilterStickersTab.length))  { 
 	    return colorFilterStickersTab[k-colorTagStickersTab.length];
 	} else { 
 	    return "rgb("+Math.floor(Math.random()*255) + ", " + Math.floor(Math.random()*255)+ ", " + Math.floor(Math.random()*255)+")";
@@ -63,19 +96,87 @@ $(document).ready(    function (){
 		//console.log("updating stickers");
 		$('#stickers_'+id).children(".sticker").remove();
 		var it = 0;
-		while (it < stickerTab.length)  { 
-		    var text_ = stickerTab[it][0];
-		    var color = stickerTab[it][1];
+		while (it < stickerTab.length)  {
+		    var thisstickerTab=stickerTab[it];
+		    
+		    var text_ = thisstickerTab[0];
+		    var color = thisstickerTab[1];
 		    //console.log(text_, color);
 
 		    var thisSticker = $('#stickers_'+id).children(".sticker")[it];
+		    var idSticker = text_ + "_" + id;
+
+		    $('#stickers_'+id).append("<div id='" +idSticker +"' class='"+text_+ " sticker' " + "name='"+idSticker+"_"+it+"' ></div>");
+		    $('#'+idSticker).css({
+			classN : "sticker",
+			backgroundColor : color,
+			top : 50*it+"px",		
+		    });
+
+		    if ( thisstickerTab.length > 2 ) {
+
+			$('#'+idSticker).html(thisstickerTab[2]);
+			
+			$('#'+idSticker).on({
+			    mouseenter: function() {
+				var idSticker=this.id;
+				var id=idSticker.replace(/.*_(\D*)/,"$1");
+				var it=$('#'+idSticker).attr("name").replace(/.*_(\D*)/,"$1");
+				var thisstickerTab=stickerTab[it];
+				var color = thisstickerTab[1];
+				var cval=rgbFromStr(color);
+				var cm=thisstickerTab[3];
+				var cM=thisstickerTab[4];
+				// $('#'+idSticker).removeClass("sticker");
+				var stickerscale=2;
+				$('#'+idSticker).css({
+				    width : 100,
+				    zIndex : 999,
+				    background : 'linear-gradient(to right,'+cm+','+cM+')' 
+				});
+				$('#'+idSticker).css('-webkit-transform','scale('+stickerscale+')').css('-moz-transform','scale('+stickerscale+')');
+				$('#'+idSticker).append("<div id='stick"+idSticker+"' style='color:white' >|</div>");
+				cm=rgbFromStr(cm);
+				cM=rgbFromStr(cM);
+				var s=0;
+				var n=0;
+				if (cM[0] - cm[0] != 0) {
+				    s= s+(cval[0] -cm[0]) / (cM[0] - cm[0]);
+				    n=n+1;
+				}
+				if (cM[1] - cm[1] != 0) {
+				    s= s+(cval[1] -cm[1]) / (cM[1] - cm[1]);
+				    n=n+1;
+				}
+				if (cM[2] - cm[2] != 0) {
+				    s= s+(cval[2] -cm[2]) / (cM[2] - cm[2]);
+				    n=n+1;
+				}
+				s=s/n * parseInt($('#'+idSticker).css("width"))
+				$('#stick'+idSticker).css({
+				    position: "absolute",
+				    top :-10,
+				    left : parseInt(s)
+				})
+			    },
+				
+			    mouseleave: function() {
+				var idSticker=this.id;
+				var id=idSticker.replace(/.*_(\D*)/,"$1");
+				var it=$('#'+idSticker).attr("name").replace(/.*_(\D*)/,"$1");
+				var thisstickerTab=stickerTab[it];
+			    	var color = thisstickerTab[1];
+				$('#'+idSticker).css('-webkit-transform','scale('+1.+')').css('-moz-transform','scale('+1.+')');
+				$('#'+idSticker).css({
+				    width : 50,
+			    	    background : color
+				});
+			    	$('#'+idSticker).children().remove();
+			    }
+			});
+		    }
 		    
-		    $('#stickers_'+id).append("<div id='" +text_ + "_" + id +"' class='"+text_+ " sticker'" + "></div>");
-		    $('#'+ text_ + "_" +id).css({
-			    classN : "sticker",
-				backgroundColor : color,
-				top : 50*it+"px",		
-		    }).off("click").on({
+		    $('#'+idSticker).off("click").on({
 			click : clickSticker
 		    });
 		    it++;
@@ -84,7 +185,7 @@ $(document).ready(    function (){
 
 	    /* addSticker tests if the sticker is already present, if not, add it to the stickerTab and updates the stickers to make the new one appear */
 
-	    this.addSticker = function(text_, color)  { 
+	    this.addSticker = function(text_, color, outColors)  { 
 		var found =0;
 		for (var i=0;i<stickerTab.length;i++)  { 
 			
@@ -93,8 +194,12 @@ $(document).ready(    function (){
 			break;
 		    }
 		}
-		if (found==0)  { 
-		    stickerTab.push([text_, color]);
+		if (found==0)  {
+		    if (typeof(outColors) != "undefined") {
+			stickerTab.push([text_, outColors["cval"], outColors["symb"], outColors["cm"], outColors["cM"]]);
+		    } else {
+			stickerTab.push([text_, color]);
+		    }
 		}
 		this.updateStickers();
 	    }
@@ -117,20 +222,19 @@ $(document).ready(    function (){
 		this.updateStickers();	
 	    }
 
-	    this.createSticker = function(text_, color)  { 
-		if($('#stickers_'+id).children("."+text_).length == 0)  { 			
-		    $('#stickers_'+id).append("<div id='" + text_ + "_" + id +"' class='"+text_+ " sticker'" + "></div>");
-		    //console.log($('#stickers_'+id).children(".sticker").length, numOfTags);
-		    $('#'+ text_ + "_" +id).css({
-			    classN : "sticker",
-				backgroundColor : color,
-				top : 50*($('#stickers_'+id).children(".sticker").length-1)+"px",
-				});
-		} else { 
-		    //console.log("Sticker already exists");
-		}
-
-	    }
+	    // this.createSticker = function(text_, color)  { 
+	    // 	if($('#stickers_'+id).children("."+text_).length == 0)  { 			
+	    // 	    $('#stickers_'+id).append("<div id='" + text_ + "_" + id +"' class='"+text_+ " sticker'" + "></div>");
+	    // 	    //console.log($('#stickers_'+id).children(".sticker").length, numOfTags);
+	    // 	    $('#'+ text_ + "_" +id).css({
+	    // 		    classN : "sticker",
+	    // 			backgroundColor : color,
+	    // 			top : 50*($('#stickers_'+id).children(".sticker").length-1)+"px",
+	    // 			});
+	    // 	} else { 
+	    // 	    //console.log("Sticker already exists");
+	    // 	}
+	    // }
 
 	    this.colorSticker = function(text_, color)  { 
 		if($('#stickers_'+id).children("."+text_).length != 0)  { 				

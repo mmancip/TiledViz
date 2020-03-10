@@ -18,20 +18,57 @@ You may also use a python3 environement as non root user  :
 - export DATE=$(date +%F_%H-%M-%S)
 - mkdir TiledVizEnv_${DATE}
 - virtualenv TiledVizEnv_${DATE}
+  (on some system, you may have to use virtualenv-3.? where 3.? is the default python version)
 - source TiledVizEnv_${DATE}/bin/activate
 
 3. Requirements
 Then all other tools are installed in you local environment with :
     - pip3 install -r requirements.txt
+You need noVNC : https://travis-ci.org/novnc/noVNC in TVWeb subdirectory.
+Use these commands to install and patch :
+{{{
+cd TVWeb
+git clone https://github.com/novnc/noVNC.git noVNC
+cd noVNC
+git checkout 33e1462
+cd ..
+cp vnc_multi.html noVNC__
+patch -p0 < patch_devices_noVNC 
+}}}
 
 4. Database
 After installing client side of postgresql database, in stage 2, you have to choose
 if you prefer install the TiledViz database in your host system or having a container
 dedicated to database managment.
 
-a. docker + localhost
+a. Environement
+We need those environment variables to be set to the right values :
+{{{
+export POSTGRES_HOST=postgres
+export POSTGRES_USER=tiledviz
+export POSTGRES_DB=TiledViz
+export POSTGRES_PASSWORD="your_postgres_password"
+export passwordDB="$POSTGRES_PASSWORD"
+}}}
+You have to choose your own PostgreSQL password.
+You can edit launch_TiledViz with your parameters if you need to launch TiledViz with
+this script. You can launch TVSecure directly with your own secret key.
+
+You may create an empty .netrc file for python lower module:
+{{{
+touch ~/.netrc
+}}}
+
+b. docker + localhost
+You can choose to run PostgreSQL db server on your host or on a docker as a micro service.
+{{{
+export postgresNAME=TiledVizPG
+}}}
+
 For docker container, a simple postgres alpine is very small :
-docker run -d postgres:9.6-alpine
+{{{
+docker run -d -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_DB=$POSTGRES_DB -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD postgres:9.6-alpine --name $postgresNAME
+}}}
 This will download DockerHub version of postgres with alpine system.
 
 For local postgresql db you have to install posrgres "postgresql9.6-server" on your system.
@@ -48,16 +85,6 @@ sed -e "s&	ENCRYPTED PASSWORD 'm_test/@03';&	ENCRYPTED PASSWORD 'your_postgres_p
 }}}
 NOT with 'your_postgres_password' of course.
 
-b. Environement
-We need those environment variables to be set to the right values :
-{{{
-export POSTGRES_HOST=postgres
-export POSTGRES_USER=tiledviz
-export POSTGRES_DB=TiledViz
-export POSTGRES_PASSWORD="your_postgres_password"
-export passwordDB="$POSTGRES_PASSWORD"
-}}}
-
 c. Fill values
 For Gitlab Continuous Integration script file .gitlab-ci.yml, we have prepared fill script of the database with old TileViz demo files :
 - TVDatabase/filledDatabase.sh
@@ -71,9 +98,9 @@ to compile a sqlalchemy python representation of it :
 sqlacodegen postgres://${POSTGRES_USER}:"${POSTGRES_PASSWORD}"@${POSTGRES_HOST}/${POSTGRES_DB} --outfile=TVDatabase/TVDb/models.py
 }}}
 
-c docker run
+e. The IP of postgres container ioos given by command as
 {{{
-export IPPOSTGRES=$(grep postgres /etc/hosts | tr '[:space:]*' '\n' | head -1)
+export IPPOSTGRES=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $postgresNAME)
 }}}
 
 
@@ -81,14 +108,24 @@ export IPPOSTGRES=$(grep postgres /etc/hosts | tr '[:space:]*' '\n' | head -1)
 a. build
 - docker build -t flaskimage -f TVWeb/FlaskDocker/Dockerfile.web .
 b. run
-docker rm -f flaskdock
-docker run -it --rm --name flaskdock --add-host="postgres:${IPPOSTGRES}"  -p 0.0.0.0:5000:5000 -v $(pwd):/TiledViz flaskimage ${POSTGRES_HOST} ${POSTGRES_DB} ${POSTGRES_USER} ${POSTGRES_PASSWORD} "my Preci0us secr_t key for t&sts."
+Flask is running inside TVSecure then you don't need to run its docker container
+mannually.
+See launch_TiledViz for arguments to this job.
+
 c. test
+TiledViz is regularly tested with our CI on gitlab.maisondelasimulation.fr with
+Selenium web engine driver. 
     - export IPFlask=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' flaskdock)
     - TVDatabase/getDatabase.sh
     - docker run -t -v $(pwd)/TVWeb/Selenium:/usr/local/Selenium --add-host="flaskdock:$IPFlask" --name selenium --rm joyzoursky/python-chromedriver:3.7-alpine3.8-selenium python3 /usr/local/Selenium/test_script.py 
 d. log
     - docker exec -t flaskdock cat /TiledViz/TVWeb/TiledViz.log
 e. stop
-   - docker stop flaskdock
+    - docker stop flaskdock
 6. TiledViz Secure
+
+
+7. ssh parameters
+One must have uncomment 
+GatewayPorts yes
+in sshd config file on the web server.

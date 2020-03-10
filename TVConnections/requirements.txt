@@ -1,3 +1,4 @@
 sqlacodegen
 pexpect
 sqlalchemy
+configparser

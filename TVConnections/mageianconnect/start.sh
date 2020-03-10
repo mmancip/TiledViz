@@ -84,10 +84,18 @@ chmod 755 ${HOME_user}/.vnc/xstartup
 # /usr/bin/X :0 -terminate & sleep 2 && DISPLAY=:0 /usr/bin/xterm
 #xwit(1) to forcibly resize and place the windows.
 
+touch ${HOME_user}/.vnc/x11vnc.log
+echo 'echo $(date) $(DISPLAY=:1 x11vnc -R clear_all 2>&1) >> ~/.vnc/x11vnc.log' > /usr/local/bin/clearX11vnc
+chmod a+x /usr/local/bin/clearX11vnc
+mkdir ${HOME_user}/.icewm
+echo "prog \"x11vnc-clear\" computer_science_section /usr/local/bin/clearX11vnc" > ${HOME_user}/.icewm/toolbar
+
 chown -R myuser:myuser ${HOME_user}
 
 echo export DOCKERID=$DOCKERID >> ${HOME_user}/.bashrc
 
+# Build database model
+sqlacodegen postgres://${POSTGRES_USER}:"${POSTGRES_PASSWORD}"@${POSTGRES_HOST}/${POSTGRES_DB} --outfile=/TiledViz/TVDatabase/TVDb/models.py
 
 # Run the vncserver
 cd

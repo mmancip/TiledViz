@@ -33,30 +33,58 @@ $(document).ready(    function (){
     };
 
     // Get style.css StyleSheet Rules
-    var ss = document.styleSheets;
-    var sstyle = "";
-    var RuleBorderBlinkId = "";
-    for (var i = 0; i < ss.length; ++i) {
-	if (ss[i].href) {
-	    if (ss[i].href.includes("style.css")) {
-		sstyle = ss[i];
-		for (var j = 0; j < sstyle.rules.length; ++j ) 
-		    if (sstyle.rules[j].type == 7) 
-			if (sstyle.rules[j].cssRules[0].style.cssText.includes("outline-color"))
-			    RuleBorderBlinkId=j
-		break;
-	    }
-	}
+    var stylesheets = document.styleSheets;
+    var sstyleRuleBorderBlink="";
+    var BorderBlinkColor=false;
+    if (stylesheets) {
+      var sstyle = "";
+      var RuleBorderBlinkId = "";
+      for (var i = 0; i < stylesheets.length; ++i) {
+        if (stylesheets[i].href) {
+      	  if (stylesheets[i].href.includes("style.css")) {		    
+      	      sstyle = stylesheets[i];
+      	      // Chrome definition
+      	      try {
+      	          for (var j = 0; j < sstyle.rules.length; ++j ) {
+      	     	      if (sstyle.rules[j].type == 7) 
+      	     		  if (sstyle.rules[j].cssRules[0].style.cssText.includes("outline-color")) {
+      	     		      RuleBorderBlinkId=j;
+      	     		      sstyleRuleBorderBlink=sstyle.rules[j].cssRules[0].style;
+      	     		      BorderBlinkColor=true;
+      	     		      break;
+			  }
+      	          }
+      	      } 	catch(err)  {
+      	          // Firefox definition
+      	          try {
+      	     	      for (var j = 0; j < sstyle.cssRules.length; ++j ) {
+      	     		  if (sstyle.cssRules[j].cssText.includes("outline-color")) {
+      	     		      RuleBorderBlinkId=j;
+      	     		      sstyleRuleBorderBlink=sstyle.cssRules[j];
+      	     		      BorderBlinkColor=true;
+      	     		      break;
+			  }
+      	     	      }
+      	          } catch(err1)  {
+      	     	      // not portable
+      	          }
+      	      }
+      	  }
+        }
+      }
     }
 	
     addBorderBlink=function(myElem,myColor) {
 	if (typeof(myElem.addClass) == "undefined") {
 	    //$('#'+myElem.id).css("outline-color",myColor);
-	    sstyle.rules[RuleBorderBlinkId].cssRules[0].style.cssText="outline-color: "+myColor+";"
+	    if (BorderBlinkColor)
+		sstyleRuleBorderBlink.cssText=sstyleRuleBorderBlink.cssText.replace(/outline-color: .*;/,"outline-color: "+myColor+";");
 	    $('#'+myElem.id).addClass('BlinkBorder');
+	    
 	} else if (typeof(myElem[0]) == "object") {
 	    //myElem.css("outline-color",myColor);
-	    sstyle.rules[RuleBorderBlinkId].cssRules[0].style.cssText="outline-color: "+myColor+";"
+	    if (BorderBlinkColor)
+		sstyleRuleBorderBlink.cssText=sstyleRuleBorderBlink.cssText.replace(/outline-color: .*;/,"outline-color: "+myColor+";");
 	    myElem.addClass('BlinkBorder');
 	}
 
@@ -73,6 +101,27 @@ $(document).ready(    function (){
 	}
 	setTimeout(myElemBorderUnBlink,2000,myElem);
     };
+
+    function download(content, fileName, contentType) {
+	var a = document.createElement("a");
+	var file = new Blob([content], {type: contentType});
+	a.href = URL.createObjectURL(file);
+	a.download = fileName;
+	a.click();
+	URL.revokeObjectURL(a.href)
+    }
+    //download(jsonData, 'json.txt', 'text/plain');
+    
+    _allowDragAndDrop = true; // block Drag and Drop if false
+    BlockDragAndDrop=function() {
+	_allowDragAndDrop = false;
+	$('.handle').addClass("drag-handle-off").removeClass("drag-handle-on");
+    };
+
+    EnableDragAndDrop=function() {
+    	_allowDragAndDrop = true;
+	$('.handle').addClass("drag-handle-on").removeClass("drag-handle-off");
+    }
     
 Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
@@ -123,8 +172,6 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     var tagToGroup = "";
     var hideNodeTags = false;
     var transparentNode = -1; // Default
-
-    var _allowDragAndDrop = true; // block Drag and Drop if false
 
     var HideNodeTagFlag=false; // Flag indicated the use of HideTag menu to hide nodes with selected tag in tagMenu.
 
@@ -374,7 +421,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
     //--reset table
     this.resetNodesToZoom = function(){
-	nodesToZoom.length = 0;
+	nodesToZoom = new Array();
+	$('.hitbox').css({backgroundColor : colorHBdefault});
+
 	return nodesToZoom;
     };
 
@@ -533,7 +582,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    for(var e=0;e<NbZ;e++){
 
 		thisnode=nodeZoomTab[e];
-		thisnode.updateSelectedStatus(false);
+		// thisnode.updateSelectedStatus(false);
 
 		id=thisnode.getId();
 		thisnodeId=$("#"+thisnode.getId());
@@ -666,8 +715,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	zoomValue = zoomValue.replace("matrix(", "").replace(")", "").split(",")[0];
 	//console.log("zoom value", zoomValue);
 	$('#superSail').append("<div id=zoom-slider-label>Zoom level</div>")
-	.append("<input id=zoomSlider name=zoomSlider type=range min="+zoomValue/2+" max="+2*zoomValue+" step=0.01 value="+zoomValue+" oninput='zoom.value=zoomSlider.value.toString()'>")
-	.append("<output name=zoom id=zoom for=zoomSlider>"+zoomValue+"</output>");
+	.append("<input id=zoomSlider name=zoomSlider class=slider type=range min="+zoomValue/2+" max="+2*zoomValue+" step=0.01 value="+zoomValue+" oninput='zoom.value=zoomSlider.value.toString()'>")
+	.append("<output name=zoom id=zoom class=slider for=zoomSlider>"+zoomValue+"</output>");
 
 	$('#zoomSlider').change(function () {
 		var val = ($(this).val() - $(this).attr('min')) / ($(this).attr('max') - $(this).attr('min'));
@@ -716,6 +765,11 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 	$('#zoomSlider').on({
 		click : function(e){
+		    if ( configBehaviour.sharedSliderZoom && emit_click_val('slider','zoomSlider', $('#zoomSlider').val()) )
+			return
+		    if ( configBehaviour.sharedSliderZoom && emit_click_val('slider','zoom', $('#zoomSlider').val()) )
+			return
+		    
 		    var newZoom = $('#zoomSlider').val();
 		    var ratio = newZoom/zoomValue;
 		    $('#zoomSupport').css("-moz-transform","scale("+ratio+")").css("-webkit-transform","scale("+ratio+")").css("transform-origin", "0 0 0");
@@ -817,10 +871,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    me.unsetDraggable(node); 
 	} 
 
-	_allowDragAndDrop = true; // Go back to normal behaviour
-	$('.handle').addClass("drag-handle-on");
+	EnableDragAndDrop();
     };
 
+    receive_deploy_Selection=false
     socket.on('receive_deploy_Selection', function(sdata){
      	console.log("receive_deploy_Selection",sdata);
 	var listSelectionIds = eval(sdata["Selection"]);
@@ -831,6 +885,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    me.addNodeToZoom(node); 
 	    HB.css({backgroundColor : colorHBtoZoom});
 	}
+	receive_deploy_Selection=true
     });
 
     
@@ -888,6 +943,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     var tagSelectionMenuIconClassAttributesTab = new Array();
     var tagSelectionMenuShareEvent = new Array();
 
+    var EndOfGroupping=false;
     // User interaction
     // Tags	
     clickTagInLegend = function(){
@@ -950,6 +1006,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    }
 		}
 	    }
+	    EndOfGroupping=true;
 
 	} else if (HideNodeTagFlag) {
 	    var tagToGroup = this.id;
@@ -1004,7 +1061,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    var listSectionTiles=me.getSelectedNodes()
 	    for(O in listSectionTiles)  { 
 		var HBid = "hitbox"+listSectionTiles[O].getId();
-		clickHBTag(HBid);
+		//clickHBTag(HBid);
+		listSectionTiles[O].getStickers().addSticker(currentSelectedTag, attributedTagsColorsArray[currentSelectedTag]);
+		listSectionTiles[O].addElementToNodeTagList(currentSelectedTag);
 	    }
 	    addBlink(this);
 	} else if (PaletteNodeTagFlag) {
@@ -1070,6 +1129,46 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	node.removeElementFromNodeTagList(splittedId.join("_"));
     };
 
+    // Add a tag
+    this.AddNewTag=function(tmpNewTag) {
+	globalTagsList.push(tmpNewTag); 
+	var k = globalTagsList.length -1;
+	$('#tag-legend').append('<div id =' + globalTagsList[k] + ' class=tag>' + globalTagsList[k] + '</div>');
+	if ($('#'+globalTagsList[k]).position().left==0) {
+	    $("#tag-legend").css({ height: $("#tag-legend").height()+$('#'+globalTagsList[k]).height() });
+	}
+	try  {
+	    $('#'+globalTagsList[k]).css('background-color',ColorSticker(k));
+	    attributedTagsColorsArray[globalTagsList[k]] =$('#'+globalTagsList[k]).css("background-color");
+	    $('#tag-notif').text("New tag added: " + tmpNewTag);
+	}
+	catch(err)  { 
+	    $('#tag-legend div:last').remove();
+	    console.log("Tag not valid", tmpNewTag);
+	    $('#tag-notif').text("Invalid tag: " + tmpNewTag + ", please try again.");
+	}
+	TagHeight=($("#tag-legend").height());
+	
+	if ( my_user != "Anonymous" ) {
+	    TopPP=TagHeight;
+	    htmlPrimaryParent.css("marginTop",TopPP+"px");
+	}
+	$('.tag').off("click").on({
+	    click : clickTagInLegend
+	});
+    }
+
+    // Color tag
+    this.ChangeColorTag = function(thisTag, NewColor) {
+	$('#'+thisTag).css('background-color',NewColor);
+	attributedTagsColorsArray[thisTag] = NewColor;
+	for (O in nodes2)  { 
+	    if (me.hasTag(nodes2[O], thisTag))  { 
+		nodes2[O].getStickers().colorSticker(thisTag,NewColor);
+	    }
+	}
+    }
+    
     // Align/group similarly tagged nodes
     tagMenuTitleTab.push("Align/group similarly tagged nodes")
     tagMenuEventTab.push(    function(v, id, optionNumber){
@@ -1131,6 +1230,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		.css("visibility", "visible");
 	    $('#'+id+'option'+optionNumber).removeClass('selectTagMenuButtonIcon').addClass('closeSelectTagMenuButtonIcon');
 	} else { 
+	    me.tagSelectionMenu.closeAllOptions();
 	    menuSelectionTags.css("visibility", "hidden");
 	    $('#'+id+'option'+optionNumber).removeClass('closeSelectTagMenuButtonIcon').addClass('selectTagMenuButtonIcon');
 	}
@@ -1154,46 +1254,6 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     tagSelectionMenuIconClassAttributesTab.push("selectTagButtonIcon");
     tagSelectionMenuShareEvent.push(true);
 
-    // Add a tag
-    this.AddNewTag=function(tmpNewTag) {
-	globalTagsList.push(tmpNewTag); 
-	var k = globalTagsList.length -1;
-	$('#tag-legend').append('<div id =' + globalTagsList[k] + ' class=tag>' + globalTagsList[k] + '</div>');
-	if ($('#'+globalTagsList[k]).position().left==0) {
-	    $("#tag-legend").css({ height: $("#tag-legend").height()+$('#'+globalTagsList[k]).height() });
-	}
-	try  {
-	    $('#'+globalTagsList[k]).css('background-color',ColorSticker(k));
-	    attributedTagsColorsArray[globalTagsList[k]] =$('#'+globalTagsList[k]).css("background-color");
-	    $('#tag-notif').text("New tag added: " + tmpNewTag);
-	}
-	catch(err)  { 
-	    $('#tag-legend div:last').remove();
-	    console.log("Tag not valid", tmpNewTag);
-	    $('#tag-notif').text("Invalid tag: " + tmpNewTag + ", please try again.");
-	}
-	TagHeight=($("#tag-legend").height());
-	
-	if ( my_user != "Anonymous" ) {
-	    TopPP=TagHeight;
-	    htmlPrimaryParent.css("marginTop",TopPP+"px");
-	}
-	$('.tag').off("click").on({
-	    click : clickTagInLegend
-	});
-    }
-
-    // Color tag
-    this.ChangeColorTag = function(thisTag, NewColor) {
-	$('#'+thisTag).css('background-color',NewColor);
-	attributedTagsColorsArray[thisTag] = NewColor;
-	for (O in nodes2)  { 
-	    if (me.hasTag(nodes2[O], thisTag))  { 
-		nodes2[O].getStickers().colorSticker(thisTag,NewColor);
-	    }
-	}
-    }
-    
     // Add selected tag to all nodes in current selection 
     tagSelectionMenuTitleTab.push("Add tag for nodes in selection")
     tagSelectionMenuEventTab.push(    function(v, id, optionNumber){
@@ -1220,6 +1280,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		.css("visibility", "visible");
 	    $('#'+id+'option'+optionNumber).removeClass('managementTagMenuButtonIcon').addClass('closeManagementTagMenuButtonIcon');
 	} else { 
+	    me.tagManagementMenu.closeAllOptions();
 	    menuManagementTags.css("visibility", "hidden");
 	    $('#'+id+'option'+optionNumber).removeClass('closeManagementTagMenuButtonIcon').addClass('managementTagMenuButtonIcon');
 	}
@@ -1958,10 +2019,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			    }
 			    menuMS.css("visibility", "visible");
 				    
-			    for(O in nodes)  { 
-				me.removeNodeToZoom(O);
-			    }
-			    me.setZoomSelection(true);
+			    // for(O in nodes)  { 
+			    // 	me.removeNodeToZoom(O);
+			    // }
+			    // me.setZoomSelection(true);
 			}
 		    });
 	    }
@@ -2006,23 +2067,25 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     /** Disable or enable other zoom functions
      */
     this.disableOtherZoom = function (myzoomfunction) {
-	ListZoomFunction=["zoomNodes","zoom","MS","draw"];
-	for (otherZoom in ListZoomFunction) {
-	    thisZoom=ListZoomFunction[otherZoom];
+	var ListZoomFunction=["zoomNodes","zoom","MS","draw"];
+	for (var otherZoom in ListZoomFunction) {
+	    var thisZoom=ListZoomFunction[otherZoom];
 	    if ( thisZoom != myzoomfunction )
-		$("."+thisZoom+"ButtonIcon").removeClass(thisZoom+"ButtonIcon").addClass("disable"+thisZoom+"ButtonIcon");
+		if ($(".close"+thisZoom+"ButtonIcon")[0]) {
+		    $(".close"+thisZoom+"ButtonIcon").click();
+		}
 	}
     };
     
     /** Enable or enable other zoom functions
      */
     this.enableOtherZoom = function (myzoomfunction) {
-	ListZoomFunction=["zoomNodes","zoom","MS","draw"];
-	for (otherZoom in ListZoomFunction) {
-	    thisZoom=ListZoomFunction[otherZoom];
-	    if ( thisZoom != myzoomfunction )
-		$(".disable"+thisZoom+"ButtonIcon").removeClass("disable"+thisZoom+"ButtonIcon").addClass(thisZoom+"ButtonIcon");
-	}
+	var ListZoomFunction=["zoomNodes","zoom","MS","draw"];
+	// for (var otherZoom in ListZoomFunction) {
+	//     var thisZoom=ListZoomFunction[otherZoom];
+	//     if ( thisZoom != myzoomfunction )
+	// 	$(".disable"+thisZoom+"ButtonIcon").removeClass("disable"+thisZoom+"ButtonIcon").addClass(thisZoom+"ButtonIcon");
+	// }
     };
     
     /** Zoom Global Menu functions 
@@ -2049,7 +2112,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		//$('#buttonUnzoom').hide();
 		me.magnifyingGlass(nodeZoomTab,ratio,initSpread);
-		me.resetNodesToZoom();
+		// me.resetNodesToZoom();
 
 		// unZoom function
 		$('#buttonUnzoom').on({
@@ -2063,7 +2126,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    }
 	});
     zoomMenuIconClassAttributesTab.push("expandZoomButtonIcon");
-    zoomMenuShareEvent.push(false);
+    zoomMenuShareEvent.push(true);
 
     zoomMenuTitleTab.push("Zoom explain area")    
     zoomMenuEventTab.push( function(v, id, optionNumber) {		
@@ -2097,11 +2160,13 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		    if(v==true)  { 
 			//me.setZoomSelection(true); // To change the behaviour of a hitbox click, cf clickHB method // DEPRECATED ?
+			// Deactivate other magnify menus
+			me.disableOtherZoom("zoom")
+			BlockDragAndDrop();
 
 			$('.node').off();
 			$('.hitbox').off("click").on("click", clickHBZoom);
 			$('.hitbox').off("mouseenter");
-			_allowDragAndDrop = false;
 
 			menuZoom.children('[class*=explain-zoom]')[0].innerText="Click on the left of the nodes to select them. Green nodes will be selected.";
 			menuZoom.children('[class*=explain-zoom]').css({
@@ -2115,9 +2180,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			menuZoom.css("top", TagHeight+"px");
 
 			$('#'+id+'option'+optionNumber).removeClass('zoomButtonIcon').addClass("closezoomButtonIcon");
-			// Deactivate other magnify menus
-			me.disableOtherZoom("zoom")
+
 		    } else { 
+
+			// Activate other magnify menus
+			me.enableOtherZoom("zoom")
+			EnableDragAndDrop();
 
 			me.setZoomSelection(false);
 			me.resetNodesToZoom();
@@ -2127,8 +2195,6 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			menuZoom.css("visibility", "hidden");
 
 			$('#'+id+'option'+optionNumber).removeClass("closezoomButtonIcon").addClass("zoomButtonIcon");
-			// Activate other magnify menus
-			me.enableOtherZoom("zoom")
 		    }
 		    return 0;
 		};		
@@ -2153,10 +2219,13 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    if(v==true) {
 			//me.setZoomSelection(true); // To change the behaviour of a hitbox click, cf clickHB method // DEPRECATED ?
  
+			// Deactivate other magnify menus
+			me.disableOtherZoom("MS")
+			BlockDragAndDrop();
+
 			$('.node').off();
 			$('.hitbox').off("click").on("click", clickHBZoom);
 			$('.hitbox').off("mouseenter");
-			_allowDragAndDrop = false;
 			
 
 			menuMS.children('[class*=explain-MS]')[0].innerText="Click on the left of the nodes to select them. Click on left \"validate button\" or right \"ALL selected\" button.";
@@ -2171,9 +2240,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			menuMS.css("top", TagHeight+"px");
 
 			$('#'+id+'option'+optionNumber).removeClass("MSButtonIcon").addClass("closeMSButtonIcon");
-			// Deactivate other magnify menus
-			me.disableOtherZoom("MS")
+
 		    } else {
+
+			// Activate other magnify menus
+			me.enableOtherZoom("MS")
+			EnableDragAndDrop();
 
 			me.setZoomSelection(false);
 			me.resetNodesToZoom();
@@ -2189,8 +2261,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			menuMS.css("visibility", "hidden");
 			
 			$('#'+id+'option'+optionNumber).removeClass("closeMSButtonIcon").addClass("MSButtonIcon");
-			// Activate other magnify menus
-			me.enableOtherZoom("MS")
+
 		    };
 
 		    return 0;
@@ -2206,14 +2277,18 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		return function(v, id, optionNumber){
 		    if (v==true)  { 
+			me.disableOtherZoom("zoomNodes")
+			BlockDragAndDrop();
+
 			$('.zoomNodeButtonIcon').show();
 			$('#'+id+'option'+optionNumber).removeClass('zoomNodesButtonIcon').addClass('closezoomNodesButtonIcon');
-			me.disableOtherZoom("zoomNode")
 		    } else { 
+			// Activate other magnify menus
+			me.enableOtherZoom("zoomNodes")
+			EnableDragAndDrop();
+
 			$('.zoomNodeButtonIcon').hide();
 			$('#'+id+'option'+optionNumber).removeClass("closezoomNodesButtonIcon").addClass("zoomNodesButtonIcon");
-			// Activate other magnify menus
-			me.enableOtherZoom("zoomNode")
 		    }
 		};
 
@@ -2418,18 +2493,18 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    idFinalLocation=0;
 	    for(O in nodes2)  { 	
 		var id=nodes2[O].getId();
-		// Save positions
 		if (nodes2[O].getOnOffStatus()) {
+		    // Save positions
 		    nodes2[O].getJsonData().IdLocation = nodes2[O].getIdLocation();
 		    idFinalLocation++;
 		    // Save usernotes
-		    nodes2[O].getJsonData().usersNotes = $("#pia_editable_postit"+id).text();
+		    nodes2[O].getJsonData().userNotes = nodes2[O].getComment();
 		    // Save tags
 		    nodes2[O].getJsonData().tags = nodes2[O].getNodeTagList();
 		}
 	    }
 	    // Reconstruct another nodes.js with the same structure
-	    var temp = "{'nodes': [XXX] }";
+	    var temp = "{\"nodes\": [XXX] }";
 	    var id=0;
 
 	    for(O in nodes2)  { 
@@ -2444,10 +2519,13 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
  			if (W == "tags" ) {
 			    var ListTags=new Array();
 			    nodes2[O].getNodeTagList().forEach(function(currentValue) { ListTags.push("'"+currentValue + "'")})
-			    var mytext = "\""+W+"\""+" : "+"["+ListTags.toString()+"],\n {***}"
-			} else if ( W == "usersNotes") {
-			    comment=nodes2[O].getJsonData()["usersNotes"].toString().replace(/\"/g,"'")
-			    var mytext = "\"comment\""+" : "+"'"+comment+"'"+",\n {***}"
+			    var mytext = "\""+W+"\""+" : "+"["+ListTags.toString().replace(/\'/g,'\"')+"],\n {***}"
+			} else if ( W == "comment") {
+			    // Don't save old comment because user may have modified it in postit. 
+			    var mytext = "{***}";
+			} else if ( W == "userNotes") {
+			    comment=nodes2[O].getJsonData()["userNotes"].toString().replace(/\"/g,"'")
+			    var mytext = "\"comment\""+" : "+"\""+comment+"\""+",\n {***}"
 			// } else if ( W == "IdLocation") {
 			//     var mytext = "\""+W+"\""+" : "+"\""+nodes2[0].getIdLocation().toString()+"\""+",\n {***}";
 			} else {
@@ -2461,12 +2539,14 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    }
 	    // Save the file with a clear name (date and time, name of the project) 
 	    temp=temp.replace(",XXX","");
-	    tempFile = "var text_ = \n     "+temp+";\nvar jsDataTab = text_.nodes;";
-
+	    // tempFile = "var text_ = \n     "+temp+";\nvar jsDataTab = text_.nodes;";
+	    tempFile=temp;
+	
 	    var sessionDate = new Date();
 	    var strDate=sessionDate.toLocaleDateString({day: "2-digit", month: "2-digit"}).replace(/\//g, "-") + "_" + sessionDate.toLocaleTimeString("fr-FR").replace(/:/g, "-")
-	    var fileName = my_session + "_" + "tiles_" + strDate + ".js"; 
-	    var file = new File([tempFile], fileName, {type: "text/plain;charset=utf-8"});
+	    //var fileName = my_session + "_" + "tiles_" + strDate + ".js"; 
+	//var file = new File([tempFile], fileName, {type: "text/plain;charset=utf-8"},{ autoBom: false });
+	    var fileName = my_session + "_" + "tiles_" + strDate + ".json"; 
 
 	// socket save new session ??
 	$('#notifications').html('<div id=saveValidate height="10%" width="50%"></div>');
@@ -2478,7 +2558,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			+'<button id="submitSave" name="submitSave" class="btn btn-info" style="font-size: 40px"> Submit</button>&nbsp;&nbsp;'
 			+'<button id="submitCancel" name="submitCancel" class="btn btn-info" style="font-size: 40px"> Cancel</button></form>');
 	$('#submitSave').off("click").on("click",function() {
-	    saveAs(file);
+	    //saveAs(file);
+	    download([tempFile], fileName,"text/plain;charset=utf-8")
 
 	    new_suffix=$('#newSuffix').val();
 	    new_description=$('#newDescr').val();
@@ -2537,28 +2618,137 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		// Menus behaviour
 		//$('#options-zone').append("<div id=options-menus class=option-group></div>");
 		//$('#options-menus').append("<div id=options-menus-label class=label>Menus</div>");
-		$('#options-menus').append("<div id=options-global-menu-label class=label>Share global menu</div>");
+		$('#options-menus').append('<div id=dropdownglobal class="drop-left-menu" ></div>');
+		$('#dropdownglobal').css({
+		    position: 'absolute',
+		    top: 40,
+		    left: 200,
+		    width: 100,
+		    height: 100,
+		    zIndex: 130,
+		});
+
+		$('#options-menus').append("<div id=options-global-menu-label class='label'>Share global menu</div>");
 		var thisMenuShareEvent=me.menu.getMenuShareEvent();
 		var thisIconTab=me.menu.getMenuIconClassAttributesTab();
 		var LocalMenus=Array();
+		var GlobalMenuLabelState=false;
+		var SubmenuLabelState=false;
+		var SubmenusLabelState={};
+
 		for (var theOption in thisIconTab) {
-		    $('#options-menus').append("<input type='checkbox' id='shareMenu_"+thisIconTab[theOption]+"' name='shareMenu_"+thisIconTab[theOption]+"' value='yes'>"+thisIconTab[theOption].replace("GlobalMenu","Menu").replace("ButtonIcon","")+"</br>");
+		    $('#options-global-menu-label')
+			.append("<div id='shareDivMenu_"+thisIconTab[theOption]+"' style='font-size:100'></div>");
+		    $("#shareDivMenu_"+thisIconTab[theOption]).hide()
+			.append("</br><input type='checkbox' id='shareMenu_"+thisIconTab[theOption]+"' name='shareMenu_"+thisIconTab[theOption]+"' value='yes' >"+
+				thisIconTab[theOption].replace("GlobalMenu","Menu").replace("ButtonIcon",""));
 		    $('input[name=shareMenu_'+thisIconTab[theOption]+']').attr("checked",thisMenuShareEvent[theOption]);
 		    if (thisIconTab[theOption].search("GlobalMenu") > -1)
 			LocalMenus.push(thisIconTab[theOption])
 		}
-		$('#options-menus').append("<div id=options-submenus class=label>Share sub-menus: </div>");
+		
+		$('#dropdownglobal').on({
+		    click : function(e) {
+			if (GlobalMenuLabelState) {
+			    GlobalMenuLabelState=false;
+			    $('#dropdownglobal').removeClass("drop-down-menu").addClass("drop-left-menu");
+			    for (var theOption in thisIconTab) {
+				$("#shareDivMenu_"+thisIconTab[theOption]).hide();
+			    }
+			} else {
+			    GlobalMenuLabelState=true;
+			    $('#dropdownglobal').removeClass("drop-left-menu").addClass("drop-down-menu");
+			    for (var theOption in thisIconTab) {
+				$("#shareDivMenu_"+thisIconTab[theOption]).show();
+			    }
+			}
+		    }
+		});
+		
+		$('#options-menus').append('<br><br><div id=dropdownsubm class="drop-left-menu"></div>');
+		$('#dropdownsubm').css({
+		    position: 'relative',
+		    top: 80,
+		    left: 200,
+		    width: 100,
+		    height: 100,
+		    zIndex: 130,
+		});
+		$('#options-menus').append("<div id=options-submenus-label class='label' style='font-size:95'>Share sub-menus</div>");
 		for (var locMenu in LocalMenus) {
-		    var menuname=LocalMenus[locMenu].replace("GlobalMenuButtonIcon","Global")
+		    var menuname=LocalMenus[locMenu].replace("GlobalMenuButtonIcon","Global");
 		    var thismenu=subMenusGlobal.filter(menu=>menu.getId()==menuname)[0];
 		    var thismenuShareEvent=thismenu.getMenuShareEvent();
 		    var thisiconTab=thismenu.getMenuIconClassAttributesTab();
-		    $('#options-menus').append("<div id=options-submenu-"+menuname+"-label class=label>"+menuname+"</div>");
+
+		    $('#options-submenus-label').append('<br><div id="dropdownsubm_'+menuname+'" class="drop-left-menu"></div>');
+		    $('#dropdownsubm_'+menuname).css({
+			position: 'relative',
+			top: 80,
+			left: 240,
+			width: 100,
+			height: 100,
+			zIndex: 130,
+			transform: "scale(0.75)"
+		    }).hide();
+		    
+		    $('#options-submenus-label').append("<div id='shareDivSubmenu_"+menuname+"' style='font-size:85'>"+menuname+"</div>");
+		    $("#shareDivSubmenu_"+menuname).hide();
+		    SubmenusLabelState[menuname]=false;
+		    
 		    for (var theOption in thisiconTab) {
-			$('#options-menus').append("<input type='checkbox' id='shareMenu_"+thisiconTab[theOption]+"' name='shareMenu_"+thisiconTab[theOption]+"' value='yes'>"+thisiconTab[theOption].replace("ButtonIcon","")+"</br>");
+		    	$("#shareDivSubmenu_"+menuname)
+			    .append("<div id=options-submenu-"+menuname+"-"+thisiconTab[theOption]+" ></div>");
+			$("#options-submenu-"+menuname+"-"+thisiconTab[theOption]).hide()
+		    	    .append("<br><input type='checkbox' id='shareMenu_"+thisiconTab[theOption]+"' name='shareMenu_"+thisiconTab[theOption]+"' value='yes'>"+
+		    		    thisiconTab[theOption].replace("ButtonIcon",""));
 			$('input[name=shareMenu_'+thisiconTab[theOption]+']').attr("checked",thismenuShareEvent[theOption]);
 		    }
+		    
+		    $('#dropdownsubm_'+menuname).on({
+		    	click : function(e) {
+			    var menuname=this.id.replace("dropdownsubm_","");
+			    var thismenu=subMenusGlobal.filter(menu=>menu.getId()==menuname)[0];
+			    var thisiconTab=thismenu.getMenuIconClassAttributesTab();
+		    	    if (SubmenusLabelState[menuname]) {
+		    		SubmenusLabelState[menuname]=false;
+				$('#dropdownsubm_'+menuname).removeClass("drop-down-menu").addClass("drop-left-menu");
+		    		for (var theOption in thisiconTab) {
+				    $("#options-submenu-"+menuname+"-"+thisiconTab[theOption]).hide()
+		    		}
+		    	    } else {
+		    		SubmenusLabelState[menuname]=true;
+				$('#dropdownsubm_'+menuname).removeClass("drop-left-menu").addClass("drop-down-menu");
+		    		for (var theOption in thisiconTab) {
+				    $("#options-submenu-"+menuname+"-"+thisiconTab[theOption]).show();
+		    		}
+		    	    }
+		    	}
+		    });
 		}
+
+		
+		$('#dropdownsubm').on({
+		    click : function(e) {
+			if (SubmenuLabelState) {
+			    SubmenuLabelState=false;
+			    $('#dropdownsubm').removeClass("drop-down-menu").addClass("drop-left-menu");
+			    for (var locMenu in LocalMenus) {
+				var menuname=LocalMenus[locMenu].replace("GlobalMenuButtonIcon","Global");
+				$('#dropdownsubm_'+menuname).hide();
+				$("#shareDivSubmenu_"+menuname).hide();
+			    }
+			} else {
+			    SubmenuLabelState=true;
+			    $('#dropdownsubm').removeClass("drop-left-menu").addClass("drop-down-menu");
+			    for (var locMenu in LocalMenus) {
+				var menuname=LocalMenus[locMenu].replace("GlobalMenuButtonIcon","Global");
+				$('#dropdownsubm_'+menuname).show();
+				$("#shareDivSubmenu_"+menuname).show();
+			    }
+			}
+		    }
+		});
 
 		setColorTheme(configColors.colorTheme);	
 
@@ -2676,10 +2866,18 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		$('#options-dragdrop').append("<br>Speed of animations:</br><input id=AnimationSpeed name=AnimationSpeed type='number' value=" +configBehaviour.animationSpeed+ "></br>");
 
-		// Drag and drop behaviour
-		$('#options-zone').append("<div id=options-masterslave class=option-group></div>");
-		$('#options-masterslave').append("<div id=options-masterslave-label class=label>Parallel interaction</div>");
-		$('#options-masterslave').append("<br>Number of tiles showed:</br><input id=allMSShowMax name=allMSShowMax type='number' value=" +configBehaviour.allMSShowMax+ "></br>");
+		// Zoom Nodes behaviour
+		$('#options-zone').append("<div id=options-zoom class=option-group></div>");
+		$('#options-zoom').append("<div id=options-sharedZoomNodes-label class=label>Shared zoom nodes</div>");
+		$('#options-zoom').append("<input type='checkbox' name=enable-sharedzoomnodes value="+ configBehaviour.sharedZoomNodes +">Enable shared zoom nodes<br /></br>");
+		$('input[name=enable-sharedzoomnodes]').attr("checked",configBehaviour.sharedZoomNodes);
+		
+		$('#options-zoom').append("<input type='checkbox' name=enable-sharedSliderzoom value="+ configBehaviour.sharedSliderZoom +">Enable shared slider zoom<br /></br>");
+		$('input[name=enable-sharedSliderzoom]').attr("checked",configBehaviour.sharedSliderZoom);
+		
+		// master-slave behaviour
+		$('#options-zoom').append("<div id=options-masterslave-label class=label>Parallel interaction</div>");
+		$('#options-zoom').append("<br>Number of tiles showed:</br><input id=allMSShowMax name=allMSShowMax type='number' value=" +configBehaviour.allMSShowMax+ "></br>");
 
 		if (touchok) {
 		    // Touch behaviour
@@ -2805,6 +3003,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    
 		    configBehaviour.animationSpeed = $('#AnimationSpeed').val();
                     tempBehaviour=tempBehaviour.replace("***","'animationSpeed': "+configBehaviour.animationSpeed+",\n ***");
+
+		    configBehaviour.sharedZoomNodes = $('input[name=enable-sharedzoomnodes]').is(":checked");
+		    tempBehaviour=tempBehaviour.replace("***","'sharedZoomNodes': '"+configBehaviour.sharedZoomNodes+"',\n ***");
+		    
+		    configBehaviour.sharedSliderZoom = $('input[name=enable-sharedSliderzoom]').is(":checked");
+		    tempBehaviour=tempBehaviour.replace("***","'sharedSliderZoom': '"+configBehaviour.sharedSliderZoom+"',\n ***");
 		    
 		    configBehaviour.allMSShowMax = $('#allMSShowMax').val();
                     tempBehaviour=tempBehaviour.replace("***","'allMSShowMax': "+configBehaviour.allMSShowMax+",\n ***");
@@ -2827,6 +3031,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		    for (var theOption in thisIconTab) {
 			me.menu.setMenuShareEvent(theOption, $('input[name=shareMenu_'+thisIconTab[theOption]+']').is(":checked"));
+			tempBehaviour=tempBehaviour.replace("***","'shareMenu_"+thisIconTab[theOption]+"': 'true',\n ***");
 		    }
 		    for (var locMenu in LocalMenus) {
 			var menuname=LocalMenus[locMenu].replace("GlobalMenuButtonIcon","Global")
@@ -2834,6 +3039,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			var thisiconTab=thismenu.getMenuIconClassAttributesTab();
 			for (var theOption in thisiconTab) {
 			    thismenu.setMenuShareEvent(theOption, $('input[name=shareMenu_'+thisiconTab[theOption]+']').is(":checked"));
+			    tempBehaviour=tempBehaviour.replace("***","'shareMenu_"+thisiconTab[theOption]+"': 'true',\n ***");
 			}
 		    }
 		    
@@ -2869,8 +3075,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			    var sessionDate = new Date();
 			    var strDate=sessionDate.toLocaleDateString({day: "2-digit", month: "2-digit"}).replace(/\//g, "-") + "_" + sessionDate.toLocaleTimeString("fr-FR").replace(/:/g, "-")
 			    var fileName = my_session + "_" + "Config_" + strDate + ".json"; 
-			    var file = new File([ConfigJson], fileName, {type: "text/plain;charset=utf-8"});
-			    saveAs(file);
+			    //var file = new File([ConfigJson], fileName, {type: "text/plain;charset=utf-8"},{ autoBom: false });
+			    //saveAs(file);
+			    download([ConfigJson], fileName, {type: "text/plain;charset=utf-8"})
 			}
 		});
 		
@@ -3676,68 +3883,98 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 	if ($('#'+globalTagsList[0]).position() == undefined)
 	    $('.tagsGlobalMenuButtonIcon').click()
+
+	me.setSelectingTags(true);
+	$('#clearSelectionButtonIcon').click();
+	var checkEndcloseTagsGlobalMenu = setInterval(function() {
+	    if ($('.closeTagsGlobalMenuButtonIcon').length ) {
+		clearInterval(checkEndcloseTagsGlobalMenu);
 	
-        SelectOff=function(){
-	    me.setSelectingTags(true);
-	    $('#tag-legend>#Off').click();
-     	    //console.log("Selection Off");
-	    addBlink($('.selectTagButtonIcon'))
-	}
-	setTimeout(SelectOff,500)
+	// We can't click on SelectTagMenu and .tagsMenuSelectButton
+	// because nodes tagged off are not identically distributed to all clients.
+	// Then we use here internal function setSelectingTags and share_Selection after.
+	$('.selectTagMenuButtonIcon').click();
+	$('#tag-legend>#Off').click();
+	addBlink($('#tag-legend>#Off'));
+     	//console.log("Selection Off");
+	var numberOff=$('.Off').length;
+	var numberOn=$('.On').length;
+	// Select next "Off" tiles with max number "On" or "Off" if it is lower
+	var numberToView=Math.min(numberOn,numberOff)
+	
+	var checkEndselectOffStickers = setInterval(function() {
+	    if ( me.getSelectedNodes().length >= numberToView) {
+		clearInterval(checkEndselectOffStickers);
+		selectedNodes=selectedNodes.slice(0,numberToView);
 
-	ShareSelectionOff=function() {
-	    me.setSelectingTags(false);
-	    //$('#tag-legend>#Off').click();
-	    addBlink($('#tag-legend>#Off'))
-     	    //console.log("unSelection Off");
+	addBlink($('.selectTagButtonIcon'))
+	me.setSelectingTags(false);
+	//$('#tag-legend>#Off').click();
+     	//console.log("unSelection Off");
 
-    	    var listSelectionIds = [];
-    	    var listSectionTiles=me.getSelectedNodes()
-    	    for(O in listSectionTiles)  { 
-    		listSelectionIds.push(listSectionTiles[O].getId());
-    	    }
-     	    //console.log("share_Selection",listSelectionIds);
-    	    var cdata ={"room":my_session, "Selection": "["+listSelectionIds.toString()+"]" }
-    	    socket.emit("share_Selection", cdata);
-	    addBlink($('.selectTagButtonIcon'))
-	}
-	setTimeout(ShareSelectionOff,800)
+    	var listSelectionIds = [];
+    	var listSectionTiles=me.getSelectedNodes();
+    	for(O in listSectionTiles)  { 
+    	    listSelectionIds.push(listSectionTiles[O].getId());
+    	}
+     	//console.log("share_Selection",listSelectionIds);
+	receive_deploy_Selection=false;
+    	var cdata ={"room":my_session, "Selection": "["+listSelectionIds.toString()+"]" }
+    	socket.emit("share_Selection", cdata);
+	addBlink($('.selectTagButtonIcon'));
+	var checkEndshareSelectionOff = setInterval(function() {
+	    if (receive_deploy_Selection) {
+		clearInterval(checkEndshareSelectionOff);
 
-	var newtag="Next"+nextList.length
-	nextList.push(newtag)
-	newTagFun=function(){
-	    cdata={"room":my_session,"NewTag":newtag};
-	    socket.emit("add_Tag", cdata, function(sdata){
- 		console.log("socket add New Tag ", cdata);
-	    });
-	}
-	setTimeout(newTagFun,1500)
+	var newtag="Next"+nextList.length;
+	nextList.push(newtag);
+	receive_Add_Tag=false;
+	cdata={"room":my_session,"NewTag":newtag};
+	socket.emit("add_Tag", cdata, function(sdata){
+ 	    console.log("socket add New Tag ", cdata);
+	});
 
-	selectionToNewTagFun=function(){
-	    $('.selectionToTagButtonIcon').click()
-	    $('#tag-legend>#'+newtag).click();
-	    $('.selectionToTagButtonIcon').click()
-	    addBlink($('.selectionToTagButtonIcon'))
-     	    console.log("selectionToTagButtonIcon");
-	}
-	setTimeout(selectionToNewTagFun,2000)
-	    
-	GroupOff=function(){
-	    $('.alignTagButtonIcon').click();
-	    $('#tag-legend>#'+newtag).click();
-	    $('.alignTagButtonIcon').click();
-	    addBlink($('.alignTagButtonIcon'));
-     	    console.log("GroupOff");
-	}
-	setTimeout(GroupOff,3000)
+	addNextTag=0;
+	var checkEndaddNextTag = setInterval(function() {
+	    if (receive_Add_Tag) {
+		clearInterval(checkEndaddNextTag);
+	
+	$('.selectionToTagButtonIcon').click()
+	addBlink($('.selectionToTagButtonIcon'));
+	$('#tag-legend>#'+newtag).click();
+	var checkEndselectionToTag = setInterval(function() {
+	    if ( $('.'+newtag).length >= numberToView ) {
+		clearInterval(checkEndselectionToTag);
 
-	ClearSelection=function(){
-	    $('.clearSelectionButtonIcon').click();
-     	    console.log("ClearSelection");
-	}
-	setTimeout(ClearSelection,4000)
+	$('.closeSelectTagMenuButtonIcon').click();
+
+	$('.alignTagButtonIcon').click();
+	addBlink($('.alignTagButtonIcon'));
+	EndOfGroupping=false;
+	$('#tag-legend>#'+newtag).click();
+
+	var checkEndalignTag = setInterval(function() {
+	    if ( EndOfGroupping ) {
+		clearInterval(checkEndalignTag);
+
+	$('.closeAlignTagButtonIcon').click();
+
+	$('.clearSelectionButtonIcon').click();
 
 	$('#'+id+'option'+optionNumber).removeClass('closeNextTilesButtonIcon').addClass('nextTilesButtonIcon');
+
+	    }
+	}, 100)
+	    }
+	}, 100)
+	    }
+	}, 100)
+	    }
+	}, 100)
+	    }
+	}, 100)
+	    }
+	}, 100)
     });
     menuIconClassAttributesTab.push("nextTilesButtonIcon");
     menuShareEvent.push(false);
@@ -3885,15 +4122,24 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			// Check length: if a tag is already in the legend, there’s no need in putting it up again (TO DO: refine the test…)
 			for(k=0;k<computedTagsList.length;k++)  { 
 
-			    if (computedTagsList[k]=="")  { 
+			    var ck=computedTagsList[k]
+			    if (ck=="")  { 
 				break;
 			    }
-			    $('#tag-legend').append('<div id =' + computedTagsList[k] + ' class=tag>' + computedTagsList[k] + '</div>');
-			    ComputedTag=$('#' + computedTagsList[k]);
-			    ComputedTag.css({
-				    backgroundColor : attributedTagsColorsArray[computedTagsList[k]]
-
-					});
+			    if ( ck in globalFloatingTags ) {
+				var symb=globalFloatingTags[ck]["symb"]
+				$('#tag-legend').append('<div id =' + ck + ' class=tag>'+ck +" "+ symb +'</div>');
+				ComputedTag=$('#' + ck);
+				ComputedTag.css({
+				    'background': 'linear-gradient(to right,'+globalFloatingTags[ck]["cm"]+','+globalFloatingTags[ck]["cM"]+')'
+				});
+			    } else {
+				$('#tag-legend').append('<div id =' + ck + ' class=tag>' + ck + '</div>');
+				ComputedTag=$('#' + ck);
+				ComputedTag.css({
+				    backgroundColor : attributedTagsColorsArray[ck]
+				});
+			    }
 			    if ( ComputedTag.position().top+ComputedTag.height() > $("#tag-legend").height() ) {
 				$("#tag-legend").css({height: ComputedTag.position().top + ComputedTag.height()+10});
 			    }
@@ -3932,17 +4178,18 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		$('#'+id+'option'+optionNumber).removeClass('tagsGlobalMenuButtonIcon').addClass('closeTagsGlobalMenuButtonIcon');
 
 	    } else { 	
+		me.tagMenu.closeAllOptions();
 		menuTags.css("visibility", "hidden");
 		$('#tag-notif').hide();
-		for (var i=0; i<tagMenuEventTab.length;i++)  { 
-		    var tmp_class = $('#'+id+'option'+i).attr("class").match(/\w+ButtonIcon/g)[0];
-		    var isNotClosed = tmp_class.match("close"); 
-		    if (isNotClosed)  { 
-			var new_class = tmp_class.replace("close", "");
-			new_class = new_class[0].toLowerCase() + new_class.slice(1);
-			menuTags.children('#'+id+'option'+i).removeClass(tmp_class).addClass(new_class);
-		    }
-		}
+		// for (var i=0; i<tagMenuEventTab.length;i++)  { 
+		//     var tmp_class = $('#'+id+'option'+i).attr("class").match(/\w+ButtonIcon/g)[0];
+		//     var isNotClosed = tmp_class.match("close"); 
+		//     if (isNotClosed)  { 
+		// 	var new_class = tmp_class.replace("close", "");
+		// 	new_class = new_class[0].toLowerCase() + new_class.slice(1);
+		// 	menuTags.children('#'+id+'option'+i).removeClass(tmp_class).addClass(new_class);
+		//     }
+		// }
 		//console.log(menuTags.children());
 		$('.stickers_zone').css("visibility", "hidden");
 		$('#tag-legend').hide();
@@ -3974,11 +4221,18 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     menuEventTab.push(    function(v, id, optionNumber){
 	if(v==true)  { 
 	    menuZoomGlobal
-		.css("top",menuGlobal.position()["top"]+$('.zoomGlobalMenuButtonIcon').position()["top"])
+		.css("top", (function(){
+		    if (touchok) {
+			return TagHeight;
+		    } else {
+			return menuGlobal.position()["top"]+$('.zoomGlobalMenuButtonIcon').position()["top"];
+		    }
+		})() )
 		.css("left",200)
 		.css("visibility", "visible");
 	    $('#'+id+'option'+optionNumber).removeClass('zoomGlobalMenuButtonIcon').addClass('closeZoomGlobalMenuButtonIcon');
 	} else { 
+	    me.zoomGlobalMenu.closeAllOptions();
 	    menuZoomGlobal.css("visibility", "hidden");
 	    $('#'+id+'option'+optionNumber).removeClass('closeZoomGlobalMenuButtonIcon').addClass('zoomGlobalMenuButtonIcon');
 	}
@@ -3997,6 +4251,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		.css("visibility", "visible");
 	    $('#'+id+'option'+optionNumber).removeClass('managementGlobalMenuButtonIcon').addClass('closeManagementGlobalMenuButtonIcon');
 	} else { 
+	    me.managementGlobalMenu.closeAllOptions();
 	    menuManagementGlobal.css("visibility", "hidden");
 	    $('#'+id+'option'+optionNumber).removeClass('closeManagementGlobalMenuButtonIcon').addClass('managementGlobalMenuButtonIcon');
 	}
@@ -4009,11 +4264,19 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     menuEventTab.push(    function(v, id, optionNumber){
 	if(v==true)  { 
 	    menuStateGlobal
-		.css("top",menuGlobal.position()["top"]+$('.stateGlobalMenuButtonIcon').position()["top"])
+		.css("top", (function(){
+		    if (touchok) {
+			return TagHeight;
+		    } else {
+			return menuGlobal.position()["top"]+$('.stateGlobalMenuButtonIcon').position()["top"];
+		    }
+		})() )
 		.css("left",200)
 		.css("visibility", "visible");
 	    $('#'+id+'option'+optionNumber).removeClass('stateGlobalMenuButtonIcon').addClass('closeStateGlobalMenuButtonIcon');
 	} else { 
+	    // We want to keep state info on demand.
+	    //me.stateGlobalMenu.closeAllOptions();
 	    menuStateGlobal.css("visibility", "hidden");
 	    $('#'+id+'option'+optionNumber).removeClass('closeStateGlobalMenuButtonIcon').addClass('stateGlobalMenuButtonIcon');
 	}
@@ -4065,11 +4328,18 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     menuEventTab.push(    function(v, id, optionNumber){
 	if(v==true)  { 
 	    menuCancelGlobal
-		.css("top",menuGlobal.position()["top"]+$('.cancelGlobalMenuButtonIcon').position()["top"])
+		.css("top", (function(){
+		    if (touchok) {
+			return TagHeight;
+		    } else {
+			return menuGlobal.position()["top"]+$('.cancelGlobalMenuButtonIcon').position()["top"];
+		    }
+		})() )
 		.css("left",200)
 		.css("visibility", "visible");
 	    $('#'+id+'option'+optionNumber).removeClass('cancelGlobalMenuButtonIcon').addClass('closeCancelGlobalMenuButtonIcon');
 	} else { 
+	    me.cancelGlobalMenu.closeAllOptions();
 	    menuCancelGlobal.css("visibility", "hidden");
 	    $('#'+id+'option'+optionNumber).removeClass('closeCancelGlobalMenuButtonIcon').addClass('cancelGlobalMenuButtonIcon');
 	}
@@ -4083,7 +4353,13 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     menuEventTab.push(    function(v, id, optionNumber){
 	if(v==true)  { 
 	    menuUpdownGlobal
-		.css("top",menuGlobal.position()["top"]+$('.updownGlobalMenuButtonIcon').position()["top"])
+		.css("top", (function(){
+		    if (touchok) {
+			return TagHeight;
+		    } else {
+			return menuGlobal.position()["top"]+$('.updownGlobalMenuButtonIcon').position()["top"];
+		    }
+		})() )
 		.css("left",200)
 		.css("visibility", "visible");
 	    $('#'+id+'option'+optionNumber).removeClass('updownGlobalMenuButtonIcon').addClass('closeUpdownGlobalMenuButtonIcon');
@@ -4119,7 +4395,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    top : 0,
 	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')), //parseInt(window.innerWidth) - tagMenuEventTab.length*200,
 	    visible : 'hidden',
-	    classN : 'super',
+	    classN : 'tag',
 	    height : 200,
 	    width : 200,
 	    rightMargin :0,
@@ -4138,7 +4414,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    top : parseInt($(me.menu.getHtmlMenuSelector()).css('height')),
 	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')),
 	    visible : 'hidden',
-	    classN : 'super',
+	    classN : 'zoom',
 	    height : 200,
 	    width : 200,
 	    rightMargin :0,
@@ -4153,32 +4429,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     menuZoomGlobal=$('#menuzoomGlobal');
     subMenusGlobal.push(this.zoomGlobalMenu);
     
-    this.stateGlobalMenu = new Menu("stateGlobal", $('header'), stateGlobalMenuTitleTab, stateGlobalMenuEventTab, stateGlobalMenuIconClassAttributesTab, stateGlobalMenuShareEvent,{
-	    position : "fixed",
-	    top : parseInt($(me.menu.getHtmlMenuSelector()).css('height')),
-	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')),
-	    visible : 'hidden',
-	    classN : 'super',
-	    height : 200,
-	    width : 200,
-	    rightMargin :0,
-	    backgroundColor: "rgba(0, 0, 0, 0.6)",
-	    //borderStyle : "solid",
-	    //borderWidth : "5px", 
-	    //borderColor : "green",
-	    orientation : "H",
-	    zIndex : 149
-
-	});
-    menuStateGlobal=$('#menustateGlobal');
-    subMenusGlobal.push(this.stateGlobalMenu);
-    
     this.managementGlobalMenu = new Menu("managementGlobal", $('header'), managementGlobalMenuTitleTab, managementGlobalMenuEventTab, managementGlobalMenuIconClassAttributesTab, managementGlobalMenuShareEvent,{
 	    position : "fixed",
 	    top : parseInt($(me.menu.getHtmlMenuSelector()).css('height')),
 	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('left')),
 	    visible : 'hidden',
-	    classN : 'super',
+	    classN : 'manage',
 	    height : 200,
 	    width : 200,
 	    rightMargin :0,
@@ -4193,12 +4449,32 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     menuManagementGlobal=$('#menumanagementGlobal');
     subMenusGlobal.push(this.managementGlobalMenu);
     
+    this.stateGlobalMenu = new Menu("stateGlobal", $('header'), stateGlobalMenuTitleTab, stateGlobalMenuEventTab, stateGlobalMenuIconClassAttributesTab, stateGlobalMenuShareEvent,{
+	    position : "fixed",
+	    top : parseInt($(me.menu.getHtmlMenuSelector()).css('height')),
+	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')),
+	    visible : 'hidden',
+	    classN : 'state',
+	    height : 200,
+	    width : 200,
+	    rightMargin :0,
+	    backgroundColor: "rgba(0, 0, 0, 0.6)",
+	    //borderStyle : "solid",
+	    //borderWidth : "5px", 
+	    //borderColor : "green",
+	    orientation : "H",
+	    zIndex : 149
+
+	});
+    menuStateGlobal=$('#menustateGlobal');
+    subMenusGlobal.push(this.stateGlobalMenu);
+    
     this.cancelGlobalMenu = new Menu("cancelGlobal", $('header'), cancelGlobalMenuTitleTab, cancelGlobalMenuEventTab, cancelGlobalMenuIconClassAttributesTab, cancelGlobalMenuShareEvent,{
 	    position : "fixed",
 	    top : parseInt($(me.menu.getHtmlMenuSelector()).css('height')),
 	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')),
 	    visible : 'hidden',
-	    classN : 'super',
+	    classN : 'cancel',
 	    height : 200,
 	    width : 200,
 	    rightMargin :0,
@@ -4218,7 +4494,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    top : parseInt($(me.menu.getHtmlMenuSelector()).css('height')),
 	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')),
 	    visible : 'hidden',
-	    classN : 'super',
+	    classN : 'updown',
 	    height : 200,
 	    width : 200,
 	    rightMargin :0,
@@ -4238,7 +4514,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    top : 0,
  	    left : $('#menutagsGlobal').offset().left+$('#menutagsGlobal').width(),
 	    visible : 'hidden',
-	    classN : 'super',
+	    classN : 'draw',
 	    height : 200,
 	    width : 200,
 	    rightMargin :0,
@@ -4256,7 +4532,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    top : 0,
 	    left : $('#menutagsGlobal').offset().left+$('#menutagsGlobal').width(),
 	    visible : 'hidden',
-	    classN : 'super',
+	    classN : 'zoomAction',
 	    height : 200,
 	    width : 200,
 	    rightMargin :0,
@@ -4274,7 +4550,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    top : 0,
 	    left : $('#menutagsGlobal').offset().left+$('#menutagsGlobal').width(),
 	    visible : 'hidden',
-	    classN : 'super',
+	    classN : 'masterslave',
 	    height : 200,
 	    width : 200,
 	    rightMargin :0,
@@ -4292,7 +4568,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    top : 100,
 	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')), //parseInt(window.innerWidth) - tagMenuEventTab.length*200,
 	    visible : 'hidden',
-	    classN : 'super',
+	    classN : 'tagselect',
 	    height : 200,
 	    width : 200,
 	    rightMargin :0,
@@ -4311,7 +4587,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    top : 100,
 	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')), //parseInt(window.innerWidth) - tagMenuEventTab.length*200,
 	    visible : 'hidden',
-	    classN : 'super',
+	    classN : 'tagmanage',
 	    height : 200,
 	    width : 200,
 	    rightMargin :0,
@@ -5802,6 +6078,8 @@ dblclick: dblclickFunction*/
 	// zoomNodecodes : on click, Zoom 
 	clickzoomNode = function(){
 
+	    if ( configBehaviour.sharedZoomNodes && emit_click("zoomNodeButtonIcon",this.id))
+		return
 	    //console.log("zoomNode clicked", this.id);
 	    var id = this.id.replace("zoomNode", "");
 
@@ -5820,8 +6098,10 @@ dblclick: dblclickFunction*/
 	    _allowDragAndDrop = false;
  
 	    me.magnifyingGlass(nodeZoomTab,ratio,initSpread);
+	    if ( configBehaviour.sharedZoomNodes )
+		$('#buttonUnzoom').on('click',function(){ emit_click("unzoomButtonIcon","buttonUnZoom") } )
 	};
-		    
+	
 	$('.zoomNodeButtonIcon').on({
 		click : clickzoomNode
 		    });

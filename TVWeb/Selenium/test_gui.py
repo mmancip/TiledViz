@@ -16,6 +16,11 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.events import EventFiringWebDriver, AbstractEventListener
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+#os.system("ls -la /usr/local/Selenium/")
 
 #logging.getLogger().setLevel(logging.INFO)
 
@@ -24,6 +29,9 @@ from selenium.webdriver.support.events import EventFiringWebDriver, AbstractEven
 
 # Wait Nsec after each call
 Nsec = 4
+
+# Save screenshots
+SaveScreenshotBool=False
 
 class MyListener(AbstractEventListener):
     global Nsec
@@ -61,7 +69,7 @@ class TestTemplate(unittest.TestCase):
             })
 
         #        logging.info('Prepared chrome options..')
-        self.driver = webdriver.Chrome(chrome_options=chrome_options)
+        self.driver = webdriver.Chrome(options=chrome_options)
 
         # firefox_profile = webdriver.FirefoxProfile()
         # firefox_profile.set_preference('browser.download.folderList', 2)
@@ -86,7 +94,10 @@ class TestTemplate(unittest.TestCase):
         #     zoomAction.send_keys_to_element(body,Keys.CONTROL,"-").perform() # +Keys.MINUS
         # driver.get('chrome://settings/')
         # driver.execute_script('chrome.settingsPrivate.setDefaultZoom(1.5);')
-        self.driver.execute_script("document.body.style.zoom='25%'")
+        self.driver.execute_script("document.body.style.webkitTransformOriginX=document.body.style.mstransformOriginX=document.body.style.transformOriginX=0;"+
+                                   "document.body.style.webkitTransformOriginY=document.body.style.mstransformOriginY=document.body.style.transformOriginY=0;"+
+                                   "document.body.style.webkitTransformOriginZ=document.body.style.mstransformOriginZ=document.body.style.transformOriginZ=0;"+
+                                   "document.body.style.webkitTransform = document.body.style.msTransform = document.body.style.transform = 'scale(.25)'")
 
         self.finddriver = EventFiringWebDriver(self.driver, MyListener())
 
@@ -123,19 +134,37 @@ class TestTemplate(unittest.TestCase):
             button=finddriver.find_element_by_id('submit')
             button.click()
             
-            button=finddriver.find_element_by_xpath("//label/input[@id='chosen_session-3']")
+            elem=finddriver.find_element_by_id("filter_chosen_project_session")
+            elem.send_keys("TestSelenium")
+
+            button=finddriver.find_element_by_id('Valid_chosen_project_session')
             button.click()
 
-            thedriver.save_screenshot('/tmp/tests/test7-which_session.png')
+            if (SaveScreenshotBool):
+                thedriver.save_screenshot('/tmp/tests/test7-which_session.png')
 
-            thedriver.set_window_size(8192, 4320)
 
             button=finddriver.find_element_by_id('submit')
             button.click()
             
-            time.sleep(2)
+            time.sleep(20)
 
-            thedriver.save_screenshot('/tmp/tests/test7-Grid_screenshot.png')
+            if (SaveScreenshotBool):
+                thedriver.save_screenshot('/tmp/tests/test7-Grid_screenshot.png')
+
+            thedriver.execute_script("document.body.style.webkitTransformOriginX=document.body.style.mstransformOriginX=document.body.style.transformOriginX=0;"+
+                                   "document.body.style.webkitTransformOriginY=document.body.style.mstransformOriginY=document.body.style.transformOriginY=0;"+
+                                   "document.body.style.webkitTransformOriginZ=document.body.style.mstransformOriginZ=document.body.style.transformOriginZ=0;"+
+                                   "document.body.style.webkitTransform = document.body.style.msTransform = document.body.style.transform = 'scale(.25)';"+
+                                   "document.body.style.width='7680px';")
+            thedriver.execute_script("document.body.style.margintop='-1220px'")
+            thedriver.execute_script("document.body.style.marginleft='-2880px';")
+            #thedriver.set_window_size(7680, 4320)
+            thedriver.set_window_size(1920, 1080)
+            thedriver.maximize_window()
+            time.sleep(10)
+            if (SaveScreenshotBool):
+                thedriver.save_screenshot('/tmp/tests/test7-Grid_unzoomed_screenshot.png')
 
             # print("Console :")
             # logging.debug(" Console :")
@@ -144,367 +173,421 @@ class TestTemplate(unittest.TestCase):
             #     logging.debug(entry)
             
 
-            button=finddriver.find_element_by_xpath("//div[3]/div[2][@id='option1']")
+            # if (SaveScreenshotBool):
+            #     thedriver.save_screenshot('/tmp/tests/test7-TileMenu.png')
+            time.sleep(20)
+            wait = WebDriverWait(thedriver, 20)
+            button = wait.until(EC.visibility_of_element_located((By.ID, 'Globaloption8')))
+            button = wait.until(EC.element_to_be_clickable((By.ID, 'Globaloption8')))
             button.click()
             
-            thedriver.save_screenshot('/tmp/tests/test7-TileMenu.png')
+            # if (SaveScreenshotBool):
+            #     thedriver.save_screenshot('/tmp/tests/test7-TileMenu.png')
 
-            button=finddriver.find_element_by_xpath("//div/div[5]/div[2]")
+            wait = WebDriverWait(thedriver, 2)
+            button = wait.until(EC.element_to_be_clickable((By.ID, '0option1')))
             button.click()
 
+            wait = WebDriverWait(thedriver, 6)
+            postit0 = wait.until(EC.visibility_of_element_located((By.ID,'postit0')))
+
+            if (SaveScreenshotBool):
+                thedriver.save_screenshot('/tmp/tests/test7-postIt.png')
             time.sleep(2)
-
-            thedriver.save_screenshot('/tmp/tests/test7-postIt.png')
- 
-            button=finddriver.find_element_by_xpath("//div/div[5]/div[2]")
-            button.click()
- 
-            button=finddriver.find_element_by_xpath("//div[2]/div[5]/div")
             button.click()
 
-            button=finddriver.find_element_by_id('tile-opacity-1')
+            button=finddriver.find_element_by_id("1option0")
+            button.click()
+
+            wait = WebDriverWait(thedriver, 3)
+            button = wait.until(EC.element_to_be_clickable((By.ID,'tile-opacity-1')))
             button.click()
             
-            thedriver.save_screenshot('/tmp/tests/test7-opacity_before_screenshot.png')
+            slider=finddriver.find_element_by_id('tileOpacitySlider1')
+            if (SaveScreenshotBool):
+                thedriver.save_screenshot('/tmp/tests/test7-opacity_before_screenshot.png')
 
- 
-            slider=finddriver.find_element_by_xpath("//input[@id='tileOpacitySlider1']")
-
-            #Using Action Class
-            move = ActionChains(thedriver);
-            move.move_to_element(slider);
-            move.move_by_offset(20, 0);
-            move.perform();
+            # #Using Action Class
+            # move = ActionChains(finddriver);
+            # move.move_to_element(slider);
+            # move.move_by_offset(20, 0);
+            # move.perform();
+            # # Actions act=new Actions(driver);
+            # # act.moveToElement(element).click().perform();
 
             button=finddriver.find_element_by_id('tileOpacitySlider1')
             button.click()
 
-            thedriver.save_screenshot('/tmp/tests/test7-opacity_after_screenshot.png')
+            if (SaveScreenshotBool):
+                thedriver.save_screenshot('/tmp/tests/test7-opacity_after_screenshot.png')
             
-            
-            button=finddriver.find_element_by_xpath("//div[2]/div[5]/div")
-            button.click()
-
-            button=finddriver.find_element_by_xpath("//div[6]/div[5]/div[3]")
-            button.click()
-
-            thedriver.save_screenshot('/tmp/tests/test7-draw_mode_screenshot.png')
-
-            canvas=finddriver.find_element_by_id('drawCanvas5')
-            
-            #Using Action Class
-            move = ActionChains(thedriver)
-            move.move_to_element_with_offset(canvas,200,200);
-            move.click_and_hold(canvas)
-            move.move_by_offset(70, -55)
-            move.release(canvas)
-            move.perform()
-            
-            thedriver.save_screenshot('/tmp/tests/test7-draw_screenshot.png')
- 
-            button=finddriver.find_element_by_xpath("//div[5]/div[5]")
-            button.click()
-
-            time.sleep(2)
-
-            button=finddriver.find_element_by_xpath("//div[10]/div[5]/div[3]")
+            button=finddriver.find_element_by_id('tile-opacity-1')
             button.click()
             
- 
-            button=finddriver.find_element_by_xpath("//div[5]/div[6]")
-            button.click()
- 
-            time.sleep(1)
 
-            button=finddriver.find_element_by_xpath("//div[7][@id='option6']")
+            button=finddriver.find_element_by_id("4option2")
             button.click()
 
-            thedriver.save_screenshot('/tmp/tests/test7-draw_management_screenshot.png')
+            if (SaveScreenshotBool):
+                thedriver.save_screenshot('/tmp/tests/test7-draw_mode_screenshot.png')
 
-            button=finddriver.find_element_by_xpath("//div[8]/div/input[@name='drawNode5']")
-            button.click()
+            colorButton=finddriver.find_element_by_id('Drawoption0')
+            colorButton.click()
 
-            button=finddriver.find_element_by_xpath("//div[7][@id='option6']")
-            button.click()
+            # colorChoose=finddriver.find_element_by_id('colorChoose')
+            # colorChoose.click()
+            # colorChoose.send_keys("#ea1d1d")
 
-            button=finddriver.find_element_by_xpath("//div[2]/div[5]/div[4]")
-            button.click()
- 
-            button=finddriver.find_element_by_xpath("//div[4]/div[5]/div[4]")
-            button.click()
- 
-            button=finddriver.find_element_by_xpath("//div[8]/div[5]/div[5]")
-            button.click()
+            colorButton=finddriver.find_element_by_id('Drawoption0')
+            colorButton.click()
 
-            button=finddriver.find_element_by_xpath("//div[16]/div[5]/div[5]")
-            button.click()
-
-            thedriver.save_screenshot('/tmp/tests/test7-lines_columns_exchange_screenshot.png')
+            canvas=finddriver.find_element_by_id('drawCanvas4')
             
+            # #Using Action Class
+            # move = ActionChains(thedriver)
+            # move.move_to_element_with_offset(canvas,200,200);
+            # move.click_and_hold(canvas[0])
+            # move.move_by_offset(70, -55)
+            # move.release(canvas)
+            # move.perform()
+            
+            if (SaveScreenshotBool):
+                thedriver.save_screenshot('/tmp/tests/test7-draw_screenshot.png')
+ 
+            saveOnTileButton=finddriver.find_element_by_id('Drawoption4')
+            saveOnTileButton.click()
 
-            button=finddriver.find_element_by_xpath("//div[3]/div[2][@id='option1']")
+            time.sleep(4)
+            if (SaveScreenshotBool):
+                thedriver.save_screenshot('/tmp/tests/test7-back_from_draw_screenshot.png')
+
+            wait = WebDriverWait(thedriver, 4)
+            button = wait.until(EC.element_to_be_clickable((By.ID,"Globaloption6")))
             button.click()
- 
-            button=finddriver.find_element_by_xpath("//div[3]/div[5][@id='option4']")
+
+            wait = WebDriverWait(thedriver, 4)
+            button = wait.until(EC.element_to_be_clickable((By.ID,"managementGlobaloption0")))
+            button.click()        
+            
+            if (SaveScreenshotBool):
+                thedriver.save_screenshot('/tmp/tests/test7-draw_management_screenshot.png')
+
+            button=finddriver.find_element_by_id("Globaloption6")
             button.click()
- 
+
+            button=finddriver.find_element_by_id("6option4")
+            button.click()
+
+            wait = WebDriverWait(thedriver, 3)
+            button = wait.until(EC.element_to_be_clickable((By.ID,"12option4")))
+            button.click()
+
+            button=finddriver.find_element_by_id("3option3")
+            button.click()
+
+            button=finddriver.find_element_by_id("5option3")
+            button.click()
+
+            if (SaveScreenshotBool):
+                thedriver.save_screenshot('/tmp/tests/test7-lines_columns_exchange_screenshot.png')
+            
+            button=finddriver.find_element_by_id("Globaloption8")
+            button.click()
+            
+            button=finddriver.find_element_by_id("Globaloption5")
+            button.click()
+            
+            button=finddriver.find_element_by_id("zoomGlobaloption0")
+            button.click()
+            
             hitbox0=finddriver.find_element_by_id('hitbox0')
-            move = ActionChains(thedriver)
-            move.move_to_element(hitbox0)
-            move.click(hitbox0)
-            move.perform()
+            hitbox0.click()
+            # move = ActionChains(thedriver)
+            # move.move_to_element(hitbox0)
+            # move.click(hitbox0)
+            # move.perform()
+            time.sleep(2)
             
  
             hitbox1=finddriver.find_element_by_id('hitbox1')
-            move = ActionChains(thedriver)
-            move.move_to_element(hitbox1)
-            move.click(hitbox1)
-            move.perform()
+            hitbox1.click()
+            # move = ActionChains(thedriver)
+            # move.move_to_element(hitbox1)
+            # move.click(hitbox1)
+            # move.perform()
+            time.sleep(2)
             
             hitbox5=finddriver.find_element_by_id('hitbox5')
-            move = ActionChains(thedriver)
-            move.move_to_element(hitbox5)
-            move.click(hitbox5)
-            move.perform()
+            hitbox5.click()
+            # move = ActionChains(thedriver)
+            # move.move_to_element(hitbox5)
+            # move.click(hitbox5)
+            # move.perform()
+            time.sleep(2)
             
  
             hitbox4=finddriver.find_element_by_id('hitbox4')
-            move = ActionChains(thedriver)
-            move.move_to_element(hitbox4)
-            move.click(hitbox4)
-            move.perform()
-
-            thedriver.save_screenshot('/tmp/tests/test7-select_0_1_4_5_screenshot.png')
-            
-            button=finddriver.find_element_by_xpath("//div[6]/div")
-            button.click()
- 
+            hitbox4.click()
+            # move = ActionChains(thedriver)
+            # move.move_to_element(hitbox4)
+            # move.click(hitbox4)
+            # move.perform()
             time.sleep(2)
 
-            thedriver.save_screenshot('/tmp/tests/test7-Zoom_screenshot.png')
+            if (SaveScreenshotBool):
+                thedriver.save_screenshot('/tmp/tests/test7-select_0_1_4_5_screenshot.png')
             
-            button=finddriver.find_element_by_id('Zclose2')
+            button=finddriver.find_element_by_id("Zoomoption0")
+            button.click()
+            
+            wait = WebDriverWait(thedriver, 3)
+            button = wait.until(EC.element_to_be_clickable((By.ID,'Zclose2')))
+
+            if (SaveScreenshotBool):
+                thedriver.save_screenshot('/tmp/tests/test7-Zoom_screenshot.png')
+            
             button.click()
             
  
             button=finddriver.find_element_by_id('Zclose0')
             button.click()
             
-            thedriver.save_screenshot('/tmp/tests/test7-zclose_screenshot.png')
+            if (SaveScreenshotBool):
+                thedriver.save_screenshot('/tmp/tests/test7-zclose_screenshot.png')
             
             button=finddriver.find_element_by_id('buttonUnzoom')
             button.click()
             
  
-            button=finddriver.find_element_by_xpath("//div[3]/div[5][@id='option4']")
-            button.click()
- 
-            button=finddriver.find_element_by_xpath("//div[8][@id='option7']")
-            button.click()
- 
-            button=finddriver.find_element_by_id('onoff11')
+            button=finddriver.find_element_by_id("Globaloption5")
             button.click()
             
- 
-            button=finddriver.find_element_by_id('onoff13')
-            button.click()
-            
- 
-            button=finddriver.find_element_by_id('onoff8')
-            button.click()
-            
- 
-            button=finddriver.find_element_by_xpath("//div[3]/div[4][@id='option3']")
-            button.click()
- 
-            button=finddriver.find_element_by_xpath("//div[4]/div")
-            button.click()
- 
-            time.sleep(1)
-
-            button=finddriver.find_element_by_id('Off')
-            button.click()
-            
-            thedriver.save_screenshot('/tmp/tests/test7-select_Off_tag_screenshot.png')
- 
-            button=finddriver.find_element_by_xpath("//div[3]/div[5][@id='option4']")
-            button.click()
- 
-            button=finddriver.find_element_by_xpath("//div[6]/div")
-            button.click()
- 
-            thedriver.save_screenshot('/tmp/tests/test7-Zoom_tag_Off_screenshot.png')
- 
-            button=finddriver.find_element_by_id('buttonUnzoom')
-            button.click()
-            
-            time.sleep(2)
-
-            button=finddriver.find_element_by_xpath("//div[4]/div")
-            button.click()
- 
-            button=finddriver.find_element_by_xpath("//div[3]/div[5][@id='option4']")
-            button.click()
- 
-            button=finddriver.find_element_by_xpath("//div[4]/div[2]")
-            button.click()
- 
-            button=finddriver.find_element_by_id('Off')
-            button.click()
-            
-            thedriver.save_screenshot('/tmp/tests/test7-sort_Off_screenshot.png')
- 
-
-            button=finddriver.find_element_by_xpath("//div[4]/div[2]")
-            button.click()
- 
-            button=finddriver.find_element_by_xpath("//div[10][@id='option9']")
-            button.click()
-
-            thedriver.save_screenshot('/tmp/tests/test7-QRcodes_screenshot.png')
- 
-            button=finddriver.find_element_by_xpath("//div[10][@id='option9']")
-            button.click()
- 
-            button=finddriver.find_element_by_xpath("//div[9][@id='option8']")
-            button.click()
- 
-            time.sleep(1)
-
-            button=finddriver.find_element_by_id('zoomNode9')
-            button.click()
-            
-            thedriver.save_screenshot('/tmp/tests/test7-Zoom_on_node9_screenshot.png')
-
-            button=finddriver.find_element_by_id('buttonUnzoom')
-            button.click()
-            
-            time.sleep(1)
- 
-            button=finddriver.find_element_by_xpath("//div[3]/div[4]")
-            button.click()
- 
-            button=finddriver.find_element_by_xpath("//div[@id='menu999']/div[11]")
-            move = ActionChains(thedriver)
-            move.move_to_element(button)
-            move.click(button)
-            move.perform()
- 
-            thedriver.save_screenshot('/tmp/tests/test7-info_node_always_show_screenshot.png')
- 
-            button=finddriver.find_element_by_xpath("//div[@id='menu999']/div[11]")
-            move = ActionChains(thedriver)
-            move.move_to_element(button)
-            move.click(button)
-            move.perform()
-            # button=finddriver.find_element_by_xpath("//div[@id='menu999']/div[11]")
+            # button=finddriver.find_element_by_xpath("//div[3]/div[5][@id='option4']")
             # button.click()
  
-            # button=finddriver.find_element_by_xpath("//div[15][@id='option14']")
+            # button=finddriver.find_element_by_xpath("//div[8][@id='option7']")
+            # button.click()
+ 
+            # button=finddriver.find_element_by_id('onoff11')
+            # button.click()
+            
+ 
+            # button=finddriver.find_element_by_id('onoff13')
+            # button.click()
+            
+ 
+            # button=finddriver.find_element_by_id('onoff8')
+            # button.click()
+            
+ 
+            # button=finddriver.find_element_by_xpath("//div[3]/div[4][@id='option3']")
+            # button.click()
+ 
+            # button=finddriver.find_element_by_xpath("//div[4]/div")
+            # button.click()
+ 
+            # time.sleep(1)
+
+            # button=finddriver.find_element_by_id('Off')
+            # button.click()
+            
+            # # if (SaveScreenshotBool):
+            # #     thedriver.save_screenshot('/tmp/tests/test7-select_Off_tag_screenshot.png')
+ 
+            # button=finddriver.find_element_by_xpath("//div[3]/div[5][@id='option4']")
+            # button.click()
+ 
+            # button=finddriver.find_element_by_xpath("//div[6]/div")
+            # button.click()
+ 
+            # # if (SaveScreenshotBool):
+            # #     thedriver.save_screenshot('/tmp/tests/test7-Zoom_tag_Off_screenshot.png')
+ 
+            # button=finddriver.find_element_by_id('buttonUnzoom')
+            # button.click()
+            
+            # time.sleep(2)
+
+            # button=finddriver.find_element_by_xpath("//div[4]/div")
+            # button.click()
+ 
+            # button=finddriver.find_element_by_xpath("//div[3]/div[5][@id='option4']")
+            # button.click()
+ 
+            # button=finddriver.find_element_by_xpath("//div[4]/div[2]")
+            # button.click()
+ 
+            # button=finddriver.find_element_by_id('Off')
+            # button.click()
+            
+            # # if (SaveScreenshotBool):
+            # #     thedriver.save_screenshot('/tmp/tests/test7-sort_Off_screenshot.png')
+ 
+
+            # button=finddriver.find_element_by_xpath("//div[4]/div[2]")
+            # button.click()
+ 
+            # button=finddriver.find_element_by_xpath("//div[10][@id='option9']")
+            # button.click()
+
+            # # if (SaveScreenshotBool):
+            # #     thedriver.save_screenshot('/tmp/tests/test7-QRcodes_screenshot.png')
+ 
+            # button=finddriver.find_element_by_xpath("//div[10][@id='option9']")
+            # button.click()
+ 
+            # button=finddriver.find_element_by_xpath("//div[9][@id='option8']")
+            # button.click()
+ 
+            # time.sleep(1)
+
+            # button=finddriver.find_element_by_id('zoomNode9')
+            # button.click()
+            
+            # # if (SaveScreenshotBool):
+            # #     thedriver.save_screenshot('/tmp/tests/test7-Zoom_on_node9_screenshot.png')
+
+            # button=finddriver.find_element_by_id('buttonUnzoom')
+            # button.click()
+            
+            # time.sleep(1)
+ 
+            # button=finddriver.find_element_by_xpath("//div[3]/div[4]")
+            # button.click()
+ 
+            # button=finddriver.find_element_by_xpath("//div[@id='menu999']/div[11]")
             # move = ActionChains(thedriver)
             # move.move_to_element(button)
             # move.click(button)
             # move.perform()
  
-            # thedriver.save_screenshot('/tmp/tests/test7-save_Session_screenshot.png')
+            # # if (SaveScreenshotBool):
+            # #     thedriver.save_screenshot('/tmp/tests/test7-info_node_always_show_screenshot.png')
  
-            # button=finddriver.find_element_by_id('submitSave')
-            # button.click()
+            # button=finddriver.find_element_by_xpath("//div[@id='menu999']/div[11]")
+            # move = ActionChains(thedriver)
+            # move.move_to_element(button)
+            # move.click(button)
+            # move.perform()
+            # # button=finddriver.find_element_by_xpath("//div[@id='menu999']/div[11]")
+            # # button.click()
+ 
+            # # button=finddriver.find_element_by_xpath("//div[15][@id='option14']")
+            # # move = ActionChains(thedriver)
+            # # move.move_to_element(button)
+            # # move.click(button)
+            # # move.perform()
+ 
+            # # # if (SaveScreenshotBool):
+            # # #     thedriver.save_screenshot('/tmp/tests/test7-save_Session_screenshot.png')
+ 
+            # # button=finddriver.find_element_by_id('submitSave')
+            # # button.click()
             
-            # thedriver.save_screenshot('/tmp/tests/test7-validate_save_screenshot.png')
+            # # # if (SaveScreenshotBool):
+            # # #     thedriver.save_screenshot('/tmp/tests/test7-validate_save_screenshot.png')
 
-            # button=finddriver.find_element_by_id('gGsubmit')
-            # button.click()
+            # # button=finddriver.find_element_by_id('gGsubmit')
+            # # button.click()
              
-            # thedriver.save_screenshot('/tmp/tests/test7-change_new_Session_screenshot.png')
+            # # # if (SaveScreenshotBool):
+            # # #     thedriver.save_screenshot('/tmp/tests/test7-change_new_Session_screenshot.png')
 
-            # button=finddriver.find_element_by_id('ChangeRoomYes')
+            # # button=finddriver.find_element_by_id('ChangeRoomYes')
+            # # button.click()
+            
+            # # # if (SaveScreenshotBool):
+            # # #     thedriver.save_screenshot('/tmp/tests/test7-validate_new_room_screenshot.png')
+
+
+            # button=finddriver.find_element_by_xpath("//div[16][@id='option15']")
+            # #button.click()
+            # move = ActionChains(thedriver)
+            # move.move_to_element(button)
+            # move.click(button)
+            # move.perform()
+
+            # time.sleep(1)
+            # # # if (SaveScreenshotBool):
+            # # #     thedriver.save_screenshot('/tmp/tests/test7-options_screenshot.png')
+
+            # button=finddriver.find_element_by_id('colNumber')
             # button.click()
             
-            # thedriver.save_screenshot('/tmp/tests/test7-validate_new_room_screenshot.png')
-
-
-            button=finddriver.find_element_by_xpath("//div[16][@id='option15']")
-            #button.click()
-            move = ActionChains(thedriver)
-            move.move_to_element(button)
-            move.click(button)
-            move.perform()
-
-            time.sleep(1)
-            thedriver.save_screenshot('/tmp/tests/test7-options_screenshot.png')
-
-            button=finddriver.find_element_by_id('colNumber')
-            button.click()
+ 
+            # elem=finddriver.find_element_by_xpath("//input[@id='colNumber']")
+            # elem.clear()
+            # elem.send_keys("4")
+            # elem.send_keys(Keys.TAB)
             
  
-            elem=finddriver.find_element_by_xpath("//input[@id='colNumber']")
-            elem.clear()
-            elem.send_keys("4")
-            elem.send_keys(Keys.TAB)
+            # button=finddriver.find_element_by_id('spreadX')
+            # button.click()
             
  
-            button=finddriver.find_element_by_id('spreadX')
-            button.click()
+            # elem=finddriver.find_element_by_xpath("//input[@id='spreadX']")
+            # elem.clear()
+            # elem.send_keys("1758.4")
+            # elem.send_keys(Keys.TAB)
+            
+
+            # button=finddriver.find_element_by_id('spreadY')
+            # button.click()
             
  
-            elem=finddriver.find_element_by_xpath("//input[@id='spreadX']")
-            elem.clear()
-            elem.send_keys("1758.4")
-            elem.send_keys(Keys.TAB)
-            
-
-            button=finddriver.find_element_by_id('spreadY')
-            button.click()
+            # elem=finddriver.find_element_by_xpath("//input[@id='spreadY']")
+            # elem.clear()
+            # elem.send_keys("880")
+            # elem.send_keys(Keys.TAB)
             
  
-            elem=finddriver.find_element_by_xpath("//input[@id='spreadY']")
-            elem.clear()
-            elem.send_keys("880")
-            elem.send_keys(Keys.TAB)
+            # button=finddriver.find_element_by_xpath("//div/div/input[@name='color-theme-radio']")
+            # button.click()
             
+            # button=finddriver.find_element_by_id('showinfo-cb')
+            # button.click()
+
+            # # if (SaveScreenshotBool):
+            # #     thedriver.save_screenshot('/tmp/tests/test7-save_options_screenshot.png')
+
+            # button=finddriver.find_element_by_id('buttonSave')
+            # button.click()
  
-            button=finddriver.find_element_by_xpath("//div/div/input[@name='color-theme-radio']")
-            button.click()
-            
-            button=finddriver.find_element_by_id('showinfo-cb')
-            button.click()
+            # button=finddriver.find_element_by_xpath("//div[11][@id='option10']")
+            # button.click()
 
-            thedriver.save_screenshot('/tmp/tests/test7-save_options_screenshot.png')
-
-            button=finddriver.find_element_by_id('buttonSave')
-            button.click()
+            # # if (SaveScreenshotBool):
+            # #     thedriver.save_screenshot('/tmp/tests/test7-info_screenshot.png')
  
-            button=finddriver.find_element_by_xpath("//div[11][@id='option10']")
-            button.click()
+            # button=finddriver.find_element_by_xpath("//div[12][@id='option11']")
+            # button.click()
 
-            thedriver.save_screenshot('/tmp/tests/test7-info_screenshot.png')
- 
-            button=finddriver.find_element_by_xpath("//div[12][@id='option11']")
-            button.click()
-
-            thedriver.save_screenshot('/tmp/tests/test7-refrash_screenshot.png')
+            # # if (SaveScreenshotBool): 
+            # #     thedriver.save_screenshot('/tmp/tests/test7-refrash_screenshot.png')
             
-            button=finddriver.find_element_by_xpath("//div[17][@id='option16']")
-            button.click()
+            # button=finddriver.find_element_by_xpath("//div[17][@id='option16']")
+            # button.click()
 
-            thedriver.save_screenshot('/tmp/tests/test7-help_TiledViz_screenshot.png')
+            # # if (SaveScreenshotBool):
+            # #     thedriver.save_screenshot('/tmp/tests/test7-help_TiledViz_screenshot.png')
 
-            slider=finddriver.find_element_by_xpath("//input[@id='helpSlider']")
-            #Using Action Class
-            move = ActionChains(thedriver);
-            move.move_to_element(slider);
-            move.move_by_offset(80, 0);
-            move.perform();
+            # slider=finddriver.find_element_by_xpath("//input[@id='helpSlider']")
+            # #Using Action Class
+            # move = ActionChains(thedriver);
+            # move.move_to_element(slider);
+            # move.move_by_offset(80, 0);
+            # move.perform();
 
-            slider.click()
+            # slider.click()
             
-            thedriver.save_screenshot('/tmp/tests/test7-help_TiledViz_screenshot.png')
+            # # if (SaveScreenshotBool):
+            # #     thedriver.save_screenshot('/tmp/tests/test7-help_TiledViz_screenshot.png')
 
-            button=finddriver.find_element_by_id('buttonClosehelp')
-            button.click()
+            # button=finddriver.find_element_by_id('buttonClosehelp')
+            # button.click()
             
-            thedriver.save_screenshot('/tmp/tests/test7_final_screenshot.png')
+            # # if (SaveScreenshotBool):
+            # #     thedriver.save_screenshot('/tmp/tests/test7_final_screenshot.png')
             
         except NoSuchElementException as ex:
             self.fail(ex.msg+": \n"+thedriver.title)

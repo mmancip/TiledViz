@@ -25,6 +25,8 @@ Tile = function(Mesh) {
 
     var onoff = true;
 
+    var qrcoded = false;
+    
     if(useJsonDataLocation==false)  { // Id of the place where the node is located on the mesh (the mesh is a grid)
 	var idLocation = id;
     }
@@ -100,6 +102,7 @@ Tile = function(Mesh) {
     /** Tag management
      * */
     var nodeTagList = [];
+    var floatingTag = {};
     if (typeof jsonData.tags != 'undefined')  { 
 	var nodeTagListTmp = [];
 	if (typeof jsonData.tags == "object")  { 
@@ -111,7 +114,18 @@ Tile = function(Mesh) {
 
 
 	for (var item=0;item<nodeTagListTmp.length;item++) {
-	    nodeTagListTmp[item] = newTag_conformance(nodeTagListTmp[item]);
+	    if ( nodeTagListTmp[item].search('{')==0 ) {
+		if ( nodeTagListTmp[item].search('{"') == -1 ) {
+		    nodeTagListTmp[item]=nodeTagListTmp[item].replace(/{([^,]*),([^,]*),([^,]*),([^,]*)}/,
+								      '{"name":"$1","m":$2,"val":$3,"M":$4}')
+		}
+		nodeTagListTmp[item]=JSON.parse(nodeTagListTmp[item]);
+		name=newTag_conformance(nodeTagListTmp[item].name);
+		floatingTag[name]={"id": item, "m":nodeTagListTmp[item].m,"val":nodeTagListTmp[item].val, "M":nodeTagListTmp[item].M};
+		nodeTagListTmp[item]=name
+	    } else {
+		nodeTagListTmp[item] = newTag_conformance(nodeTagListTmp[item]);
+	    }
 	}
 	nodeTagList = nodeTagListTmp;
     }
@@ -135,7 +149,7 @@ Tile = function(Mesh) {
     initialNote = jsonData.comment;
     //"test" + id;
     //#004
-    var nodeNote =	$.PostItAll.new({
+    $.PostItAll.new({
 
 	    id		: "postit"+id, // The ID of the HTMLTag of the post it
 	    content		: initialNote, // prewritten on the post it 
@@ -161,9 +175,8 @@ Tile = function(Mesh) {
 	}, // Callback function, executed after postit creation
 	function(){									
 	    $('#postit'+id).css({display : "none"}); 
-
 	});
-
+    
     /** Here is created a tab menuEventTab related to the parameters menuEventTab_ of the Menu constructor (see below)
 	Each node has a menu which allow users to manage some options 
 	Existing ones :
@@ -313,8 +326,8 @@ Tile = function(Mesh) {
 		menuDraw.css("visibility", "visible");
 		menuDraw.css("top", TagHeight+"px");
 
-		// Deactivate other magnify menus
-		me.disableOtherZoom("draw")
+		// // Deactivate other magnify menus
+		// me.disableOtherZoom("draw")
 
 		// Creation of the layer $("#drawCanvas") on the support if it doesn’t already exist
 		var supp = document.getElementById("drawCanvas"+nodeId);
@@ -518,6 +531,10 @@ Tile = function(Mesh) {
     menuEventTab.push(    function(v,nodeId,optionNumber){
 
 	    if(v==true)  {    
+		// Deactivate other magnify menus
+		me.disableOtherZoom("draw")
+		BlockDragAndDrop();
+
 		zoomAndDrawOnNodes(nodeId);
 		// Creation of a button to unzoom
 		$('#buttonUnzoom').on({
@@ -527,6 +544,7 @@ Tile = function(Mesh) {
 			    menuDraw.css("visibility", "hidden");
 			    // Activate other magnify menus
 			    me.enableOtherZoom("draw")
+			    EnableDragAndDrop();
 
 			    $('#drawCanvas'+nodeId).hide();
 			    $("#button").off();
@@ -552,6 +570,7 @@ Tile = function(Mesh) {
 			    menuDraw.css("visibility", "hidden");
 			    // Activate other magnify menus
 			    me.enableOtherZoom("draw")
+			    EnableDragAndDrop();
 
 			    $('#drawCanvas'+nodeId).hide();
 			    me.meshEventReStart();
@@ -760,15 +779,29 @@ Tile = function(Mesh) {
     var stickers = new Stickers(id,htmlNode);
 
     for(var k=0;k < nodeTagList.length;k++)  { 
+	var name=nodeTagList[k];
 	if ($.inArray(nodeTagList[k], globalTagsList) == -1)  { 
 	    globalTagsList.push(nodeTagList[k]);
 	    var l=globalTagsList.length-1;
-	    attributedTagsColorsArray[globalTagsList[l]] = ColorSticker(l);
+	    if (name in floatingTag) {
+		globalFloatingTags[name]={"l":l,"m":floatingTag[name]["m"], "M":floatingTag[name]["M"]}
+		var outColors=ColorSticker(l,floatingTag[name]);
+		globalFloatingTags[name]["cm"]=outColors["cm"];
+		globalFloatingTags[name]["cM"]=outColors["cM"];
+		globalFloatingTags[name]["symb"]=outColors["symb"];
+		attributedTagsColorsArray[name] = globalFloatingTags[name]["cm"];
+	    } else {
+		attributedTagsColorsArray[name] = ColorSticker(l);
+	    }
 	}
 	if (configTagsBehaviour.showAll)  { 
-	    stickers.addSticker(nodeTagList[k],attributedTagsColorsArray[nodeTagList[k]]);
+	    if (name in floatingTag) {
+		var outColors=ColorSticker(globalFloatingTags[name]["l"],floatingTag[name]);
+		stickers.addSticker(name,attributedTagsColorsArray[name],outColors);
+	    } else {
+		stickers.addSticker(name,attributedTagsColorsArray[name]);
+	    }		
 	}
-
     }
     globalTagsList.sort();
     // remove Off tag at the end of nodeTagList.
@@ -781,7 +814,7 @@ Tile = function(Mesh) {
 
     /** QRcodes to get URI of the node with a tablet 
      */
-    var theqrcode = new QRcodes(id,jsonData);
+    var theqrcode = "";
 	    
     //***************************************************methods***************************************************//
 
@@ -799,6 +832,7 @@ Tile = function(Mesh) {
 		nodeTagList[nodeTagList.findIndex(function(e) {return e=='Off'})] = "On";
 		stickers.removeSticker('Off');
 		stickers.addSticker("On",attributedTagsColorsArray["On"]);
+		this.setQRcodeStatus()
 	    }
 	} else {
 	    if ( nodeTagList.some(function(e) {return e=='On'}) ) {
@@ -821,7 +855,16 @@ Tile = function(Mesh) {
 	onoff = bool;
     }
 
+    //*****QRcode******//
+    this.getQRcodeStatus = function()  {	
+	return qrcoded;
+    }
 
+    this.setQRcodeStatus = function()  {
+	if (! qrcoded)
+	    theqrcode = new QRcodes(id,jsonData);
+	qrcoded=true;
+    }
     //******id & idLocation******//
 
     //--getter 
@@ -862,7 +905,7 @@ Tile = function(Mesh) {
     //*****Comment******//
 
     this.getComment = function()  { 
-	return nodeNote.content;
+	return $('#postit'+id)[0].textContent;
     }
 
     //******nodeOpacity******//
@@ -1183,6 +1226,14 @@ Tile = function(Mesh) {
 
     //--update position & size
     this.updatePostItPositionandSize = function(){
+
+	// for(var k=0;k < nodeTagList.length;k++)  { 
+	//     var name=nodeTagList[k];
+	//     if (name in floatingTag) {
+	// 	$('#postit'+id)[0].textContent=$('#postit'+id)[0].textContent+'\n'
+	// 	    +floatingTag[name]["m"].toString()+" <= "+floatingTag[name]["val"].toString()+" <= "+floatingTag[name]["M"].toString();
+	//     }
+	// }
 
 	var options = {id : "postit"+id,posX : this.getLocation().getX() , posY	: this.getLocation().getY() + mesh.me.getSpread().Y };
 	//, width : mesh.me.getSpread().X, height	: mesh.me.getSpread().Y

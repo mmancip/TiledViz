@@ -43,7 +43,7 @@ RUN dnf --downloadonly --downloaddir=/tmp/cache install -y icewm-theme-oxygen-ay
     && rpm -ip /tmp/cache/icewm-theme-oxygen-aya*.rpm --nodeps \
     && dnf install -y icewm-light icewm-i18n --setopt=install_weak_deps=False --exclude=bootsplash,kernel-desktop
 
-RUN dnf install -y python3-psycopg2
+RUN dnf install -y python3-psycopg2 git rsync
 
 COPY ./ /TiledViz
 

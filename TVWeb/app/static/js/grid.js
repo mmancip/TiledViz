@@ -36,10 +36,10 @@ $(document).ready( function(){
     var update_client_number = function(new_nbr){
 	var new_text = "";
 	if (new_nbr == 0){ // 0: first client (socket not yet created), 1: refresh
-	    new_text = "alone";
+	    new_text = "first";
 	}
 	else if (new_nbr == 1){
-	    new_text = "with another participant";
+	    new_text = "only one participant";
 	}
 	else{
 	    var tmp_nbr = new_nbr - 1;
@@ -165,6 +165,7 @@ $(document).ready( function(){
     colorTagStickersTab = configColors.TagStickersTab; // 10 colors
     attributedTagsColorsArray = new Array();
     globalTagsList =[];
+    globalFloatingTags = {}; 
     currentSelectedTag = "";
     colorHBdefault = configColors.HBdefault;
     colorHBonfocus = configColors.HBonfocus;
@@ -354,6 +355,27 @@ $(document).ready( function(){
 	    return false
     }
     
+    // Global click actions shared between clients
+    socket.on('receive_click_val', function(sdata){
+     	console.log("receive_click_val",sdata);
+	$('.'+sdata.action+'#'+sdata.id).addClass("NotSharedAgain");
+	$('.'+sdata.action+'#'+sdata.id).val(sdata["val"]);
+	$('.'+sdata.action+'#'+sdata.id).change();
+	$('.'+sdata.action+'#'+sdata.id).click();
+	$('.'+sdata.action+'#'+sdata.id).removeClass("NotSharedAgain");
+    });
+    // emit function used to send shared clicks
+    emit_click_val=function(action,id,val) {
+	if (! $('.'+action+'#'+id).hasClass("NotSharedAgain")) {			    
+	    cdata={"room":my_session,"id":id,"action":action,"val":val};
+	    socket.emit("click_val", cdata, function(sdata){
+ 		console.log("socket send click_val ", cdata);				
+	    });
+	    return true;
+	} else
+	    return false
+    }
+    
     // Change opacity shared between clients
     socket.on('receive_Force_Opacity', function(sdata){
      	console.log("receive_Force_Opacity",sdata);
@@ -365,9 +387,11 @@ $(document).ready( function(){
     });
     
     // Add new tag
+    receive_Add_Tag=false
     socket.on('receive_Add_Tag', function(sdata){
      	console.log("receive_Add_Tag",sdata);
 	mesh.AddNewTag(sdata["NewTag"])
+	receive_Add_Tag=true;
     });
 
     // Add new color for a tag
@@ -420,7 +444,7 @@ $(document).ready( function(){
     mesh.meshEventStart();
     mesh.startLoading();
     $('body').css('background-image','url(../static/images/fond.png)');
-    // TODO : build suggestion_list from tags (this next line), comments, titles, variables, ...
+    // suggestion_list from tags (this next line), comments, titles, variables, ...
     suggestion_list = globalTagsList
 	.concat($('.info').map(function(){ return $.trim($(this).text());}).get())
 	.concat(me.getNodes2().map(function(e){return $.trim(e.getJsonData().comment); }));

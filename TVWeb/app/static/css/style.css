@@ -463,12 +463,23 @@
 
 [class~=BlinkIcon]
 {
-     animation: Test 2s infinite;
+     animation: Blink 2s infinite;
 }
-@keyframes Test{
+@keyframes Blink{
      0%{opacity: 1;}
      50%{opacity: 0;}
      100%{opacity: 1;}
+}
+
+[class~=BlinkBorder]
+{
+    outline: 15pt solid;
+    animation: Blink2 2s infinite;
+}
+@keyframes Blink2{
+    50% {
+	outline-color: white;
+    }
 }
 
 iframe
@@ -873,7 +884,7 @@ output
 	color : darkgray;
 }
 
-#buttonSave
+#buttonApply
 {
 	font-size : 100px;
 	height : 200px;
@@ -881,7 +892,7 @@ output
 	text-align : center;
 	position : absolute;
 	top : 80%;
-	left: 40%;
+	left: 20%;
 	background-image: url(../images/icons/globalmenu/management/checkOptions.png);
 }
 
@@ -893,8 +904,20 @@ output
 	text-align : center;
 	position : absolute;
 	top : 80%;
-	left: 50%;
+	left: 30%;
 	background-image: url(../images/icons/globalmenu/zoommenu/closeZoomButton.png);
+}
+
+#buttonSave
+{
+	font-size : 100px;
+	height : 200px;
+	width : 200px;
+	text-align : center;
+	position : absolute;
+	top : 80%;
+	left: 40%;
+	background-image: url(../images/icons/globalmenu/management/save.png);
 }
 
 #buttonShare
@@ -905,8 +928,8 @@ output
 	text-align : center;
 	position : absolute;
 	top : 80%;
-	left: 60%;
-	background-image: url(../images/icons/globalmenu/management/save.png);
+	left: 50%;
+	background-image: url(../images/icons/globalmenu/management/share.png);
 }
 
 ul.ui-autocomplete.ui-menu{
