@@ -1,0 +1,12 @@
+#!/bin/bash
+WindowName=$1
+shift 1
+WMCTRLoptions="$@"
+echo "List windows init"
+wmctrl -l -G
+echo "Window Id : "$( wmctrl -l -G | grep "$WindowName" | sed -e "s/\(0x[0-9a-f]*\) .*/\1/" )
+wmctrl -i -r $( wmctrl -l -G | grep "$WindowName" | sed -e "s/\(0x[0-9a-f]*\) .*/\1/" ) ${WMCTRLoptions}
+RET=$?
+echo "List windows end"
+wmctrl -l -G
+exit $RET

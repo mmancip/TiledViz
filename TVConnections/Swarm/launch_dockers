@@ -1,0 +1,116 @@
+#!/bin/bash
+
+NUM=${1:-1}
+DATE=${2:-'1970-01-01_00-00-00'}
+DIR=${3:-/dockerspace}
+DOCKERNAME=${4:-mageianvidia}
+#REF_CAS=${1:-1@1970-01-01_00-00-00@/dockerspace@mageianvidia}
+GPU_FILE=${5:-list_hostsgpu}
+FRONTENDIP=${6:-"frontend:192.168.0.254"}
+network=${7:-"tileviz"}
+nethost=${8:-"tilehost"}
+domain=${9:-"11.0.0"}
+init_IP=${10:-11}
+TileSetPort=${11:-55555}
+#Python server is on HPC FRONTEND
+FRONTEND=${12:-"192.168.0.1"}
+
+shift 12
+OPTIONS="$@"
+echo "OPTIONS = "${OPTIONS}
+
+#echo  $REF_CAS | sed -e 's&\([^@]*\)@\([^@]*\)@\([^@]*\)@\([^@]*\)&export NUM=\1; export DATE=\2; export DIR=\3; export DOCKERNAME=\4&' 
+#eval $( echo  $REF_CAS | sed -e 's&\([^@]*\)@\([^@]*\)@\([^@]*\)@\([^@]*\)&export NUM=\1; export DATE=\2; export DIR=\3; export DOCKERNAME=\4&' )
+
+# FRONTENDIP is for ssh tunneling of vnc flux 
+DOCKEROPTIONS="-p ${TileSetPort} -h ${FRONTEND} "
+
+echo "launch dockers at ${DATE}"
+
+
+
+i=1
+while [ $i -le ${NUM} ]; do
+   HOSTCOMMAND=""
+   NVIDIAGPU=0
+   if [[ -f ${GPU_FILE} ]]; then
+       line=$( sed -n "$i p" ${GPU_FILE} )
+       realhost=${line% *}
+       thishost=$( echo ${realhost}  | sed -e 's/-/_/g' )
+       NVIDIAGPU=${line/* /}
+       if [ ${realhost} = $( hostname ) -o ${realhost} = "localhost" ]; then
+	   HOSTCOMMAND=
+       else
+	   HOSTCOMMAND="ssh $LOGNAME@${realhost}"
+       fi
+   fi
+   DOCKER="$HOSTCOMMAND docker"
+
+   i0=$(printf "%03d" $i)
+   DOCKERDIR=$(echo ${DOCKERNAME}| sed -e 's/:.*//')_${DATE}_${i0}
+   mkdir ${DIR}/${DOCKERDIR}
+
+   
+   myuid=$($HOSTCOMMAND id |sed -e "s/.*uid=\([0-9]*\).*/\1/")
+   mygid=$($HOSTCOMMAND id |sed -e "s/.*gid=\([0-9]*\).*/\1/")
+   DOCKERARGS='-r 1920x1080 -u '${myuid}' -g '${mygid}' '${DOCKEROPTIONS} 
+   SWARMARGS='--network='${network}' --network-alias='${nethost}${i0}' --ip='${domain}'.'$((i+init_IP-1))
+
+   echo "${DOCKER} run --name ${DOCKERDIR} --add-host=${FRONTENDIP} \
+    ${SWARMARGS} \
+    --device=/dev/nvidia${NVIDIAGPU}:/dev/nvidia0 --device=/dev/nvidiactl \
+     -v /usr/share/X11/locale:/usr/share/X11/locale:ro --expose=22 \
+     -v ${DIR}/${DOCKERDIR}:/home/myuser/.vnc:rw ${OPTIONS} -e DOCKERID=${i0} \
+     -t ${DOCKERNAME} ${DOCKERARGS} 2>&1 |tee ${DIR}/${DOCKERDIR}/stdout" > ${DIR}/${DOCKERDIR}/call_docker-run
+#utiliser --mount=
+#docker service dans un swarm : créer un label + --constraint 'node.labels=mynode'
+#docker node update --label-add <key>=<value> <node-id>
+#
+#     -v /dev/dri:/dev/dri \
+# --device=/dev/dri
+   chmod a+x  ${DIR}/${DOCKERDIR}/call_docker-run
+
+   ${DIR}/${DOCKERDIR}/call_docker-run > ./${DOCKERDIR}_stdout 2>&1 &
+   sleep 1
+
+   i=$(( i + 1 ))
+done
+
+while [ true ]; do
+    DOCKERDIR=$(echo ${DOCKERNAME} | sed -e 's/:.*//')_${DATE}
+    NstartDocker=$(wc -c  ./${DOCKERDIR}_*_stdout |head -n ${NUM} |awk '{print ($1 >= 225)}' |grep 1 |wc -l)
+    #echo "Number of started Dockers=${NstartDocker}"
+    if [ ${NstartDocker} -eq ${NUM} ]; then
+	break
+    fi
+done
+
+rm -f ./list_dockers_pass
+touch ./list_dockers_pass
+i=1
+LISTE=""
+while [ $i -le ${NUM} ]; do
+   i0=$(printf "%03d" $i)
+   realhost=localhost
+   if [[ -f ${GPU_FILE} ]]; then
+       line=$( sed -n "$i p" ${GPU_FILE} )
+       realhost=${line% *}
+   fi
+   DOCKERDIR=$(echo ${DOCKERNAME}| sed -e 's/:.*//')_${DATE}_${i0}
+   DOCKERNUM=$( grep "New.*desktop" ./${DOCKERDIR}_stdout | sed -e "s/New '//" -e "s/:.*//" )
+   LIGNE=$( grep "Random\ Password\ Generated:" ./${DOCKERDIR}_stdout )
+   PASS=${LIGNE##*:}
+   echo $i ${DOCKERNUM} ${PASS}
+   LISTE="${LISTE} ${DOCKERNUM}"
+#   echo ${realhost} ${LIGNE##*:} | sed -e "s///" >> ./list_dockers_pass
+   echo ${realhost} ${LIGNE##*:} | sed -e "s/\r//" >> ./list_dockers_pass
+
+   # Remove ssh process
+   pgrep -fla  "ssh.*${realhost} docker run .*${DOCKERDIR}" |sed -e 's@\([0-9]*\) .*@\1@' |xargs kill 
+   rm ./${DOCKERDIR}_stdout
+
+   i=$(( i + 1 ))
+done
+
+echo  ${NUM} ${DATE} ${DIR} ${DOCKERNAME} > out_launch_dockers
+echo ${LISTE} >> out_launch_dockers

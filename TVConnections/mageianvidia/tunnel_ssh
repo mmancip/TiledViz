@@ -1,0 +1,29 @@
+#!/bin/bash
+SOCKETdomain=$1
+HTTP_FRONTEND=$2
+HTTPLOGNAME=$3
+shift 3
+OPTIONS=$@
+
+. /home/myuser/.bashrc 
+COMMANDssh="ssh -T -N -nf -R ${SOCKETdomain}${DOCKERID}:localhost:5902 ${OPTIONS} ${HTTPLOGNAME}@${HTTP_FRONTEND}"
+echo $COMMANDssh
+i=0
+while [ true ]; do
+  ${COMMANDssh} > /dev/null 2>&1
+
+  RET=$?
+  echo $i $RET
+  if [ $RET -eq 0 ]; then 
+    echo "ssh done" >> /home/myuser/.vnc/stdout
+    break
+  elif [ $i -gt 100 ]; then
+    echo "ssh error" >> /home/myuser/.vnc/stdout
+    RET=100+$RET
+    break
+  fi
+  sleep 1
+  i=$((i+1))
+done
+echo tunnel ssh end >> /home/myuser/.vnc/stdout
+exit $RET

@@ -1,0 +1,21 @@
+#!/bin/bash
+export POSTGRES_HOST=
+export POSTGRES_IP=
+export POSTGRES_USER=
+export POSTGRES_DB=
+export POSTGRES_PASSWORD=
+export passwordDB=
+
+rm TVSecure.log TVWeb/TiledViz.log
+docker rm -f flaskdock
+if [ X$(docker ps -a| grep "mageiaconnect"|sed -e 's/\([0-9a-z]*\) .*/\1/' |wc -l) != X"" ]; then
+    docker ps -a| grep "mageiaconnect" |sed -e 's/\([0-9a-z]*\) .*/\1/' |xargs docker rm -f
+    rm -Rf /tmp/connectiondock*
+fi
+
+pwd
+source ../virtualreq_4.2.0/bin/activate
+python3 TVSecure/TVSecure.py --POSTGRES_HOST=${POSTGRES_HOST} --POSTGRES_IP=${POSTGRES_IP} \
+	--POSTGRES_DB=${POSTGRES_DB} --POSTGRES_USER=${POSTGRES_USER} --POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
+	--secretKey='my Preci0us secr_t key for t&sts.' 2>&1 | grep -v "DEBUG:urllib3.*" | grep -v " :running" | sed -e "s%\(.*\) \- Thread-\([0-9]*\) \- DEBUG: .* HTTP/1.1\" 200 None%\1 \2%" | grep -v " 1 " | grep -v 404
+echo "Exit :" $?

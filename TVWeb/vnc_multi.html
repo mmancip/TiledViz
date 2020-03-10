@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <!--
+    noVNC example: simple example using default UI
+    Copyright (C) 2012 Joel Martin
+    Copyright (C) 2013 Samuel Mannehed for Cendio AB
+    noVNC is licensed under the MPL 2.0 (see LICENSE.txt)
+    This file is licensed under the 2-Clause BSD license (see LICENSE.txt).
+
+    Connect parameters are provided in query string:
+        http://example.com/?NbRFB=3&host0=HOST0&port0=PORT0&host1=HOST1&port1=PORT1&host2=HOST2&port2=PORT2&encrypt=1&true_color=1
+    or the fragment:
+        http://example.com/#host=HOST&port=PORT&encrypt=1&true_color=1
+    -->
+    <title>noVNC</title>
+
+    <meta charset="utf-8">
+
+    <!-- Always force latest IE rendering engine (even in intranet) & Chrome Frame
+                Remove this if you use the .htaccess -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+    <!-- Apple iOS Safari settings -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- App Start Icon  -->
+    <link rel="apple-touch-startup-image" href="app/images/screen_320x460.png" />
+    <!-- For iOS devices set the icon to use if user bookmarks app on their homescreen -->
+    <link rel="apple-touch-icon" href="app/images/screen_57x57.png">
+    <!--
+    <link rel="apple-touch-icon-precomposed" href="app/images/screen_57x57.png" />
+    -->
+
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="app/styles/base.css" title="plain">
+
+     <!--
+    <script type='text/javascript'
+        src='http://getfirebug.com/releases/lite/1.2/firebug-lite-compressed.js'></script>
+    -->
+        <script src="core/util.js"></script>
+        <script src="app/webutil.js"></script>
+</head>
+
+<body style="margin: 0px;">
+    <div id="noVNC_container">
+            <div id="noVNC_status_bar" class="noVNC_status_bar" style="margin-top: 0px;">
+	      <table border=0 width="100%"><tr>
+		  <td><div id="noVNC_status" style="position: relative; height: auto;">
+		      Loading
+		  </div></td>
+              </tr></table>
+            </div>
+            <canvas id="noVNC_canvas" width="640px" height="20px">
+                Canvas not supported.
+            </canvas>
+        </div>
+
+        <script>
+        /*jslint white: false */
+        /*global window, $, Util, RFB, */
+        "use strict";
+
+        // Load supporting scripts
+        WebUtil.load_scripts({
+            'core': ["base64.js", "websock.js", "des.js", "input/keysymdef.js",
+                     "input/xtscancodes.js", "input/util.js", "input/devices.js",
+                     "display.js", "inflator.js", "rfb.js", "input/keysym.js"],
+            'app': ["webutil.js"]});
+
+        var NbRFB=WebUtil.getConfigVar('NbRFB', null);
+        var rfb = new Array();
+        var resizeTimeout;
+
+
+        function UIresize() {
+            if (WebUtil.getConfigVar('resize', false)) {
+                var innerW = window.innerWidth;
+                var innerH = window.innerHeight;
+                var controlbarH = document.getElementById('noVNC_status_bar').offsetHeight;
+                var padding = 5;
+                if (innerW !== undefined && innerH !== undefined)
+		    for(var i=0; i<NbRFB; i++) {
+			rfb[i].requestDesktopSize(innerW, innerH - controlbarH - padding);
+		    }
+            }
+        }
+        function FBUComplete(rfb, fbu) {
+            UIresize();
+            rfb.set_onFBUComplete(function() { });
+        }
+        function passwordRequired(rfb) {
+            var msg;
+            msg = '<form onsubmit="return setPassword(rfb);"';
+            msg += '  style="margin-bottom: 0px">';
+            msg += 'Password Required: ';
+            msg += '<input type=password size=10 id="password_input" class="noVNC_status">';
+            msg += '<\/form>';
+            document.getElementById('noVNC_status_bar').setAttribute("class", "noVNC_status_warn");
+            document.getElementById('noVNC_status').innerHTML = msg;
+        }
+        function setPassword(rfb) {
+            rfb.sendPassword(document.getElementById('password_input').value);
+            return false;
+        }
+        function updateState(rfb, state, oldstate, msg) {
+            var s, sb, cad, level;
+            s = document.getElementById('noVNC_status');
+            sb = document.getElementById('noVNC_status_bar');
+            switch (state) {
+                case 'failed':       level = "error";  break;
+                case 'fatal':        level = "error";  break;
+                case 'normal':       level = "normal"; break;
+                case 'disconnected': level = "normal"; break;
+                case 'loaded':       level = "normal"; break;
+                default:             level = "warn";   break;
+            }
+
+	    xvpInit(0);
+
+            if (typeof(msg) !== 'undefined') {
+                sb.setAttribute("class", "noVNC_status_" + level);
+                s.innerHTML = msg;
+            }
+        }
+
+        window.onresize = function () {
+            // When the window has been resized, wait until the size remains
+            // the same for 0.5 seconds before sending the request for changing
+            // the resolution of the session
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(function(){
+                UIresize();
+            }, 500);
+        };
+
+        function xvpInit(ver) {
+            var xvpbuttons;
+        }
+
+        window.onscriptsload = function () {
+            var host = new Array();
+	    var port = new Array();
+	    var password = new Array();
+	    var path = new Array(); 
+	    var token = new Array();
+
+            WebUtil.init_logging(WebUtil.getConfigVar('logging', 'warn'));
+            document.title = unescape(WebUtil.getConfigVar('title', 'noVNC_Multiple'));
+
+            // By default, use the host and port of server that served this file
+	    for(var i=0; i<NbRFB; i++) {
+		host[i] = WebUtil.getConfigVar('host'+i, window.location.hostname);
+		port[i] = WebUtil.getConfigVar('port'+i, window.location.port);
+		console.log("RFB n°"+i+" parameters (host,port) : ",host[i],port[i]);
+	    }
+
+            // if port == 80 (or 443) then it won't be present and should be
+            // set manually
+	    for(var i=0; i<NbRFB; i++) {
+		if (!port[i]) {
+		    if (window.location.protocol.substring(0,5) == 'https') {
+			port[i] = 443;
+		    }
+		    else if (window.location.protocol.substring(0,4) == 'http') {
+			port[i] = 80;
+		    }
+		}
+	    }
+
+	    for(var i=0; i<NbRFB; i++) {
+		password[i] = WebUtil.getConfigVar('password'+i, '');
+		path[i] = WebUtil.getConfigVar('path'+i, 'websockify');
+		console.log("RFB n°"+i+" parameters (password,path) : ",password[i],path[i]);
+	    }
+
+            // If a token variable is passed in, set the parameter in a cookie.
+            // This is used by nova-novncproxy.
+	    for(var i=0; i<NbRFB; i++) {
+		token[i] = WebUtil.getConfigVar('token'+i, null);
+		if (token[i]) {
+		    
+		    // if token is already present in the path we should use it
+		    path[i] = WebUtil.injectParamIfMissing(path[i], "token", token[i]);
+		    
+		    WebUtil.createCookie('token'+i, token[i], 1);
+		}
+		console.log("RFB n°"+i+" parameters (token,path) : ",token[i],path[i]);
+	    }
+	    
+	    for(var i=0; i<NbRFB; i++) {
+		if ((!host[i]) || (!port[i])) {
+		    updateState(null, 'fatal for RFB n°'+i, null, 'Must specify host and port in URL');
+		    console.log('fatal for RFB n°'+i, null, 'Must specify host and port in URL');
+		    return;
+		}
+            }
+
+	    for(var i=0; i<NbRFB; i++) {
+		try {
+		    rfb[i] = new RFB({'target':       document.getElementById('noVNC_canvas'),
+				      'encrypt':      WebUtil.getConfigVar('encrypt'+i,(window.location.protocol === "https:")),
+				    'repeaterID':   WebUtil.getConfigVar('repeaterID', ''),
+				    'true_color':   WebUtil.getConfigVar('true_color', true),
+				    'local_cursor': WebUtil.getConfigVar('cursor', true),
+				    'shared':       WebUtil.getConfigVar('shared', true),
+				    'view_only':    WebUtil.getConfigVar('view_only', false),
+				    'onUpdateState':  updateState,
+				    'onXvpInit':    xvpInit,
+				    'onPasswordRequired':  passwordRequired,
+				    'onFBUComplete': FBUComplete});
+		} catch (exc) {
+		    updateState(null, 'fatal for connection n°'+i, null, 'Unable to create RFB client -- ' + exc);
+		    return; // don't continue trying to connect
+		}
+            }
+
+	    for(var i=0; i<NbRFB; i++) {
+		rfb[i].connect(host[i], port[i], password[i], path[i]);
+	    }
+        };
+        </script>
+
+    </body>
+</html>

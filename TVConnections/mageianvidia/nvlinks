@@ -1,0 +1,3 @@
+cd /usr/lib64
+find /usr/local/nvidia/usr/lib64/nvidia-current/ -type l -exec bash -c 'LINK={}; ln -s ${LINK} ./; SOF=$(basename ${LINK} | sed -e "s/.so.*/.so/"); echo $SOF; ln -s $LINK ./$SOF' \;
+find /usr/local/nvidia/usr/lib64/nvidia-current/ -not -type l -exec bash -c 'LINK={}; ln -s ${LINK} ./; SOF=$(basename ${LINK} | sed -e "s/.so.*/.so/"); echo $SOF; ln -s $LINK ./$SOF' \;

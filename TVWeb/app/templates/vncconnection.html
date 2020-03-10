@@ -1,0 +1,65 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <!-- <meta name="viewport"  -->
+    <!-- 	  content="user-scalable=no, initial-scale=0.2, maximum-scale=0.5, minimum-scale=0.1, -->
+    <!-- 		   width=device-width, height=device-height"/> -->
+    <!-- content="user-scalable=no, initial-scale=1, maximum-scale=1, -->
+    <!-- minimum-scale=1, width=device-width, height=device-height" -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico')}}">
+    {% block title %}{% endblock %}
+    <title>noVNCConnection</title>
+
+  <style type="text/css">
+[class~=stopvnc]
+{
+	background-image: url(static/images/icons/globalmenu/zoommenu/closeZoomButton.png);
+}
+  </style>
+</head>
+<header>
+  <link rel="stylesheet"
+	href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css"
+	integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS"
+	crossorigin="anonymous">
+  <link rel="stylesheet"
+	href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
+	integrity="sha256-eZrrJcwDc/3uDhsdt61sL2oOBY362qM3lon1gyExkL0="
+	crossorigin="anonymous" />
+  <script type="text/javascript" charset="utf-8">
+    connection_port={{ port }};
+    connection_id = {{ id }};
+    vncpassword = "{{ vncpassword }}";
+    flaskaddr= "{{ flaskaddr }}";
+  </script>
+</header>
+<body>
+  <h2>
+    Connection secure to HPC machine.
+  </h2>
+  <p> hit &laquo; back to tileset edition &raquo; button when VNC connection is closed </p>
+
+  <script>
+    var VNCurl="http://"+flaskaddr+"/noVNC/vnc.html?autoconnect=1&host="+flaskaddr+"&port="+(parseInt(connection_port)+parseInt(connection_id)).toString()+"&encrypt=0&password="+vncpassword+"&true_color=1"
+    var vncifrm = document.createElement('iframe');
+    vncifrm.setAttribute('width', 1940);
+    vncifrm.setAttribute('height', 950);
+    vncifrm.setAttribute('src', VNCurl);
+    document.body.appendChild(vncifrm);
+  </script>
+  <div id="management" name="buttons">
+    <form method="post">
+      <button class="btn btn-large btn-info" id="submit" name="submit" value="Submit">Next</button>
+    </form>
+    <div id="editsession" style="position: relative; top: -35px; left: 100px">
+      <a class="btn btn-large btn-danger"
+	 href="/editsession?message=%7B&quot;oldsessionname&quot;%3A&quot;{{ session }}&quot;%7D" >Cancel</a>
+    </div>
+    <div  style="position: relative; top: -35px;">
+      Next : register nodes.json in Tileset edition. Cancel : Back to session edition.
+      </div>
+  </div>
+</body>
+</html>

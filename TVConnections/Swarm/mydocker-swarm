@@ -1,0 +1,37 @@
+DATE=$(date +%F_%H-%M)
+docker swarm init --advertise-addr=192.168.0.35 2>&1 > ~/docker_swarm_init_${DATE} 
+grep "docker swarm join --" ~/docker_swarm_init_${DATE} |xargs -I_ ssh mandelbrot clush -g visu "'~/BAT/mydocker-join _ &'"
+#grep "docker swarm join --" ~/docker_swarm_init_${DATE} |xargs -I_ ssh mandelbrot clush -g visu "'~/BAT/mydocker-join _ --listen-addr eno0:2377'"
+
+#docker swarm join-token manager 2>&1 > ~/docker_swarm_join-manager_${DATE} 
+#grep "docker swarm join --" ~/docker_swarm_join-manager_${DATE} |xargs -I_ ssh mandelbrot clush -g visu "'~/BAT/mydocker-join _ --listen-addr eno1:2377'"
+
+docker node ls
+docker network create --driver overlay --attachable --subnet=11.0.0.0/8 --gateway=11.0.0.1 tileviz
+docker network ls
+docker network inspect tileviz
+docker network inspect tileviz --format='{{range .IPAM.Config}}{{.Subnet}}{{end}}'
+# Get all IPs
+ssh mandelbrot clush -N -L -g visu -w mandelbrot-gpu-1 docker network inspect tileviz |grep "IPv4Address" |sort
+
+# command to remove the network and the swarm
+echo docker network remove tileviz
+echo ssh mandelbrot clush -g visu -w mandelbrot-gpu-1 docker swarm leave --force
+echo 'ssh mandelbrot clush -N -L -g visu -w mandelbrot-gpu-1 docker network inspect tileviz |grep "IPv4Address" |sort'
+echo sudo ssh mandelbrot clush -g visu -w mandelbrot-gpu-1 systemctl restart docker
+echo sudo ssh mandelbrot clush -g visu -w mandelbrot-gpu-1 chown :docker /var/run/docker.sock
+echo ssh mandelbrot clush -g visu iptables -I INPUT -m state --state NEW -m multiport -p tcp -s 192.168.0.0/24 -d 192.168.0.0/24 --ports 2376,2377,7946 -j ACCEPT 
+echo ssh mandelbrot clush -g visu iptables -I INPUT -m state --state NEW -m multiport -p udp -s 192.168.0.0/24 -d 192.168.0.0/24 --ports 7946,4789 -j ACCEPT
+echo sudo ssh mandelbrot clush -g visu -w mandelbrot-gpu-1 netstat -peanut | grep docker
+echo sudo ssh mandelbrot clush -g visu iptables -I INPUT -p tcp --dport 2376 -j ACCEPT 
+echo sudo ssh mandelbrot clush -g visu iptables -I INPUT -p tcp --dport 2377 -j ACCEPT 
+echo sudo ssh mandelbrot clush -g visu iptables -I INPUT -p tcp --dport 7946 -j ACCEPT 
+echo sudo ssh mandelbrot clush -g visu iptables -I INPUT -p udp --dport 7946 -j ACCEPT 
+echo sudo ssh mandelbrot clush -g visu iptables -I INPUT -p udp --dport 4789 -j ACCEPT 
+echo sudo iptables -I INPUT -p tcp --dport 2376 -j ACCEPT 
+echo sudo iptables -I INPUT -p tcp --dport 2377 -j ACCEPT 
+echo sudo iptables -I INPUT -p tcp --dport 7946 -j ACCEPT 
+echo sudo iptables -I INPUT -p ucp --dport 7946 -j ACCEPT 
+echo sudo iptables -I INPUT -p udp --dport 7946 -j ACCEPT 
+echo sudo iptables -I INPUT -p udp --dport 4789 -j ACCEPT 
+

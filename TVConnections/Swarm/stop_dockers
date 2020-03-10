@@ -1,0 +1,113 @@
+#!/bin/bash
+NUM=$1
+DATE=$2
+DIR=$3
+DOCKERNAME=$4
+GPU_FILE=${5:-list_hostsgpu}
+
+ERASE_DOCKERDIR=true
+
+#echo "sudo killall Xvnc"
+#sudo killall Xvnc
+# echo "#/bin/sh" > ./killall_Xvnc
+# echo "killall -9 Xvnc " >> ./killall_Xvnc
+# chmod a+rx ./killall_Xvnc
+
+# find /dockerspace -type d -name "${DOCKERNAME}_${DATE}_*" -exec cp ./killall_Xvnc '{}' \; 
+
+# ../launch_command $1 $2 $3 $4 $5 '/root/.vnc/killall_Xvnc' {001..$NUM}
+#../launch_command $NUM $DATE $DIR $DOCKERNAME $GPU_FILE 'killall -9 Xvnc' {001..$(printf "%03d" $NUM)}
+
+if [[ -d ${DOCKERNAME}_${DATE}_001 ]]; then
+    # Supress all ssh connections to free ports.
+    echo "Supress all ssh connections to free ports."
+    ../launch_command $NUM $DATE $DIR $DOCKERNAME $GPU_FILE 'killall -9 ssh' {001..$NUM}
+    sleep 5
+
+    echo "Supress all Xvnc to stop containers."
+    ../launch_command $NUM $DATE $DIR $DOCKERNAME $GPU_FILE 'killall Xvnc' {001..$NUM}
+    sleep 5
+fi
+
+i=1
+while [ $i -le ${NUM} ]; do
+   i0=$(printf "%03d" $i)
+   DOCKERDIR=$(echo ${DOCKERNAME}| sed -e 's/:.*//')_${DATE}_${i0}
+
+   if [[ -f ${GPU_FILE} ]]; then
+       line=$( sed -n "$i p" ${GPU_FILE} )
+       realhost=${line% *}
+       thishost=$( echo ${realhost}  | sed -e 's/-/_/g' )
+
+       #echo "sudo ssh ${realhost} killall Xvnc"
+       #sudo ssh ${realhost} killall Xvnc
+
+       if [ ${realhost} = $( hostname ) -o ${realhost} = "localhost" ]; then
+	   HOSTCOMMAND=""
+       else
+	   HOSTCOMMAND="ssh $LOGNAME@${realhost}"
+       fi
+       export HOSTCOMMAND${thishost}="${HOSTCOMMAND}"
+   fi
+   DOCKERNUM=$(${HOSTCOMMAND} docker ps -a -f "name=$DOCKERDIR" -q)
+ 
+   echo $i0 ${DOCKERNUM}
+
+   LISTENOM=LISTE${thishost}
+   eval export ${LISTENOM}="\${${LISTENOM}}' '${DOCKERNUM}"
+
+   i=$(( i + 1 ))
+done
+
+if [[ -f ${GPU_FILE} ]]; then
+    env | grep LISTE | sed -e 's/LISTE\(.*\)=.*/\1/'
+    LISTEShosts=$(env | grep LISTE | sed -e 's/LISTE\(.*\)=.*/\1/')
+    for host in ${LISTEShosts[*]}; do
+	eval echo \${${host}[*]}
+    done
+    echo "stop containers."
+    for host in ${LISTEShosts[*]}; do
+    	eval NOMhost=LISTE${host}
+    	echo ${host}
+    	eval \${HOSTCOMMAND${host}} docker stop \${${NOMhost}[*]} &
+    done
+
+    count=0
+    while [ $( ps -Aef |grep 'docker stop' |grep -v grep | wc -l) -gt 0 ]; do
+    	sleep 2
+    	# if no docker stop after 500 loop we break.
+    	if [ $count -gt 40 ]; then
+    	    break
+    	fi
+    	count=$((count + 1))
+    done
+    
+    echo "rm containers."
+    for host in ${LISTEShosts}; do
+	eval NOMhost=LISTE${host}
+	echo ${host}
+	eval \${HOSTCOMMAND${host}} docker rm -f \${${NOMhost}[*]} &
+    done
+else
+    echo ${LISTE}
+    echo "stop containers."
+    docker stop ${LISTE[*]}
+
+    echo "rm containers."
+    docker rm ${LISTE[*]}
+fi
+
+i=0
+while [ $i -lt ${NUM} ]; do
+   i0=$(printf "%03d" $((i+1)))
+   DOCKERDIR=$(echo ${DOCKERNAME}| sed -e 's/:.*//')_${DATE}_${i0}
+   if [[ -d ${DIR}/${DOCKERDIR} ]]; then
+       ${ERASE_DOCKERDIR} && rm -rf ${DIR}/${DOCKERDIR} &
+   fi
+   i=$(( i + 1 ))
+done
+
+# LIST_RUN=$( docker ps -aq 2>&1 )
+# echo ${LIST_RUN[*]}
+# echo ${LIST_RUN[*]} | xargs -I % bash -c 'docker stop %; docker rm %' &
+

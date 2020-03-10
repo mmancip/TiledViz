@@ -1,0 +1,18 @@
+#!/bin/sh
+#set -vx 
+network=$1
+domain=$2
+#example domain subnet : 11.0.0
+
+DATE=$(date +%F_%H-%M)
+
+docker node ls
+docker network create --driver overlay --attachable --subnet=${domain}.0/24 --gateway=${domain}.1 ${network}
+docker network ls
+docker network inspect ${network}
+# Get all IPs
+ssh mandelbrot clush -N -L -g visu -w mandelbrot-gpu-1 docker network inspect ${network} |grep "IPv4Address" |sort
+
+# command to remove the network and the swarm
+echo docker network remove ${network}
+

@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# Installation of python qrcode module :
+#sudo yum install python-pip
+#sudo pip install git+git://github.com/ojii/pymaging.git#egg=pymaging
+#sudo pip install git+git://github.com/ojii/pymaging-png.git#egg=pymaging-png
+#sudo pip install git+git://github.com/lincolnloop/python-qrcode
+#sudo yum install python-six
+
+mkdir QR
+grep "url" nodes.js |sed -e "s} \"url\" : \(.*\),$}\1}" > ./urls
+echo "urls built."
+
+i=0
+while IFS='' read -r url || [[ -n "$url" ]]; do
+    Id=$(printf "%03d" $i)
+    #echo "qr $url > QR/qr-$Id.png"
+    qr $url > QR/qr-$Id.png
+    i=$(( i+1 ))
+done < ./urls
+echo "QR codes done."
