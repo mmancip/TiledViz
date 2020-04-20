@@ -31,3 +31,35 @@ mydocker-join
 mydocker-swarm
 stop_all_dockers
 clear_images
+
+On GPU computation nodes :
+* All informations on GPU devices on the node
+nvidia-smi
+or mode detailed
+nvidia-smi -q
+* with ls hardware you can search "3D controller" :
+lshw -xml
+
+* we need to create /dev/nvidia# with # in GPUlist=[0-4] for example
+for gpu in GPUlist; do
+    nvidia-modprobe --create-nvidia-device-file=$gpu
+done
+#mknod /dev/nvidia0 c 195 0
+mknod /dev/nvidiactl c 195 255
+mknod /dev/nvidia-uvm c 241 0
+mknod /dev/nvidia-uvm-tools c 241 1
+mknod /dev/nvidia-modset c 195 254
+chmod 666 /dev/nvidiactl /dev/nvidia-uvm /dev/nvidia-uvm-tools /dev/nvidia-modset
+
+Docker with Swarm :
+Must install docker on each node, build and copy mageainvidia (for example) image on
+each node (or pull a Xvnc system from a hub).
+
+Singularity :
+Change rights with X launch on nodes
+/etc/pam.d/xserver
+ #auth       required  pam_console.so
+ auth       sufficient pam_permit.so
+ account    sufficient pam_permit.so
+because of the creation of /tmp/.X#-lock lock file and /tmp/.X11-unix/X# socket on
+the host for nvidia acceleration inside the container.

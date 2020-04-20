@@ -150,6 +150,14 @@ if __name__ == '__main__':
     print(lshome)
     os.system(lshome)
     
+    mkdirhome="ssh -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'mkdir $HOME/.tiledviz'"
+    print(mkdirhome)
+    os.system(mkdirhome)
+
+    chmodhome="ssh -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'chmod og-rx $HOME/.tiledviz'"
+    print(chmodhome)
+    os.system(chmodhome)
+    
     cmdhome="ssh -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'echo $HOME'"
     print(cmdhome)
     childhome=pexpect.spawn(cmdhome)

@@ -4,7 +4,8 @@ How to install TiledViz ?
 
 You must first install docker package (at least 17.03 version).
 
-You must be in docker groups to be abble to launch docker containers :
+You must be in docker groups (don't forget to relog after and see "id" command
+output) to be abble to launch docker containers :
 > chown :docker /var/run/docker.sock
 No need to be root for TiledViz host part. No TiledViz containers are execute with
 root users for security.
@@ -32,7 +33,7 @@ git clone https://github.com/novnc/noVNC.git noVNC
 cd noVNC
 git checkout 33e1462
 cd ..
-cp vnc_multi.html noVNC__
+cp vnc_multi.html noVNC
 patch -p0 < patch_devices_noVNC 
 }}}
 
@@ -84,6 +85,14 @@ Note that the database password must be changed in this TiledViz.sql file.
 sed -e "s&	ENCRYPTED PASSWORD 'm_test/@03';&	ENCRYPTED PASSWORD 'your_postgres_password';&" -i TVDatabase/TiledViz.sql
 }}}
 NOT with 'your_postgres_password' of course.
+
+You should also add functions and views to ease database management with psql tool :
+{{{
+psql -h localhost -U tiledviz -d TiledViz -f TVDatabase/management.sql
+}}}
+and replace localhost by postgres.
+
+TODO : docker run ... + hostname == $postgresNAME
 
 c. Fill values
 For Gitlab Continuous Integration script file .gitlab-ci.yml, we have prepared fill script of the database with old TileViz demo files :

@@ -9,7 +9,7 @@ while [ true ]; do
 	echo vnc done >> /home/myuser/.vnc/stdout
 	break
     elif [ $i -gt 100 ]; then 
-	RET=100+$RET
+	RET=$((100+$RET))
 	echo error vnc >> /home/myuser/.vnc/stdout
 	break
     fi

@@ -19,7 +19,7 @@ while [ true ]; do
     break
   elif [ $i -gt 100 ]; then
     echo "ssh error" >> /home/myuser/.vnc/stdout
-    RET=100+$RET
+    RET=$((100+$RET))
     break
   fi
   sleep 1

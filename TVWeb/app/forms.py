@@ -165,6 +165,7 @@ def BuildOldProjectForm(thisproject,listsessions):
 def BuildNewSessionForm():
     class NewSessionForm(FlaskForm):
         pass
+    NewSessionForm.submit1 = SubmitField("Next step")
     NewSessionForm.sessionname = StringField("Session name", validators=[InputRequired()])
     NewSessionForm.description = StringField("Description of this session", validators=[InputRequired()])
     NewSessionForm.users = FieldList(description="Others users",unbound_field=StringField("user", validators=[Optional()]),min_entries=5,max_entries=10)
@@ -176,6 +177,7 @@ def BuildNewSessionForm():
 def BuildCopySessionForm(oldsession=None,edit=True):
     class copySessionForm(FlaskForm):
         pass
+    copySessionForm.submit1 = SubmitField("Next step")
     copySessionForm.sessionname = StringField("New session name", default=oldsession.name, validators=[InputRequired()])
     copySessionForm.description = StringField("Description of this session", default=oldsession.description, validators=[InputRequired()])
     ListAllTileSet_ThisSession=[ (str(thistileset.id), thistileset.name) for thistileset in oldsession.tile_sets]
@@ -265,6 +267,7 @@ def BuildTilesSetForm(oldtileset=None,json_tiles_text=None,onlycopy=False,editco
         if (json_tiles_text==None):
             json_tiles_text=tvdb.decode_tileset(oldtileset)
         
+    TilesSetForm.submit1 = SubmitField("Next step")
     TilesSetForm.name = StringField("Tiles Set name (required)", default=name, validators=[InputRequired()])
     if (not onlycopy):
         TilesSetForm.dataset_path = StringField("Path or main URL of dataset (add to tiles)", default=dataset_path, validators=[Optional()])
@@ -329,6 +332,7 @@ def BuildConnectionsForm(oldconnection=None,json_tiles_text=None):
         container=oldconnection.container
         scheduler=oldconnection.scheduler
         
+    ConnectionForm.submit1 = SubmitField("Next step")
     ConnectionForm.host_address = StringField("Name or IP of the machine (required)", default=host_address, validators=[InputRequired()])
 
     #### liste A REVOIR  (cf TVConnection.py)

@@ -9,6 +9,10 @@ groupadd -r -g $7 flaskusr && useradd -r -u $6 -g flaskusr flaskusr && \
 # adduser --system --uid $6 --gid $7 --disabled-password flaskusr
 #su - ssh-keygen -b 1024 -t rsa -N '' -f /home/flaskusr/.ssh/id_rsa
 
+# patch codegen if needed :
+cd /flask_venv/lib/python3.*/site-packages/sqlacodegen;
+/TiledViz/TVDatabase/patch_flask_sqlacodegen /TiledViz
+
 # patch flask-bootstrap for Radioform in quick_form macro
 sed -e 's&    {% for item in field -%}&      <p class="label-block">{{field.label|safe}}</p>\n      <p class="help-block">{{field.description|safe}}</p>\n    {% for item in field -%}&' -i /flask_venv/lib/python3.*/site-packages/flask_bootstrap/templates/bootstrap/wtf.html
 

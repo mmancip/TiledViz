@@ -48,7 +48,7 @@ if [ $RET -gt 0 ]; then
 fi
 echo "Default old case done."
 echo
-python3 TVDatabase/BuildOldDatabase.py --oldcasefile='TVDatabase/OLDcases/VMD/case_config_mandelbrot' --oldnodefile='TVDatabase/OLDcases/VMD/nodes.js'  --host=${POSTGRES_HOST} --login=${POSTGRES_USER}  --databasename=${POSTGRES_DB}  --usertest="mmartial" --haveconnection --connecthost="VMDHPC" --testsets="testVMDcase" --typeoftiles="CONNECTION" 
+python3 TVDatabase/BuildOldDatabase.py --oldcasefile='TVDatabase/OLDcases/VMD/case_config_mandelbrot' --oldnodefile='TVDatabase/OLDcases/VMD/nodes.js'  --host=${POSTGRES_HOST} --login=${POSTGRES_USER}  --databasename=${POSTGRES_DB}  --usertest="mmartial" --haveconnection --connecthost="hostname.domainname.fr" --testsets="testVMDcase" --typeoftiles="CONNECTION" 
 RET=$?
 if [ $RET -gt 0 ]; then
     exit $RET

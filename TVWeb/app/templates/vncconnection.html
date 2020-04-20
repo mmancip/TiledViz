@@ -36,16 +36,16 @@
   </script>
 </header>
 <body>
-  <h2>
+  <h3>
     Connection secure to HPC machine.
-  </h2>
-  <p> hit &laquo; back to tileset edition &raquo; button when VNC connection is closed </p>
-
+  </h3>
+  <p> Hit &laquo; back to tileset edition &raquo; button when VNC connection is closed </p>
+  <p> Click in the border of the connection window to get hand inside it. </p>
   <script>
-    var VNCurl="http://"+flaskaddr+"/noVNC/vnc.html?autoconnect=1&host="+flaskaddr+"&port="+(parseInt(connection_port)+parseInt(connection_id)).toString()+"&encrypt=0&password="+vncpassword+"&true_color=1"
+    var VNCurl="http://"+flaskaddr+"/noVNC/vnc_auto.html?host="+flaskaddr+"&port="+(parseInt(connection_port)+parseInt(connection_id)).toString()+"&encrypt=0&password="+vncpassword+"&true_color=1"
     var vncifrm = document.createElement('iframe');
-    vncifrm.setAttribute('width', 1940);
-    vncifrm.setAttribute('height', 950);
+    vncifrm.setAttribute('width', 1410);
+    vncifrm.setAttribute('height', 740);
     vncifrm.setAttribute('src', VNCurl);
     document.body.appendChild(vncifrm);
   </script>

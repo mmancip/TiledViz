@@ -17,9 +17,7 @@ RUN sed -e 's/#GatewayPorts .*/GatewayPorts yes/' -i /etc/ssh/sshd_config; \
     /bin/bash -c "source /flask_venv/bin/activate ; \
                   export LC_ALL=C.UTF-8 ; \
                   export LANG=C.UTF-8 ; \
-		  pip3 install -r /TiledViz/TVWeb/requirements.txt ; \
-                  cd /flask_venv/lib/python3.*/site-packages/sqlacodegen; \
-		  /TiledViz/TVDatabase/patch_flask_sqlacodegen /TiledViz "
+		  pip3 install -r /TiledViz/TVWeb/requirements.txt ;"
 
 EXPOSE 5000
 EXPOSE 22

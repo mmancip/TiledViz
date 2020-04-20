@@ -3,7 +3,7 @@
 CAUTION: Do not modify this file unless you know what you are doing.
          Unexpected results may occur if the code is changed deliberately.
 -->
-<dbmodel pgmodeler-ver="0.9.0" last-position="0,432" last-zoom="0.95"
+<dbmodel pgmodeler-ver="0.9.0" last-position="0,8" last-zoom="0.95"
 	 default-schema="public" default-owner="postgres">
 <role name="tiledviz"
       superuser="true"
@@ -242,7 +242,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 		<type name="character varying" length="15"/>
 	</column>
 	<column name="scheduler_file">
-		<type name="character varying" length="20"/>
+		<type name="character varying" length="30"/>
 	</column>
 	<column name="config_files">
 		<type name="json" length="0"/>

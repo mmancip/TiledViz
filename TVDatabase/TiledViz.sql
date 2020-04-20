@@ -193,7 +193,7 @@ CREATE TABLE public.connections(
 	container character varying(100),
 	id_users integer NOT NULL,
 	scheduler character varying(15),
-	scheduler_file character varying(20),
+	scheduler_file character varying(30),
 	config_files json,
 	CONSTRAINT connections_pkey PRIMARY KEY (id)
 

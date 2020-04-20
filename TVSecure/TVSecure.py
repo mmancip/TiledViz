@@ -29,11 +29,11 @@ import logging
 errors=sys.stderr
 listerrors={"createError":1,"ImageError":2,"APIError":3,"start":4}
 
-nbLinesLogs=10
-timeAliveServ=2
-timeAliveConn=1
+nbLinesLogs=100
+timeAliveServ=1
+timeAliveConn=2
 timeWait=2
-CONNECTION_RESOL='1920x900'
+CONNECTION_RESOL='1350x660'
 
 #sys.path.append(os.path.abspath('./'))
 
@@ -201,6 +201,7 @@ class FlaskDocker(threading.Thread):
             Logs=str(self.containerFlask.logs(tail=nbLinesLogs))
 
             NewLog=NewStringFinder(oldLogs, Logs)
+            #logging.error("Get new log "+NewLog)
             if (len(NewLog) > 0):
                 # newconnection
                 create_newconnect=create_newconnection.search(NewLog)
@@ -225,6 +226,7 @@ class FlaskDocker(threading.Thread):
             elif (edit_oldconnect):
                 match_connect=edit_oldconnect
             elif (quit_oldconnect):
+                #logging.error("Match quit connection ")
                 match_connect=quit_oldconnect
             else:
                 find_connect=False
@@ -510,8 +512,8 @@ class ConnectionDocker(threading.Thread):
                     pass
 
             # Wrapper to private members :
-            #logging.error("Container "+self.name+" call list : "+str(self.call_list))
             while( len(self.call_list) > 0 ):
+                logging.warning("Container "+self.name+" call list : "+str(self.call_list))
                 callfunc=self.call_list[0] 
                 if callfunc == "updateScripts":
                     self.updateScripts()
@@ -579,7 +581,7 @@ class ConnectionDocker(threading.Thread):
 
     def killTunnel(self):
         # End of getinfo : stop tunnel 
-        killTunnel="sh -c \'Tunnel=$(pgrep -fla \"ssh.*@"+self.IPFlask+"\" |grep -v -- \"-c\" | sed -e \"s@\\([0-^]*\\) .*@\\1@\"); echo $Tunnel; if [ X$Tunnel != X ]; then kill -9 $Tunnel; fi\' "
+        killTunnel="sh -c \'Tunnel=$(pgrep -fla \"ssh.*@"+self.IPFlask+"\" |grep -v -- \"-c\" | sed -e \"s@\\([0-^]*\\) .*@\\1@\"); echo $Tunnel; if [ X\"$Tunnel\" != X\"\" ]; then kill -9 $Tunnel; fi\' "
 
         #logging.warning("Kill tunnel to Flask docker : "+killTunnel)
         self.LogTunnel=container_exec_out(self.containerConnect, killTunnel,user=self.user)
