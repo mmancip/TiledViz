@@ -385,6 +385,7 @@ def index():
         project = "test"
         psession = "testsession"
         session["username"]="Anonymous"
+        user = {"username" : session["username"] }
         session["projectname"]=project
         session["sessionname"]=psession
         session["is_client_active"]=False
@@ -1055,8 +1056,20 @@ def addtileset():
 
         if (json_tiles):
             # Translate json text in structure
-            jsonTileSet = json.loads(json_tiles)
-            
+            try:
+                jsonTileSet = json.loads(json_tiles)
+            except json.decoder.JSONDecodeError as e:
+                logging.error("Addtileset : json TileSet error ! "+str(e))
+                logging.error("Data : "+str(json_tiles))
+                traceback.print_exc(file=sys.stderr)
+                json_tiles=json.loads(json_tiles.replace("'", '"'))
+                try:
+                    jsonTileSet = json.loads(json_tiles)
+                except json.decoder.JSONDecodeError as e:
+                    logging.error("Addtileset : correction with double quotes not efficient ! "+str(e))
+                    flash("Please look on data for TileSet json compliance")
+                    return redirect(url_for(".addtileset",message=message))
+                    
             nbr_of_tiles = len(jsonTileSet["nodes"])
             logging.info("Number of tiles "+str(nbr_of_tiles))
             
@@ -1291,6 +1304,11 @@ def edittileset():
     if myform.validate_on_submit():
         logging.info("in tileset editor")
         
+        if(myform.goback.data):
+            logging.debug("go back to edit old session : "+session["sessionname"])
+            message = '{"oldsessionname":"'+session["sessionname"]+'"}'
+            return redirect(url_for(".editsession",message=message))
+
         if(oldtileset.type_of_tiles == "CONNECTION" and myform.manage_connection.data != "reNew"):
             user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
             if ( not "connection"+str(oldConnection_id) in session):
@@ -1488,9 +1506,22 @@ def edittileset():
             try:
                 # unicity for (title, comment, tags) (url ?)
                 oldtile=db.session.query(models.Tile).filter_by(title=title,comment=comment).order_by(models.Tile.id.desc()).first()
-                if (type(oldtile) == "NoneType"):
-                    # search with url ? (if comment has changed)
-                    oldtile=db.session.query(models.Tile).filter_by(title=title,source={"name":name,"url":url,"connection":ConnectionPort,"variable":variable}).order_by(models.Tile.id.desc()).first()
+
+                # if (type(oldtile) == type(None)):
+                #     logging.warning(str(i)+" tile type "+str(type(oldtile)))
+                #     # search with url ? (if comment has changed)
+                #     try:
+                #         oldtile=db.session.query(models.Tile).filter_by(title=title,source={"name":name,"url":url,"connection":ConnectionPort,"variable":variable}).order_by(models.Tile.id.desc()).first()
+                # => sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedFunction) operator does not exist: json = unknown
+                # LINE 3: WHERE tiles.title = '001 ' AND tiles.source = '{"name": "001...
+                #                                                     ^
+                # HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
+                #         oldtile=db.session.query(models.Tile).filter_by(title=title,source=jsonify(name=name,url=url,connection=ConnectionPort,variable=variable)).order_by(models.Tile.id.desc()).first()
+                # TypeError: Object of type Response is not JSON serializable
+                #     except :
+                #         raise AttributeError
+                
+                logging.debug(str(i)+" tile type "+str(type(oldtile)))
                 oldtileid=oldtile.id
                 logging.warning(str(i)+" update old tile "+str(oldtileid))
                 oldtile.tags=tags
@@ -1529,6 +1560,7 @@ def edittileset():
                 logging.warning(str(i)+" add tile "+str(newtile.id))
                 db.session.commit()
             except Exception:
+                logging.warning(str(i)+" Error tile ")
                 traceback.print_exc(file=sys.stderr)
                 
         
@@ -1579,6 +1611,7 @@ def vncconnection():
         message=json.loads(request.args["message"].replace("'", '"'))
 
     idconnection=message["connectionid"]
+    idtileset=message["oldtilesetid"]
     try:
         oldconnection=db.session.query(models.Connection).filter_by(id=idconnection).first()
     except:
@@ -1610,6 +1643,11 @@ def vncconnection():
     if ( request.method == 'POST'):
         message=json.JSONEncoder().encode(vnctransfert["args"])
         
+        logging.warning("killconnection: "
+                        +str(session["username"])+" ; "
+                        +str(idtileset)+" ; "
+                        +str(idconnection))
+        
         out_nodes_json = os.path.join("/TiledViz/TVFiles", str(user_id), str(idconnection),"nodes.json")
         logging.warning("out_nodes_json after vncconnection.html :"+out_nodes_json)
         count=0
@@ -1630,6 +1668,7 @@ def vncconnection():
                     return render_template("vncconnection.html",
                                            port=PORTVNC,
                                            id=idconnection,
+                                           tsid=idtileset,
                                            vncpassword=vnctransfert["vncpassword"],
                                            flaskaddr=socket.gethostbyname(socket.gethostname()))
 
@@ -1648,6 +1687,7 @@ def vncconnection():
     return render_template("vncconnection.html",
                            port=PORTVNC,
                            id=idconnection,
+                           tsid=idtileset,
                            vncpassword=vnctransfert["vncpassword"],
                            session=session["sessionname"],
                            flaskaddr=socket.gethostbyname(socket.gethostname()))
@@ -1667,6 +1707,20 @@ def addconnection():
 
         creation_date=datetime.datetime.now()
         user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
+
+        # Test if a connection is already attached few seconds ago for the tileset :
+        newtileset=db.session.query(models.TileSet).filter_by(id=message["oldtilesetid"]).one()
+
+        if (type(newtileset.id_connections) != type(None)):
+            logging.warning("detect an old connection :"+str(type(newtileset.id_connections)))
+            try:
+                oldConnection=db.session.query(models.Connection).filter_by(id=newtileset.id_connections).one()
+                olddate=oldConnection.creation_date
+                if ((creation_date-olddate).seconds < 3):
+                    return
+            except:
+                return
+        
         newConnection = models.Connection(host_address=myform.host_address.data,
                                           auth_type=myform.auth_type.data,
                                           container=myform.container.data,
@@ -1684,7 +1738,6 @@ def addconnection():
         db.session.commit()
 
         # We must add connection id in the tile_set
-        newtileset=db.session.query(models.TileSet).filter_by(id=message["oldtilesetid"]).one()
         newtileset.id_connections=newConnection.id
         db.session.commit()
 
@@ -2161,16 +2214,42 @@ def show_grid():
             traceback.print_exc(file=sys.stderr)
 
     TheConfig=ThisSession.config;
-    logging.debug("config : "+str(ThisSession.config))
     if (ThisSession.config is None):
         flash("Session {} does not have a valid configuration for grid.".format(session["sessionname"]))
         message = '{"sessionname":"'+session["sessionname"]+'"}'
         return redirect(url_for(".configsession",message=message))
+    # if (TheConfig==""):
+    #     config_default_file=open("app/static/js/config_default.json",'r')
+    #     json_configs=json.load(config_default_file)
+    #     config_default_file.close()
+    #     TheConfig=json.JSONEncoder().encode(json_configs)
+    logging.debug("config : "+str(TheConfig))
 
     try:
         lang=TheConfig["language"];
     except:
         lang="EN";
+
+    #get actions files for each TS/connection
+    lts=len(ThisSession.tile_sets)
+    tiles_actions={}
+    ts=0
+    while (ts < lts):
+ 
+        thistileset=ThisSession.tile_sets[ts]
+        # Connection for this TS
+        tsconnection=thistileset.connection
+
+        if (type(tsconnection) != type(None) and
+            len(thistileset.config_files) > 0):
+            if ( "actions.json" in thistileset.config_files ):
+                actions_file=open(thistileset.config_files["actions.json"],'r')
+                tiles_actions[thistileset.name]=json.load(actions_file)
+        else:
+            tiles_actions[thistileset.name]={}
+        ts=ts+1
+
+    logging.warning("Global tile actions : "+str(tiles_actions))
 
     if ("colorTheme" in TheConfig["colors"]):
         colorTheme=TheConfig["colors"]["colorTheme"]
@@ -2191,7 +2270,8 @@ def show_grid():
                            participants=part_nbr,
                            is_client_active=session["is_client_active"],
                            json_data=tiles_data,
-                           json_config=json.dumps(TheConfig),
+                           json_actions=tiles_actions,
+                           json_config=TheConfig,
                            helpPath = help_path)
 
 @socketio.on("save_Session")
@@ -2303,6 +2383,26 @@ def addNewTagShare(cdata):
 
     sdata = {"OldTag":cdata["OldTag"],"TagColor":cdata["TagColor"]}
     socketio.emit('receive_Color_Tag', sdata,room=croom)
+
+@socketio.on("action_click")
+def ClickAction(cdata):
+    croom=cdata["room"]
+    action=cdata["action"]
+    TS=cdata["TileSet"]
+    selections=cdata["selections"]
+    logging.info(action+" for TileSet "+TS)
+    logging.warning("[->] Click on action "+action+ " "+ str(cdata["id"]) + " in room " + str(croom) + " for selection "+ str(selections))
+
+    actionid=action.replace("action", "")
+    selections=actionid+","+selections
+    
+    oldtileset=db.session.query(models.TileSet).filter_by(name=TS).one()
+    oldconnection=oldtileset.connection
+    logging.warning("action: "
+                    +str(session["username"])+" ; "
+                    +str(oldtileset.id)+" ; "
+                    +str(oldconnection.id)+" ; "
+                    +str(selections))
 
 # Draw    
 sidDraw=""
@@ -2485,26 +2585,51 @@ def handle_join_with_invite_link(link):
 # Error management
 @app.route('/404')
 def not_found():
-    return "please try again"
+    return "Unknown page. Please modify your address."
 
 # Proxy VNC
 # Thank's to https://stackoverflow.com/posts/36601467/revisions
 @app.route('/<path:dummy>')
-def routevnc(dummy=None):
-    logging.error("request : "+str(request))
-    logging.error("routevnc : method "+str(request.method)+" header"+str(request.headers)+" args "+str(request.args))
-    VNCurl="http://127.0.0.1/noVNC/"
-    logging.warning("routevnc Connect with url : "+VNCurl+dummy)
+def routevnc(path=None,dummy=None):
+    is_noVNC=re.search(r''+"noVNC",dummy)
+    if ( dummy == "favicon.ico" ):
+        logging.warning("proxy favicon : \n "+str(request.host_url))
+        resp = requests.request(
+            method=request.method,
+            url=request.host_url,
+            headers={key: value for (key, value) in request.headers if key != 'Host'},
+            data=request.get_data(),
+            cookies=request.cookies,
+            allow_redirects=False)
+    elif (is_noVNC) :
+        #logging.debug("request : \n "+str(request))
+        logging.debug("proxy noVNC path : \n "+str(path)+":"+str(dummy))
+        logging.debug("routevnc : \n url "+str(request.host_url))
+        # logging.error("routevnc : \n url "+str(request.host_url)+"\n method "+str(request.method).replace("\r","")+"\n header"+str(request.headers).replace("\r","")+"\n args :"+str(request.args).replace("\r",""))
+        
+        VNCurl="http://127.0.0.1/"
+        logging.debug("Connect with url : "+VNCurl+dummy)
+        newurl=request.url.replace(request.host_url, VNCurl)
+        logging.warning("Replace url : "+newurl)
+        
+        logging.debug(dummy+" header :"+str(request.headers))
+        resp = requests.request(
+            method=request.method,
+            url=newurl,
+            headers={key: value for (key, value) in request.headers if key != 'Host'},
+            data=request.get_data(),
+            cookies=request.cookies,
+            allow_redirects=False)
+    else:
+        logging.warning("proxy unknwon path : \n "+str(path)+":"+str(dummy)+"  "+str(request.host_url))
+        resp = requests.request(
+            method=request.method,
+            url=request.host_url,
+            headers={key: value for (key, value) in request.headers if key != 'Host'},
+            data=request.get_data(),
+            cookies=request.cookies,
+            allow_redirects=False)
 
-    logging.debug(dummy+" header :"+str(request.headers))
-    resp = requests.request(
-        method=request.method,
-        url=request.url.replace(request.host_url, VNCurl),
-        headers={key: value for (key, value) in request.headers if key != 'Host'},
-        data=request.get_data(),
-        cookies=request.cookies,
-        allow_redirects=False)
-    
     excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
     headers = [(name, value) for (name, value) in resp.raw.headers.items()
                if name.lower() not in excluded_headers]

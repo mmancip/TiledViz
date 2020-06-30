@@ -55,6 +55,11 @@ Docker with Swarm :
 Must install docker on each node, build and copy mageainvidia (for example) image on
 each node (or pull a Xvnc system from a hub).
 
+Build mageia docker (used in TiledTest scripts) for example.
+* Copy some authorized keys to your frontend in TVConnections/mageianvidia/ssh (to make secure tunneling of vnc stream) 
+* Build container :
+  docker build -t mageianvidia -f TVConnections/mageianvidia/Dockerfile .
+  
 Singularity :
 Change rights with X launch on nodes
 /etc/pam.d/xserver
@@ -63,3 +68,6 @@ Change rights with X launch on nodes
  account    sufficient pam_permit.so
 because of the creation of /tmp/.X#-lock lock file and /tmp/.X11-unix/X# socket on
 the host for nvidia acceleration inside the container.
+
+On the forwarding frontend
+ if you use OpenSSH sshd server, the server's GatewayPorts option needs to be enabled.

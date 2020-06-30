@@ -1,5 +1,5 @@
 var text_ =
-    { nodes: [
+    { "nodes": [
 {"title" : "01 1_46",
  "variable" : "ID-01_1_46" ,
  "url" : "http://mandelbrot-smp.extra.cea.fr/wildos/VNC/kanaka-noVNC-33e1462/vnc_auto.html?host=mandelbrot-smp.extra.cea.fr&port=55001&encrypt=0&password=WqzZAPYH&true_color=1",

@@ -20,6 +20,9 @@ sys.path.append(os.path.abspath('./TVDatabase'))
 from TVDb import tvdb
 from TVDb import models
 
+sys.path.append(os.path.realpath('./TVConnections/'))
+from connect import sock
+
 import argparse
 
 import code
@@ -30,8 +33,8 @@ errors=sys.stderr
 listerrors={"createError":1,"ImageError":2,"APIError":3,"start":4}
 
 nbLinesLogs=100
-timeAliveServ=1
-timeAliveConn=2
+timeAliveServ=0.2
+timeAliveConn=0.1
 timeWait=2
 CONNECTION_RESOL='1350x660'
 
@@ -71,6 +74,8 @@ Connections=[]
 
 ConnectionPort=54040
 NbSecureConnection=10
+
+ActionPort=64040
 
 # Get string of exec_run output
 def container_exec_out(thecontainer, cmd, user='root'):
@@ -113,6 +118,8 @@ class FlaskDocker(threading.Thread):
 
         global NbConnect
         
+        self.oldtime=time.time()
+
         self.commandFlask=[POSTGRES_HOST, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, secretKey,str(os.getuid()),str(os.getgid())]
         
         # Si on passe secretKey et password comme secret (seulement comme services dans un swarm!), on doit modifier TVWeb/FlaskDocker/launch_flask
@@ -139,6 +146,8 @@ class FlaskDocker(threading.Thread):
         for i in range(NbSecureConnection): 
             self.flaskPORT[str(ConnectionPort+i)+'/tcp']=('0.0.0.0',ConnectionPort+i)
 
+        healthcheckN=docker.types.Healthcheck(interval=50000000) #test=['NONE'])
+
         # Detect or create flask container :
         try:
             self.containerFlask=client.containers.create(
@@ -146,6 +155,7 @@ class FlaskDocker(threading.Thread):
                 mounts=[TVvolume], extra_hosts=self.postgresHost,
                 command=self.commandFlask,
                 ports=self.flaskPORT,
+                healthcheck=healthcheckN,
                 detach=True) #auto_remove=True,
             
         except docker.errors.ContainerError:
@@ -182,23 +192,31 @@ class FlaskDocker(threading.Thread):
 
         # string from Flask for new connection
 
-        createnewconnection=r'WARNING:.*addconnection:\s*(?P<username>\w+)\s*;\s*(?P<hostname>[^ ;]+)\s*;\s*(?P<connection>\w+)\s*;\s*(?P<containers>\w+)\s*;\s*(?P<scheduler>\w+)\s*;\s*(?P<idTS>\d+)\s*;\s*(?P<id>\d+)'
+        createnewconnection=r'WARNING:.*addconnection:\s*(?P<username>\w+)\s*;\s*(?P<hostname>[^ ;]+)\s*;\s*(?P<connection>\w+)\s*;\s*(?P<containers>\w+)\s*;\s*(?P<scheduler>\w+)\s*;\s*(?P<idTS>\d+)\s*;\s*(?P<idCon>\d+)'
         create_newconnection = re.compile(r''+createnewconnection)
 
         # string from Flask for edit old connection
-        editoldconnection=r'WARNING:.*editconnection:\s*(?P<username>\w+)\s*;\s*(?P<hostname>[^ ;]+)\s*;\s*(?P<connection>\w+)\s*;\s*(?P<containers>\w+)\s*;\s*(?P<scheduler>\w+)\s*;\s*(?P<idTS>\d+)\s*;\s*(?P<id>\d+)'
+        editoldconnection=r'WARNING:.*editconnection:\s*(?P<username>\w+)\s*;\s*(?P<hostname>[^ ;]+)\s*;\s*(?P<connection>\w+)\s*;\s*(?P<containers>\w+)\s*;\s*(?P<scheduler>\w+)\s*;\s*(?P<idTS>\d+)\s*;\s*(?P<idCon>\d+)'
         edit_oldconnection = re.compile(r''+editoldconnection)
 
         # string from Flask for kill old connection
-        quitoldconnection=r'WARNING:.*removeconnection:\s*(?P<username>\w+)\s*;\s*(?P<idTS>\d+)\s*;\s*(?P<id>\d+)'
+        quitoldconnection=r'WARNING:.*removeconnection:\s*(?P<username>\w+)\s*;\s*(?P<idTS>\d+)\s*;\s*(?P<idCon>\d+)'
         quit_oldconnection = re.compile(r''+quitoldconnection)
         
+        # string from Flask for kill old connection
+        killoldconnection=r'WARNING:.*killconnection:\s*(?P<username>\w+)\s*;\s*(?P<idTS>\d+)\s*;\s*(?P<idCon>\d+)'
+        kill_oldconnection = re.compile(r''+killoldconnection)
+        
+        # string from Flask for action
+        actionoldconnection=r'WARNING:.*action:\s*(?P<username>\w+)\s*;\s*(?P<idTS>\d+)\s*;\s*(?P<idCon>\d+)\s*;\s*(?P<selection>[0-9,]*)'
+        action_oldconnection = re.compile(r''+actionoldconnection)
+        
         oldLogs=""
+        Logs=""
         
         logging.warning("Start log detection loop.")
         while True:
             # Detect all command to request new thread here
-            Logs=str(self.containerFlask.logs(tail=nbLinesLogs))
 
             NewLog=NewStringFinder(oldLogs, Logs)
             #logging.error("Get new log "+NewLog)
@@ -209,39 +227,63 @@ class FlaskDocker(threading.Thread):
                 edit_oldconnect=edit_oldconnection.search(NewLog)
                 # delconnection
                 quit_oldconnect=quit_oldconnection.search(NewLog)
+                # kill tunnel connection
+                kill_oldconnect=kill_oldconnection.search(NewLog)
                 # saveconnection
                 # restartconnection
+                # actions
+                action_oldconnect=action_oldconnection.search(NewLog)
             else:
                 create_newconnect=False
                 # editconnection
                 edit_oldconnect=False
                 # delconnection
                 quit_oldconnect=False
+                # killconnection
+                kill_oldconnect=False
+                # actions
+                action_oldconnect=False
 
-            oldLogs=Logs
+            #logging.error("Before create_newconnect :"+str(create_newconnect))
 
             find_connect=True
             if (create_newconnect):
+                #logging.error("Match create connection ")
                 match_connect=create_newconnect
             elif (edit_oldconnect):
+                #logging.error("Match edit connection ")
                 match_connect=edit_oldconnect
             elif (quit_oldconnect):
                 #logging.error("Match quit connection ")
                 match_connect=quit_oldconnect
+            elif (kill_oldconnect):
+                #logging.error("Match edit connection ")
+                match_connect=kill_oldconnect
+            elif (action_oldconnect):
+                #logging.error("Match action connection :"+NewLog)
+                match_connect=action_oldconnect
             else:
                 find_connect=False
 
+            test_notconnect=False
             if (find_connect):
+                #logging.error("After test create_newconnect :"+str(match_connect.groups()))
                 # test if there is no existing connection
                 boolTestNotAlreadyConnect=(not any([ (match_connect.group("username") == theConnection["username"] and
-                                                      match_connect.group("id") == theConnection["connectionid"])
+                                                      match_connect.group("idCon") == theConnection["connectionid"])
                                                      for theConnection in Connections]))
                 test_notconnect=(len(Connections) == 0 or boolTestNotAlreadyConnect)
+            
+                # logging.error("after test_notconnect "+str(test_notconnect))
             
             if create_newconnect:
                 logging.warning("Create new connect :"+str(create_newconnect.groups()))
                 if test_notconnect:
-                    logging.warning("Get connection parameters :"+str(create_newconnect.groups()))
+                    # logging.warning("Get connection parameters :"
+                    #                 +" "+create_oldconnect.group("username")+" "+create_oldconnect.group("hostname")
+                    #                 +" "+create_oldconnect.group("connection")+" "+create_oldconnect.group("containers")
+                    #                 +" "+create_oldconnect.group("scheduler")+" "+create_oldconnect.group("idTS")
+                    #                 +" "+create_oldconnect.group("idCon") )
                     logging.debug("Connection "+str(NbConnect)+" container type :"+create_newconnect.group("containers"))
                     # then create the new connection
                     Connections.append({"username":create_newconnect.group("username"),
@@ -249,48 +291,89 @@ class FlaskDocker(threading.Thread):
                                         "connection":create_newconnect.group("connection"),
                                         "containers":create_newconnect.group("containers"),
                                         "tilesetid":create_newconnect.group("idTS"),
-                                        "connectionid":create_newconnect.group("id"),
+                                        "connectionid":create_newconnect.group("idCon"),
                                         "ThisConnection":""})
                     ThisConnection=ConnectionDocker(self.containerFlask, POSTGRES_HOST, POSTGRES_IP, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD)
                     Connections[NbConnect]["ThisConnection"]=ThisConnection
                     NbConnect+=1
                 else:
-                    logging.warning("A connection already exists with parameters :"+create_newconnect.group("username")+" "+create_newconnect.group("hostname")+" "+str(create_newconnect.group("id")))
+                    logging.warning("A connection already exists with parameters :"+create_newconnect.group("username")+" "+create_newconnect.group("hostname")+" "+str(create_newconnect.group("idCon")))
                     logging.error("connections : "+str( [ theConnection["username"]+" "+theConnection["hostname"]+" "+str(theConnection["connectionid"]) for theConnection in Connections] ))
                     
             elif (edit_oldconnect):
                 logging.warning("Edit old connect :"+str(edit_oldconnect.groups()))
                 if (not test_notconnect ):
-                    logging.warning("Edit connection parameters :"+str(edit_oldconnect.groups()))
+                    logging.warning("Edit connection parameters :"
+                                    +" "+edit_oldconnect.group("username")+" "+edit_oldconnect.group("hostname")
+                                    +" "+edit_oldconnect.group("connection")+" "+edit_oldconnect.group("containers")
+                                    +" "+edit_oldconnect.group("scheduler")+" "+edit_oldconnect.group("idTS")
+                                    +" "+edit_oldconnect.group("idCon") )
                     logging.debug("Connection "+str(NbConnect)+" container type :"+edit_oldconnect.group("containers"))
                     for theConnection in Connections:
                         if( edit_oldconnect.group("username") == theConnection["username"] and
                             edit_oldconnect.group("hostname") == theConnection["hostname"] and
-                            edit_oldconnect.group("id") == theConnection["connectionid"] ):
+                            edit_oldconnect.group("idCon") == theConnection["connectionid"] ):
                             logging.warning("Update script for connection "+str(theConnection["connectionid"]))
                             theConnection["ThisConnection"].callfunction("updateScripts")
                             logging.warning("Reconnect "+str(theConnection["connectionid"]))
                             theConnection["ThisConnection"].callfunction("reconnect")
                 else:
-                    logging.warning("No connection found with parameters :"+edit_oldconnect.group("username")+" "+edit_oldconnect.group("hostname")+" "+str(edit_oldconnect.group("id")))
+                    logging.warning("No connection found with parameters :"+edit_oldconnect.group("username")+" "+edit_oldconnect.group("hostname")+" "+str(edit_oldconnect.group("idCon")))
                     logging.error("connections : "+str( [ theConnection["username"]+" "+theConnection["hostname"]+" "+str(theConnection["connectionid"]) for theConnection in Connections] ))
 
             elif (quit_oldconnect):
                 logging.warning("Quit old connect :"+str(quit_oldconnect.groups()))
                 if (not test_notconnect ): 
-                    logging.warning("Quit connection parameters :"+str(quit_oldconnect.groups()))
-                    logging.debug("Connection "+str(NbConnect)+" container type :"+quit_oldconnect.group("id"))
+                    logging.warning("Quit connection parameters :"+quit_oldconnect.group("username")
+                                    +" "+quit_oldconnect.group("idTS")+" "+quit_oldconnect.group("idCon"))
+                    logging.debug("Connection "+str(NbConnect)+" container type :"+quit_oldconnect.group("idCon"))
                     for theConnection in Connections:
                         if( quit_oldconnect.group("username") == theConnection["username"] and
-                            quit_oldconnect.group("id") == theConnection["connectionid"] ):
+                            quit_oldconnect.group("idCon") == theConnection["connectionid"] ):
                             logging.warning("Quit connection "+str(theConnection["connectionid"]))                            
                             theConnection["ThisConnection"].callfunction("quitConnection")
                 else:
-                    logging.warning("No connection found with parameters :"+quit_oldconnect.group("username")+" "+quit_oldconnect.group("hostname")+" "+str(quit_oldconnect.group("id")))
-                    logging.error("connections : "+str( [ theConnection["username"]+" "+theConnection["hostname"]+" "+str(theConnection["connectionid"]) for theConnection in Connections] ))
+                    logging.error("No connection found with parameters :"+quit_oldconnect.group("username")+" "+quit_oldconnect.group("hostname")+" "+str(quit_oldconnect.group("idCon")))
+                    logging.error("connections : "+str( [ theConnection["username"]+" "+theConnection["hostname"]+" "+str(theConnection["connectionid"]) for theConnection in Connections] )) 
                             
+            elif (kill_oldconnect):
+                logging.warning("Kill old connect :"+str(kill_oldconnect.groups()))
+                if (not test_notconnect ): 
+                    logging.warning("Kill connection parameters :"+kill_oldconnect.group("username")
+                                    +" "+kill_oldconnect.group("idTS")+" "+kill_oldconnect.group("idCon"))
+                    logging.debug("Connection "+str(NbConnect)+" container type :"+kill_oldconnect.group("idCon"))
+                    for theConnection in Connections:
+                        if( kill_oldconnect.group("username") == theConnection["username"] and
+                            kill_oldconnect.group("idCon") == theConnection["connectionid"] ):
+                            logging.warning("Kill connection "+str(theConnection["connectionid"]))
+                            theConnection["ThisConnection"].callfunction("killTunnel")
+                else:
+                    logging.error("No connection found with parameters :"+kill_oldconnect.group("username")+" "+kill_oldconnect.group("hostname")+" "+str(kill_oldconnect.group("idCon")))
+                    logging.error("connections : "+str( [ theConnection["username"]+" "+theConnection["hostname"]+" "+str(theConnection["connectionid"]) for theConnection in Connections] )) 
+
+            elif (action_oldconnect):
+                logging.warning("action old connect :"+str(action_oldconnect.groups()))
+                if (not test_notconnect ): 
+                    logging.warning("Action connection parameters :"+action_oldconnect.group("username")
+                                    +" "+action_oldconnect.group("idTS")+" "+action_oldconnect.group("idCon")
+                                    +" "+action_oldconnect.group("selection"))
+                    logging.debug("Connection "+str(NbConnect)+" container type :"+action_oldconnect.group("idCon"))
+                    for theConnection in Connections:
+                        if( action_oldconnect.group("username") == theConnection["username"] and
+                            action_oldconnect.group("idCon") == theConnection["connectionid"] ):
+                            #logging.warning("Action connection "+str(theConnection["connectionid"]))
+                            logging.warning("Action connection "+str(theConnection["connectionid"])+" function "+str("action="+action_oldconnect.group("selection")))
+                            theConnection["ThisConnection"].callfunction("action="+action_oldconnect.group("selection"))
+                else:
+                    logging.error("No connection found with parameters :"+quit_oldconnect.group("username")+" "+quit_oldconnect.group("hostname")+" "+str(quit_oldconnect.group("idCon")))
+                    logging.error("connections : "+str( [ theConnection["username"]+" "+theConnection["hostname"]+" "+str(theConnection["connectionid"]) for theConnection in Connections] )) 
+                    
             time.sleep(timeAliveServ)
+            # logging.debug("Log loop")
             
+            oldLogs=Logs
+            Logs=str(self.containerFlask.logs(timestamps=True,since=int(self.oldtime),tail=nbLinesLogs))
+            self.oldtime=time.time()            
 
     def isalive(self):
         # try:
@@ -302,7 +385,9 @@ class FlaskDocker(threading.Thread):
     
     def getLog(self,nbLines):
         # print(re.sub(r'\*n',r'\\n',str(self.Logs,'utf-8')))
-        self.Logs=self.containerFlask.logs(timestamps=True,tail=nbLines).decode("utf-8")
+        self.Logs=self.containerFlask.logs(timestamps=True,since=int(self.oldtime),tail=nbLines).decode("utf-8")
+        self.oldtime=time.time()
+        
         logging.warning(self.Logs)
 
     def getContainerFlask(self):
@@ -319,9 +404,6 @@ class ConnectionDocker(threading.Thread):
                                                              POSTGRES_HOST, POSTGRES_IP,
                                                              POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD,)).start()
 
-        self.user="myuser"
-        self.home='/home/'+self.user
-        
         time.sleep(10)
         threads[self.name]=self.thread
         #threading.Thread.__init__(self, target=self.run_forever)
@@ -329,6 +411,11 @@ class ConnectionDocker(threading.Thread):
     def run(self,containerFlask,
             POSTGRES_HOST=POSTGRES_HOST, POSTGRES_IP=POSTGRES_IP,
             POSTGRES_DB=POSTGRES_DB, POSTGRES_USER=POSTGRES_USER, POSTGRES_PASSWORD=POSTGRES_PASSWORD):
+
+        self.user="myuser"
+        self.home='/home/'+self.user
+
+        self.oldtime=time.time()
 
         self.name="connectiondock"+str(Connections[NbConnect]["connectionid"])
         self.tilesetId=int(Connections[NbConnect]["tilesetid"])
@@ -344,7 +431,7 @@ class ConnectionDocker(threading.Thread):
         if (not os.path.isdir(self.dir)): os.mkdir(self.dir)
 
                               
-        VncVolume=docker.types.Mount(source=self.dir,target="/home/"+self.user+"/.vnc",type='bind',read_only=False)
+        VncVolume=docker.types.Mount(source=self.dir,target=self.home+"/.vnc",type='bind',read_only=False)
         XLocale=docker.types.Mount(source="/usr/share/X11/locale",target="/usr/share/X11/locale",type='bind')
 
         
@@ -353,9 +440,18 @@ class ConnectionDocker(threading.Thread):
 
         self.postgresHost={POSTGRES_HOST:POSTGRES_IP}
 
-        cont_auto_remove=True
+        if ( os.path.exists( "/dev/nvidia0" ) ):
+            list_gpu_dev=["/dev/nvidia0:/dev/nvidia0:rw","/dev/nvidiactl:/dev/nvidiactl:rw"]
+        else:
+            logging.debug("ConnectionDocker : no GPU device find in /dev")
+            list_gpu_dev=[]
             
-        #TODO devices only for linux system with nvidia
+        self.cont_auto_remove=False
+        #(outLevel!=logging.DEBUG)
+        #outHandler.level / rootLogger.level #DEBUG=10, WARNING=30, CRITICAL=50
+
+        healthcheckN=docker.types.Healthcheck(interval=50000000) #test=['NONE'])
+            
         # Detect or create flask container :
         try:
 
@@ -364,8 +460,9 @@ class ConnectionDocker(threading.Thread):
                 mounts=[VncVolume,XLocale], 
                 extra_hosts=self.postgresHost,
                 command=self.commandConnect,
-                devices=["/dev/nvidia0:/dev/nvidia0:rw","/dev/nvidiactl:/dev/nvidiactl:rw"],
-                auto_remove=cont_auto_remove, detach=True)
+                devices=list_gpu_dev,
+                healthcheck=healthcheckN,
+                auto_remove=self.cont_auto_remove, detach=True)
 
         except docker.errors.ContainerError:
             logging.error("The container exits with a non-zero exit code and detach is False.")
@@ -382,7 +479,7 @@ class ConnectionDocker(threading.Thread):
 
         self.daterun=datetime.datetime.now()
         logging.warning("Ready to start "+self.name+".")
-        try :
+        try:
             self.containerConnect.start()
             logging.warning("Connection started.")
         except docker.errors.APIError :
@@ -394,17 +491,18 @@ class ConnectionDocker(threading.Thread):
         searchpassword=r'Random Password Generated:\s*(?P<passwd>[-._+0-9a-zA-Z]+)'
         search_passwd = re.compile(r''+searchpassword)
         while True:
-            info_passwd=self.grepLog(2,search_passwd)
+            info_passwd=self.grepLog(100,search_passwd)
             if info_passwd:
                 self.password=info_passwd.group("passwd")
                 break
-            time.sleep(1)
+            time.sleep(0.5)
+        logging.warning("After password.")
 
         self.containerConnect.reload()
         ipconnect = self.containerConnect.attrs["NetworkSettings"]["Networks"]["bridge"]["IPAddress"]
         logging.debug("We have built container for user '"+self.user+"' with IP "+ipconnect+".")
         logging.warning("User container status :"+str(self.containerConnect.status))
-        time.sleep(2)
+        time.sleep(timeWait)
 
         # Create temporary user on flask docker :
         flaskusr="connect"+str(self.connectionId)
@@ -419,7 +517,7 @@ class ConnectionDocker(threading.Thread):
         logging.debug("Add user "+flaskusr+" on Flask container."+re.sub(r'\*n',r'\\n',self.LogAddUser))
         
         # Get id_rsa.pub for tunneling VNC flux
-        time.sleep(timeWait)
+        #time.sleep(timeWait)
         commandAuthKey = "cat "+self.home+"/.ssh/id_rsa.pub"
         self.LogAuthKey = container_exec_out(self.containerConnect, commandAuthKey)
         self.LogAuthorized_key = re.sub(r'\n',r'',self.LogAuthKey)
@@ -469,16 +567,50 @@ class ConnectionDocker(threading.Thread):
         self.updateScripts()
         
         # Tunnel to Flask : Give access from vncconnection page to this container
-        self.x11vnc_command="if [ ! $( pgrep x11vnc ) ]; then /opt/vnccommand; fi"
+        websockify_command="if [ X\\\"\\$( pgrep -fla websockify )\\\" == X\\\"\\\" ]; then /opt/vnccommand; fi &"
         self.tunnel_script=os.path.join(self.home,".vnc","tunnel_flask")
         self.tunnel_command="ssh -4 -T -N -nf -R 0.0.0.0:"+str(externPort)+":localhost:5902 "+flaskusr+"@"+self.IPFlask+" &"
-        self.scriptTunnel="awk 'BEGIN {print \""+self.x11vnc_command+" \\n "+self.tunnel_command+"\" >>\""+self.tunnel_script+"\"}' /dev/null"
+        scriptTunnel="awk 'BEGIN {print \""+websockify_command+" \\n "+self.tunnel_command+"\" >>\""+self.tunnel_script+"\"}' > /dev/null"
+        logging.debug("awk command to build tunnel script : "+scriptTunnel)
         
-        self.LogScrTunnel=self.containerConnect.exec_run(cmd=self.scriptTunnel,user=self.user)
-        self.LogModTunnel=self.containerConnect.exec_run(cmd="chmod u+x "+self.tunnel_script,user=self.user)
-        logging.debug("script : "+self.scriptTunnel)
+        self.LogScrTunnel=self.containerConnect.exec_run(cmd=scriptTunnel,user=self.user,detach=True)
+        self.LogModTunnel=self.containerConnect.exec_run(cmd="chmod u+x "+self.tunnel_script,user=self.user,detach=True)
+        
+        self.kill_tunnel_script=os.path.join(self.home,".vnc","kill_tunnel_flask")
+        out_kill_tunnel=os.path.join(self.home,".vnc","out_killtunnel")
+        killTunnel='Tunnel=$(pgrep -fla \\"ssh.*@'+self.IPFlask+'\\" |grep -v -- \\"-c\\" | sed -e \\"s@\\\\([0-^]*\\\\) .*@\\\\1@\\");\\nif [ X\\"$Tunnel\\" != X\\"\\" ]; then \\n  echo $Tunnel > '+out_kill_tunnel+';\\n  kill -9 $Tunnel 2>&1 >> '+out_kill_tunnel+';\\n fi'
+
+        scriptTunnel="awk 'BEGIN {print \""+killTunnel+"\" >>\""+self.kill_tunnel_script+"\"}' > "+out_kill_tunnel
+
+        logging.debug("awk command to build kill tunnel script : "+scriptTunnel)
+
+        self.LogScrTunnel=self.containerConnect.exec_run(cmd=scriptTunnel,user=self.user,detach=True)
+        self.LogModTunnel=self.containerConnect.exec_run(cmd="chmod u+x "+self.kill_tunnel_script,user=self.user,detach=True)
+        logging.warning("tunnel script built.")
         
         self.reconnect()
+
+        # Connect to TVConnection in connectionDocker to send actions commands.
+        actionPort=ActionPort+self.connectionId
+        search_docker0_ip="ip -4 addr show docker0 | grep -Po 'inet \K[\d.]+'"
+        p=subprocess.Popen(search_docker0_ip, shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)        
+        output, errors = p.communicate()
+        ipdocker0=output.decode('utf-8').replace('\n','')
+        logging.warning("ConnectionDocker : connection for actions with port %d and ip for docker0 %s" % (actionPort,ipdocker0))
+
+        self.action_script=os.path.join(self.home,".vnc","tunnel_action")
+        action_command="socat TCP-LISTEN:"+str(ActionPort)+",fork,reuseaddr TCP:"+ipdocker0+":"+str(actionPort)+" &"
+        scriptAction="awk 'BEGIN {print \""+action_command+"\" >>\""+self.action_script+"\"}' 2>&1 /dev/null"
+        logging.debug("awk command to build action script : "+scriptAction)
+
+        self.LogScrAction=self.containerConnect.exec_run(cmd=scriptAction,user=self.user,detach=True)
+        self.LogModAction=self.containerConnect.exec_run(cmd="chmod u+x "+self.action_script,user=self.user,detach=True)
+        #logging.warning("action script built.")
+        self.LogAction=self.containerConnect.exec_run(cmd="sh -c "+self.action_script,user=self.user,detach=True)
+        logging.warning("action script executed.")
+        outHandler.flush()
+        
+        search_action = re.compile(r''+"action=")
 
         path_nodesjson=os.path.join(self.home,"nodes.json")
         nodes_ok=False
@@ -507,6 +639,21 @@ class ConnectionDocker(threading.Thread):
 
                     nodes_ok=True
 
+                    # Server in TVSecure wait for connection from TVConnection in connectionDocker to send actions commands.
+                    self.ActionConnect=sock.server(actionPort)
+                    logging.warning("Action server launched.")
+                    outHandler.flush()
+                    self.ActionConnect.new_connect(1)
+                    # Send Not an action message after Hello
+                    HelloMsg=self.ActionConnect.recv(1)
+                    logging.warning("Action client hello message : "+HelloMsg)
+                    outHandler.flush()
+                    self.ActionConnect.send_client(1,"Hello connection"+str(self.ConnectionDB.id))
+                    logging.warning("Action client receive OK "+str(self.ActionConnect.get_OK(1)))
+                    outHandler.flush()
+                    self.ActionConnect.send_client(1,"Not an action first.")
+                    logging.warning("Action client receive OK from not-an-action message "+str(self.ActionConnect.get_OK(1)))
+
                     self.killTunnel()
                 except:
                     pass
@@ -517,20 +664,25 @@ class ConnectionDocker(threading.Thread):
                 callfunc=self.call_list[0] 
                 if callfunc == "updateScripts":
                     self.updateScripts()
-                elif callfunc == "killTunnel":
-                    self.killTunnel()
                 elif callfunc == "quitConnection":
                     self.quitConnection()
+                elif callfunc == "killTunnel":
+                    self.killTunnel()
                 elif callfunc == "reconnect":
                     self.reconnect();
+                elif (search_action.search(callfunc)):
+                    self.action(callfunc)
                 else:
                     logging.error("Error with calling function "+callfunc+ " for Connection "+self.name+" .")
                 self.call_list.pop(0)
 
             if not self.isalive():
                 self.quitConnection()
+            # else:
+            #     logging.debug("Connection "+str(self.connectionId)+" alive.")
 
             time.sleep(timeAliveConn)
+            #logging.debug("Container loop.")
 
     def callfunction (self,myfunc):
         logging.debug("From Flask thread calling function "+myfunc+ " for Connection "+self.name+" .")
@@ -580,17 +732,24 @@ class ConnectionDocker(threading.Thread):
         filetar.close()
 
     def killTunnel(self):
-        # End of getinfo : stop tunnel 
-        killTunnel="sh -c \'Tunnel=$(pgrep -fla \"ssh.*@"+self.IPFlask+"\" |grep -v -- \"-c\" | sed -e \"s@\\([0-^]*\\) .*@\\1@\"); echo $Tunnel; if [ X\"$Tunnel\" != X\"\" ]; then kill -9 $Tunnel; fi\' "
+        # stop tunnel ssh for VNC
+        self.LogTunnel=self.containerConnect.exec_run(cmd="sh -c "+self.kill_tunnel_script,user=self.user,detach=True)
 
-        #logging.warning("Kill tunnel to Flask docker : "+killTunnel)
-        self.LogTunnel=container_exec_out(self.containerConnect, killTunnel,user=self.user)
-        logging.warning("Kill tunnel to Flask docker :\n"+re.sub(r'\*n',r'\\n',self.LogTunnel))
+        logging.warning("Kill tunnel end to Flask docker")
+        # logging.warning("Kill tunnel to Flask docker :\n"+re.sub(r'\*n',r'\\n',self.LogTunnel))
 
     def quitConnection(self):
         # TODO : erase login on flask ?
+
+        # suppress Action tunnel
+        # killAction="sh -c \'Tunnel=$(pgrep -fla \"socat.*"+str(actionPort)+".*\" |grep -v -- \"-c\" | sed -e \"s@\\([0-^]*\\) .*@\\1@\"); echo $Tunnel; if [ X\"$Tunnel\" != X\"\" ]; then kill -9 $Tunnel; fi\' &"
+        # self.LogKillAction=container_exec_out(self.containerConnect, killAction,user=self.user,detach=True)
+        # logging.warning("Kill Action connection in conncetion docker :\n"+re.sub(r'\*n',r'\\n',self.LogKillAction))
+
         # suppress connection docker
-        self.containerConnect.remove(v=True,force=True)
+        self.containerConnect.stop()
+        if ( not self.cont_auto_remove ):
+            self.containerConnect.remove(v=True,force=True)
         logging.warning("After remove "+self.name+", containers list :"+str(client.containers.list()))
         for theConnection in Connections:
             if (theConnection["ThisConnection"].name == self.name):
@@ -599,7 +758,7 @@ class ConnectionDocker(threading.Thread):
         self.thread.join()
         
     def reconnect(self):
-        logging.warning("Tunnel command in "+self.tunnel_script+" : "+self.tunnel_command)
+        logging.debug("Tunnel command in "+self.tunnel_script+" : "+self.tunnel_command)
         self.LogTunnel=self.containerConnect.exec_run(cmd="sh -c "+self.tunnel_script,user=self.user,detach=True)
         time.sleep(1)
         # testTunnel="sh -c \'pgrep -fla \"ssh.*"+self.flaskusr+"\"\'"
@@ -607,6 +766,13 @@ class ConnectionDocker(threading.Thread):
         # logging.warning("Tunnel to Flask docker :\n"+re.sub(r'\*n',r'\\n',self.LogTestTunnel))
         logging.warning("Container reconnected.")
 
+    def action(self,callfunct):
+        # Get action num + selection of tiles (if needed by the function)
+        actionlist=re.sub(r'action=',r'',callfunct)
+        #logging.warning("Action for tileset %s. command %s" % (self.tilesetId,actionlist))
+        self.ActionConnect.send_client(1,actionlist)
+        RET=self.ActionConnect.get_OK(1)
+        logging.warning("Action for tileset %s. command %s return %d" % (self.tilesetId,actionlist,RET))
     
     def isalive(self):
         # try:
@@ -617,7 +783,8 @@ class ConnectionDocker(threading.Thread):
         return self.containerFlask.status == "running"
     
     def grepLog(self,nbLines,re_searchstr):
-        self.Logs=str(self.containerConnect.logs(tail=nbLines))
+        self.Logs=str(self.containerConnect.logs(since=int(self.oldtime),tail=nbLines))
+        self.oldtime=time.time()
 
         #logging.debug("\ngrepLog :\n"+self.Logs+"\n")
         m = re_searchstr.search(self.Logs)
@@ -637,10 +804,12 @@ if __name__ == '__main__':
     fileHandler.setFormatter(logFormatter)
     rootLogger.addHandler(fileHandler)
     outHandler = logging.StreamHandler(sys.stdout)
-    #outHandler.setLevel(logging.WARNING)
-    outHandler.setLevel(logging.DEBUG)
+    outLevel=logging.DEBUG
+    #=logging.WARNING
+    outHandler.setLevel(outLevel)
     outHandler.setFormatter(logFormatter)
     rootLogger.addHandler(outHandler)
+    #rootLogger.handlers[0].flush()
 
     args = parse_args(sys.argv)
     #print("call args :",str(args))
@@ -660,6 +829,8 @@ if __name__ == '__main__':
     #FlaskDock.getLog(35)
 
     while (FlaskDock.isalive()):
-        time.sleep(5)
+        time.sleep(30)
+        # time.sleep(5)
+        #     logging.debug("Is Alive.")
         
     logging.critical('Finish')

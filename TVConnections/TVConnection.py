@@ -6,9 +6,14 @@ import argparse
 import sys,os,traceback
 import pexpect,re
 import platform
+import threading
 
 import code
 from getpass import getpass
+
+import logging
+
+import inspect
 
 sys.path.append(os.path.abspath('/TiledViz/TVDatabase'))
 from TVDb import tvdb
@@ -20,6 +25,8 @@ from connect import sock
 from connect.transfer import send_file_server, get_file_client
 
 user='myuser'
+ActionPort=64040
+
 
 def containerId(num):
     return '{:03d}'.format(num)
@@ -41,24 +48,125 @@ def parse_args(argv):
     args = parser.parse_args(argv[1:])
     return args
 
+class ClientAction(threading.Thread):
+    
+    def __init__(self,connectionId,globals,locals):
+        threading.Thread.__init__(self)
+        self.thread = threading.Thread(target=self.run,args=(connectionId,globals,locals,)).start()
+
+    def run(self,connectionId,globals,locals):
+
+        self.actionclient=sock.client(ActionPort)
+        self.actionclient.send_OK(1)
+        logging.warning("ClientAction : connect server connectiondock")
+
+        self.iter=0
+        # Wait for commands by TVSecure.py
+        while True:
+            if (self.detect()):
+                self.execute(globals,locals)
+            time.sleep(0.1)
+
+    def detect(self):
+        global tiles_actions
+        
+        #logging.warning("ClientAction : detect")
+        data=self.actionclient.recv()
+        if not data:
+            return False
+        self.actionclient.send_OK(self.iter)
+        self.iter=self.iter+1
+        try:
+            actiontiles=list(map(int,data.replace(',,','').split(",")))
+            logging.warning("ClientAction : get actionTile message "+str(actiontiles))
+            actionId=actiontiles.pop(0)
+        except:
+            logging.warning("ClientAction : not an action "+data)
+            return False
+        # test if it is a valid action command
+        self.thisAction="action"+str(actionId)
+        if (self.thisAction in tiles_actions):
+            self.isSelection=False
+            if (len(actiontiles) > 0):
+                self.isSelection=True
+                try:
+                    self.thisSelection=list(map(int,actiontiles))
+                    logging.debug("ClientAction : detect a valid selection "+str(self.thisSelection))
+                except:
+                    return False
+            else:
+                logging.warning("ClientAction : detect a global action ")
+            return True
+        else: 
+            logging.error("ClientAction : error readding "+self.thisAction)
+            self.isSelection=False
+            return False
+        
+    def execute(self,globals,locals):
+        # Separate Execute
+        logging.debug("ClientAction : run")
+        try:
+            funaction=tiles_actions[self.thisAction][0]
+            functionAction=eval(funaction)
+            search_tileNum=inspect.signature(functionAction).parameters
+            logging.debug("ClientAction : "+funaction+" parameters :"+str(search_tileNum))
+            if ("tileNum" in search_tileNum):
+                if (self.isSelection):
+                    for num in self.thisSelection:
+                        action=funaction+"(tileNum="+str(num)+")"
+                        logging.warning("ClientAction : send action "+action)
+                        eval(action,globals,locals)
+                else:
+                    logging.warning("ClientAction : Apply this action "+funaction+" on all tiles.")
+                    for num in range(NUM_DOCKERS):
+                        action=funaction+"(tileNum="+str(num)+")"
+                        logging.warning("ClientAction : send action "+action)
+                        eval(action,globals,locals)
+            else: 
+                action=funaction+"()"
+                logging.warning("ClientAction : No tile for this action "+action)
+                eval(action,globals,locals)
+            logging.warning("ClientAction : action "+action+" launched.")
+        except:
+            traceback.print_exc(file=sys.stderr)
+            logging.warning("ClientAction : problem with action "+funaction+" launch.")
+            pass
+                
 if __name__ == '__main__':
     args = parse_args(sys.argv)
 
+    logFormatter = logging.Formatter("TVConnection %(asctime)s - %(threadName)s - %(levelname)s: %(message)s ")
+    rootLogger = logging.getLogger()
+    rootLogger.setLevel(logging.WARNING)
+    fileHandler = logging.FileHandler("/home/myuser/.vnc/TVConnection.log")
+    fileHandler.setLevel(logging.DEBUG)
+    fileHandler.setFormatter(logFormatter)
+    rootLogger.addHandler(fileHandler)
+    outHandler = logging.StreamHandler(sys.stdout)
+    outLevel=logging.DEBUG
+    #=logging.WARNING
+    outHandler.setLevel(outLevel)
+    outHandler.setFormatter(logFormatter)
+    rootLogger.addHandler(outHandler)
+    #rootLogger.handlers[0].flush()
+    #outHandler.flush()
+    
     # Connection to DB
     metadata, conn, engine, pool, session = tvdb.SQLconnector(args)
     os.environ["POSTGRES_PASSWORD"]=""
     os.environ["passwordDB"]=""
-    print("Build connection number ",args.connectionId)
+    connectionId=int(args.connectionId)
+    logging.warning("Build connection number "+args.connectionId)
     
-    TVconnection=session.query(models.Connection).filter(models.Connection.id == int(args.connectionId)).one()
-    print("From DB connection informations : ",str((TVconnection.auth_type,TVconnection.host_address,TVconnection.scheduler)))
+    TVconnection=session.query(models.Connection).filter(models.Connection.id == connectionId).one()
+    logging.warning("From DB connection informations : "+str((TVconnection.auth_type,TVconnection.host_address,TVconnection.scheduler)))
     TileSetDB=session.query(models.TileSet).filter_by(id_connections=args.connectionId).order_by(models.TileSet.id.desc()).first()
     TileSet=TileSetDB.name
     
     TVuser=session.query(models.User).filter(models.User.id==TVconnection.id_users).first().name
 
     session.close()
-    
+
     NbFrontendTo=0
     NbFrontendFrom=0
     # choices=[("ssh","Direct ssh connection"),
@@ -76,21 +184,22 @@ if __name__ == '__main__':
             pass
         elif (TVconnection.auth_type == "ssh"):
             Frontend = TVconnection.host_address
-            print("Distant machine frontend : "+Frontend)
+            logging.warning("Distant machine frontend : "+Frontend)
             UserFront = input("Enter your distant machine user name \n")
             while True:
                 try:
                     Password = getpass("Enter your password for this user :\n")
                     break
                 except UnicodeDecodeError:
-                    print("Error : only ascii chars are available.")
+                    logging.error("Error : only ascii chars are available.")
                     
         # After connection save (test save/restore container)
         resp=input("Hit enter or save connection data now of 'n' to change remote login/password.\n")
 
         if (resp != 'n'):
+            
             sshKeyPath=os.path.join(os.getenv("HOME"),".ssh","id_rsa_"+Frontend)
-
+            
             if (TVconnection.auth_type == "ssh" and not OK_Key):
                 cmdgen="ssh-keygen -b 1024 -t rsa -N '' -f /home/"+user+"/.ssh/id_rsa_"+Frontend
                 childgen=pexpect.spawn(cmdgen)
@@ -108,15 +217,15 @@ if __name__ == '__main__':
                 # childgen.expect('\+----[SHA256]-----\+')
                 childgen.expect(pexpect.EOF)
                 childgen.close(force=True)
-                print("ssh key for this connection OK.")
+                logging.warning("ssh key for this connection OK.")
                 OK_Key=True
                 
             if (TVconnection.auth_type == "ssh"):
                 cmdcopy="ssh-copy-id -i "+sshKeyPath+".pub "+UserFront+"@"+Frontend 
                 childcopy=pexpect.spawn(cmdcopy)
                 #out1=childcopy.expect('.*')
-                expindex=childcopy.expect([UserFront+"@"+Frontend+"\'s password: ", pexpect.EOF, pexpect.TIMEOUT])
-                if (expindex == 0):
+                expindex=childcopy.expect([UserFront+"@"+Frontend+"\'s password: ", ".*Password: ",pexpect.EOF, pexpect.TIMEOUT])
+                if (expindex == 0 or expindex == 1 ):
                     outpass = childcopy.sendline(Password)
                     if outpass < len(Password):
                         Password = getpass("Wrong password for "+UserFront+"@"+Frontend+". Try again enter your password for this user :\n")
@@ -124,49 +233,62 @@ if __name__ == '__main__':
                     else:
                         expindex=childcopy.expect([pexpect.EOF, pexpect.TIMEOUT])
                         if (expindex != 0):
-                            print(childcopy.buffer.decode("utf-8"))
-                        
-                        print("ssh key copied on the server.")
+                            try:
+                                logging.error("Error respond from server : "+str(childcopy.buffer.decode("utf-8")))
+                            except:
+                                logging.error("Error respond from server. "+expindex)
+                        else:                        
+                            logging.warning("ssh key copied on the server.")
                         childcopy.close(force=True)
                         if (childcopy.exitstatus == 0):
                             NOT_CONNECTED=False
                 else:
-                    sys.stderr.write("Error with copy id ")
-                    sys.stderr.write("buffer : "+childcopy.buffer.decode("utf-8"))
-                    sys.stderr.write("after : "+childcopy.after.decode("utf-8"))
-                    sys.stderr.write("existstatus : ",childcopy.exitstatus, " signalestatus : ",childcopy.signalstatus)
-                    # try:
-                    #     code.interact(local=locals())
-                    # except SystemExit:
-                    #     pass
+                    try:
+                        logging.warning("Error with copy id ")
+                        logging.warning("buffer : "+childcopy.buffer.decode("utf-8"))
+                        if (expindex == 3):
+                            logging.warning("after TIMEOUT ")
+                        else:
+                            logging.warning("after "+childcopy.after.decode("utf-8"))
+                        logging.warning("existstatus : ",childcopy.exitstatus, " signalestatus : ",childcopy.signalstatus)
+                    except:                        
+                        logging.warning("ssh key copied on the server.")
+
+                    try:
+                        code.interact(banner="Try connection :",local=dict(globals(), **locals()))
+                    except SystemExit:
+                        pass
+                    childcopy.close(force=True)
+                    if (childcopy.exitstatus == 0):
+                        NOT_CONNECTED=False
 
     # Save/restore here ?
     TunnelFrontend = "ssh -4 -i "+sshKeyPath+" -T -N -nf -L 55554:localhost:55554  -L 2222:localhost:22 "+UserFront+"@"+Frontend
-    print(TunnelFrontend)
+    logging.debug(TunnelFrontend)
     os.system(TunnelFrontend)
-    print("ssh tunneling OK.")
+    logging.info("ssh tunneling OK.")
 
     lshome="ssh -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'ls $HOME/.tiledviz'"
-    print(lshome)
+    logging.debug(lshome)
     os.system(lshome)
     
     mkdirhome="ssh -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'mkdir $HOME/.tiledviz'"
-    print(mkdirhome)
+    logging.debug(mkdirhome)
     os.system(mkdirhome)
 
     chmodhome="ssh -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'chmod og-rx $HOME/.tiledviz'"
-    print(chmodhome)
+    logging.debug(chmodhome)
     os.system(chmodhome)
     
     cmdhome="ssh -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'echo $HOME'"
-    print(cmdhome)
+    logging.debug(cmdhome)
     childhome=pexpect.spawn(cmdhome)
     expindex=childhome.expect([pexpect.EOF, pexpect.TIMEOUT])
     if ( expindex == 0 ):
         HomeFront = childhome.before.decode("utf-8").replace("\n","").replace("\r","")
-        print(HomeFront)
+        logging.warning(HomeFront)
     else:
-        sys.stderr.write("Error with requiring remote 'home' dir.")
+        logging.warning("Error with requiring remote 'home' dir.")
         HomeFront = os.path.join("/home",UserFront)
     childhome.close(force=True)
     
@@ -174,8 +296,8 @@ if __name__ == '__main__':
     
     # import Swarm
     # if (TVconnection.scheduler_file != ""):
-    #     print("From DB connection scheduler_file : ",str(TVconnection.scheduler_file))
-    # print("Bye !")
+    #     logging.warning("From DB connection scheduler_file : "+str(TVconnection.scheduler_file))
+    # logging.warning("Bye !")
     #time.sleep(10)
 
     DATE=re.sub(r'\..*','',datetime.datetime.isoformat(datetime.datetime.now(),sep='_').replace(":","-"))
@@ -183,7 +305,7 @@ if __name__ == '__main__':
 
     if (TVconnection.auth_type == "ssh"):
         WorkdirFrontend = "ssh -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost mkdir "+JOBPath
-        print(WorkdirFrontend)
+        logging.debug(WorkdirFrontend)
         os.system(WorkdirFrontend)
 
     # prepare connect dir :
@@ -191,35 +313,36 @@ if __name__ == '__main__':
     CONNECTpath=os.path.join(JOBPath,"connect")
     
     ConnectdirFrontend = 'rsync -va -e "ssh -T -i '+sshKeyPath+' -p 2222 " '+CONNECTdir+' '+UserFront+"@localhost"+":"+JOBPath
-    print(ConnectdirFrontend)
+    logging.debug(ConnectdirFrontend)
     os.system(ConnectdirFrontend)
 
     # Send or test TileServer run on server ??
     cmdServer="ssh -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'sh -c \"ps -Aef |grep TileServer |grep -v grep |grep "+UserFront+"\"'"
-    print(cmdServer)
+    logging.debug(cmdServer)
     childServer=pexpect.spawn(cmdServer)
     expindex=childServer.expect([pexpect.EOF, pexpect.TIMEOUT])
     if ( expindex == 0 ):
         ServerFront = childServer.before.decode("utf-8").replace("\n","").replace("\r","")
-        print(ServerFront)
+        logging.debug(ServerFront)
         if ( ServerFront == "" ):
             TileServerFrontend = 'scp -i '+sshKeyPath+' -P 2222 /TiledViz/TVConnections/TileServer.py  '+UserFront+"@localhost"+":"+TiledVizPath
-            print(TileServerFrontend)
+            logging.debug(TileServerFrontend)
             os.system(TileServerFrontend)
             cmdTileServer="ssh -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'sh -c \"cd "+TiledVizPath+"; cp -rp "+os.path.join(JOBPath,"connect")+" .; HOSTNAME=\""+Frontend+"\" python3 TileServer.py > TileServer_"+DATE+".log 2>&1 & \"'"
-            print(cmdTileServer)
+            logging.debug(cmdTileServer)
             childTileServer=pexpect.spawn(cmdTileServer)
             expindex=childTileServer.expect([pexpect.EOF, pexpect.TIMEOUT])
             if ( expindex == 0 ):
-                print("TileServer launched on frontend "+Frontend+" !")
+                logging.debug("TileServer launched on frontend "+Frontend+" !")
                 time.sleep(2)
             else:
-                sys.stderr.write("Error on TileServer launched on frontend "+Frontend+".")
+                logging.warning("Error on TileServer launched on frontend "+Frontend+".")
             childTileServer.close(force=True)
     childServer.close(force=True)
     
     # Get Job file
     filename=TileSetDB.launch_file
+    #eval(import filename, dict(globals()), dict(locals()))
 
     # ConnectionForm.scheduler = RadioField(label='Type of scheduler on HPC machine',
     #                                       description='How to launch containers job on the machine :',
@@ -234,12 +357,13 @@ if __name__ == '__main__':
     try:
         client=sock.client()
         exec(compile(open(filename, "rb").read(), filename, 'exec'), globals(), locals())
+        #filename.job(globals(), locals())
     except SystemExit:
         # Clean key :
         if (TVconnection.auth_type == "ssh"):
             myhostname=os.getenv('HOSTNAME', os.getenv('COMPUTERNAME', platform.node())).split('.')[0]
             CleanKeyFrontend = "ssh -i "+sshKeyPath+" -p 2222 "+UserFront+'@localhost bash -c \'\"sed -i.'+DATE+' /'+myhostname+'/d ~/.ssh/authorized_keys\"\''
-            print(CleanKeyFrontend)
+            logging.debug(CleanKeyFrontend)
             os.system(CleanKeyFrontend)
         # On localhost (no need) "ssh-keygen -R "+Frontend+" -f ~/.ssh/known_hosts"
     except :

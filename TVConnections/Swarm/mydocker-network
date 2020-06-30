@@ -6,6 +6,7 @@ domain=$2
 
 DATE=$(date +%F_%H-%M)
 
+docker swarm init
 docker node ls
 docker network create --driver overlay --attachable --subnet=${domain}.0/24 --gateway=${domain}.1 ${network}
 docker network ls

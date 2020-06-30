@@ -3,6 +3,7 @@
 import socket
 import sys,os, errno
 import logging
+import platform
 
 import datetime
 
@@ -29,7 +30,7 @@ class client:
         self.s.connect(('localhost', port))
         sockLogger.log(9,str(self.s))
 
-        Hostname=os.getenv("HOSTNAME")
+        Hostname=os.getenv("HOSTNAME", os.getenv('COMPUTERNAME', platform.node())).split('.')[0]
         HelloMsg=('Connection from '+Hostname).encode('utf-8').ljust(MSGsize,b'\00')
         sockLogger.warning(HelloMsg.rstrip(b'\00'))
         self.s.sendall(HelloMsg)

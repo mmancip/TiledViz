@@ -1,5 +1,5 @@
 var text_ =
-{ nodes: [
+{ "nodes": [
 {"title" : "Sr02-ATM_bils_global",
 "variable" : "ATM_bils_global",
 "tags" : ["Sr02","ATM","global"],

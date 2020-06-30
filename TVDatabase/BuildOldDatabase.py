@@ -202,7 +202,12 @@ if __name__ == '__main__':
     id_projects, uniq = tvdb.insert_table('projects',{"name":args.projectNAME,"id_users":id_users,"description":"This is an old case "+args.projectNAME})
     tvdb.print_table("projects")
 
-    id_sessions, uniqSession = tvdb.insert_table('sessions',{"name":args.sessionNAME,"id_projects":id_projects,"description":"This is an old case "+args.projectNAME+" session "+args.sessionNAME,"Number_of_active_users":1,"timeout":480})
+    config_default_file=open("TVWeb/app/static/js/config_default.json",'r')
+    json_configs=json.load(config_default_file)
+    config_default_file.close()
+    # json_configs_text=json.JSONEncoder().encode(json_configs)
+
+    id_sessions, uniqSession = tvdb.insert_table('sessions',{"name":args.sessionNAME,"id_projects":id_projects,"description":"This is an old case "+args.projectNAME+" session "+args.sessionNAME,"Number_of_active_users":1,"timeout":480,"config":json_configs})
     tvdb.print_table("sessions")
 
     if (uniqSession or uniqUser):

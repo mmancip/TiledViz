@@ -25,9 +25,14 @@ echo "OPTIONS = "${OPTIONS}
 # FRONTENDIP is for ssh tunneling of vnc flux 
 DOCKEROPTIONS="-p ${TileSetPort} -h ${FRONTEND} "
 
+# Minimal size of output for docker container correctly started :
+DOCKERsize=200
+#TODO better get DOCKER response for real start rather than DOCKERsize
+
 echo "launch dockers at ${DATE}"
 
-
+# Nvidia or Nouveau driver
+TestNVIDIA=""
 
 i=1
 while [ $i -le ${NUM} ]; do
@@ -38,14 +43,34 @@ while [ $i -le ${NUM} ]; do
        realhost=${line% *}
        thishost=$( echo ${realhost}  | sed -e 's/-/_/g' )
        NVIDIAGPU=${line/* /}
+       GPUfile=/dev/nvidia${NVIDIAGPU}
        if [ ${realhost} = $( hostname ) -o ${realhost} = "localhost" ]; then
 	   HOSTCOMMAND=
+	   # Nvidia or Nouveau driver
+	   if [ -z ${TestNVIDIA[${NVIDIAGPU}]} ]; then
+	       [[ -e $GPUfile ]] && TestNVIDIA[${NVIDIAGPU}]=true || TestNVIDIA[${NVIDIAGPU}]=false
+	   fi
+	   if ( ${TestNVIDIA[${NVIDIAGPU}]} ); then
+	       DEVICES="--device=$GPUfile:/dev/nvidia0 --device=/dev/nvidiactl"
+	   # else
+	   #     DEVICES="--device=/dev/video0:/dev/video0"
+	   fi
        else
-	   HOSTCOMMAND="ssh $LOGNAME@${realhost}"
+	   HOSTCOMMAND="ssh -x $LOGNAME@${realhost}"
+	   # Nvidia or Nouveau driver
+	   if [ -z ${TestNVIDIA[${realhost},${NVIDIAGPU}]} ]; then
+	       TestNVIDIA[${realhost},${NVIDIAGPU}]=$( $HOSTCOMMAND $[[ -e $GPUfile ]] && echo true || echo false )
+	   fi
+	   if ( ${TestNVIDIA[${realhost},${NVIDIAGPU}]} ); then
+	       DEVICES="--device=$GPUfile:/dev/nvidia0 --device=/dev/nvidiactl"
+	   # else
+	   #     DEVICES="--device=/dev/video0:/dev/video0"
+	   fi
        fi
    fi
    DOCKER="$HOSTCOMMAND docker"
 
+   
    i0=$(printf "%03d" $i)
    DOCKERDIR=$(echo ${DOCKERNAME}| sed -e 's/:.*//')_${DATE}_${i0}
    mkdir ${DIR}/${DOCKERDIR}
@@ -58,7 +83,7 @@ while [ $i -le ${NUM} ]; do
 
    echo "${DOCKER} run --name ${DOCKERDIR} --add-host=${FRONTENDIP} \
     ${SWARMARGS} \
-    --device=/dev/nvidia${NVIDIAGPU}:/dev/nvidia0 --device=/dev/nvidiactl \
+    $DEVICES \
      -v /usr/share/X11/locale:/usr/share/X11/locale:ro --expose=22 \
      -v ${DIR}/${DOCKERDIR}:/home/myuser/.vnc:rw ${OPTIONS} -e DOCKERID=${i0} \
      -t ${DOCKERNAME} ${DOCKERARGS} 2>&1 |tee ${DIR}/${DOCKERDIR}/stdout" > ${DIR}/${DOCKERDIR}/call_docker-run
@@ -78,12 +103,14 @@ done
 
 while [ true ]; do
     DOCKERDIR=$(echo ${DOCKERNAME} | sed -e 's/:.*//')_${DATE}
-    NstartDocker=$(wc -c  ./${DOCKERDIR}_*_stdout |head -n ${NUM} |awk '{print ($1 >= 225)}' |grep 1 |wc -l)
+    NstartDocker=$(wc -c  ./${DOCKERDIR}_*_stdout |head -n ${NUM} |awk '{print ($1 >= '$DOCKERsize')}' |grep 1 |wc -l)
     #echo "Number of started Dockers=${NstartDocker}"
     if [ ${NstartDocker} -eq ${NUM} ]; then
 	break
     fi
 done
+#TODO better get DOCKER response for real start rather than DOCKERsize:
+#docker inspect --format='{{.State.Error}}' $1
 
 rm -f ./list_dockers_pass
 touch ./list_dockers_pass

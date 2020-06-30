@@ -27,6 +27,9 @@ connect:
     - TVDatabase/filledDatabase.sh
     - sqlacodegen postgres://${POSTGRES_USER}:"${POSTGRES_PASSWORD}"@${POSTGRES_HOST}/${POSTGRES_DB} --outfile=TVDatabase/TVDb/models.py
     - docker build -t flaskimage -f TVWeb/FlaskDocker/Dockerfile.web .
+    - cd TVConnections
+    - git clone https://github.com/novnc/websockify
+    - cd ..
     - docker build -t mageiaconnect -f TVConnections/mageianconnect/Dockerfile .
     - docker images
     - export IPPOST=$(grep ${POSTGRES_HOST} /etc/hosts | tr '[:space:]*' '\n' | head -1)

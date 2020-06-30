@@ -5,6 +5,8 @@ ID=$1
 TileSetPort=$2
 Frontend=$3
 
+OUTClient=/home/myuser/.vnc/out_Client_$(date +%F_%H-%M)
+
 pgrep -fla 6501 |sed -s "s/^\([0-9]*\) .*/\1/" |xargs kill
 i=0
 while [ true ]; do
@@ -22,7 +24,6 @@ while [ true ]; do
   sleep 1
   i=$((i+1))
 done
-pgrep -fla ssh
-OUTClient=/home/myuser/.vnc/out_Client_$(date +%F_%H-%M)
-DISPLAY=:1 /usr/bin/python /opt/TileClient.py $ID > ${OUTClient} 2>&1
+pgrep -fla ssh  > ${OUTClient}
+DISPLAY=:1 /usr/bin/python /opt/TileClient.py $ID >> ${OUTClient} 2>&1
 

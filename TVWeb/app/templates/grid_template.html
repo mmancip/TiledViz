@@ -16,6 +16,8 @@
   <!-- <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/grid.css')}}"> -->
   <link rel="stylesheet"
 	href="https://combinatronics.com/txusko/PostItAll/master/dist/jquery.postitall.css">
+  <link rel="stylesheet"
+	 href="https://fonts.googleapis.com/icon?family=Material+Icons">
   
   <!--Some variables here-->
   <script type="text/javascript" charset="utf-8">
@@ -23,9 +25,10 @@
     my_project = "{{ project }}";
     my_session = "{{ session }}";
     my_description = "{{ description }}";
-    my_geometry = {{ json_geom|safe }};
-    json_data = {{ json_data|safe }};
-    json_config = {{ json_config|safe }};
+    my_geometry = {{ json_geom|tojson }};
+    json_data = {{ json_data|tojson }};
+    json_config = {{ json_config|tojson }};
+    json_actions = {{ json_actions|tojson }};
     jsDataTab = json_data.nodes;
     helpPath = "{{ helpPath }}";
   </script>
@@ -40,8 +43,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.8/FileSaver.min.js"
 	    integrity="sha256-FPJJt8nA+xL4RU6/gsriA8p8xAeLGatoyTjldvQKGdE="
 	    crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/javascript-canvas-to-blob/3.14.0/js/canvas-to-blob.min.js"
-	    integrity="sha256-CeBz6ph2imsCxljJfaQYaMRiRYRtW/TP5kH7REY3qvQ="
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/javascript-canvas-to-blob/3.24.0/js/canvas-to-blob.min.js"
+	    integrity="sha256-nadw64POxRp5v8DUsU9KK6/Gw3h2Yu8rVuITaUTHobQ="
 	    crossorigin="anonymous"></script>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/waypoints/4.0.1/noframework.waypoints.min.js"

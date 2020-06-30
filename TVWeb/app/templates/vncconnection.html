@@ -12,12 +12,6 @@
     {% block title %}{% endblock %}
     <title>noVNCConnection</title>
 
-  <style type="text/css">
-[class~=stopvnc]
-{
-	background-image: url(static/images/icons/globalmenu/zoommenu/closeZoomButton.png);
-}
-  </style>
 </head>
 <header>
   <link rel="stylesheet"
@@ -31,6 +25,7 @@
   <script type="text/javascript" charset="utf-8">
     connection_port={{ port }};
     connection_id = {{ id }};
+    tileset_id = {{ tsid }};
     vncpassword = "{{ vncpassword }}";
     flaskaddr= "{{ flaskaddr }}";
   </script>
@@ -57,9 +52,14 @@
       <a class="btn btn-large btn-danger"
 	 href="/editsession?message=%7B&quot;oldsessionname&quot;%3A&quot;{{ session }}&quot;%7D" >Cancel</a>
     </div>
-    <div  style="position: relative; top: -35px;">
-      Next : register nodes.json in Tileset edition. Cancel : Back to session edition.
+    <div id="closeconnection" style="position: relative; top: -70px; left: 250px" >
+      <a class="btn btn-large btn-danger"
+	 href="/removeconnection?message=%7B&quot;oldtilesetid&quot;%3A&quot;{{ tsid }}&quot;%7D" >Remove</a>
       </div>
+    <div  style="position: relative; top: -35px;">
+      Next : register nodes.json in Tileset. Cancel : Back to session edition. Remove
+      : Completly suppress connection.
+    </div>
   </div>
 </body>
 </html>

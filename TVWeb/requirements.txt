@@ -7,3 +7,4 @@ flask-bootstrap
 sqlacodegen
 flask-sqlacodegen
 requests
+email_validator

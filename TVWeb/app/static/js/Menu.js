@@ -199,19 +199,19 @@ $(document).ready(    function (){
 
 		    $('#'+id+'option'+optionNumber).on({
 		    
-			    mouseleave : function(e){
+		    // 	    mouseleave : function(e){
 			
-				//e.stopPropagation(); 
+		    // 		//e.stopPropagation(); 
 			
-			    },
+		    // 	    },
 		    
 		    
 		    
-				mouseenter : function(e){
+		    // 		mouseenter : function(e){
 			
-				//e.stopPropagation(); 
+		    // 		//e.stopPropagation(); 
 			
-			    },
+		    // 	    },
 		    
 		    
 		    
@@ -223,7 +223,7 @@ $(document).ready(    function (){
 			
 				if (menuShareEvent[optionNumber] && ! $('#'+id+'option'+optionNumber).hasClass("NotSharedAgain")) {
 				    cdata={"room":my_session,"Menu":id,"optionNumber":optionNumber,"optionButton":menuIconClassAttributesTab_[optionNumber]};
-				    socket.emit("click_Menu", cdata, function(sdata){
+				    socket.emit("click_Menu", cdata, callback=function(sdata){
  					console.log("socket send Menu ", cdata);				
 				    });
 				    return;

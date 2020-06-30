@@ -1,7 +1,21 @@
-Database is construted with pgmodeler
+Database is constructed with pgmodeler
 
-It is created with exported TiledViz.sql file.
-psql  ...
+To initialize the postgres DB on localhost, you must
+use root account and change to postgres and create tiledviz role :
+{{{
+[myyser@localhost] su -
+[root@localhost]# su - postgres
+[postgres@localhost ~]$ createuser -h localhost -d tiledviz
+}}}
+Finnaly you have to create the TiledViz DB with you account :
+{{{
+[myyser@localhost] createdb -h localhost -U tiledviz TiledViz
+}}}
+
+It is created with exported TiledViz.sql file. Example in TVDatabase/filledDatabase.sh
+{{{
+psql -h "${POSTGRES_HOST}" -U "$POSTGRES_USER" -d "$POSTGRES_DB"  -f TVDatabase/TiledViz.sql
+}}}
 
 model.py used by Flask and connections is built with : 
 sqlacodegen postgres://user:password/host@db --outfile=TVmodels.py --flask

@@ -20,6 +20,17 @@
 {
 	background-image: url(../images/icons/globalmenu/updown/up_arrow.png);
 }
+
+[class~=actionGlobalMenuButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/Action.png);
+}
+
+[class~=closeActionGlobalMenuButtonIcon]
+{
+	background-image: url(../images/icons/globalmenu/closeAction.png);
+}
+
 [class~=nodeMenuButtonIcon]
 {
 	background-image: url(../images/icons/globalmenu/openNodeMenu.png);
@@ -345,7 +356,7 @@
 
 [class~=zoomNodeButtonIcon]
 {
-	background-image: url(../images/icons/nodemenu/zoomNode.png);
+	background-image: url(../images/tiles/zoomNode.png);
 }
 
 /* Tag menu */
@@ -522,32 +533,32 @@ iframe
 
 .drag-handle-off
 {
-	background-image: url(../images/icons/globalmenu/drag-handle-off.png);
+	background-image: url(../images/tiles/drag-handle-off.png);
 }
 
 .drag-handle-on
 {
-	background-image: url(../images/icons/globalmenu/drag-handle-on.png);
+	background-image: url(../images/tiles/drag-handle-on.png);
 }
 
 .drag-handle-dragging
 {
-	background-image: url(../images/icons/globalmenu/drag-handle-dragging.png);
+	background-image: url(../images/tiles/drag-handle-dragging.png);
 }
 
 .menu-handle-off
 {
-	background-image: url(../images/icons/globalmenu/drag-handle-off.png);
+	background-image: url(../images/tiles/drag-handle-off.png);
 }
 
 .menu-handle-on
 {
-	background-image: url(../images/icons/globalmenu/drag-handle-on.png);
+	background-image: url(../images/tiles/drag-handle-on.png);
 }
 
 .menu-handle-dragging
 {
-	background-image: url(../images/icons/globalmenu/drag-handle-dragging.png);
+	background-image: url(../images/tiles/drag-handle-dragging.png);
 }
 
 .drop-down-menu
@@ -581,7 +592,7 @@ iframe
 	padding:30px;
 	background-repeat: no-repeat;
 	background-position: center center;
-	background-image: url(../images/icons/globalmenu/rotate.png);
+	background-image: url(../images/tiles/rotate.png);
 }
 
 }
@@ -942,6 +953,7 @@ ul.ui-autocomplete.ui-menu{
 	text-align : center;
 	vertical-align :middle;
 	color : red;
+	background-image: url(../images/warning.png);
 }
 
 .tag-notif

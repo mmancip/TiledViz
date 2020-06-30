@@ -86,7 +86,7 @@ END;
 $$;
 
 -- ddl-end --
-ALTER FUNCTION public.listtileset(integer) OWNER TO postgres;
+ALTER FUNCTION public.listtileset(integer) OWNER TO tiledviz;
 -- ddl-end --
 
 -- object: public.viewtileset | type: FUNCTION --
@@ -106,6 +106,6 @@ END;
 $$;
 
 -- ddl-end --
-ALTER FUNCTION public.viewtileset(integer) OWNER TO postgres;
+ALTER FUNCTION public.viewtileset(integer) OWNER TO tiledviz;
 -- ddl-end --
 

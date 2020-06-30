@@ -35,3 +35,5 @@ echo sudo iptables -I INPUT -p ucp --dport 7946 -j ACCEPT
 echo sudo iptables -I INPUT -p udp --dport 7946 -j ACCEPT 
 echo sudo iptables -I INPUT -p udp --dport 4789 -j ACCEPT 
 
+#echo docker node ls
+#echo docker node inspect --format {{.Spec.Availability}} thenode

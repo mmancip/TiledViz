@@ -33,15 +33,15 @@
 
 .handle.handle-on
 {
-	background-image: url(../images/drag-handle-on.png);
+	background-image: url(../images/tiles/drag-handle-on.png);
 }
 .handle.handle-off
 {
-	background-image: url(../images/drag-handle-off.png);
+	background-image: url(../images/tiles/drag-handle-off.png);
 }
 .handle.handle-dragging
 {
-	background-image: url(../images/drag-handle-dragging.png);
+	background-image: url(../images/tiles/drag-handle-dragging.png);
 }
 
 .tile>iframe

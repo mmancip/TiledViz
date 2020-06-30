@@ -7,22 +7,27 @@ tcp6       0      0 ::1:5432                :::*      LISTEN      968        203
 ```
 
 # How to enable inside docker FlaskImage ?
-1. Change inside /var/lib/pgsql
-   * postgresql.conf :
-`listen_addresses = 'localhost'	->  listen_addresses='*'`
-   * pg_hba.conf :
-`host    all             all             0.0.0.0/0         trust`
+1. Get docker0 address
+/sbin/ip -4 addr show docker0 | grep -Po 'inet \K[\d.]+'
 
-**It opens your postgresql service to the whole world !**
+and to protect the DB and you must add docker0 address
+(and note all network interfaces) in postgresql conf file (and '*' for all interfaces):
+nano /var/lib/pgsql/data/postgresql.conf 
+listen_addresses = 'localhost,172.17.0.1'
+%    * pg_hba.conf :
+% `host    all             all             0.0.0.0/0         trust`
+% **It opens your postgresql service to the whole world !**
 
 2. restart server:
 `systemctl restart postgresql`
 3. verify: 
 ```
 sudo netstat -latupen |grep 5432
-tcp        0      0 0.0.0.0:5432            0.0.0.0:* LISTEN      968        1556941    9599/postgres
-tcp6       0      0 :::5432                 :::*      LISTEN      968        1556942    9599/postgres  
+tcp        0      0 172.17.0.1:5432         0.0.0.0:*               LISTEN      980        1005010    28363/postgres      
+tcp        0      0 127.0.0.1:5432          0.0.0.0:*               LISTEN      980        1005009    28363/postgres      
+tcp6       0      0 ::1:5432                :::*      LISTEN      980        1556942    9599/postgres  
 ```
+
 
 # Launch container with host (192.168.0.12 here) postgresql server :
 

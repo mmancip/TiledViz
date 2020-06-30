@@ -65,30 +65,32 @@ if ! [ -e ${HOME_user}/.vnc/passwd ]; then
     chmod 600 ${HOME_user}/.vnc/passwd
 
     sleep 1
+else
+    echo Random Password Generated: $(x11vnc -showrfbauth ${HOME_user}/.vnc/passwd |tail -1 |sed -e 's/.*pass: //' ) |tee -a $LOGFILE
 fi
 chown -R myuser:myuser ${HOME_user} 
+
+# Change ldconfig paths if no nvidia device
+if [ ! -e /dev/nvidia0 ]; then
+	rm -f /etc/ld.so.conf.d/GL.conf
+	ldconfig
+fi
 
 echo "start X "
 
 # Create the xstartup file
-echo "#!/bin/sh 
+echo "#!/bin/sh
 
-xterm -rv -geometry ${RESOL}-0-0 -fa 'Adobe Courrier:size=12:antialias=true' -e /TiledViz/TVConnections/tvconnections.sh ${ConnectionId} ${POSTGRES_HOST} ${POSTGRES_DB} ${POSTGRES_USER} ${POSTGRES_PASSWORD} &
-#fc-list | sort |more
+sleep 1
+icewm-light &
 
+#TODO : websockify in TVConnection.py because of use of username for self.pem built.
 /opt/vnccommand &
 
-icewm-light
+sleep 1
+xterm -rv -fullscreen -fa 'Adobe Courrier:size=12:antialias=true' -e /TiledViz/TVConnections/tvconnections.sh ${ConnectionId} ${POSTGRES_HOST} ${POSTGRES_DB} ${POSTGRES_USER} ${POSTGRES_PASSWORD} 
 " >${HOME_user}/.vnc/xstartup
 chmod 755 ${HOME_user}/.vnc/xstartup
-# /usr/bin/X :0 -terminate & sleep 2 && DISPLAY=:0 /usr/bin/xterm
-#xwit(1) to forcibly resize and place the windows.
-
-touch ${HOME_user}/.vnc/x11vnc.log
-echo 'echo $(date) $(DISPLAY=:1 x11vnc -R clear_all 2>&1) >> ~/.vnc/x11vnc.log' > /usr/local/bin/clearX11vnc
-chmod a+x /usr/local/bin/clearX11vnc
-mkdir ${HOME_user}/.icewm
-echo "prog \"x11vnc-clear\" computer_science_section /usr/local/bin/clearX11vnc" > ${HOME_user}/.icewm/toolbar
 
 chown -R myuser:myuser ${HOME_user}
 

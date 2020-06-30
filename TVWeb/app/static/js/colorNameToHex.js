@@ -14,7 +14,7 @@ function getRGBColor (colorStr) {
 	    parseInt(colorHex.slice(5,7),16)]
 }
 
-function colourNameToHex(colour)
+function colourNameToHex(colorStr)
 {
     return getHexColor(colorStr)
 }

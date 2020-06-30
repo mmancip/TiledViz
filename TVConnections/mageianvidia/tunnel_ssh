@@ -6,11 +6,11 @@ shift 3
 OPTIONS=$@
 
 . /home/myuser/.bashrc 
-COMMANDssh="ssh -T -N -nf -R ${SOCKETdomain}${DOCKERID}:localhost:5902 ${OPTIONS} ${HTTPLOGNAME}@${HTTP_FRONTEND}"
+COMMANDssh="ssh -T -N -nf -R \*:${SOCKETdomain}${DOCKERID}:localhost:5902 ${OPTIONS} ${HTTPLOGNAME}@${HTTP_FRONTEND}"
 echo $COMMANDssh
 i=0
 while [ true ]; do
-  ${COMMANDssh} > /dev/null 2>&1
+  ${COMMANDssh} > /home/myuser/.vnc/out_tunnel_ssh 2>&1
 
   RET=$?
   echo $i $RET

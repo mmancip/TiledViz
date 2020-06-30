@@ -1,5 +1,5 @@
 var text_ =
-{ nodes: [
+{ "nodes": [
 {"title" : "przon.png",
  "variable" : "przon.png" ,
  "url" : "http://vesg.ipsl.upmc.fr/thredds/fileServer/IPSLFS/fabric/lmdz/MultiSimu/CMIP5to6/ZON/przon.png",

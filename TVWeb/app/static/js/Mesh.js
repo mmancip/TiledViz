@@ -286,7 +286,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		mouseup : function(e) {
 		    var nodeOpacity_ = $('#tileOpacitySlider'+id).val()/100;
 		    cdata={"room":my_session,"Id":id,"Opacity":nodeOpacity_};
-		    socket.emit("change_Opacity", cdata, function(sdata){
+		    socket.emit("change_Opacity", cdata, callback=function(sdata){
  		    	console.log("socket change Opacity Tag ", cdata);				
 		    });
 		}
@@ -789,7 +789,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		$("#buttonUnzoom").off();
 		$("#buttonUnzoom").remove();		
 		$('.hitbox').off();
-		$('.hitbox').on("click", clickHBZoom);
+		$('.hitbox').on("click", clickHBSelect);
 		me.startLoading();			
 	    });				 
 
@@ -1058,12 +1058,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	} else if (SelectionNodeToTagFlag) {
 	    currentSelectedTag = this.id;
 	    // Add tag for nodes in selection
-	    var listSectionTiles=me.getSelectedNodes()
-	    for(O in listSectionTiles)  { 
-		var HBid = "hitbox"+listSectionTiles[O].getId();
+	    var listSelectionTiles=me.getSelectedNodes()
+	    for(O in listSelectionTiles)  { 
+		var HBid = "hitbox"+listSelectionTiles[O].getId();
 		//clickHBTag(HBid);
-		listSectionTiles[O].getStickers().addSticker(currentSelectedTag, attributedTagsColorsArray[currentSelectedTag]);
-		listSectionTiles[O].addElementToNodeTagList(currentSelectedTag);
+		listSelectionTiles[O].getStickers().addSticker(currentSelectedTag, attributedTagsColorsArray[currentSelectedTag]);
+		listSelectionTiles[O].addElementToNodeTagList(currentSelectedTag);
 	    }
 	    addBlink(this);
 	} else if (PaletteNodeTagFlag) {
@@ -1083,7 +1083,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    window["updateAll"+tagToColor] = function (event) {
 		$('#'+tagToColor).css("outline-style", "none");
 		cdata={"room":my_session,"OldTag":tagToColor,"TagColor":TagColor};
-		socket.emit("color_Tag", cdata, function(sdata){
+		socket.emit("color_Tag", cdata, callback=function(sdata){
  		    console.log("socket change color Tag ", cdata);
 		});
 		colorChoose.removeEventListener("input", window["updateFirst"+tagToColor]);
@@ -1342,7 +1342,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 						tmpNewTag = newTag_conformance(tmpNewTag);
 						if ($.inArray(tmpNewTag, globalTagsList) == -1)  { // Check if the new tag is not already stored as tag
 						    cdata={"room":my_session,"NewTag":tmpNewTag};
-						    socket.emit("add_Tag", cdata, function(sdata){
+						    socket.emit("add_Tag", cdata, callback=function(sdata){
  		    					console.log("socket add New Tag ", cdata);
 						    });
 						} else { 
@@ -1461,7 +1461,46 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     tagManagementMenuShareEvent.push(false);
 
     
+    // Action menu
 
+    var actionGlobalMenuTitleTab = new Array();
+    var actionGlobalMenuEventTab = new Array();
+    var actionGlobalMenuIconClassAttributesTab = new Array();
+    var actionGlobalMenuShareEvent = new Array();
+
+    for ( var TS in json_actions) {
+	for ( var thisAction in json_actions[TS]) {
+	    var FuncName=json_actions[TS][thisAction][0];
+	    var IconName=json_actions[TS][thisAction][1];
+	    actionGlobalMenuTitleTab.push(TS+"_"+FuncName);
+	    actionGlobalMenuEventTab.push( (function() {
+		var TS_=TS;
+		var thisAction_=thisAction;
+		return function( v, id, optionNumber){
+		    idAction = parseInt(thisAction_.replace("action",""));
+
+    		    var selections = [];
+    		    var listSelectionTiles=me.getSelectedNodes();
+    		    for(O in listSelectionTiles)  {
+			// Only selection for the right tag
+			if (listSelectionTiles[O].getJsonData().tags.filter(x=>x==TS_).length)
+    			    selections.push(parseInt(listSelectionTiles[O].getJsonData().variable.replace("ID-",""))-1);
+    		    }
+		    if (selections.length == 0)
+			selections=","
+		    else
+			selections=selections.toString()
+		    addBlink($('#'+id+"option"+optionNumber));
+		    cdata={"room":my_session,"id":id,"TileSet":TS_,"action":thisAction_,"selections":selections};
+		    socket.emit("action_click", cdata, callback=function(sdata){
+ 			console.log("socket send action_click ", cdata);
+		    });
+		}
+	    })() );
+	    actionGlobalMenuIconClassAttributesTab.push(TS+"_"+IconName+"ButtonIcon");
+	    actionGlobalMenuShareEvent.push(false);
+	}
+    }
 
     /** DRAW MENU
      * Functions :
@@ -1667,7 +1706,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	cdata["offset"]=offset;
 	cdata["offsetEnd"]=offsetEnd;
 	cdata["data"]=datasend;
-	socket.emit("uploadDraw", cdata, function(sdata){
+	socket.emit("uploadDraw", cdata, callback=function(sdata){
  	    //console.log("socket send draw part of "+canvasName+" from "+cdata.offset+" to "+cdata.offsetEnd);
 	});
     }
@@ -1687,13 +1726,13 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	cdata["height"]=canvas.height;
 	if (typeof allNodes == 'undefined') {
 	    // emit Draw to all other clients of the session
-	    socket.emit("drawBlob", cdata, function(sdata){
+	    socket.emit("drawBlob", cdata, callback=function(sdata){
  		console.log("socket send draw blob ", cdata);
 	    });
 	} else {
 	    // emit Draw to all other clients of the session
 	    cdata["allNodes"]="true";
-	    socket.emit("drawBlob", cdata, function(sdata){
+	    socket.emit("drawBlob", cdata, callback=function(sdata){
  		console.log("socket send all clients draw blob ", cdata);
 	    })
 	}
@@ -2165,7 +2204,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			BlockDragAndDrop();
 
 			$('.node').off();
-			$('.hitbox').off("click").on("click", clickHBZoom);
+			$('.hitbox').off("click").on("click", clickHBSelect);
 			$('.hitbox').off("mouseenter");
 
 			menuZoom.children('[class*=explain-zoom]')[0].innerText="Click on the left of the nodes to select them. Green nodes will be selected.";
@@ -2224,7 +2263,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			BlockDragAndDrop();
 
 			$('.node').off();
-			$('.hitbox').off("click").on("click", clickHBZoom);
+			$('.hitbox').off("click").on("click", clickHBSelect);
 			$('.hitbox').off("mouseenter");
 			
 
@@ -2391,7 +2430,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     // Share modification of draw in Draws Management Menu.
     emit_ModifDraws=function(action,nodeId) {
 	    cdata={"room":my_session,"action":action,"nodeId":nodeId};
-	    socket.emit("modif_draws", cdata, function(sdata){
+	    socket.emit("modif_draws", cdata, callback=function(sdata){
  		console.log("socket send modif_draws ", cdata);				
 	    });
     }
@@ -3847,9 +3886,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	
     // 	$('#'+id+'option'+optionNumber).removeClass('selectionButtonIcon').addClass('closeSelectionButtonIcon');
     // 	var listSelectionIds = [];
-    // 	var listSectionTiles=me.getSelectedNodes()
-    // 	for(O in listSectionTiles)  { 
-    // 	    listSelectionIds.push(listSectionTiles[O].getId());
+    // 	var listSelectionTiles=me.getSelectedNodes()
+    // 	for(O in listSelectionTiles)  { 
+    // 	    listSelectionIds.push(listSelectionTiles[O].getId());
     // 	}
     //  	console.log("share_Selection",listSelectionIds);
     // 	var cdata ={"room":my_session, "Selection": "["+listSelectionIds.toString()+"]" }
@@ -3913,9 +3952,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
      	//console.log("unSelection Off");
 
     	var listSelectionIds = [];
-    	var listSectionTiles=me.getSelectedNodes();
-    	for(O in listSectionTiles)  { 
-    	    listSelectionIds.push(listSectionTiles[O].getId());
+    	var listSelectionTiles=me.getSelectedNodes();
+    	for(O in listSelectionTiles)  { 
+    	    listSelectionIds.push(listSelectionTiles[O].getId());
     	}
      	//console.log("share_Selection",listSelectionIds);
 	receive_deploy_Selection=false;
@@ -3930,7 +3969,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	nextList.push(newtag);
 	receive_Add_Tag=false;
 	cdata={"room":my_session,"NewTag":newtag};
-	socket.emit("add_Tag", cdata, function(sdata){
+	socket.emit("add_Tag", cdata, callback=function(sdata){
  	    console.log("socket add New Tag ", cdata);
 	});
 
@@ -4216,6 +4255,34 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     menuIconClassAttributesTab.push('tagsGlobalMenuButtonIcon');
     menuShareEvent.push(true)
     
+    // Action menu
+
+    menuTitleTab.push("All action functions Menu")
+    menuEventTab.push(    function(v, id, optionNumber){
+	if(v==true)  { 
+	    menuActionGlobal
+		.css("top", (function(){
+		    if (touchok) {
+			return TagHeight;
+		    } else {
+			return menuGlobal.position()["top"]+$('.actionGlobalMenuButtonIcon').position()["top"];
+		    }
+		})() )
+		.css("left",menuGlobal.position()["left"]+menuGlobal.width())
+		.css("visibility", "visible");
+	    
+	    $('.hitbox').off("click").on("click", clickHBSelect);
+	    $('#'+id+'option'+optionNumber).removeClass('actionGlobalMenuButtonIcon').addClass('closeActionGlobalMenuButtonIcon');
+	} else { 
+	    me.actionGlobalMenu.closeAllOptions();
+	    menuActionGlobal.css("visibility", "hidden");
+	    $('.hitbox').off("click").on("click",clickHB);
+	    $('#'+id+'option'+optionNumber).removeClass('closeActionGlobalMenuButtonIcon').addClass('actionGlobalMenuButtonIcon');
+	}
+    });
+    menuIconClassAttributesTab.push("actionGlobalMenuButtonIcon");
+    menuShareEvent.push(false);
+    
     // Zoom Global Menu
     menuTitleTab.push("All zoom functions Menu")
     menuEventTab.push(    function(v, id, optionNumber){
@@ -4228,7 +4295,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			return menuGlobal.position()["top"]+$('.zoomGlobalMenuButtonIcon').position()["top"];
 		    }
 		})() )
-		.css("left",200)
+		.css("left",menuGlobal.position()["left"]+menuGlobal.width())
 		.css("visibility", "visible");
 	    $('#'+id+'option'+optionNumber).removeClass('zoomGlobalMenuButtonIcon').addClass('closeZoomGlobalMenuButtonIcon');
 	} else { 
@@ -4271,7 +4338,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			return menuGlobal.position()["top"]+$('.stateGlobalMenuButtonIcon').position()["top"];
 		    }
 		})() )
-		.css("left",200)
+		.css("left",menuGlobal.position()["left"]+menuGlobal.width())
 		.css("visibility", "visible");
 	    $('#'+id+'option'+optionNumber).removeClass('stateGlobalMenuButtonIcon').addClass('closeStateGlobalMenuButtonIcon');
 	} else { 
@@ -4335,7 +4402,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			return menuGlobal.position()["top"]+$('.cancelGlobalMenuButtonIcon').position()["top"];
 		    }
 		})() )
-		.css("left",200)
+		.css("left",menuGlobal.position()["left"]+menuGlobal.width())
 		.css("visibility", "visible");
 	    $('#'+id+'option'+optionNumber).removeClass('cancelGlobalMenuButtonIcon').addClass('closeCancelGlobalMenuButtonIcon');
 	} else { 
@@ -4360,7 +4427,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			return menuGlobal.position()["top"]+$('.updownGlobalMenuButtonIcon').position()["top"];
 		    }
 		})() )
-		.css("left",200)
+		.css("left",menuGlobal.position()["left"]+menuGlobal.width())
 		.css("visibility", "visible");
 	    $('#'+id+'option'+optionNumber).removeClass('updownGlobalMenuButtonIcon').addClass('closeUpdownGlobalMenuButtonIcon');
 	} else { 
@@ -4408,6 +4475,26 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	});
     menuTags=$('#menutagsGlobal');
     subMenusGlobal.push(this.tagMenu);
+    
+    this.actionGlobalMenu = new Menu("actionGlobal", $('header'), actionGlobalMenuTitleTab, actionGlobalMenuEventTab, actionGlobalMenuIconClassAttributesTab, actionGlobalMenuShareEvent,{
+	    position : "fixed",
+	    top : parseInt($(me.menu.getHtmlMenuSelector()).css('height')),
+	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')),
+	    visible : 'hidden',
+	    classN : 'action',
+	    height : 200,
+	    width : 200,
+	    rightMargin :0,
+	    backgroundColor: "rgba(0, 0, 0, 0.6)",
+	    //borderStyle : "solid",
+	    //borderWidth : "5px", 
+	    //borderColor : "green",
+	    orientation : "H",
+	    zIndex : 149
+
+	});
+    menuActionGlobal=$('#menuactionGlobal');
+    subMenusGlobal.push(this.actionGlobalMenu);
     
     this.zoomGlobalMenu = new Menu("zoomGlobal", $('header'), zoomGlobalMenuTitleTab, zoomGlobalMenuEventTab, zoomGlobalMenuIconClassAttributesTab, zoomGlobalMenuShareEvent,{
 	    position : "fixed",
@@ -5350,6 +5437,19 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	spread = mesh.getSpread();
 	mesh.updateSpread({X : spread.X/ratio , Y : spread.Y/ratio});
 
+	//* Dynamic icons for actionGlobal menu    
+	for ( var TS in json_actions) {
+	    for ( var thisAction in json_actions[TS]) {
+		var FuncName=json_actions[TS][thisAction][0];
+		var IconName=json_actions[TS][thisAction][1];
+		var ButtonDiv=$(".optionfromactionGlobal").filter("."+TS+"_"+IconName+"ButtonIcon")
+		if (ButtonDiv.children().length == 0) {
+		    ButtonDiv.append('<i class="material-icons" style="position:relative; top:100px; color:'+
+				$('.'+TS).css("background-color")+'; -moz-transform:scale(8);-webkit-transform:scale(8)">'+
+				IconName+'</i>')
+		}
+	    }}
+	
     }; // End startLoading
 
     /**Here all the native (without menu event) event are implemented*/
@@ -5463,7 +5563,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    me.RealdropNode(targetNode_, nodeX, nodeY);	    
 	    $('#'+targetNode_).addClass("NotSharedAgain");
 	    cdata={"room":my_session, "id":targetNode_, "posX":nodeX , "posY":nodeY };
-	    socket.emit("move_tile", cdata, function(sdata){
+	    socket.emit("move_tile", cdata, callback=function(sdata){
 		//console.log("socket send move_tile", sdata);	
 	    });
 	};
@@ -5685,7 +5785,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 	$('.onoff').on(OOFEvent);
 		
-	var clickHB = function(){
+	clickHB = function(){
 	    //console.log("Hitbox " + id + " clicked");
 	    if((me.getZoomSelection() == false) && (currentSelectedTag == ""))  { // Default behaviour : not selecting nodes for a zoom, not in tag mode
 		var HB = $('#'+this.id);
@@ -5720,7 +5820,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    }	
 	    else if (me.getZoomSelection() == true)  { 
 		console.log("Select Zoom with hitbox.");
-		clickHBZoom(id=this.id);
+		clickHBSelect(id=this.id);
 	    }
 	    else if (currentSelectedTag !="")  { 
 		console.log("Add Tag with hitbox.");
@@ -5743,7 +5843,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    }					
 	}
 	
-	clickHBZoom = function(id__){
+	clickHBSelect = function(id__){
 	    if (typeof this.id == 'undefined')
 		var id_ = id__;
 	    else
@@ -5756,7 +5856,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		var node = me.getNodes()["node"+id];
 		nodeSelect(node,HB)
 	    } catch(e) {
-		console.log("Error in clickHBZoom.");
+		console.log("Error in clickHBSelect.");
 	    }
 	};
 
@@ -6093,7 +6193,7 @@ dblclick: dblclickFunction*/
 
 	    $('.node').off();
 	    $('.hitbox').off("click");
-	    $('.hitbox').on("click", clickHBZoom);
+	    $('.hitbox').on("click", clickHBSelect);
 	    $('.hitbox').off("mouseenter");
 	    _allowDragAndDrop = false;
  

@@ -1,4 +1,4 @@
-# Docker file mageianvidia
+# Docker file mageiaconnect
 FROM mageia:6
 MAINTAINER  "Martial Mancip" <Martial.Mancip@MaisondelaSimulation.fr>
 
@@ -43,19 +43,23 @@ RUN dnf --downloadonly --downloaddir=/tmp/cache install -y icewm-theme-oxygen-ay
     && rpm -ip /tmp/cache/icewm-theme-oxygen-aya*.rpm --nodeps \
     && dnf install -y icewm-light icewm-i18n --setopt=install_weak_deps=False --exclude=bootsplash,kernel-desktop
 
-RUN dnf install -y python3-psycopg2 git rsync
+RUN dnf install -y python3-psycopg2 git rsync python3-pip && \
+    pip3 install --upgrade pip
 
 COPY ./ /TiledViz
 
 RUN pip3 install -r /TiledViz/TVConnections/requirements.txt ;
 
+RUN dnf install -y python-pip && \
+    pip2 install --upgrade pip && pip2 install wheel numpy
 
-RUN cd /TiledViz/TVConnections/mageianconnect/ ; \
-    mkdir -p /home/myuser ;\
-    cp -rp ssh /home/myuser/.ssh/ ;\
-    cp vnccommand /opt/vnccommand ;\
-    cp .bashrc /home/myuser/.bashrc ;\
-    cp switch_* /opt/ ;\
+RUN cd /TiledViz/TVConnections/mageianconnect/ && \
+    mkdir -p /home/myuser &&\
+    cp -rp ssh /home/myuser/.ssh/ &&\
+    cp vnccommand /opt/vnccommand &&\
+    cp build_pem.py /opt/build_pem.py &&\
+    cp .bashrc /home/myuser/.bashrc &&\
+    cp switch_* /opt/ &&\
     cp start.sh /start.sh
     
 

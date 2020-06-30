@@ -22,6 +22,8 @@ You may also use a python3 environement as non root user  :
   (on some system, you may have to use virtualenv-3.? where 3.? is the default python version)
 - source TiledVizEnv_${DATE}/bin/activate
 
+This virtualenv directory may be changed in launch_TiledViz script in line 17.
+
 3. Requirements
 Then all other tools are installed in you local environment with :
     - pip3 install -r requirements.txt
@@ -41,8 +43,9 @@ patch -p0 < patch_devices_noVNC
 After installing client side of postgresql database, in stage 2, you have to choose
 if you prefer install the TiledViz database in your host system or having a container
 dedicated to database managment.
+You may read TVDatabase/README.md file for documentation on PostgreSQL DB.
 
-a. Environement
+a. Environment
 We need those environment variables to be set to the right values :
 {{{
 export POSTGRES_HOST=postgres
@@ -53,7 +56,8 @@ export passwordDB="$POSTGRES_PASSWORD"
 }}}
 You have to choose your own PostgreSQL password.
 You can edit launch_TiledViz with your parameters if you need to launch TiledViz with
-this script. You can launch TVSecure directly with your own secret key.
+this script. You can launch TVSecure directly with your own secret key
+(argument --secretKey='my Preci0us secr_t key for t&sts.').
 
 You may create an empty .netrc file for python lower module:
 {{{
@@ -80,9 +84,30 @@ psql -h localhost -U tiledviz -d TiledViz -f TVDatabase/TiledViz.sql
 }}}
 and replace localhost by postgres.
 
-Note that the database password must be changed in this TiledViz.sql file.
+Please note you should find docker0 IP with
 {{{
-sed -e "s&	ENCRYPTED PASSWORD 'm_test/@03';&	ENCRYPTED PASSWORD 'your_postgres_password';&" -i TVDatabase/TiledViz.sql
+/sbin/ip -4 addr show docker0 | grep -Po 'inet \K[\d.]+'
+}}}
+and to protect the DB and you must add docker0 address (and note all network interfaces) in postgresql conf file (and '*' for all interfaces):
+{{{
+nano /var/lib/pgsql/data/postgresql.conf 
+listen_addresses = 'localhost,172.17.0.1'
+}}}
+Then after restart postgresql service as root you should have
+{{{
+netstat -latupen |grep 5432
+tcp        0      0 172.17.0.1:5432         0.0.0.0:*               LISTEN      980        1005010    28363/postgres      
+tcp        0      0 127.0.0.1:5432          0.0.0.0:*               LISTEN      980        1005009    28363/postgres      
+tcp6       0      0 ::1:5432                :::*                    LISTEN      980        1005008    28363/postgres   
+}}}
+Or you must restart postgresql service because docker server may have started after this one:
+{{{
+systemctl restart postgresql
+}}}
+
+Note that the DATABASE PASSWORD MUST BE CHANGED in this TiledViz.sql file.
+{{{
+sed -e "s&	ENCRYPTED PASSWORD 'm_test/@03';&	ENCRYPTED PASSWORD 'your_real_postgres_password';&" -i TVDatabase/TiledViz.sql
 }}}
 NOT with 'your_postgres_password' of course.
 
@@ -113,7 +138,18 @@ export IPPOSTGRES=$(docker inspect --format '{{range .NetworkSettings.Networks}}
 }}}
 
 
-5. Running Flask
+6. Build connect docker
+First get websockify source :
+- pushd TVConnections
+- git clone https://github.com/novnc/websockify
+- popd
+In  TiledViz directory, you may build connection docker if you want to launch containers :
+- docker build -t mageiaconnect -f TVConnections/mageianconnect/Dockerfile .
+And use an VNC container on HPC machine with client_python and TileClient.py at start as in TVConnections/mageianvidia,
+(after copy you ssh private key to authorized redirection of VNC stream on your frontend) like:
+- docker build -t mageianvidia -f TVConnections/mageianvidia/Dockerfile .
+
+7. Running Flask
 a. build
 - docker build -t flaskimage -f TVWeb/FlaskDocker/Dockerfile.web .
 b. run

@@ -70,16 +70,28 @@ if ! [ -e ${HOME_user}/.vnc/passwd ]; then
 	chmod 600 ${HOME_user}/.vnc/passwd
 
 	sleep 1
+else
+    echo Random Password Generated: $(x11vnc -showrfbauth ${HOME_user}/.vnc/passwd |tail -1 |sed -e 's/.*pass: //' ) |tee -a $LOGFILE
 fi
 chown -R myuser:myuser ${HOME_user} 
+
+# Change ldconfig paths if no nvidia device
+if [ ! -e /dev/nvidia0 ]; then
+	rm -f /etc/ld.so.conf.d/GL.conf
+	ldconfig
+fi
 
 echo "start X "
 
 # Create the xstartup file
 echo "#!/bin/sh 
 
+sleep 1
 xterm -rv -geometry ${RESOL}-0-0 -e /opt/client_python ${DOCKERID} ${myPORT} ${myFront} &
+
+sleep 1
 icewm-light
+xterm
 #unset SESSION_MANAGER
 #unset DBUS_SESSION_BUS_ADDRESS
 " >${HOME_user}/.vnc/xstartup

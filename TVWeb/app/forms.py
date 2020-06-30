@@ -8,6 +8,8 @@ from wtforms.fields.html5 import SearchField
 from wtforms.widgets import core, html5
 from wtforms.validators import InputRequired, Email, Optional, EqualTo
 
+import markupsafe
+
 import os,sys
 sys.path.append(os.path.abspath('../TVDatabase'))
 from TVDb import tvdb
@@ -84,7 +86,7 @@ class mySelect(object):
         options = dict(kwargs, value=value)
         if selected:
             options['selected'] = True
-        return core.HTMLString('<option %s>%s</option>' % (core.html_params(**options), core.escape_html(label, quote=False)))
+        return core.HTMLString('<option %s>%s</option>' % (core.html_params(**options), markupsafe.escape(label)))
 
 class myFixedSelectField(SelectField):
     widget = mySelect(multiple=False)
@@ -312,6 +314,7 @@ def BuildTilesSetForm(oldtileset=None,json_tiles_text=None,onlycopy=False,editco
 
         TilesSetForm.openports_between_tiles = FieldList(IntegerField("port :",validators=[Optional()]),description="Open port in visualisation network",min_entries=2,max_entries=5) 
    
+    TilesSetForm.goback = SubmitField("Go back")
     TilesSetForm.submit = SubmitField("Next step")
 
     return TilesSetForm

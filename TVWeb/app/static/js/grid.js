@@ -16,7 +16,8 @@ $(document).ready( function(){
 		 });
 
     socket = io.connect('http://' + document.domain + ':' + location.port);
-    
+    // //debug socket.io :
+    // localStorage.debug = '*';
     console.log("my session is :",  my_session);
     socket.on("connect", function(){
 	var cdata = {"user": my_user, "project" : my_project, "session": my_session };
@@ -70,7 +71,7 @@ $(document).ready( function(){
 	    padding : 0,
 	    overflow : "auto"
 	});
-	htmlPrimaryParent.append('<div id=warning class="warning blink"><img src="images/warning.png"></br></br>'+
+	htmlPrimaryParent.append('<div id=warning class="warning blink"></br></br>'+
 				 'Warning, a configuration file is missing! You should have either a <b>config_default.js</b> in the folder TileViz,'+
 				 ' or a <b>config.js</b> in the parent repository!</div>');
 	$('#header').css('height', 0);
@@ -347,7 +348,7 @@ $(document).ready( function(){
     emit_click=function(action,id) {
 	if (! $('.'+action+'#'+id).hasClass("NotSharedAgain")) {			    
 		cdata={"room":my_session,"id":id,"action":action};
-		socket.emit("click", cdata, function(sdata){
+		socket.emit("click", cdata, callback=function(sdata){
  		    console.log("socket send click ", cdata);				
 		});
 		return true;
@@ -368,7 +369,7 @@ $(document).ready( function(){
     emit_click_val=function(action,id,val) {
 	if (! $('.'+action+'#'+id).hasClass("NotSharedAgain")) {			    
 	    cdata={"room":my_session,"id":id,"action":action,"val":val};
-	    socket.emit("click_val", cdata, function(sdata){
+	    socket.emit("click_val", cdata, callback=function(sdata){
  		console.log("socket send click_val ", cdata);				
 	    });
 	    return true;

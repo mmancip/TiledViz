@@ -313,7 +313,7 @@ class ClientConnect(threading.Thread):
                 output, errors = p.communicate()
                 #serverLogger.warning(output.decode('utf-8'))
                 if (len(errors) >0):
-                    serverLogger.info("errors : "+errors.decode('utf-8'))
+                    serverLogger.info("stderr : "+errors.decode('utf-8'))
                 
                 self.Connect.send_OK(self.id,p.returncode)
 
