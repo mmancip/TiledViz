@@ -25,6 +25,7 @@ You may also use a python3 environement as non root user  :
 This virtualenv directory may be changed in launch_TiledViz script in line 17.
 
 3. Requirements
+You have to go to TiledViz dir.
 Then all other tools are installed in you local environment with :
     - pip3 install -r requirements.txt
 You need noVNC : https://travis-ci.org/novnc/noVNC in TVWeb subdirectory.
@@ -67,22 +68,21 @@ touch ~/.netrc
 b. docker + localhost
 You can choose to run PostgreSQL db server on your host or on a docker as a micro service.
 {{{
-export postgresNAME=TiledVizPG
+export postgresNAME=tiledvizpg
 }}}
 
 For docker container, a simple postgres alpine is very small :
 {{{
-docker run -d -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_DB=$POSTGRES_DB -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD postgres:9.6-alpine --name $postgresNAME
+docker run -d -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_DB=$POSTGRES_DB -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD --name=$postgresNAME postgres:9.6-alpine
 }}}
 This will download DockerHub version of postgres with alpine system.
 
-For local postgresql db you have to install posrgres "postgresql9.6-server" on your system.
-
-Then you can use psql tool to insert database structure :
+The IP of postgres container is given by command as
 {{{
-psql -h localhost -U tiledviz -d TiledViz -f TVDatabase/TiledViz.sql
+export IPPOSTGRES=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $postgresNAME)
 }}}
-and replace localhost by postgres.
+
+c. For local postgresql db you have to install posrgres "postgresql9.6-server" on your system.
 
 Please note you should find docker0 IP with
 {{{
@@ -100,10 +100,14 @@ tcp        0      0 172.17.0.1:5432         0.0.0.0:*               LISTEN      
 tcp        0      0 127.0.0.1:5432          0.0.0.0:*               LISTEN      980        1005009    28363/postgres      
 tcp6       0      0 ::1:5432                :::*                    LISTEN      980        1005008    28363/postgres   
 }}}
-Or you must restart postgresql service because docker server may have started after this one:
+
+If you choose docker0 interface for DB, you must restart postgresql service
+because docker server may have started after this one:
 {{{
 systemctl restart postgresql
 }}}
+
+d. Install Database
 
 Note that the DATABASE PASSWORD MUST BE CHANGED in this TiledViz.sql file.
 {{{
@@ -111,19 +115,30 @@ sed -e "s&	ENCRYPTED PASSWORD 'm_test/@03';&	ENCRYPTED PASSWORD 'your_real_postg
 }}}
 NOT with 'your_postgres_password' of course.
 
+Then you can use psql tool to insert database structure with IPPOSTGRES variable
+previously defined for postgres container installation :
+{{{
+psql -h $IPPOSTGRES -U tiledviz -d TiledViz -f TVDatabase/TiledViz.sql
+}}}
+
+Or you can use psql tool to insert database structure for local postgres service :
+{{{
+psql -h localhost -U tiledviz -d TiledViz -f TVDatabase/TiledViz.sql
+}}}
+and replace localhost by postgres.
+
 You should also add functions and views to ease database management with psql tool :
 {{{
 psql -h localhost -U tiledviz -d TiledViz -f TVDatabase/management.sql
 }}}
 and replace localhost by postgres.
+Of course change localhost for $IPPOSTGRES for container installation.
 
-TODO : docker run ... + hostname == $postgresNAME
-
-c. Fill values
+d. Fill values
 For Gitlab Continuous Integration script file .gitlab-ci.yml, we have prepared fill script of the database with old TileViz demo files :
 - TVDatabase/filledDatabase.sh
 
-d. Get models.py
+e. Get models.py
 
 A module TVDB in TVdatabase subdirectory
 Because the database is built graphicaly with pgModeler and saved in file TVDatabase/TiledViz.dbm, we need
@@ -131,12 +146,6 @@ to compile a sqlalchemy python representation of it :
 {{{
 sqlacodegen postgres://${POSTGRES_USER}:"${POSTGRES_PASSWORD}"@${POSTGRES_HOST}/${POSTGRES_DB} --outfile=TVDatabase/TVDb/models.py
 }}}
-
-e. The IP of postgres container ioos given by command as
-{{{
-export IPPOSTGRES=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $postgresNAME)
-}}}
-
 
 6. Build connect docker
 First get websockify source :
@@ -162,7 +171,7 @@ TiledViz is regularly tested with our CI on gitlab.maisondelasimulation.fr with
 Selenium web engine driver. 
     - export IPFlask=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' flaskdock)
     - TVDatabase/getDatabase.sh
-    - docker run -t -v $(pwd)/TVWeb/Selenium:/usr/local/Selenium --add-host="flaskdock:$IPFlask" --name selenium --rm joyzoursky/python-chromedriver:3.7-alpine3.8-selenium python3 /usr/local/Selenium/test_script.py 
+    - docker run -t -v $(pwd)/TVWeb/Selenium:/usr/local/Selenium --add-host="flaskdock:$IPFlask" --name=selenium --rm joyzoursky/python-chromedriver:3.7-alpine3.8-selenium python3 /usr/local/Selenium/test_script.py 
 d. log
     - docker exec -t flaskdock cat /TiledViz/TVWeb/TiledViz.log
 e. stop
@@ -174,3 +183,12 @@ e. stop
 One must have uncomment 
 GatewayPorts yes
 in sshd config file on the web server.
+
+8. Error in starting TiledViz
+
+a. Firewall error
+If you see a message with "docker0: iptables: No chain/target/match by that name.",
+you may restart your docker daemon process as root :
+sudo systemctl restart docker
+
+

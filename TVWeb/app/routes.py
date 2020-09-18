@@ -1277,10 +1277,12 @@ def edittileset():
         try:
             oldconnection=db.session.query(models.Connection).filter_by(id=oldtileset.id_connections).one()
             oldConnection_id=oldtileset.id_connections
-            buildargs["editconnection"]=oldconnection
+            buildargs["editconnection"]=True
         
         except sqlalchemy.orm.exc.NoResultFound:
             flash("Tileset {} edit for user {} : no connection found ! ".format(oldtileset.name,session["username"]))
+            oldConnection_id = 0
+            buildargs["editconnection"]=True
         except AttributeError:
             #message = '{"oldtilesetid":'+str(oldtileset.id)+',"oldsessionname":"'+session["sessionname"]+'"}'
             #return redirect(url_for(".addconnection",message=message))
@@ -1629,7 +1631,10 @@ def vncconnection():
         
     vnctransfert=json.loads(session["connection"+str(idconnection)])
     logging.debug("With infos :"+str(vnctransfert))
-        
+
+    flaskaddr=socket.gethostbyname(socket.gethostname())
+    logging.debug("Detected flask address :"+str(flaskaddr))
+    
     callfunction=vnctransfert["callfunction"]
     if (oldconnection):
         if  (user_id != oldconnection.id_users) :
@@ -1650,6 +1655,10 @@ def vncconnection():
         
         out_nodes_json = os.path.join("/TiledViz/TVFiles", str(user_id), str(idconnection),"nodes.json")
         logging.warning("out_nodes_json after vncconnection.html :"+out_nodes_json)
+
+        # Wait NbTimeAlive to get files from connection
+        NbTimeAlive=20
+        
         count=0
         while True:
             if ( os.path.exists( out_nodes_json ) ):
@@ -1670,10 +1679,10 @@ def vncconnection():
                                            id=idconnection,
                                            tsid=idtileset,
                                            vncpassword=vnctransfert["vncpassword"],
-                                           flaskaddr=socket.gethostbyname(socket.gethostname()))
+                                           flaskaddr=flaskaddr)
 
                 return redirect(url_for("."+callfunction,message=message))
-            elif (count > 20):
+            elif (count > NbTimeAlive):
                 if ( not session["sessionname"] in  jsontransfert):
                     jsontransfert[session["sessionname"]]={}
                 elif ("TheJson" in jsontransfert[session["sessionname"]]):
@@ -1690,7 +1699,7 @@ def vncconnection():
                            tsid=idtileset,
                            vncpassword=vnctransfert["vncpassword"],
                            session=session["sessionname"],
-                           flaskaddr=socket.gethostbyname(socket.gethostname()))
+                           flaskaddr=flaskaddr)
     
 @app.route('/addconnection', methods=["GET", "POST"])
 def addconnection():
@@ -1810,10 +1819,11 @@ def addconnection():
                         +str(newtileset.id)+" ; "
                         +str(newConnection.id))
 
-        #  Wait for TVSecure to get VNC view to put connection datas.
+        #  Wait NbTimeAlive for TVSecure to get VNC view to put connection datas.
+        NbTimeAlive = 20
         count=0
         while(True):
-            if (count > 20):
+            if (count > NbTimeAlive):
                 strerror="Connection has never been reach. Go back to TileSet."
                 logging.error(strerror)
                 flash(strerror)
@@ -1983,13 +1993,14 @@ def editconnection():
                         +str(oldtileset.id)+" ; "
                         +str(oldconnection.id))
 
-        #  Wait for TVSecure to get VNC view to give connection again ?
+        #  Wait NbTimeAlive for TVSecure to get VNC view to give connection again.
+        NbTimeAlive = 20
         passpath="/home/connect"+str(oldconnection.id)+"/vncpassword"
         logging.warning("Go to vnc with path "+passpath)
     
         count=0
         while(True):
-            if (count > 20):
+            if (count > NbTimeAlive):
                 strerror="Connection has never been reach. Go back to TileSet."
                 logging.error(strerror)
                 flash(strerror)
@@ -2067,6 +2078,8 @@ def removeconnection():
         os.rmdir(dirpath)
         logging.warning("Remove dir for tileset "+oldtileset.name+" : "+dirpath)
     
+    oldtileset.id_connections=None
+    #oldtileset.type_of_tiles == None
     oldtileset.config_files=""
     flag_modified(oldtileset,"config_files")
     oldconnection.config_files=""
@@ -2078,7 +2091,7 @@ def removeconnection():
     db.session.commit()
 
     del(session["connection"+str(idconnection)])
-
+    
     flash("Connection "+str(idconnection)+" for tileset "+oldtileset.name+" has been removed.")
     message=request.args["message"]
     return redirect(url_for(".edittileset",message=message))

@@ -12,7 +12,8 @@ docker network create --driver overlay --attachable --subnet=${domain}.0/24 --ga
 docker network ls
 docker network inspect ${network}
 # Get all IPs
-ssh mandelbrot clush -N -L -g visu -w mandelbrot-gpu-1 docker network inspect ${network} |grep "IPv4Address" |sort
+docker network inspect ${network} |grep "IPv4Address" |sort
+docker network ls -q | xargs docker network inspect --format '{{range .IPAM.Config}}{{.Subnet}}{{end}} {{.Name}}' |sort
 
 # command to remove the network and the swarm
 echo docker network remove ${network}

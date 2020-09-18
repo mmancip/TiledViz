@@ -517,7 +517,7 @@ class ConnectionDocker(threading.Thread):
         logging.debug("Add user "+flaskusr+" on Flask container."+re.sub(r'\*n',r'\\n',self.LogAddUser))
         
         # Get id_rsa.pub for tunneling VNC flux
-        #time.sleep(timeWait)
+        time.sleep(timeWait)
         commandAuthKey = "cat "+self.home+"/.ssh/id_rsa.pub"
         self.LogAuthKey = container_exec_out(self.containerConnect, commandAuthKey)
         self.LogAuthorized_key = re.sub(r'\n',r'',self.LogAuthKey)

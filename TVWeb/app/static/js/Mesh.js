@@ -467,7 +467,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    position : 'absolute',
 			top : TagHeight,
 			left : 0,
-			height : "100%",
+			height : "110%",
 			width : "100%",
 			backgroundColor : "black",
 			opacity : "0.9",
@@ -2932,16 +2932,16 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		}
 
 		// Button to save and exit the options menu
-		$('#options').append("<div id=buttonApply></div>");
+		$('#options').append("<div id=buttonApply title='Apply for this browser'></div>");
 
 		// Button cancel modifications
-		$('#options').append("<div id=buttonCancel></div>");
+		$('#options').append("<div id=buttonCancel title='Cancel changes'></div>");
 
 		// Button to save config in a file
-		$('#options').append("<div id=buttonSave></div>");
+		$('#options').append("<div id=buttonSave title='Apply and save options to a file'></div>");
 
 		// Button to share config to all clients in room
-		$('#options').append("<div id=buttonShare></div>");
+		$('#options').append("<div id=buttonShare title='Apply and share to other clients in session'</div>");
 		
 		$('#'+id+'option'+optionNumber).attr('class', $('#'+id+'option'+optionNumber).attr('class').replace('optionsButtonIcon', 'closeOptionsButtonIcon'));
 
@@ -3117,6 +3117,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			    //var file = new File([ConfigJson], fileName, {type: "text/plain;charset=utf-8"},{ autoBom: false });
 			    //saveAs(file);
 			    download([ConfigJson], fileName, {type: "text/plain;charset=utf-8"})
+			    addBlink(this)
 			}
 		});
 		
@@ -3129,6 +3130,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			    // used to deploy config but not on the user that have emited the signal.
 			    myOwnConfig=true;
 			    socket.emit("share_Config", cdata);
+			    addBlink(this)
 			}
 		});
 		
