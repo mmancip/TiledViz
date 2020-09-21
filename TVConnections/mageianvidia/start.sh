@@ -48,6 +48,8 @@ fi
 chmod 700 ${HOME_user}/.vnc
 chown -R myuser:myuser ${HOME_user}
 
+chmod 600 ${HOME_user}/.ssh/config
+
 LOGFILE=${HOME_user}/.vnc/$(hostname).log
 touch $LOGFILE
 chown myuser:myuser $LOGFILE
