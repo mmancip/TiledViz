@@ -152,10 +152,17 @@ First get websockify source :
 - pushd TVConnections
 - git clone https://github.com/novnc/websockify
 - popd
+
+
 In  TiledViz directory, you may build connection docker if you want to launch containers :
 - docker build -t mageiaconnect -f TVConnections/mageianconnect/Dockerfile .
-And use an VNC container on HPC machine with client_python and TileClient.py at start as in TVConnections/mageianvidia,
-(after copy you ssh private key to authorized redirection of VNC stream on your frontend) like:
+
+You ssh private key to authorize redirection of VNC stream on your frontend
+- cp my_id_dsa* in TVConnections/mageianvidia/ssh
+with good rights.
+
+And build a VNC container on HPC machine as in TVConnections/mageianvidia (NOT on
+your local machine):
 - docker build -t mageianvidia -f TVConnections/mageianvidia/Dockerfile .
 
 7. Running Flask

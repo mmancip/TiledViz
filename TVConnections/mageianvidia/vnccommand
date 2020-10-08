@@ -1,15 +1,21 @@
 #!/bin/sh
+
+x11vnc -forever -rfbport 5902 -noncache -cursor arrow -shared -nowf -display :1 -rfbauth /home/myuser/.vnc/passwd -http > /home/myuser/.vnc/x11vnc 2>&1 &
+
+i=0
+while [ true ]; do
+    sleep 1
+    grep PORT=5902 /home/myuser/.vnc/x11vnc
+    RET=$?
+    if [ $RET -eq 0 ]; then
+	echo vnc done >> /home/myuser/.vnc/stdout
+	break
+    elif [ $i -gt 100 ]; then 
+	RET=100+$RET
+	echo error vnc >> /home/myuser/.vnc/stdout
+	break
+    fi
+    i=$((i+1))
+done
+exit $RET
     
-cd /home/myuser/
-#git clone https://github.com/flambard-took/websockify-other.git websockify-other-flambard-took
-
-cd websockify
-#cd websockify-other-flambard-took/c
-#make
-
-passwd="x11vnc -showrfbauth ~/.vnc/passwd"
-python /opt/build_pem.py $passwd > ~/.vnc/out_ssl 2>&1
-
-./run 5902 localhost:5901 > ~/.vnc/out_websockify 2>&1 &
-#python3 ./websockify.py 5902 localhost:5901 &
-#./websockify 5902 localhost:5900 &

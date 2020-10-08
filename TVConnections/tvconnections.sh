@@ -8,7 +8,11 @@ export POSTGRES_DB=$3
 export POSTGRES_USER=$4
 export POSTGRES_PASSWORD="$5"
 export passwordDB=${POSTGRES_PASSWORD}
+export DEBUG=$6
 
 cd ~
-echo python3 /TiledViz/TVConnections/TVConnection.py --host=${POSTGRES_HOST} --login=${POSTGRES_USER}  --databasename=${POSTGRES_DB} --usertest=${POSTGRES_USER} --connectionId=${ConnectionId} > ~/tvconnection.log
-python3 /TiledViz/TVConnections/TVConnection.py --host=${POSTGRES_HOST} --login=${POSTGRES_USER}  --databasename=${POSTGRES_DB} --usertest=${POSTGRES_USER} --connectionId=${ConnectionId} 2>&1 |tee -a ~/tvconnection.log
+if [ X"$DEBUG" != X"" ]; then
+    optDEB="--debug"
+fi
+echo python3 /TiledViz/TVConnections/TVConnection.py --host=${POSTGRES_HOST} --login=${POSTGRES_USER}  --databasename=${POSTGRES_DB} --usertest=${POSTGRES_USER} --connectionId=${ConnectionId} $optDEB > ~/.vnc/tvconnection.log
+python3 /TiledViz/TVConnections/TVConnection.py --host=${POSTGRES_HOST} --login=${POSTGRES_USER}  --databasename=${POSTGRES_DB} --usertest=${POSTGRES_USER} --connectionId=${ConnectionId} $optDEB 2>&1 |tee -a ~/.vnc/tvconnection.log

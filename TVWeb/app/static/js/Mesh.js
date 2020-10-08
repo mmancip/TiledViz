@@ -126,7 +126,7 @@ $(document).ready(    function (){
 Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
     $('#legend').html("<h1>Working on "+my_session+"</h1> <h2>Number of nodes : "+cardinal.toString()+"</h2>");
-    var touchok=('ontouchstart' in document);
+    var touchok=((!!('ontouchstart' in window) ? 1 : 0) == 1);
 
     // Bool to add initial position in tags of each tile
     var debugPos = false;

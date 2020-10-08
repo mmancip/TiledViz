@@ -1645,6 +1645,7 @@ def vncconnection():
             message=request.args["message"]
             return redirect(url_for(".edittileset",message=message))
 
+    time.sleep(3)
     if ( request.method == 'POST'):
         message=json.JSONEncoder().encode(vnctransfert["args"])
         
@@ -1673,13 +1674,9 @@ def vncconnection():
                     logging.warning("nodes.json read and OK "+out_nodes_json)
                 except:
                     traceback.print_exc(file=sys.stderr)
-                    logging.error("Error from json "+out_nodes_json+" file from connection.")
-                    return render_template("vncconnection.html",
-                                           port=PORTVNC,
-                                           id=idconnection,
-                                           tsid=idtileset,
-                                           vncpassword=vnctransfert["vncpassword"],
-                                           flaskaddr=flaskaddr)
+                    strerror="Error from json "+out_nodes_json+" file from connection."
+                    flash(strerror)
+                    logging.error(strerror)
 
                 return redirect(url_for("."+callfunction,message=message))
             elif (count > NbTimeAlive):
@@ -1807,6 +1804,8 @@ def addconnection():
         newConnection.config_files=json.loads(sConnConfigjson)
         db.session.commit()
 
+        deb=(myform.debug.data & 1 | 0)
+        
         passpath="/home/connect"+str(newConnection.id)+"/vncpassword"
         logging.warning("Go to vnc with path "+passpath)
 
@@ -1817,7 +1816,8 @@ def addconnection():
                         +str(myform.container.data)+" ; "
                         +str(myform.scheduler.data)+" ; "
                         +str(newtileset.id)+" ; "
-                        +str(newConnection.id))
+                        +str(newConnection.id)+" ; "
+                        +str(deb))
 
         #  Wait NbTimeAlive for TVSecure to get VNC view to put connection datas.
         NbTimeAlive = 20

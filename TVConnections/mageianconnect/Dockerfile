@@ -1,5 +1,5 @@
 # Docker file mageiaconnect
-FROM mageia:6
+FROM mageia:7
 MAINTAINER  "Martial Mancip" <Martial.Mancip@MaisondelaSimulation.fr>
 
 RUN dnf install -y lib64mesagl1 xkbcomp x11-data-xkbdata x11-font-alias tigervnc-server \
@@ -22,11 +22,6 @@ RUN dnf install -y  \
 	 fonts-ttf-liberation \
 	 fonts-ttf-west_european \
 	 ghostscript-fonts \
-	 gnu-free-fonts-compat-20120503-8.mga6 \
-	 gnu-free-mono-fonts-20120503-8.mga6 \
-	 gnu-free-sans-fonts-20120503-8.mga6 \
-	 gnu-free-serif-fonts-20120503-8.mga6 \
-         gnu-free-fonts-common-20120503-8.mga6 \
 	 x11-font-adobe-75dpi \
 	 x11-font-bh-75dpi \
 	 x11-font-bh-lucidatypewriter-75dpi \
@@ -37,6 +32,13 @@ RUN dnf install -y  \
 	 xorg-x11-75dpi-fonts \
         && /bin/dbus-uuidgen --ensure
 
+RUN urpmi  -y  \
+	 gnu-free-fonts-compat-20120503-9 \
+	 gnu-free-mono-fonts-20120503-9 \
+	 gnu-free-sans-fonts-20120503-9 \
+	 gnu-free-serif-fonts-20120503-9 \
+         gnu-free-fonts-common-20120503-9
+	 
 RUN dnf install -y alsa-utils lib64fribidi0 xdg-utils wmctrl openssh-clients xwd netpbm
 RUN dnf --downloadonly --downloaddir=/tmp/cache install -y icewm-theme-oxygen-aya \
     && ls -la /tmp/cache \
@@ -44,14 +46,23 @@ RUN dnf --downloadonly --downloaddir=/tmp/cache install -y icewm-theme-oxygen-ay
     && dnf install -y icewm-light icewm-i18n --setopt=install_weak_deps=False --exclude=bootsplash,kernel-desktop
 
 RUN dnf install -y python3-psycopg2 git rsync python3-pip && \
-    pip3 install --upgrade pip
+    pip3 install --upgrade pip wheel numpy
+
+RUN dnf install -y ntp \
+    && sed -e "s/1.pool.ntp*/time.extra.cea.fr iburst/" -e "s/server [23].pool.ntp.*//" -i /etc/ntp.conf \
+    && rm /etc/localtime \
+    && ln -s /usr/share/zoneinfo/Europe/Paris /etc/localtime
+
+RUN urpmi.update "Core Release" && \
+    urpmi -y sendmail-8.15.2-7
+
+#    -a libproxy-pacrunner hunspell-en notification-daemon sendmail-cf sendmail
 
 COPY ./ /TiledViz
 
-RUN pip3 install -r /TiledViz/TVConnections/requirements.txt ;
+RUN rm -rf /TiledViz/TVFiles/* /TiledViz/launch_TiledViz
 
-RUN dnf install -y python-pip && \
-    pip2 install --upgrade pip && pip2 install wheel numpy
+RUN pip3 install -r /TiledViz/TVConnections/requirements.txt ;
 
 RUN cd /TiledViz/TVConnections/mageianconnect/ && \
     mkdir -p /home/myuser &&\

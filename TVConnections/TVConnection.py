@@ -44,6 +44,8 @@ def parse_args(argv):
                         help='User name for test (default: ddurandi)')
     parser.add_argument('-c', '--connectionId', 
                         help='Connection Id in DB.')
+    parser.add_argument('--debug', action='store_false',
+                        help='Debug switch for new job.')
 
     args = parser.parse_args(argv[1:])
     return args
@@ -371,8 +373,17 @@ if __name__ == '__main__':
         #myglobals=globals()
         #code.interact(local=locals())
         pass
-
+    
     
     # Kill ssh tunneling for VNC :
     #os.system("ps -Aef | grep 'connect.*@172.17.*' |grep -v grep | sed -e 's%myuser\\s*\\([0-9]*\\).*%\\1%' |xargs kill")
     os.system('killall -9 ssh')
+
+    if (args.debug):
+        try:
+            code.interact(banner="Stop Connections :",local=dict(globals(), **locals()))
+        except SystemExit:
+            pass
+        except :
+            traceback.print_exc(file=sys.stderr)
+

@@ -253,7 +253,7 @@ def BuildConfigSessionForm(oldConfig,json_configs_text):
     ConfigForm.submit = SubmitField("Next step")
     return ConfigForm
 
-def BuildTilesSetForm(oldtileset=None,json_tiles_text=None,onlycopy=False,editconnection=None):
+def BuildTilesSetForm(oldtileset=None,json_tiles_text=None,onlycopy=False,editconnection=False):
     class TilesSetForm(FlaskForm):
         pass
     if (oldtileset==None):
@@ -338,6 +338,8 @@ def BuildConnectionsForm(oldconnection=None,json_tiles_text=None):
     ConnectionForm.submit1 = SubmitField("Next step")
     ConnectionForm.host_address = StringField("Name or IP of the machine (required)", default=host_address, validators=[InputRequired()])
 
+    ConnectionForm.debug = BooleanField("Debug mode",default=False)
+    
     #### liste A REVOIR  (cf TVConnection.py)
     ConnectionForm.auth_type = RadioField(label='Authentication type',
                                           description='Connection to the machine :',
@@ -347,6 +349,7 @@ def BuildConnectionsForm(oldconnection=None,json_tiles_text=None):
                                           ],
                                           default=auth_type,
                                           validators=[Optional()])
+
     ConnectionForm.container = StringField("Type of backend use on the machine to launch containers", default=container, validators=[InputRequired()])
     ConnectionForm.scheduler = RadioField(label='Type of scheduler on HPC machine',
                                           description='How to launch containers job on the machine :',

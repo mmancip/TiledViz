@@ -47,30 +47,32 @@ while [ $i -le ${NUM} ]; do
        if [ ${realhost} = $( hostname ) -o ${realhost} = "localhost" ]; then
 	   HOSTCOMMAND=
 	   # Nvidia or Nouveau driver
-	   if [ -z ${TestNVIDIA[${NVIDIAGPU}]} ]; then
-	       [[ -e $GPUfile ]] && TestNVIDIA[${NVIDIAGPU}]=true || TestNVIDIA[${NVIDIAGPU}]=false
+	   if [ -e $GPUfile ]; then
+	       TestNVIDIA[${realhost},${NVIDIAGPU}]=true
+	   else
+	       TestNVIDIA[${realhost},${NVIDIAGPU}]=false
 	   fi
 	   if ( ${TestNVIDIA[${NVIDIAGPU}]} ); then
 	       DEVICES="--device=$GPUfile:/dev/nvidia0 --device=/dev/nvidiactl"
-	   # else
+	   else
+	       DEVICES=""
 	   #     DEVICES="--device=/dev/video0:/dev/video0"
 	   fi
        else
 	   HOSTCOMMAND="ssh -x $LOGNAME@${realhost}"
 	   # Nvidia or Nouveau driver
-	   if [ -z ${TestNVIDIA[${realhost},${NVIDIAGPU}]} ]; then
-	       TestNVIDIA[${realhost},${NVIDIAGPU}]=$( $HOSTCOMMAND $[[ -e $GPUfile ]] && echo true || echo false )
-	   fi
+	   TestNVIDIA[${realhost},${NVIDIAGPU}]=$( $HOSTCOMMAND bash -c "'[[ -e $GPUfile ]] && echo true || echo false'" )
+
 	   if ( ${TestNVIDIA[${realhost},${NVIDIAGPU}]} ); then
 	       DEVICES="--device=$GPUfile:/dev/nvidia0 --device=/dev/nvidiactl"
-	   # else
+	   else
+	       DEVICES=""
 	   #     DEVICES="--device=/dev/video0:/dev/video0"
 	   fi
        fi
    fi
    DOCKER="$HOSTCOMMAND docker"
 
-   
    i0=$(printf "%03d" $i)
    DOCKERDIR=$(echo ${DOCKERNAME}| sed -e 's/:.*//')_${DATE}_${i0}
    mkdir ${DIR}/${DOCKERDIR}
@@ -79,13 +81,18 @@ while [ $i -le ${NUM} ]; do
    myuid=$($HOSTCOMMAND id |sed -e "s/.*uid=\([0-9]*\).*/\1/")
    mygid=$($HOSTCOMMAND id |sed -e "s/.*gid=\([0-9]*\).*/\1/")
    DOCKERARGS='-r 1920x1080 -u '${myuid}' -g '${mygid}' '${DOCKEROPTIONS} 
-   SWARMARGS='--network='${network}' --network-alias='${nethost}${i0}' --ip='${domain}'.'$((i+init_IP-1))
 
+   if [ ${network} = X ] || [ ${domain} = 0 ] ; then
+       SWARMARGS=
+   else
+       SWARMARGS='--network='${network}' --network-alias='${nethost}${i0}' --ip='${domain}'.'$((i+init_IP-1))
+   fi
+   
    echo "${DOCKER} run --name ${DOCKERDIR} --add-host=${FRONTENDIP} \
     ${SWARMARGS} \
     $DEVICES \
      -v /usr/share/X11/locale:/usr/share/X11/locale:ro --expose=22 \
-     -v ${DIR}/${DOCKERDIR}:/home/myuser/.vnc:rw ${OPTIONS} -e DOCKERID=${i0} \
+     -v ${DIR}/${DOCKERDIR}:/home/myuser/.vnc:rw ${OPTIONS} -e DOCKERID=${i0} --hostname ${DOCKERDIR} \
      -t ${DOCKERNAME} ${DOCKERARGS} 2>&1 |tee ${DIR}/${DOCKERDIR}/stdout" > ${DIR}/${DOCKERDIR}/call_docker-run
 #utiliser --mount=
 #docker service dans un swarm : créer un label + --constraint 'node.labels=mynode'
@@ -101,13 +108,19 @@ while [ $i -le ${NUM} ]; do
    i=$(( i + 1 ))
 done
 
+count=0
 while [ true ]; do
     DOCKERDIR=$(echo ${DOCKERNAME} | sed -e 's/:.*//')_${DATE}
     NstartDocker=$(wc -c  ./${DOCKERDIR}_*_stdout |head -n ${NUM} |awk '{print ($1 >= '$DOCKERsize')}' |grep 1 |wc -l)
     #echo "Number of started Dockers=${NstartDocker}"
     if [ ${NstartDocker} -eq ${NUM} ]; then
 	break
+    elif [ $count -gt 100 ]; then
+	echo "Error launch docker : time_out"
+	break
     fi
+    count=$(( count + 1 ))
+    sleep 1
 done
 #TODO better get DOCKER response for real start rather than DOCKERsize:
 #docker inspect --format='{{.State.Error}}' $1

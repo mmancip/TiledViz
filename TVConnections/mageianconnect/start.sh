@@ -16,7 +16,7 @@ export POSTGRES_USER=$4
 export POSTGRES_PASSWORD="$5"
 
 if [ -z "$5" ]; then
-	echo Usage: $0 ConnectionId POSTGRES_HOST POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD [-r RESOL_XxRESOL_Y] -u UID [-g GID]
+	echo Usage: $0 ConnectionId POSTGRES_HOST POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD [-r RESOL_XxRESOL_Y] -u UID [-g GID] [-d]
 	exit 1
 else
     IFS=' ' read -ra ADDR <<< "$ARGS"
@@ -32,6 +32,8 @@ else
 		    myUID=${ADDR[$((i+1))]};;
 		'-g')
 		    myGID=${ADDR[$((i+1))]};;
+		'-d')
+		    debug=true;;
 		'.*')
 		    myGID=${myUID}
 	    esac
@@ -90,7 +92,8 @@ icewm-light &
 /opt/vnccommand &
 
 sleep 1
-xterm -rv -fullscreen -fa 'Adobe Courrier:size=12:antialias=true' -e /TiledViz/TVConnections/tvconnections.sh ${ConnectionId} ${POSTGRES_HOST} ${POSTGRES_DB} ${POSTGRES_USER} ${POSTGRES_PASSWORD} 
+if [ X\"$debug\" != X ]; then optDEB=1; fi
+xterm -rv -fullscreen -fa 'Adobe Courrier:size=12:antialias=true' -e /TiledViz/TVConnections/tvconnections.sh ${ConnectionId} ${POSTGRES_HOST} ${POSTGRES_DB} ${POSTGRES_USER} ${POSTGRES_PASSWORD} \$optDEB
 " >${HOME_user}/.vnc/xstartup
 chmod 755 ${HOME_user}/.vnc/xstartup
 
