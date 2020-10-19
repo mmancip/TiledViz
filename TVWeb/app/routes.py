@@ -40,6 +40,14 @@ tvdb.session=db.session
 
 timeAlive=5
 
+# Logging
+logFormatter = logging.Formatter("%(asctime)s - %(threadName)s - %(levelname)s: %(message)s ")
+outHandler = logging.StreamHandler(sys.stdout)
+outHandler.setLevel(logging.WARNING)
+# outHandler.setLevel(logging.DEBUG)
+outHandler.setFormatter(logFormatter)
+
+
 # Shared variables for threads in server
 clients = [] # Array to store clients
 room_dict = {} # Dict to store rooms (and sub-arrays for clients in each room)
@@ -1302,7 +1310,12 @@ def edittileset():
     
     myform = BuildTilesSetForm(**buildargs)()
 
-    flash("Tileset {} edit for user {} in session {}".format(oldtileset.name,session["username"],session["sessionname"]))
+    if ("username" in session):
+        flash("Tileset {} edit for user {} in session {}".format(oldtileset.name,session["username"],session["sessionname"]))
+    else:
+        flash("You are not connected. You must login before using a connection.")
+        return redirect("/login")
+        
     if myform.validate_on_submit():
         logging.info("in tileset editor")
         
@@ -1622,7 +1635,11 @@ def vncconnection():
         message=request.args["message"]
         return redirect(url_for(".edittileset",message=message))
 
-    user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
+    if ("username" in session):
+        user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
+    else:
+        flash("You are not connected. You must login before using a connection.")
+        return redirect("/login")
     if ( not "connection"+str(idconnection) in session):
         flash("You don't have connection information in your personal cookie for this connection.")
         logging.error("You (user "+str(user_id)+") don't have connection information in your personal cookie for this connection : "+str(idconnection))
@@ -1632,7 +1649,7 @@ def vncconnection():
     vnctransfert=json.loads(session["connection"+str(idconnection)])
     logging.debug("With infos :"+str(vnctransfert))
 
-    flaskaddr=socket.gethostbyname(socket.gethostname())
+    flaskaddr=os.getenv("flaskhost")
     logging.debug("Detected flask address :"+str(flaskaddr))
     
     callfunction=vnctransfert["callfunction"]
@@ -1653,6 +1670,7 @@ def vncconnection():
                         +str(session["username"])+" ; "
                         +str(idtileset)+" ; "
                         +str(idconnection))
+        outHandler.flush()
         
         out_nodes_json = os.path.join("/TiledViz/TVFiles", str(user_id), str(idconnection),"nodes.json")
         logging.warning("out_nodes_json after vncconnection.html :"+out_nodes_json)
@@ -1818,6 +1836,7 @@ def addconnection():
                         +str(newtileset.id)+" ; "
                         +str(newConnection.id)+" ; "
                         +str(deb))
+        outHandler.flush()
 
         #  Wait NbTimeAlive for TVSecure to get VNC view to put connection datas.
         NbTimeAlive = 20
@@ -1992,6 +2011,7 @@ def editconnection():
                         +str(myform.scheduler.data)+" ; "
                         +str(oldtileset.id)+" ; "
                         +str(oldconnection.id))
+        outHandler.flush()
 
         #  Wait NbTimeAlive for TVSecure to get VNC view to give connection again.
         NbTimeAlive = 20
@@ -2089,6 +2109,7 @@ def removeconnection():
                     +str(oldtilesetid)+" ; "
                     +str(idconnection))
     db.session.commit()
+    outHandler.flush()
 
     del(session["connection"+str(idconnection)])
     
@@ -2416,6 +2437,7 @@ def ClickAction(cdata):
                     +str(oldtileset.id)+" ; "
                     +str(oldconnection.id)+" ; "
                     +str(selections))
+    outHandler.flush()
 
 # Draw    
 sidDraw=""

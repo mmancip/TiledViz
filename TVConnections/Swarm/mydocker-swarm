@@ -37,3 +37,8 @@ echo sudo iptables -I INPUT -p udp --dport 4789 -j ACCEPT
 
 #echo docker node ls
 #echo docker node inspect --format {{.Spec.Availability}} thenode
+
+# node in drain mode : Concurrently starting many containers
+#  from same checkpoint leads to error: "context deadline exceeded" 
+# docker node inspect --format {{.Spec.Availability}} node02
+# docker node update --availability active node02

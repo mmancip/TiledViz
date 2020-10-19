@@ -44,8 +44,8 @@ def parse_args(argv):
                         help='User name for test (default: ddurandi)')
     parser.add_argument('-c', '--connectionId', 
                         help='Connection Id in DB.')
-    parser.add_argument('--debug', action='store_false',
-                        help='Debug switch for new job.')
+    parser.add_argument('--debug', action='store_true',
+                        help='Debug switch for new job.',default=False)
 
     args = parser.parse_args(argv[1:])
     return args
@@ -265,7 +265,10 @@ if __name__ == '__main__':
                         NOT_CONNECTED=False
 
     # Save/restore here ?
-    TunnelFrontend = "ssh -4 -i "+sshKeyPath+" -T -N -nf -L 55554:localhost:55554  -L 2222:localhost:22 "+UserFront+"@"+Frontend
+    TunnelFrontend = "ssh -4 -i "+sshKeyPath+" -T -N -nf"+\
+                     "  -L "+str(sock.PORTServer)+":"+Frontend+":"+str(sock.PORTServer)+\
+                     "  -L 2222:localhost:22 "+UserFront+"@"+Frontend
+
     logging.debug(TunnelFrontend)
     os.system(TunnelFrontend)
     logging.info("ssh tunneling OK.")
@@ -319,13 +322,7 @@ if __name__ == '__main__':
     os.system(ConnectdirFrontend)
 
     # Send or test TileServer run on server ??
-    cmdServer="ssh -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'sh -c \"ps -Aef |grep TileServer |grep -v grep |grep "+UserFront+"\"'"
-    logging.debug(cmdServer)
-    childServer=pexpect.spawn(cmdServer)
-    expindex=childServer.expect([pexpect.EOF, pexpect.TIMEOUT])
-    if ( expindex == 0 ):
-        ServerFront = childServer.before.decode("utf-8").replace("\n","").replace("\r","")
-        logging.debug(ServerFront)
+    def launch_server(ServerFront):
         if ( ServerFront == "" ):
             TileServerFrontend = 'scp -i '+sshKeyPath+' -P 2222 /TiledViz/TVConnections/TileServer.py  '+UserFront+"@localhost"+":"+TiledVizPath
             logging.debug(TileServerFrontend)
@@ -335,12 +332,24 @@ if __name__ == '__main__':
             childTileServer=pexpect.spawn(cmdTileServer)
             expindex=childTileServer.expect([pexpect.EOF, pexpect.TIMEOUT])
             if ( expindex == 0 ):
-                logging.debug("TileServer launched on frontend "+Frontend+" !")
+                logging.warning("TileServer launched on frontend "+Frontend+" !")
                 time.sleep(2)
             else:
                 logging.warning("Error on TileServer launched on frontend "+Frontend+".")
             childTileServer.close(force=True)
-    childServer.close(force=True)
+
+    def test_TileServer():
+        cmdServer="ssh -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'sh -c \"ps -Aef |grep TileServer |grep -v grep |grep "+UserFront+"\"'"
+        logging.debug(cmdServer)
+        childServer=pexpect.spawn(cmdServer)
+        expindex=childServer.expect([pexpect.EOF, pexpect.TIMEOUT])
+        if ( expindex == 0 ):
+            ServerFront = childServer.before.decode("utf-8").replace("\n","").replace("\r","")
+            logging.debug(ServerFront)
+            launch_server(ServerFront)
+        childServer.close(force=True)
+
+    test_TileServer()
     
     # Get Job file
     filename=TileSetDB.launch_file
@@ -354,10 +363,66 @@ if __name__ == '__main__':
     #                                       ],
     #                                       default=scheduler,
     #                                       validators=[Optional()])
-    
-    # Execute launch file
+
+    if (args.debug):
+        try:
+            code.interact(banner="Before client :",local=dict(globals(), **locals()))
+        except SystemExit:
+            pass
+        except :
+            traceback.print_exc(file=sys.stderr)
+            pass
+
+    # build connection with TileServer on Frontend
     try:
         client=sock.client()
+    except:
+        logging.warning("Connection is not working with TileServer on Frontend, but the process exists. We ")
+        cmdServer="ssh -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'sh -c \"pgrep TileServer |args kill \"'"
+        os.system(cmdServer)
+        logging.debug(cmdServer)
+        
+        test_TileServer()
+        try:
+            client=sock.client()
+        except:
+            logging.warning("Second test. Can not connect with TileServer on Frontend. We may stop.")
+            try:
+                code.interact(banner="Before client :",local=dict(globals(), **locals()))
+            except SystemExit:
+                exit(0)
+            except :
+                traceback.print_exc(file=sys.stderr)
+
+
+    # Launch Server for commands from FlaskDock
+    def launch_actions_and_interact():
+        try:
+            time.sleep(2)
+            print("GetActions=ClientAction("+str(connectionId)+",globals=dict(globals()),locals=dict(**locals()))")
+            sys.stdout.flush()
+            
+            GetActions=ClientAction(connectionId,globals=dict(globals()),locals=dict(**locals()))
+            outHandler.flush()
+        except:
+            traceback.print_exc(file=sys.stdout)
+            code.interact(banner="Error ClientAction :",local=dict(globals(), **locals()))
+
+        print("Actions \n",str(tiles_actions))
+        sys.stdout.flush()
+
+        if (not args.debug):
+            try:
+                code.interact(banner="Interactive console to use actions directly :",local=dict(globals(), **locals()))
+            except SystemExit:
+                pass
+            except:
+                pass
+        else:
+            input("Debug mode : Wait for you hit return to close connection.\n")
+                
+    # Execute launch file
+    try:
         exec(compile(open(filename, "rb").read(), filename, 'exec'), globals(), locals())
         #filename.job(globals(), locals())
     except SystemExit:

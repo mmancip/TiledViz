@@ -11,6 +11,8 @@ RUN pip3 install --upgrade pip
 
 COPY ./ /TiledViz
 
+RUN rm -rf /TiledViz/TVFiles/* /TiledViz/launch_TiledViz
+
 # create and run virtualenv
 RUN sed -e 's/#GatewayPorts .*/GatewayPorts yes/' -i /etc/ssh/sshd_config; \
     virtualenv -p python3 flask_venv && \
@@ -24,4 +26,4 @@ EXPOSE 22
 
 ENTRYPOINT ["/TiledViz/TVWeb/FlaskDocker/start_docker_web.sh"]
 
-CMD ["localhost", "TiledViz", "tiledviz", "m_test/@03", "I-am-a-wonderful-unicorn", "1002", "1002"]
+CMD ["localhost", "TiledViz", "tiledviz", "m_test/@03", "flaskhost", "1002", "1002", "I-am-a-wonderful-unicorn"]

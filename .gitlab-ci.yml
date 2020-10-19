@@ -1,6 +1,6 @@
 services:
   - postgres:9.6-alpine
-  - docker:1.13-dind
+  - docker:19.03.12-dind
 
 variables:
   POSTGRES_HOST: postgres
@@ -12,7 +12,7 @@ variables:
   SECRET_KEY: "Gmifwo4rxPk33Cs4P4N9ViULrhDlC4Oi"
   
 connect:
-  image: mmancip/ubuntu:18.04-dind-18.09.6-ce
+  image: mmancip/ubuntu:20.10-dind-19.03-ce
   script:
     - df
     - apt-get update

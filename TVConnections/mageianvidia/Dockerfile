@@ -52,7 +52,7 @@ RUN dnf install -y ntp \
     && ln -s /usr/share/zoneinfo/Europe/Paris /etc/localtime
 
 RUN dnf install -y python python-pip \
-    && pip2 install --upgrade pip && pip2 install wheel numpy pexpect
+    && pip2 install --upgrade pip && pip2 install wheel numpy pexpect configparser
 
 COPY TVConnections/mageianvidia/ssh /home/myuser/.ssh/
 
@@ -65,16 +65,15 @@ ENTRYPOINT ["/start.sh"]
 
 RUN touch /home/myuser/.Xauthority
 
-RUN cd /home/myuser && \
-    git clone https://github.com/novnc/websockify
-    
 COPY TVConnections/mageianvidia/movewindows /opt/movewindows
 
 COPY TVConnections/mageianvidia/client_python /opt/client_python
 COPY TVConnections/mageianvidia/TileClient.py /opt/TileClient.py
-COPY TVConnections/mageianvidia/build_pem.py /opt/build_pem.py
 
 COPY TVConnections/connect /usr/lib64/python2.7/site-packages/connect
+
+RUN mkdir /home/myuser/.tiledviz
+COPY tiledviz.conf /home/myuser/.tiledviz
 
 CMD ["-r","800x600","-u","1000","-g","1000","-p","55555","-h","localhost"]
 

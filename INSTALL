@@ -153,6 +153,9 @@ First get websockify source :
 - git clone https://github.com/novnc/websockify
 - popd
 
+Create $HOME/.tiledviz directory.
+Change parameters for socket in TiledViz/tiledviz.conf and copy this file in
+$HOME/.tiledviz.
 
 In  TiledViz directory, you may build connection docker if you want to launch containers :
 - docker build -t mageiaconnect -f TVConnections/mageianconnect/Dockerfile .

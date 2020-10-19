@@ -1,16 +1,43 @@
 # -*- coding: utf-8 -*-
 
 import socket
-import sys,os, errno
+import sys,os,stat, errno
 import logging
 import platform
+import configparser
 
 import datetime
 
 from .transfer import hashfile,readblock
 
-MSGsize=1024
-PORTServer=55554
+TVrunDir=os.environ['HOME']+'/.tiledviz'
+TVconf=TVrunDir+"/tiledviz.conf"
+configExist=False
+if (os.path.isdir(TVrunDir)):
+    if (os.path.isfile(TVconf)):
+        configExist=True
+else:
+    os.mkdir(TVrunDir)
+    mode = os.stat(TVrunDir).st_mode
+    mode -= (mode & (stat.S_IRWXG | stat.S_IRWXO))
+    os.chmod(TVrunDir,mode)
+    
+if (configExist):
+    config = configparser.ConfigParser()
+    config.optionxform = str
+    config.read(TVconf)
+
+    # Default port for connection between client in sock.py and TVSecure.py 
+    PORTServer=int(config['sock']['PORTServer'])
+
+    # Message fix size for data transfert through socket
+    MSGsize=int(config['sock']['MSGsize'])
+else:
+    # Default port for connection between client in sock.py and TVSecure.py 
+    PORTServer=55554
+    
+    # Message fix size for data transfert through socket
+    MSGsize=1024
 
 logFormatter = logging.Formatter("%(asctime)s - sock - %(threadName)s - %(levelname)s: %(message)s ")
 #logging.basicConfig(level=logging.WARNING)

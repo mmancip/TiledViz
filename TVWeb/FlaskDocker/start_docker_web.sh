@@ -2,7 +2,18 @@
 
 /etc/init.d/ssh start
 
-groupadd -r -g $7 flaskusr && useradd -r -u $6 -g flaskusr flaskusr && \
+
+export POSTGRES_HOST=$1
+export POSTGRES_DB=$2
+export POSTGRES_USER=$3
+export POSTGRES_PASSWORD="$4"
+export flaskhost=$5
+export UserId=$6
+export GroupId=$7
+shift 7
+export SECRET_KEY="$@"
+
+groupadd -r -g $UserId flaskusr && useradd -r -u $GroupId -g flaskusr flaskusr && \
     cp -rp /etc/skel /home/flaskusr && chown -R flaskusr:flaskusr /home/flaskusr
 
 # addgroup --gid $7 flaskusr
@@ -20,12 +31,12 @@ sed -e 's&    {% for item in field -%}&      <p class="label-block">{{field.labe
 # ln -s /etc/nginx/sites-available/noVNC /etc/nginx/sites-enabled/
 ln -s /TiledViz/TVWeb/noVNC /var/www/html/
 #sed -e 's&error_log /var/log/nginx/error.log;&error_log /var/log/nginx/error.log debug;&' -i /etc/nginx/nginx.conf
+# Prevent nginx error at startup if IPV6 is disabled on master host
+sed -e 's&listen \[\:\:\]\:80 default_server;&#listen [::]:80 default_server;&' -i /etc/nginx/sites-available/default
 nginx -g "daemon off;" &
 
-#apt-get install -y apache2
-#cp -rp /TiledViz/TVWeb/noVNC/ /var/www/html/noVNC
-#vi /etc/apache2/sites-available/000-default.conf 
-#/etc/init.d/apache2 restart
-
-su - flaskusr /TiledViz/TVWeb/FlaskDocker/launch_flask $1 $2 $3 $4 $5
-
+if ($debug_Flask); then
+    su - flaskusr -c '/bin/bash -vx -c /TiledViz/TVWeb/FlaskDocker/launch_flask ' $POSTGRES_HOST $POSTGRES_DB $POSTGRES_USER "$POSTGRES_PASSWORD" $flaskhost "$SECRET_KEY"
+else
+    su - flaskusr /TiledViz/TVWeb/FlaskDocker/launch_flask $POSTGRES_HOST $POSTGRES_DB $POSTGRES_USER "$POSTGRES_PASSWORD" $flaskhost "$SECRET_KEY"
+fi

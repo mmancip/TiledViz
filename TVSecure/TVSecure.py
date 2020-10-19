@@ -5,16 +5,19 @@ import threading
 import time
 
 import docker
-import sys,os
+import sys,os,stat
 import argparse
 import json
 import datetime
 import traceback
 import re
+import configparser
 
 import tarfile
 from io import BytesIO
 import json
+
+import socket
 
 sys.path.append(os.path.abspath('./TVDatabase'))
 from TVDb import tvdb
@@ -32,11 +35,37 @@ import logging
 errors=sys.stderr
 listerrors={"createError":1,"ImageError":2,"APIError":3,"start":4}
 
-# Max number of connections before relaunch TVSecure
-NbSecureConnection=59
-# TODO : free non-used connections and go back to start port ConnectionPort
-ConnectionPort=54040
-ActionPort=64040
+
+TVrunDir=os.environ['HOME']+'/.tileviz'
+TVconf=TVrunDir+"/tiledviz.conf"
+configExist=False
+if (os.path.isdir(TVrunDir)):
+    if (os.path.isfile(TVconf)):
+        configExist=True
+else:
+    os.mkdir(TVrunDir)
+    mode = os.stat(TVrunDir).st_mode
+    mode -= (mode & (stat.S_IRWXG | stat.S_IRWXO))
+    os.chmod(TVrunDir,mode)
+    
+if (configExist):
+    config = configparser.ConfigParser()
+    config.optionxform = str
+    config.read(TVconf)
+
+    # Max number of connections before relaunch TVSecure
+    NbSecureConnection=int(config['TVSecure']['NbSecureConnection'])
+
+    # Start port for ssh connection between TVConnection.py and TVSecure.py through ssh
+    ConnectionPort=int(config['TVSecure']['ConnectionPort'])
+    
+    # Start port for connection between TVConnection.py and TVSecure.py through socat and docker0
+    ActionPort=int(config['TVSecure']['ActionPort'])
+else:
+    NbSecureConnection=59
+    # TODO : free non-used connections and go back to start port ConnectionPort
+    ConnectionPort=54040
+    ActionPort=64040
 
 nbLinesLogs=100
 timeAliveServ=0.2
@@ -45,6 +74,7 @@ timeWait=2
 CONNECTION_RESOL='1350x660'
 
 DEBUG_ANALYSE=False
+debug_Flask=False
 
 #sys.path.append(os.path.abspath('./'))
 
@@ -123,7 +153,8 @@ class FlaskDocker(threading.Thread):
         
         self.oldtime=time.time()
 
-        self.commandFlask=[POSTGRES_HOST, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, secretKey,str(os.getuid()),str(os.getgid())]
+        flaskaddr=socket.gethostbyname(socket.gethostname())
+        self.commandFlask=[POSTGRES_HOST, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, flaskaddr, str(os.getuid()),str(os.getgid()), secretKey]
         
         # Si on passe secretKey et password comme secret (seulement comme services dans un swarm!), on doit modifier TVWeb/FlaskDocker/launch_flask
         # pgpassword=client.secrets.create(name="POSTGRES_PASSWORD",data=POSTGRES_PASSWORD)
@@ -151,6 +182,11 @@ class FlaskDocker(threading.Thread):
 
         healthcheckN=docker.types.Healthcheck(interval=50000000) #test=['NONE'])
 
+        if (debug_Flask):
+            ENVFlask=["debug_Flask=true"]
+        else:
+            ENVFlask=["debug_Flask=false"]
+
         # Detect or create flask container :
         try:
             self.containerFlask=client.containers.create(
@@ -158,6 +194,7 @@ class FlaskDocker(threading.Thread):
                 mounts=[TVvolume], extra_hosts=self.postgresHost,
                 command=self.commandFlask,
                 ports=self.flaskPORT,
+                environment=ENVFlask,
                 healthcheck=healthcheckN,
                 detach=True) #auto_remove=True,
             
@@ -306,8 +343,9 @@ class FlaskDocker(threading.Thread):
                                         "connectionid":create_newconnect.group("idCon"),
                                         "ThisConnection":""})
 
-                    debug=int(create_newconnect.group("Debug"))
-                    
+                    debug=bool(int(create_newconnect.group("Debug")))
+                    if (debug):
+                        logging.warning("Debug mode for connection.")
                     ThisConnection=ConnectionDocker(self.containerFlask, debug, POSTGRES_HOST, POSTGRES_IP, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD)
                     Connections[NbConnect]["ThisConnection"]=ThisConnection
                     NbConnect+=1
@@ -608,7 +646,7 @@ class ConnectionDocker(threading.Thread):
         self.LogModTunnel=self.containerConnect.exec_run(cmd="chmod u+x "+self.kill_tunnel_script,user=self.user,detach=True)
         logging.warning("tunnel script built.")
         
-        self.reconnect()
+        self.connect()
 
         # Connect to TVConnection in connectionDocker to send actions commands.
         actionPort=ActionPort+self.connectionId
@@ -631,11 +669,13 @@ class ConnectionDocker(threading.Thread):
         self.LogAction=self.containerConnect.exec_run(cmd="sh -c "+self.action_script,user=self.user,detach=True)
         logging.warning("action script executed.")
         outHandler.flush()
+        time.sleep(0.5)
         
         search_action = re.compile(r''+"action=")
 
         path_nodesjson=os.path.join(self.home,"nodes.json")
         dir_out="TVFiles/"+str(self.ConnectionDB.id_users)+"/"+str(self.ConnectionDB.id)
+        time.sleep(timeAliveConn)
 
         nodes_ok=False
         while True:
@@ -646,8 +686,23 @@ class ConnectionDocker(threading.Thread):
                     # Get back nodes.json from connection docker ?
                     bits, stat = self.containerConnect.get_archive(path=path_nodesjson)
                     logging.warning("GET "+path_nodesjson+ " file from Connection Docker.")
-                    logging.debug("Infos "+str(stat))
+                    
+                    if (debug):
+                        logging.warning("Infos "+str(stat))
+                    else:
+                        logging.debug("Infos "+str(stat))
                 
+                    outHandler.flush()
+                    try:
+                        if stat["size"]==0 :
+                            logging.warning("Infos "+str(stat))
+                            logging.warning(" nodes.json size == 0")
+                            # code.interact(banner="Test stat0 :",local=dict(globals(), **locals()))
+                            raise ValueError                        
+                        # raise NodeSizeError
+                    except:
+                        logging.warning("Error with stat")
+                        
                     # Write nodes.json file in TVFile dir.
                     filetar = BytesIO()
                     for chunk in bits:
@@ -660,10 +715,11 @@ class ConnectionDocker(threading.Thread):
                     filetar.close()
 
                     nodes_ok=True
+                    outHandler.flush()
 
                     # Server in TVSecure wait for connection from TVConnection in connectionDocker to send actions commands.
                     self.ActionConnect=sock.server(actionPort)
-                    logging.warning("Action server launched.")
+                    logging.warning("Action server launched on "+str(actionPort)+".")
                     outHandler.flush()
                     self.ActionConnect.new_connect(1)
                     # Send Not an action message after Hello
@@ -678,6 +734,7 @@ class ConnectionDocker(threading.Thread):
 
                     self.killTunnel()
                 except:
+                    outHandler.flush()
                     pass
 
             # Wrapper to private members :
@@ -691,7 +748,7 @@ class ConnectionDocker(threading.Thread):
                 elif callfunc == "killTunnel":
                     self.killTunnel()
                 elif callfunc == "reconnect":
-                    self.reconnect();
+                    self.connect();
                     # TODO : WAIT on NOT for new nodes.json ??
                     # while True:
                     #     if (nodes_ok):
@@ -805,14 +862,14 @@ class ConnectionDocker(threading.Thread):
                 Connections.pop(theConnection)
         self.thread.join()
         
-    def reconnect(self):
+    def connect(self):
         logging.debug("Tunnel command in "+self.tunnel_script+" : "+self.tunnel_command)
         self.LogTunnel=self.containerConnect.exec_run(cmd="sh -c "+self.tunnel_script,user=self.user,detach=True)
         time.sleep(1)
         # testTunnel="sh -c \'pgrep -fla \"ssh.*"+self.flaskusr+"\"\'"
         # self.LogTestTunnel=container_exec_out(self.containerConnect, testTunnel,user=self.user)
         # logging.warning("Tunnel to Flask docker :\n"+re.sub(r'\*n',r'\\n',self.LogTestTunnel))
-        logging.warning("Container reconnected.")
+        logging.warning("Container connected.")
 
     def action(self,callfunct):
         # Get action num + selection of tiles (if needed by the function)

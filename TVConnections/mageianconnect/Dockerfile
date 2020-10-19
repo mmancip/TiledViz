@@ -68,17 +68,20 @@ RUN cd /TiledViz/TVConnections/mageianconnect/ && \
     mkdir -p /home/myuser &&\
     cp -rp ssh /home/myuser/.ssh/ &&\
     cp vnccommand /opt/vnccommand &&\
-    cp build_pem.py /opt/build_pem.py &&\
     cp .bashrc /home/myuser/.bashrc &&\
     cp switch_* /opt/ &&\
     cp start.sh /start.sh
     
+COPY TVConnections/cat_between /
+
+RUN mkdir /home/myuser/.tiledviz
+COPY tiledviz.conf /home/myuser/.tiledviz
 
 ENTRYPOINT ["/start.sh"]
 
 RUN touch /home/myuser/.Xauthority
 
 
-CMD ["-1", "localhost", "TiledViz", "tiledviz", "m_test/@03", "-r","800x600","-u","1000","-g","1000"]
+CMD ["-1", "localhost", "TiledViz", "tiledviz", "m_test/@03", "-r","800x600","-u","1000","-g","1000","-d"]
 
 
