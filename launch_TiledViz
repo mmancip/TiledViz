@@ -1,10 +1,7 @@
 #!/bin/bash
-export POSTGRES_HOST=$(/sbin/ip -4 addr show docker0 | grep -Po 'inet \K[\d.]+')
-export POSTGRES_DB=TiledViz
-export POSTGRES_USER=tiledviz
-export POSTGRES_PASSWORD="m_test/@03"
-export POSTGRES_IP=${POSTGRES_HOST}
-export passwordDB=$POSTGRES_PASSWORD
+source ./envDB
+
+export PythonVENV=../TiledVizEnv_${DATE}
 
 rm TVSecure.log TVWeb/TiledViz.log
 docker rm -f flaskdock
@@ -14,7 +11,7 @@ if [ X$(docker ps -a| grep "mageiaconnect"|sed -e 's/\([0-9a-z]*\) .*/\1/' |wc -
 fi
 
 pwd
-source ./TiledVizEnv_/bin/activate
+source ${PythonVENV}/bin/activate
 python3 TVSecure/TVSecure.py --POSTGRES_HOST=${POSTGRES_HOST} --POSTGRES_IP=${POSTGRES_IP} \
 	--POSTGRES_DB=${POSTGRES_DB} --POSTGRES_USER=${POSTGRES_USER} --POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
 	--secretKey='my Preci0us secr_t key for t&sts.' 2>&1 | grep -v "DEBUG:urllib3.*" | grep -v " :running" | sed -e "s%\(.*\) \- Thread-\([0-9]*\) \- DEBUG: .* HTTP/1.1\" 200 None%\1 \2%" | grep -v " 1 " | grep -v 404

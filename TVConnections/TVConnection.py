@@ -50,6 +50,8 @@ def parse_args(argv):
     args = parser.parse_args(argv[1:])
     return args
 
+
+
 class ClientAction(threading.Thread):
     
     def __init__(self,connectionId,globals,locals):
@@ -57,7 +59,9 @@ class ClientAction(threading.Thread):
         self.thread = threading.Thread(target=self.run,args=(connectionId,globals,locals,)).start()
 
     def run(self,connectionId,globals,locals):
-
+        global tiles_actions
+        tiles_actions["action0"]=["launch_nodes_json","system_update_alt"]
+        
         self.actionclient=sock.client(ActionPort)
         self.actionclient.send_OK(1)
         logging.warning("ClientAction : connect server connectiondock")
@@ -100,7 +104,7 @@ class ClientAction(threading.Thread):
                 logging.warning("ClientAction : detect a global action ")
             return True
         else: 
-            logging.error("ClientAction : error readding "+self.thisAction)
+            logging.error("ClientAction : error reading "+self.thisAction)
             self.isSelection=False
             return False
         
@@ -364,6 +368,12 @@ if __name__ == '__main__':
     #                                       default=scheduler,
     #                                       validators=[Optional()])
 
+    # Launch nodes.json file
+    def launch_nodes_json():
+        os.system('bash -c "mv nodes.json nodes.json_$(date +%F_%H-%M-%S)"')
+        get_file_client(client,TileSet,JOBPath,"nodes.json",".")
+        #os.system('rm -f ./nodes.json')
+    
     if (args.debug):
         try:
             code.interact(banner="Before client :",local=dict(globals(), **locals()))
@@ -388,7 +398,9 @@ if __name__ == '__main__':
         except:
             logging.warning("Second test. Can not connect with TileServer on Frontend. We may stop.")
             try:
+                sys.ps1="$$$ "
                 code.interact(banner="Before client :",local=dict(globals(), **locals()))
+                sys.ps1=">>> "
             except SystemExit:
                 exit(0)
             except :

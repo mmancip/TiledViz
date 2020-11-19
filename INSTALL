@@ -12,7 +12,8 @@ root users for security.
 
 2. Python3 environment
 For host part (named TiledViz Secure) you must have installed postgresql client
-tools.
+tools and python3, pip3 (in python3-pip).
+
 You may also use a python3 environement as non root user  :
 - sudo apt-get install -y python3-pip postgresql-client libpq-dev
 - sudo pip3 install virtualenv
@@ -25,6 +26,7 @@ You may also use a python3 environement as non root user  :
 This virtualenv directory may be changed in launch_TiledViz script in line 17.
 
 3. Requirements
+
 You have to go to TiledViz dir.
 Then all other tools are installed in you local environment with :
     - pip3 install -r requirements.txt
@@ -47,7 +49,7 @@ dedicated to database managment.
 You may read TVDatabase/README.md file for documentation on PostgreSQL DB.
 
 a. Environment
-We need those environment variables to be set to the right values :
+We need those environment variables to be set to the right values in TiledViz/envDB file :
 {{{
 export POSTGRES_HOST=postgres
 export POSTGRES_USER=tiledviz
@@ -56,16 +58,13 @@ export POSTGRES_PASSWORD="your_postgres_password"
 export passwordDB="$POSTGRES_PASSWORD"
 }}}
 You have to choose your own PostgreSQL password.
-You can edit launch_TiledViz with your parameters if you need to launch TiledViz with
-this script. You can launch TVSecure directly with your own secret key
-(argument --secretKey='my Preci0us secr_t key for t&sts.').
-
-You may create an empty .netrc file for python lower module:
-{{{
-touch ~/.netrc
-}}}
 
 b. docker + localhost
+It is the simplest way to have the DB for TiledViz but it may lost the DB if the
+machine is shutting down.
+
+start_postgres is a script to do that.
+
 You can choose to run PostgreSQL db server on your host or on a docker as a micro service.
 {{{
 export postgresNAME=tiledvizpg
@@ -82,6 +81,11 @@ The IP of postgres container is given by command as
 export IPPOSTGRES=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $postgresNAME)
 }}}
 
+You can restart postgres container (in STOP state - see "docker ps -a") with
+{{{
+docker start ${postgresNAME}
+}}}
+
 c. For local postgresql db you have to install posrgres "postgresql9.6-server" on your system.
 
 Please note you should find docker0 IP with
@@ -90,9 +94,14 @@ Please note you should find docker0 IP with
 }}}
 and to protect the DB and you must add docker0 address (and note all network interfaces) in postgresql conf file (and '*' for all interfaces):
 {{{
-nano /var/lib/pgsql/data/postgresql.conf 
+nano /var/lib/pgsql/data/postgresql.conf
 listen_addresses = 'localhost,172.17.0.1'
 }}}
+or with debian base linux and # as the postgresql main version
+{{{
+nano /etc/postgresql/#/main/postgresql.conf
+}}}
+
 Then after restart postgresql service as root you should have
 {{{
 netstat -latupen |grep 5432
@@ -106,6 +115,15 @@ because docker server may have started after this one:
 {{{
 systemctl restart postgresql
 }}}
+
+You must give some authorization to access to postgresql DB :
+in /var/lib/pgsql/data/pg_hba.conf (or in /etc/postgresql/#/main/pg_hba.conf in debian/ubuntu
+
+  host    all             all             0.0.0.0/0         trust
+  host    all             tiledviz        172.17.0.0/24         trust
+TODO : lazy.
+
+
 
 d. Install Database
 
@@ -171,10 +189,21 @@ your local machine):
 7. Running Flask
 a. build
 - docker build -t flaskimage -f TVWeb/FlaskDocker/Dockerfile.web .
+
 b. run
 Flask is running inside TVSecure then you don't need to run its docker container
 mannually.
-See launch_TiledViz for arguments to this job.
+
+launch_TiledViz script run this TVSecure tool.
+
+You have to modify launch_TiledViz to fix your own secret key for TVSecure :
+argument --secretKey='my Preci0us secr_t key for t&sts.'.
+
+You may create an empty .netrc file for python lower module:
+{{{
+touch ~/.netrc
+}}}
+
 
 c. test
 TiledViz is regularly tested with our CI on gitlab.maisondelasimulation.fr with
@@ -186,15 +215,25 @@ d. log
     - docker exec -t flaskdock cat /TiledViz/TVWeb/TiledViz.log
 e. stop
     - docker stop flaskdock
-6. TiledViz Secure
+
+8. TiledViz Secure
+You may want to use secure connection to watch remote VNC stream from computing
+machine with TiledViz.
+
+To have this functionnality, you must fill launch_TiledViz script with previous
+parameters you have already chosen and execute this script. Be carefull to change
+"./TiledVizEnv_" string for the virtualenv directory path you have chosen.
+Then in TiledViz, execute launch_TiledViz:
+> cd TiledViz
+> ./launch_TiledViz
 
 
-7. ssh parameters
+9. ssh parameters
 One must have uncomment 
 GatewayPorts yes
 in sshd config file on the web server.
 
-8. Error in starting TiledViz
+10. Error in starting TiledViz
 
 a. Firewall error
 If you see a message with "docker0: iptables: No chain/target/match by that name.",

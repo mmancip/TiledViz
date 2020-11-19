@@ -2557,7 +2557,13 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    	    for(W in nodes2[O].getJsonData())  {
  			if (W == "tags" ) {
 			    var ListTags=new Array();
-			    nodes2[O].getNodeTagList().forEach(function(currentValue) { ListTags.push("'"+currentValue + "'")})
+			    nodes2[O].getNodeTagList().forEach(function(currentValue) {
+				if (currentValue in globalFloatingTags) {
+				    var ft=nodes2[O].getFloatingTag()
+				    ListTags.push("'{"+currentValue+","+ft[currentValue]["m"]+","+ft[currentValue]["val"]+","+ft[currentValue]["M"] + "}'") }
+				else {
+				    ListTags.push("'"+currentValue + "'") }
+			    })
 			    var mytext = "\""+W+"\""+" : "+"["+ListTags.toString().replace(/\'/g,'\"')+"],\n {***}"
 			} else if ( W == "comment") {
 			    // Don't save old comment because user may have modified it in postit. 

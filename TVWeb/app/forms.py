@@ -299,20 +299,21 @@ def BuildTilesSetForm(oldtileset=None,json_tiles_text=None,onlycopy=False,editco
                                                      validators=[Optional()])
 
         if (editconnection):
+            TilesSetForm.editconnection = SubmitField("Edit Connection")
             TilesSetForm.manage_connection= RadioField(label='Connections',
                                         description='Manage Connection for this tileset.',
                                         choices=[("Use","Use an old one."),
-                                                 ("Edit","Edit old connection."),
                                                  ("Quit","Quit running connection."),
                                                  ("reNew","Create a new one."),
                                                  ],
                                         default="Use",
                                         validators=[Optional()])
+            # ("Edit","Edit old connection."),
             # ("Save","Save the connection for reuse."),
             # ("Reload","Reload saved connection."),
             #TilesSetForm.editconnection = SubmitField("Manage connection for this tileset.")
 
-        TilesSetForm.openports_between_tiles = FieldList(IntegerField("port :",validators=[Optional()]),description="Open port in visualisation network",min_entries=2,max_entries=5) 
+        #TilesSetForm.openports_between_tiles = FieldList(IntegerField("port :",validators=[Optional()]),description="Open port in visualisation network",min_entries=2,max_entries=5) 
    
     TilesSetForm.goback = SubmitField("Go back")
     TilesSetForm.submit = SubmitField("Next step")

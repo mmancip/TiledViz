@@ -103,6 +103,7 @@ Tile = function(Mesh) {
      * */
     var nodeTagList = [];
     var floatingTag = {};
+
     if (typeof jsonData.tags != 'undefined')  { 
 	var nodeTagListTmp = [];
 	if (typeof jsonData.tags == "object")  { 
@@ -882,7 +883,7 @@ Tile = function(Mesh) {
 	idLocation=idloc;
     };
 
-
+    
     //******Menu******//
 
     this.getNodeMenu = function(){
@@ -897,7 +898,7 @@ Tile = function(Mesh) {
 	return jsonData;
     };
 
-    //--getter 
+    //--setter 
     this.setJsonDataUrl = function(newurl){	
 	jsonData.url=newurl;
     };
@@ -916,7 +917,7 @@ Tile = function(Mesh) {
 	return nodeOpacity;
     };
 
-    //--getter 
+    //--setter 
     this.setNodeOpacity = function(newOpacValue){	
 	nodeOpacity = newOpacValue;
 	//console.log("set no", nodeOpacity);
@@ -930,7 +931,7 @@ Tile = function(Mesh) {
 	return nodeAngle;
     };
 
-    //--getter 
+    //--setter 
     this.setNodeAngle = function(newAngleValue){	
 	nodeAngle = newAngleValue;
 	//console.log("set no", nodeOpacity);
@@ -949,6 +950,7 @@ Tile = function(Mesh) {
 	}
 	//console.log("after addition", nodeTagList);
     };
+
     //--removeElement
     this.removeElementFromNodeTagList = function(text_){
 	for(var i=0;i<nodeTagList.length;i++)  { 
@@ -962,6 +964,17 @@ Tile = function(Mesh) {
 	//console.log("after removing", nodeTagList);
     };
 
+
+    //****** floatingTag *****//
+    //--getter
+    this.getFloatingTag = function(){	
+	return floatingTag;
+    };
+
+    //--setter 
+    this.setFloatingTag = function(floatingT){	
+	floatingTag=floatingT;
+    };
 
     //******Stickers******//
 

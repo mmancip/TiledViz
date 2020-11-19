@@ -36,7 +36,7 @@ errors=sys.stderr
 listerrors={"createError":1,"ImageError":2,"APIError":3,"start":4}
 
 
-TVrunDir=os.environ['HOME']+'/.tileviz'
+TVrunDir=os.environ['HOME']+'/.tiledviz'
 TVconf=TVrunDir+"/tiledviz.conf"
 configExist=False
 if (os.path.isdir(TVrunDir)):
@@ -674,7 +674,7 @@ class ConnectionDocker(threading.Thread):
         search_action = re.compile(r''+"action=")
 
         path_nodesjson=os.path.join(self.home,"nodes.json")
-        dir_out="TVFiles/"+str(self.ConnectionDB.id_users)+"/"+str(self.ConnectionDB.id)
+        self.dir_out="TVFiles/"+str(self.ConnectionDB.id_users)+"/"+str(self.ConnectionDB.id)
         time.sleep(timeAliveConn)
 
         nodes_ok=False
@@ -700,20 +700,43 @@ class ConnectionDocker(threading.Thread):
                             # code.interact(banner="Test stat0 :",local=dict(globals(), **locals()))
                             raise ValueError                        
                         # raise NodeSizeError
-                    except:
-                        logging.warning("Error with stat")
-                        
-                    # Write nodes.json file in TVFile dir.
-                    filetar = BytesIO()
-                    for chunk in bits:
-                        filetar.write(chunk)
-                    filetar.seek(0)
-                        
-                    mytar=tarfile.TarFile(fileobj=filetar, mode='r')
-                    mytar.extractall(dir_out)
-                    mytar.close()
-                    filetar.close()
+                        # Write nodes.json file in TVFile dir.
+                        filetar = BytesIO()
+                        for chunk in bits:
+                            filetar.write(chunk)
+                            filetar.seek(0)
+                            
+                        mytar=tarfile.TarFile(fileobj=filetar, mode='r')
+                        mytar.extractall(self.dir_out)
+                        mytar.close()
+                        filetar.close()
 
+                    except:
+                        logging.warning("Error with stat : try again.")
+                        time.sleep(2)
+                        try:
+                            if stat["size"]==0 :
+                                logging.warning("Infos "+str(stat))
+                                logging.warning(" nodes.json size == 0")
+                                # code.interact(banner="Test stat0 :",local=dict(globals(), **locals()))
+                                raise ValueError                        
+                            # raise NodeSizeError
+                            # Write nodes.json file in TVFile dir.
+                            filetar = BytesIO()
+                            for chunk in bits:
+                                filetar.write(chunk)
+                                filetar.seek(0)
+                            
+                            mytar=tarfile.TarFile(fileobj=filetar, mode='r')
+                            mytar.extractall(self.dir_out)
+                            mytar.close()
+                            filetar.close()
+                        except:
+                            logging.warning("Error with stat : try again.")
+
+                        # Send again get via action launch_nodes_json
+                        #raise ValueError                        
+                        
                     nodes_ok=True
                     outHandler.flush()
 
@@ -749,31 +772,6 @@ class ConnectionDocker(threading.Thread):
                     self.killTunnel()
                 elif callfunc == "reconnect":
                     self.connect();
-                    # TODO : WAIT on NOT for new nodes.json ??
-                    # while True:
-                    #     if (nodes_ok):
-                    #         try: 
-                    #             # Get back nodes.json from connection docker ?
-                    #             bits, stat = self.containerConnect.get_archive(path=path_nodesjson)
-                    #             logging.warning("GET new "+path_nodesjson+ " file from Connection Docker.")
-                    #             logging.debug("Infos "+str(stat))
-                    #             os.system('mkdir '+dir_out+'/tmp')
-                    #             # Write nodes.json file in TVFile dir.
-                    #             filetar = BytesIO()
-                    #             for chunk in bits:
-                    #                 filetar.write(chunk)
-                    #                 filetar.seek(0)
-                                    
-                    #             mytar=tarfile.TarFile(fileobj=filetar, mode='r')
-                    #             mytar.extractall(dir_out+'/tmp')
-                    #             mytar.close()
-                    #             filetar.close()
-                    #             os.system('diff '+dir_out+'/nodes.json '+dir_out+'/tmp/nodes.json') 
-                    #         except:
-                    #             pass
-                    #     else:
-                    #         break
-                    #     time.sleep(timeAliveConn)
                 elif (search_action.search(callfunc)):
                     logging.warning("Action detected "+str(callfunc))
                     self.action(callfunc)
@@ -878,6 +876,30 @@ class ConnectionDocker(threading.Thread):
         self.ActionConnect.send_client(1,actionlist)
         RET=self.ActionConnect.get_OK(1)
         logging.warning("Action for tileset %s. command %s return %d" % (self.tilesetId,actionlist,RET))
+        if (re.sub(r',.*',r'',actionlist)=="0"):
+            time.sleep(2)
+            path_nodesjson=os.path.join(self.home,"nodes.json")
+            try: 
+                # Get back nodes.json from connection docker ?
+                bits, stat = self.containerConnect.get_archive(path=path_nodesjson)
+                logging.warning("GET renew "+path_nodesjson+ " file from Connection Docker.")
+                logging.debug("Infos "+str(stat))
+                os.system('mv -f '+self.dir_out+'nodes.json '+self.dir_out+'nodes.json.'+datetime.datetime.now().isoformat())
+                # Write new nodes.json file in TVFile dir.
+                filetar = BytesIO()
+                for chunk in bits:
+                    filetar.write(chunk)
+                    filetar.seek(0)
+                                    
+                mytar=tarfile.TarFile(fileobj=filetar, mode='r')
+                mytar.extractall(self.dir_out)
+                mytar.close()
+                filetar.close()
+                #os.system('diff '+self.dir_out+'/nodes.json '+self.dir_out+'/tmp/nodes.json') 
+            except:
+                logging.error("Fail to renew "+path_nodesjson+ " from Connection Docker.")
+                pass
+
     
     def isalive(self):
         # try:

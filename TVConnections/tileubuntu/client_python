@@ -1,0 +1,31 @@
+#!/bin/bash -vx
+#. /home/myuser/.bashrc 
+
+ID=$1
+TileSetPort=$2
+Frontend=$3
+
+OUTClient=/home/myuser/.vnc/out_Client_$(date +%F_%H-%M)
+
+if (pgrep 6501); then
+    pgrep -fla 6501 |sed -s "s/^\([0-9]*\) .*/\1/" |xargs kill
+fi
+i=0
+while [ true ]; do
+  ssh -T -N -nf -L 6501:localhost:$TileSetPort $Frontend
+
+  RET=$?
+  echo $i $RET
+  if [ $RET -eq 0 ]; then 
+    echo "ssh TileClient done"  >> /home/myuser/.vnc/stdout
+    break
+  elif [ $i -gt 100 ]; then
+    echo "ssh TileClient error"  >> /home/myuser/.vnc/stdout
+    exit 1
+  fi
+  sleep 1
+  i=$((i+1))
+done
+pgrep -fla ssh  > ${OUTClient}
+DISPLAY=:1 /usr/bin/python3 /opt/TileClient.py $ID >> ${OUTClient} 2>&1
+

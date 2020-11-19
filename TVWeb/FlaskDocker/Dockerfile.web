@@ -11,7 +11,7 @@ RUN pip3 install --upgrade pip
 
 COPY ./ /TiledViz
 
-RUN rm -rf /TiledViz/TVFiles/* /TiledViz/launch_TiledViz
+RUN rm -rf /TiledViz/TVFiles/* /TiledViz/envDB
 
 # create and run virtualenv
 RUN sed -e 's/#GatewayPorts .*/GatewayPorts yes/' -i /etc/ssh/sshd_config; \

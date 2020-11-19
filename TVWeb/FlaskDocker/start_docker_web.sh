@@ -13,7 +13,7 @@ export GroupId=$7
 shift 7
 export SECRET_KEY="$@"
 
-groupadd -r -g $UserId flaskusr && useradd -r -u $GroupId -g flaskusr flaskusr && \
+groupadd -r -g $GroupId flaskusr && useradd -r -u $UserId -g flaskusr flaskusr && \
     cp -rp /etc/skel /home/flaskusr && chown -R flaskusr:flaskusr /home/flaskusr
 
 # addgroup --gid $7 flaskusr
@@ -37,6 +37,7 @@ nginx -g "daemon off;" &
 
 if ($debug_Flask); then
     su - flaskusr -c '/bin/bash -vx -c /TiledViz/TVWeb/FlaskDocker/launch_flask ' $POSTGRES_HOST $POSTGRES_DB $POSTGRES_USER "$POSTGRES_PASSWORD" $flaskhost "$SECRET_KEY"
+    while true; do sleep 10; done
 else
     su - flaskusr /TiledViz/TVWeb/FlaskDocker/launch_flask $POSTGRES_HOST $POSTGRES_DB $POSTGRES_USER "$POSTGRES_PASSWORD" $flaskhost "$SECRET_KEY"
 fi

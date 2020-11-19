@@ -47,6 +47,9 @@ outHandler.setLevel(logging.WARNING)
 # outHandler.setLevel(logging.DEBUG)
 outHandler.setFormatter(logFormatter)
 
+def myflush():
+    outHandler.flush()
+    sys.stdout.flush()
 
 # Shared variables for threads in server
 clients = [] # Array to store clients
@@ -1319,6 +1322,11 @@ def edittileset():
     if myform.validate_on_submit():
         logging.info("in tileset editor")
         
+        if(connectionbool):
+            if (myform.editconnection.data):
+                message = '{"oldtilesetid":'+str(oldtileset.id)+',"oldsessionname":"'+session["sessionname"]+'"}'
+                return redirect(url_for(".editconnection",message=message))
+            
         if(myform.goback.data):
             logging.debug("go back to edit old session : "+session["sessionname"])
             message = '{"oldsessionname":"'+session["sessionname"]+'"}'
@@ -1587,8 +1595,8 @@ def edittileset():
 
             if (myform.manage_connection.data == "reNew"):
                 return redirect(url_for(".addconnection",message=message))
-            elif (myform.manage_connection.data == "Edit"):
-                return redirect(url_for(".editconnection",message=message))
+            # elif (myform.manage_connection.data == "Edit"):
+            #     return redirect(url_for(".editconnection",message=message))
             elif (myform.manage_connection.data == "Quit"):
                 return redirect(url_for(".removeconnection",message=message))
             else:
@@ -1670,7 +1678,7 @@ def vncconnection():
                         +str(session["username"])+" ; "
                         +str(idtileset)+" ; "
                         +str(idconnection))
-        outHandler.flush()
+        myflush()
         
         out_nodes_json = os.path.join("/TiledViz/TVFiles", str(user_id), str(idconnection),"nodes.json")
         logging.warning("out_nodes_json after vncconnection.html :"+out_nodes_json)
@@ -1836,7 +1844,7 @@ def addconnection():
                         +str(newtileset.id)+" ; "
                         +str(newConnection.id)+" ; "
                         +str(deb))
-        outHandler.flush()
+        myflush()
 
         #  Wait NbTimeAlive for TVSecure to get VNC view to put connection datas.
         NbTimeAlive = 20
@@ -1890,7 +1898,7 @@ def editconnection():
         idconnection=oldconnection.id
     except:
         flash("This connection doesn't exist.")
-        logging.error("This connection doesn't exist : "+idconnection)
+        logging.error("This connection doesn't exist.")
         message=request.args["message"]
         return redirect(url_for(".edittileset",message=message))
         
@@ -2011,7 +2019,7 @@ def editconnection():
                         +str(myform.scheduler.data)+" ; "
                         +str(oldtileset.id)+" ; "
                         +str(oldconnection.id))
-        outHandler.flush()
+        myflush()
 
         #  Wait NbTimeAlive for TVSecure to get VNC view to give connection again.
         NbTimeAlive = 20
@@ -2109,7 +2117,7 @@ def removeconnection():
                     +str(oldtilesetid)+" ; "
                     +str(idconnection))
     db.session.commit()
-    outHandler.flush()
+    myflush()
 
     del(session["connection"+str(idconnection)])
     
@@ -2279,6 +2287,7 @@ def show_grid():
             if ( "actions.json" in thistileset.config_files ):
                 actions_file=open(thistileset.config_files["actions.json"],'r')
                 tiles_actions[thistileset.name]=json.load(actions_file)
+                tiles_actions[thistileset.name]["action0"]=["launch_nodes_json","system_update_alt"]
         else:
             tiles_actions[thistileset.name]={}
         ts=ts+1
@@ -2437,7 +2446,7 @@ def ClickAction(cdata):
                     +str(oldtileset.id)+" ; "
                     +str(oldconnection.id)+" ; "
                     +str(selections))
-    outHandler.flush()
+    myflush()
 
 # Draw    
 sidDraw=""

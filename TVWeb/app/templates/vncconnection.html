@@ -34,7 +34,8 @@
   <h3>
     Connection secure to HPC machine.
   </h3>
-  <p> Hit &laquo; back to tileset edition &raquo; button when VNC connection is closed </p>
+  <p> Hit &laquo; register tileset &raquo; button when VNC connection is closed </p>
+  </br>
   <p> Click in the border of the connection window to get hand inside it. </p>
   <script>
     var VNCurl="http://"+flaskaddr+":5000/noVNC/vnc_auto.html?host="+flaskaddr+"&port="+(parseInt(connection_port)+parseInt(connection_id)).toString()+"&encrypt=0&password="+vncpassword+"&true_color=1"
@@ -46,18 +47,19 @@
   </script>
   <div id="management" name="buttons">
     <form method="post">
-      <button class="btn btn-large btn-info" id="submit" name="submit" value="Submit">Next</button>
+      <button class="btn btn-large btn-info" id="submit" name="submit" value="Submit">Register tileset</button>
     </form>
-    <div id="editsession" style="position: relative; top: -35px; left: 100px">
+    <div id="editsession" style="position: relative; top: -35px; left: 150px">
       <a class="btn btn-large btn-danger"
 	 href="/editsession?message=%7B&quot;oldsessionname&quot;%3A&quot;{{ session }}&quot;%7D" >Cancel</a>
     </div>
-    <div id="closeconnection" style="position: relative; top: -70px; left: 250px" >
+    <div id="closeconnection" style="position: relative; top: -70px; left: 300px" >
       <a class="btn btn-large btn-danger"
 	 href="/removeconnection?message=%7B&quot;oldtilesetid&quot;%3A&quot;{{ tsid }}&quot;%7D" >Remove</a>
       </div>
     <div  style="position: relative; top: -35px;">
-      Next : register nodes.json in Tileset. Cancel : Back to session edition. Remove
+    Back to session : register nodes.json in Tileset. Cancel : Back to session edition without
+      saving data. Remove
       : Completly suppress connection.
     </div>
   </div>
