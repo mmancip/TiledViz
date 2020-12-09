@@ -110,8 +110,13 @@ class client:
     def get_OK(self):
         RET=self.receive(2)
         sockLogger.log(9,"Wait for OK from server : "+str(RET))
-        if not RET: return -1
-        return int(RET,16)
+        intRET=-1
+        if not RET: return intRET
+        try:
+            intRET=int(RET,16)
+        except:
+            sockLogger.error("OK error from server : "+str(RET)+self.receive(MSGsize-2))
+        return intRET
  
     def send_file(self, path, filename):
         filein=os.path.join(path,filename)
@@ -196,7 +201,7 @@ class client:
         filed=open(fileout, 'rb')
         outsha256=hashfile(readblock(filed))
         if ( outsha256 != filesha256 ):
-            sockLogger.error("File %d downloaded hasn't the size %d given by client : %d.\n It will be removed." % (fileout, filesize, outsize))
+            sockLogger.error("File %s downloaded hasn't the size %d given by client : %d.\n It will be removed." % (fileout, filesize, outsize))
             #os.remove(fileout)
             self.send_OK(2)
             return 1
@@ -319,7 +324,7 @@ class server:
         filed=open(fileout, 'rb')
         outsha256=hashfile(readblock(filed))
         if ( outsha256 != filesha256 ):
-            sockLogger.error("File %d downloaded hasn't the size %d given by client : %d.\n It will be removed." % (fileout, filesize, outsize))
+            sockLogger.error("File %s downloaded hasn't the size %d given by client : %d.\n It will be removed." % (fileout, filesize, outsize))
             #os.remove(fileout)
             self.send_OK(id,2)
             return 1

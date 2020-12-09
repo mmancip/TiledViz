@@ -1,8 +1,8 @@
 # Docker file mageianvidia
-FROM mageia:6
+FROM mageia:7
 MAINTAINER  "Martial Mancip" <Martial.Mancip@MaisondelaSimulation.fr>
 
-RUN dnf install -y lib64mesagl1 xkbcomp x11-data-xkbdata x11-font-alias tigervnc-server \
+RUN dnf install -y lib64mesagl1 xkbcomp x11-server-xvfb x11-data-xkbdata x11-font-alias \
                   openssh xauth  xterm xset htop mesa-demos x11vnc xrandr \
 		  lib64sane1 lib64gtk+3_0 lib64virtualgl virtualgl wget htop man socat \
 		  lib64lapack3
@@ -11,7 +11,7 @@ RUN dnf install -y lib64mesagl1 xkbcomp x11-data-xkbdata x11-font-alias tigervnc
 RUN dnf install -y  dnf-plugins-core \
     && dnf config-manager --add-repo /etc/yum.repos.d/mageia-nonfree-x86_64.repo \
     && dnf config-manager --set-enabled mageia-x86_64-nonfree updates-x86_64-nonfree \
-    && dnf install -y x11-driver-video-nvidia-current --setopt=install_weak_deps=False 
+    && dnf install -y x11-driver-video-nvidia390 --setopt=install_weak_deps=False 
 
 RUN dnf install -y  \
 	 fluid-soundfont-gm \
@@ -22,11 +22,6 @@ RUN dnf install -y  \
 	 fonts-ttf-liberation \
 	 fonts-ttf-west_european \
 	 ghostscript-fonts \
-	 gnu-free-fonts-compat-20120503-8.mga6 \
-	 gnu-free-mono-fonts-20120503-8.mga6 \
-	 gnu-free-sans-fonts-20120503-8.mga6 \
-	 gnu-free-serif-fonts-20120503-8.mga6 \
-         gnu-free-fonts-common-20120503-8.mga6 \
 	 x11-font-adobe-75dpi \
 	 x11-font-bh-75dpi \
 	 x11-font-bh-lucidatypewriter-75dpi \
@@ -37,6 +32,13 @@ RUN dnf install -y  \
 	 xorg-x11-75dpi-fonts \
         && /bin/dbus-uuidgen --ensure
 
+RUN urpmi  -y  \
+	 gnu-free-fonts-compat-20120503-9 \
+	 gnu-free-mono-fonts-20120503-9 \
+	 gnu-free-sans-fonts-20120503-9 \
+	 gnu-free-serif-fonts-20120503-9 \
+         gnu-free-fonts-common-20120503-9
+	 
 RUN dnf install -y alsa-utils lib64fribidi0 xdg-utils wmctrl openssh-clients xwd netpbm
 RUN dnf --downloadonly --downloaddir=/tmp/cache install -y icewm-theme-oxygen-aya \
     && ls -la /tmp/cache \

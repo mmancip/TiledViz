@@ -2,6 +2,9 @@
 
 RESOL=3840x2160
 
+# mail system
+#postfix start
+
 ARGS=$@
 #echo ${ARGS[@]}
 
@@ -65,7 +68,7 @@ if ! [ -e ${HOME_user}/.vnc/passwd ]; then
 		  done
 	      })
     echo Random Password Generated: $password |tee -a $LOGFILE
-    echo "$password" | vncpasswd -f >${HOME_user}/.vnc/passwd
+    echo "$password" |xargs -I@ x11vnc -storepasswd @ ${HOME_user}/.vnc/passwd
     chmod 600 ${HOME_user}/.vnc/passwd
 
     sleep 1
@@ -82,17 +85,22 @@ fi
 
 echo "start X "
 
-# Create the xstartup file
-echo "#!/bin/sh
+export DISPLAY=:1
 
+# Create the xstartup file
+echo "#!/bin/bash
+. /home/myuser/.bashrc
 sleep 1
+pgrep -fa Xvfb
+export DISPLAY=$DISPLAY
 icewm-light &
 
-#TODO : websockify in TVConnection.py because of use of username for self.pem built.
 /opt/vnccommand &
 
 sleep 1
 if [ X\"$debug\" != X ]; then optDEB=1; fi
+stty sane
+export TERM=linux
 xterm -rv -fullscreen -fa 'Adobe Courrier:size=12:antialias=true' -e /TiledViz/TVConnections/tvconnections.sh ${ConnectionId} ${POSTGRES_HOST} ${POSTGRES_DB} ${POSTGRES_USER} ${POSTGRES_PASSWORD} \$optDEB
 " >${HOME_user}/.vnc/xstartup
 chmod 755 ${HOME_user}/.vnc/xstartup
@@ -107,9 +115,19 @@ sqlacodegen postgres://${POSTGRES_USER}:"${POSTGRES_PASSWORD}"@${POSTGRES_HOST}/
 # Run the vncserver
 cd
 echo $( hostname )
-su - myuser -c "ssh-keygen -b 1024 -t rsa -N '' -f ~myuser/.ssh/id_rsa"
-su - myuser -c "/usr/bin/vncserver -geometry ${RESOL}  -fg  2>&1 |tee -a $LOGFILE"
-#exec /usr/bin/Xvnc -geometry ${RESOL}   
-#:1 -geometry 1024x768 -fp catalogue:/etc/X11/fontpath.d -autokill  -rfbwait 30000 -rfbauth /root/.vnc/passwd -rfbport 5901 -pn
+
+
+echo "#!/bin/bash
+ssh-keygen -b 1024 -t rsa -N '' -f ~myuser/.ssh/id_rsa 
+Xvfb ${DISPLAY} -screen 0 ${RESOL}x24 2>&1 |tee -a $LOGFILE &
+sleep 2
+${HOME_user}/.vnc/xstartup
+" >${HOME_user}/startx
+chown myuser:myuser ${HOME_user}/startx
+chmod a+x ${HOME_user}/startx
+
+cat ${HOME_user}/startx
+
+su - myuser -l -c ${HOME_user}/startx
 #ls -al /root/.vnc/
 #exec xterm 

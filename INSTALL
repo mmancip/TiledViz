@@ -178,7 +178,18 @@ $HOME/.tiledviz.
 In  TiledViz directory, you may build connection docker if you want to launch containers :
 - docker build -t mageiaconnect -f TVConnections/mageianconnect/Dockerfile .
 
-You ssh private key to authorize redirection of VNC stream on your frontend
+
+7. Build HPC docker
+You must download TiledViz on your HPC machine in order to build HPC visualization
+dockers.
+You have some examples with Mageia7 and Ubuntu 18.04.
+You may want GPU acceleration inside this container then GLX extension is required.
+Take care of x11-driver-video-nvidia390 or x11-driver-vidio-nvidia-current package to
+be able to use you Nvidia GPU already installed in the shared kernel of the HPC node. 
+You can try TiledTest CASE with glxgears to test GLX extension.
+
+Those HPC containers musn't be shared between users.
+You must copy your ssh private key to authorize redirection of VNC stream on your frontend
 - cp my_id_dsa* in TVConnections/mageianvidia/ssh
 with good rights.
 
@@ -186,7 +197,10 @@ And build a VNC container on HPC machine as in TVConnections/mageianvidia (NOT o
 your local machine):
 - docker build -t mageianvidia -f TVConnections/mageianvidia/Dockerfile .
 
-7. Running Flask
+Thoses containers must be launch with the HPC machine scheduler. You may use
+TVConnections/Swarm/launch_dockers script.
+
+8. Running Flask
 a. build
 - docker build -t flaskimage -f TVWeb/FlaskDocker/Dockerfile.web .
 
@@ -228,16 +242,22 @@ Then in TiledViz, execute launch_TiledViz:
 > ./launch_TiledViz
 
 
-9. ssh parameters
+10. ssh parameters
 One must have uncomment 
 GatewayPorts yes
 in sshd config file on the web server.
 
-10. Error in starting TiledViz
+11. Error in starting TiledViz
 
 a. Firewall error
 If you see a message with "docker0: iptables: No chain/target/match by that name.",
 you may restart your docker daemon process as root :
 sudo systemctl restart docker
 
+b. Use debug option in Connection form.
 
+This option may stop the connection script before you launch your own job then you
+can test it manualy.
+
+You may use os.system('/cat_between #Line1 #Line2 file.py') to display and copy/paste
+parts of your script in the prompt.

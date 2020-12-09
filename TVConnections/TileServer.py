@@ -101,39 +101,45 @@ class TilesSet(threading.Thread):
             return False
 
         count=0
-        while count < Nb:
+        while count < self.Nb:
             serverLogger.warning( "TileSet "+self.TileSetName
-                   +" id "+str(count+1)
+                   +" with "+str(self.Nb)
+                   +" tiles id "+str(count+1)
                    +" Listening to clients ...")
             id=count+1
             TSconnect.new_connect(id)
             
-            while True:
-                data = TSconnect.recv(id)
-                if not data: break
-                # Send back Hello message
-                serverLogger.info("Hello from tile "+data)
-                TSconnect.send_client(id,data)
+            try: 
+                while True:
+                    data = TSconnect.recv(id)
+                    if not data: break
+                    # Send back Hello message
+                    serverLogger.info("Hello from tile "+data)
+                    TSconnect.send_client(id,data)
+                    
+                    # Get id and password from tile
+                    data = TSconnect.recv(id)
+                    if not data: break
+                    serverLogger.debug("msg password "+data)
+                    (container, password) = data.split(':')
 
-                # Get id and password from tile
-                data = TSconnect.recv(id)
-                if not data: break
-                serverLogger.debug("msg password "+data)
-                (container, password) = data.split(':')
-
-                # Get back error for each send ? 
-                thisTile=TileConnection(TSconnect, TileSetName, id, container, password)
-                self.ListClient.append((thisTile, self, TileSetName, id, container, password))
-                # Get Tile properties + password !!
-                # thisTile.properties()
-                break
+                    # Get back error for each send ? 
+                    thisTile=TileConnection(TSconnect, TileSetName, id, container, password)
+                    self.ListClient.append((thisTile, self, TileSetName, id, container, password))
+                    # Get Tile properties + password !!
+                    # thisTile.properties()
+                    break
+            except Exception as err:
+                serverLogger.error("Exception with list of tiles : "+str(err))
+                traceback.print_exc(file=sys.stderr)
+                
             count=count+1
 
         # Sort clients by container IDs :
-        self.ListClient=sorted(self.ListClient,key=itemgetter(4))
+        if ( self.Nb > 2 ):
+            self.ListClient=sorted(self.ListClient,key=itemgetter(4))
 
         serverLogger.warning("All socket opened for "+self.TileSetName+" : "+str(len(self.ListClient)))
-        serverLogger.info("List tiles : "+str(self.ListClient))
 
     def execute_all(self,command):
         serverLogger.warning(self.TileSetName+" : Command on all tiles : "+command)
@@ -171,6 +177,7 @@ class TilesSet(threading.Thread):
                     client.execute(command)
                 else:
                     serverLogger.error("Error with list "+str(tileId)+" of tiles : "+str(AllTileId))
+                    TSconnect.send_OK(self.id,-9)
             self.laststate=True
         except Exception as err:
             serverLogger.error("Exception with list of tiles : "+str(err))
@@ -222,9 +229,9 @@ class ClientConnect(threading.Thread):
             if (re.search(r'create TS',CommandRecv)):
                 p=re.compile(r'create TS=(\w*) Nb=([0-9]*)')
                 TSName=p.sub(r'\1',CommandRecv)
-                Nb=int(p.sub(r'\2',CommandRecv))
-                serverLogger.warning("Create TileSet "+TSName+" with "+str(Nb)+" tiles.")
-                TS = TilesSet(TSName,Nb)
+                self.Nb=int(p.sub(r'\2',CommandRecv))
+                serverLogger.warning("Create TileSet "+TSName+" with "+str(self.Nb)+" tiles.")
+                TS = TilesSet(TSName,self.Nb)
                 self.TileSets[TSName]=TS
             
                 # TODO : give password to connection after create TS

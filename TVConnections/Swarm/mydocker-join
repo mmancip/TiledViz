@@ -1,4 +1,5 @@
 #!/bin/sh
 IP=$(grep $(hostname).internal /etc/hosts| head -1| sed -e "s/192.168.0.\([0-9]*\) .*/192.168.0.\1/"); 
-echo $@ --advertise-addr ${IP}; 
-$@ --advertise-addr ${IP}
+IPd=$(grep $(hostname)-ib.internal /etc/hosts| head -1| sed -e "s/192.168.1.\([0-9]*\) .*/192.168.1.\1/"); 
+echo $@ --advertise-addr ${IP} --data-path-addr ${IPd};  
+$@ --advertise-addr ${IP} --data-path-addr ${IPd}

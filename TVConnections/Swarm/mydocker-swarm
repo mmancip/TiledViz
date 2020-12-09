@@ -1,5 +1,5 @@
 DATE=$(date +%F_%H-%M)
-docker swarm init --advertise-addr=192.168.0.35 2>&1 > ~/docker_swarm_init_${DATE} 
+docker swarm init --advertise-addr=192.168.0.11  --data-path-addr=192.168.1.11 2>&1 > ~/docker_swarm_init_${DATE} 
 grep "docker swarm join --" ~/docker_swarm_init_${DATE} |xargs -I_ ssh mandelbrot clush -g visu "'~/BAT/mydocker-join _ &'"
 #grep "docker swarm join --" ~/docker_swarm_init_${DATE} |xargs -I_ ssh mandelbrot clush -g visu "'~/BAT/mydocker-join _ --listen-addr eno0:2377'"
 
@@ -7,12 +7,17 @@ grep "docker swarm join --" ~/docker_swarm_init_${DATE} |xargs -I_ ssh mandelbro
 #grep "docker swarm join --" ~/docker_swarm_join-manager_${DATE} |xargs -I_ ssh mandelbrot clush -g visu "'~/BAT/mydocker-join _ --listen-addr eno1:2377'"
 
 docker node ls
-docker network create --driver overlay --attachable --subnet=11.0.0.0/8 --gateway=11.0.0.1 tileviz
+docker network create --driver overlay --attachable --subnet=11.0.0.0/24 --gateway=11.0.0.1 tileviz
 docker network ls
 docker network inspect tileviz
 docker network inspect tileviz --format='{{range .IPAM.Config}}{{.Subnet}}{{end}}'
+
 # Get all IPs
-ssh mandelbrot clush -N -L -g visu -w mandelbrot-gpu-1 docker network inspect tileviz |grep "IPv4Address" |sort
+ssh mandelbrot clush -N -L -g visu docker network inspect tileviz |grep "IPv4Address" |sort
+# -w mandelbrot-gpu-1
+#clush -N -L -g visu -w mandelbrot-gpu-1 docker network inspect tileviz |grep "IPv4Address" |sort
+#docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' tileviz
+#docker network inspect tileviz | jq '.[].Peers'
 
 # command to remove the network and the swarm
 echo docker network remove tileviz
@@ -20,6 +25,8 @@ echo ssh mandelbrot clush -g visu -w mandelbrot-gpu-1 docker swarm leave --force
 echo 'ssh mandelbrot clush -N -L -g visu -w mandelbrot-gpu-1 docker network inspect tileviz |grep "IPv4Address" |sort'
 echo sudo ssh mandelbrot clush -g visu -w mandelbrot-gpu-1 systemctl restart docker
 echo sudo ssh mandelbrot clush -g visu -w mandelbrot-gpu-1 chown :docker /var/run/docker.sock
+
+# IPtables
 echo ssh mandelbrot clush -g visu iptables -I INPUT -m state --state NEW -m multiport -p tcp -s 192.168.0.0/24 -d 192.168.0.0/24 --ports 2376,2377,7946 -j ACCEPT 
 echo ssh mandelbrot clush -g visu iptables -I INPUT -m state --state NEW -m multiport -p udp -s 192.168.0.0/24 -d 192.168.0.0/24 --ports 7946,4789 -j ACCEPT
 echo sudo ssh mandelbrot clush -g visu -w mandelbrot-gpu-1 netstat -peanut | grep docker
@@ -35,10 +42,33 @@ echo sudo iptables -I INPUT -p ucp --dport 7946 -j ACCEPT
 echo sudo iptables -I INPUT -p udp --dport 7946 -j ACCEPT 
 echo sudo iptables -I INPUT -p udp --dport 4789 -j ACCEPT 
 
+# nodes
 #echo docker node ls
 #echo docker node inspect --format {{.Spec.Availability}} thenode
+# remove
+#echo docker node leave
+#echo docker node rm nodeId
 
 # node in drain mode : Concurrently starting many containers
 #  from same checkpoint leads to error: "context deadline exceeded" 
 # docker node inspect --format {{.Spec.Availability}} node02
 # docker node update --availability active node02
+
+# restart docker blocked in created status
+#clush -g visu,gpu,smp 'bash -c "docker container ls -a -q --filter=status=created" |xargs docker start '
+
+#problem with ntpd :
+#clush -g visu,smp,gpu date +%F_%H-%M-%S
+#sudo systemctl restart ntpd
+
+# Separate control and data traffic
+# By default, control traffic relating to swarm management and traffic to and from your
+# applications runs over the same network, though the swarm control traffic is
+# encrypted. You can configure Docker to use separate network interfaces for handling
+# the two different types of traffic. When you initialize or join the swarm, specify
+# --advertise-addr and --data-path-addr separately. You must do this for each node
+# joining the swarm.
+
+
+
+#sudo conntrack -L

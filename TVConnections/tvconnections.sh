@@ -14,5 +14,6 @@ cd ~
 if [ X"$DEBUG" != X"" ]; then
     optDEB="--debug"
 fi
-echo python3 /TiledViz/TVConnections/TVConnection.py --host=${POSTGRES_HOST} --login=${POSTGRES_USER}  --databasename=${POSTGRES_DB} --usertest=${POSTGRES_USER} --connectionId=${ConnectionId} $optDEB > ~/.vnc/tvconnection.log
-python3 /TiledViz/TVConnections/TVConnection.py --host=${POSTGRES_HOST} --login=${POSTGRES_USER}  --databasename=${POSTGRES_DB} --usertest=${POSTGRES_USER} --connectionId=${ConnectionId} $optDEB 2>&1 |tee -a ~/.vnc/tvconnection.log
+
+echo ipython3 --colors='NoColor' --no-color-info --no-confirm-exit -- /TiledViz/TVConnections/TVConnection.py --host=${POSTGRES_HOST} --login=${POSTGRES_USER}  --databasename=${POSTGRES_DB} --usertest=${POSTGRES_USER} --connectionId=${ConnectionId} $optDEB > ~/.vnc/tvconnection.log
+ipython3 --colors='NoColor' --no-color-info --no-confirm-exit -- /TiledViz/TVConnections/TVConnection.py --host=${POSTGRES_HOST} --login=${POSTGRES_USER}  --databasename=${POSTGRES_DB} --usertest=${POSTGRES_USER} --connectionId=${ConnectionId} $optDEB 2>&1 |tee -a ~/.vnc/tvconnection.log

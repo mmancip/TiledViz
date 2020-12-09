@@ -1,15 +1,12 @@
 #!/bin/bash
 source ./envDB
 
-export postgresNAME=tiledvizpostg
-
-export PythonVENV=../TiledVizEnv_2020-10-20_14-47-29
+export PythonVENV=../TiledVizEnv_${DATE}
 
 docker run -d -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_DB=$POSTGRES_DB -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD --name=$postgresNAME postgres:9.6-alpine
 
 sleep 5
-export IPPOSTGRES=$( docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $postgresNAME)
-export POSTGRES_HOST=$IPPOSTGRES
+export IPPOSTGRES=${POSTGRES_HOST}
 
 sed -e "s&	ENCRYPTED PASSWORD 'm_test/@03';&	ENCRYPTED PASSWORD '$passwordDB';&" -i TVDatabase/TiledViz.sql
 

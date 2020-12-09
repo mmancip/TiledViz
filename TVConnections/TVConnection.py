@@ -9,6 +9,11 @@ import platform
 import threading
 
 import code
+import IPython
+from IPython.terminal.embed import InteractiveShellEmbed
+
+from traitlets.config import get_config
+
 from getpass import getpass
 
 import logging
@@ -27,6 +32,9 @@ from connect.transfer import send_file_server, get_file_client
 user='myuser'
 ActionPort=64040
 
+# Usefull fuction for debugging CASE script:
+def cat_between(b,e,f):
+    os.system('/cat_between %d %d %s' % ( b, e, f))
 
 def containerId(num):
     return '{:03d}'.format(num)
@@ -269,7 +277,7 @@ if __name__ == '__main__':
                         NOT_CONNECTED=False
 
     # Save/restore here ?
-    TunnelFrontend = "ssh -4 -i "+sshKeyPath+" -T -N -nf"+\
+    TunnelFrontend = "ssh -x -4 -i "+sshKeyPath+" -T -N -nf"+\
                      "  -L "+str(sock.PORTServer)+":"+Frontend+":"+str(sock.PORTServer)+\
                      "  -L 2222:localhost:22 "+UserFront+"@"+Frontend
 
@@ -277,19 +285,19 @@ if __name__ == '__main__':
     os.system(TunnelFrontend)
     logging.info("ssh tunneling OK.")
 
-    lshome="ssh -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'ls $HOME/.tiledviz'"
+    lshome="ssh -x -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'ls $HOME/.tiledviz'"
     logging.debug(lshome)
     os.system(lshome)
     
-    mkdirhome="ssh -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'mkdir $HOME/.tiledviz'"
+    mkdirhome="ssh -x -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'mkdir $HOME/.tiledviz'"
     logging.debug(mkdirhome)
     os.system(mkdirhome)
 
-    chmodhome="ssh -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'chmod og-rx $HOME/.tiledviz'"
+    chmodhome="ssh -x -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'chmod og-rx $HOME/.tiledviz'"
     logging.debug(chmodhome)
     os.system(chmodhome)
     
-    cmdhome="ssh -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'echo $HOME'"
+    cmdhome="ssh -x -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'echo $HOME'"
     logging.debug(cmdhome)
     childhome=pexpect.spawn(cmdhome)
     expindex=childhome.expect([pexpect.EOF, pexpect.TIMEOUT])
@@ -313,7 +321,7 @@ if __name__ == '__main__':
     JOBPath=os.path.join(TiledVizPath,TileSet+'_'+DATE)
 
     if (TVconnection.auth_type == "ssh"):
-        WorkdirFrontend = "ssh -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost mkdir "+JOBPath
+        WorkdirFrontend = "ssh -x -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost mkdir "+JOBPath
         logging.debug(WorkdirFrontend)
         os.system(WorkdirFrontend)
 
@@ -331,7 +339,7 @@ if __name__ == '__main__':
             TileServerFrontend = 'scp -i '+sshKeyPath+' -P 2222 /TiledViz/TVConnections/TileServer.py  '+UserFront+"@localhost"+":"+TiledVizPath
             logging.debug(TileServerFrontend)
             os.system(TileServerFrontend)
-            cmdTileServer="ssh -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'sh -c \"cd "+TiledVizPath+"; cp -rp "+os.path.join(JOBPath,"connect")+" .; HOSTNAME=\""+Frontend+"\" python3 TileServer.py > TileServer_"+DATE+".log 2>&1 & \"'"
+            cmdTileServer="ssh -x -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'sh -c \"cd "+TiledVizPath+"; cp -rp "+os.path.join(JOBPath,"connect")+" .; HOSTNAME=\""+Frontend+"\" python3 TileServer.py > TileServer_"+DATE+".log 2>&1 & \"'"
             logging.debug(cmdTileServer)
             childTileServer=pexpect.spawn(cmdTileServer)
             expindex=childTileServer.expect([pexpect.EOF, pexpect.TIMEOUT])
@@ -343,7 +351,7 @@ if __name__ == '__main__':
             childTileServer.close(force=True)
 
     def test_TileServer():
-        cmdServer="ssh -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'sh -c \"ps -Aef |grep TileServer |grep -v grep |grep "+UserFront+"\"'"
+        cmdServer="ssh -x -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'sh -c \"ps -Aef |grep TileServer |grep -v grep |grep "+UserFront+"\"'"
         logging.debug(cmdServer)
         childServer=pexpect.spawn(cmdServer)
         expindex=childServer.expect([pexpect.EOF, pexpect.TIMEOUT])
@@ -370,8 +378,11 @@ if __name__ == '__main__':
 
     # Launch nodes.json file
     def launch_nodes_json():
-        os.system('bash -c "mv nodes.json nodes.json_$(date +%F_%H-%M-%S)"')
-        get_file_client(client,TileSet,JOBPath,"nodes.json",".")
+        if (os.path.exists("nodes.json")):
+                os.system('bash -c "mv nodes.json nodes.json_$(date +%F_%H-%M-%S)"')
+        while( get_file_client(client,TileSet,JOBPath,"nodes.json",".") < 0):
+            time.sleep(2)
+            pass
         #os.system('rm -f ./nodes.json')
     
     if (args.debug):
@@ -388,7 +399,7 @@ if __name__ == '__main__':
         client=sock.client()
     except:
         logging.warning("Connection is not working with TileServer on Frontend, but the process exists. We ")
-        cmdServer="ssh -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'sh -c \"pgrep TileServer |args kill \"'"
+        cmdServer="ssh -x -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'sh -c \"pgrep TileServer |xargs kill \"'"
         os.system(cmdServer)
         logging.debug(cmdServer)
         
@@ -406,9 +417,9 @@ if __name__ == '__main__':
             except :
                 traceback.print_exc(file=sys.stderr)
 
-
-    # Launch Server for commands from FlaskDock
-    def launch_actions_and_interact():
+    isActions=False
+    # Launch Action connection
+    def launch_actions():
         try:
             time.sleep(2)
             print("GetActions=ClientAction("+str(connectionId)+",globals=dict(globals()),locals=dict(**locals()))")
@@ -422,16 +433,30 @@ if __name__ == '__main__':
 
         print("Actions \n",str(tiles_actions))
         sys.stdout.flush()
+        global isActions
+        isActions=True
+        
+    # Launch Server for commands from FlaskDock
+    def launch_actions_and_interact():
+        if (not isActions):
+            launch_actions()
+            
+        # if (not args.debug):
+        #     try:
+        #         code.interact(banner="Interactive console to use actions directly :",local=dict(globals(), **locals()))
+        #     except SystemExit:
+        #         pass
+        #     except:
+        #         pass
 
-        if (not args.debug):
-            try:
-                code.interact(banner="Interactive console to use actions directly :",local=dict(globals(), **locals()))
-            except SystemExit:
-                pass
-            except:
-                pass
-        else:
-            input("Debug mode : Wait for you hit return to close connection.\n")
+        # else:
+        #     input("Debug mode : Wait for you hit return to close connection.\n")
+        c = get_config()
+        #c.InteractiveShellEmbed.colors="NoColor"
+        c.InteractiveShellEmbed.banner1 = "Please type exit() to terminate launch script ."
+        c.InteractiveShellEmbed.confirm_exit = False
+        #c.InteractiveShellEmbed.color_info=False
+        IPython.embed(config=c)
                 
     # Execute launch file
     try:
@@ -441,7 +466,7 @@ if __name__ == '__main__':
         # Clean key :
         if (TVconnection.auth_type == "ssh"):
             myhostname=os.getenv('HOSTNAME', os.getenv('COMPUTERNAME', platform.node())).split('.')[0]
-            CleanKeyFrontend = "ssh -i "+sshKeyPath+" -p 2222 "+UserFront+'@localhost bash -c \'\"sed -i.'+DATE+' /'+myhostname+'/d ~/.ssh/authorized_keys\"\''
+            CleanKeyFrontend = "ssh -x -i "+sshKeyPath+" -p 2222 "+UserFront+'@localhost bash -c \'\"sed -i.'+DATE+' /'+myhostname+'/d ~/.ssh/authorized_keys\"\''
             logging.debug(CleanKeyFrontend)
             os.system(CleanKeyFrontend)
         # On localhost (no need) "ssh-keygen -R "+Frontend+" -f ~/.ssh/known_hosts"

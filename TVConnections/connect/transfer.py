@@ -47,9 +47,9 @@ def get_file_client(client,TileSet,pathserv,filename,pathout):
 
     while True:
         fileinfos=client.recv()
-        if not fileinfos:
-            print("Error with fileinfos.")
-            break
+        if not fileinfos or fileinfos == 0:
+            print("Error with fileinfos %s" % (str(fileinfos)))
+            return -1
         else:
             print("Retrieve fileinfos : %s" % (str(fileinfos)))
             break
@@ -65,6 +65,8 @@ def get_file_client(client,TileSet,pathserv,filename,pathout):
 
         client.get_file(pathout,filename,CommandSize,CommandSha256)
         print("Out of get file %s" % (str(client.get_OK())))
-
+        return(int(CommandSize))
+    else:
+        return -2
 
 

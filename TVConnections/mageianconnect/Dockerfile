@@ -2,7 +2,7 @@
 FROM mageia:7
 MAINTAINER  "Martial Mancip" <Martial.Mancip@MaisondelaSimulation.fr>
 
-RUN dnf install -y lib64mesagl1 xkbcomp x11-data-xkbdata x11-font-alias tigervnc-server \
+RUN dnf install -y lib64mesagl1 xkbcomp x11-server-xvfb x11-data-xkbdata x11-font-alias \
                   openssh xauth  xterm xset htop mesa-demos x11vnc xrandr \
 		  lib64sane1 lib64gtk+3_0 lib64virtualgl virtualgl wget htop man socat \
 		  lib64lapack3
@@ -45,7 +45,7 @@ RUN dnf --downloadonly --downloaddir=/tmp/cache install -y icewm-theme-oxygen-ay
     && rpm -ip /tmp/cache/icewm-theme-oxygen-aya*.rpm --nodeps \
     && dnf install -y icewm-light icewm-i18n --setopt=install_weak_deps=False --exclude=bootsplash,kernel-desktop
 
-RUN dnf install -y python3-psycopg2 git rsync python3-pip && \
+RUN dnf install -y python3-psycopg2 git rsync python3-pip ipython && \
     pip3 install --upgrade pip wheel numpy
 
 RUN dnf install -y ntp \
@@ -53,10 +53,7 @@ RUN dnf install -y ntp \
     && rm /etc/localtime \
     && ln -s /usr/share/zoneinfo/Europe/Paris /etc/localtime
 
-RUN urpmi.update "Core Release" && \
-    urpmi -y sendmail-8.15.2-7
-
-#    -a libproxy-pacrunner hunspell-en notification-daemon sendmail-cf sendmail
+RUN dnf install -y sendmail
 
 COPY ./ /TiledViz
 
@@ -70,6 +67,7 @@ RUN cd /TiledViz/TVConnections/mageianconnect/ && \
     cp vnccommand /opt/vnccommand &&\
     cp .bashrc /home/myuser/.bashrc &&\
     cp switch_* /opt/ &&\
+    cp /etc/inputrc /home/myuser/.inputrc &&\
     cp start.sh /start.sh
     
 COPY TVConnections/cat_between /

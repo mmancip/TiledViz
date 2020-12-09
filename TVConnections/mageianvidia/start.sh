@@ -65,9 +65,9 @@ if ! [ -e ${HOME_user}/.vnc/passwd ]; then
 			done
 		})
 		echo Random Password Generated: $password |tee -a $LOGFILE
-		echo "$password" | vncpasswd -f >${HOME_user}/.vnc/passwd
+		echo "$password" |xargs -I@ x11vnc -storepasswd @ ${HOME_user}/.vnc/passwd
 	else
-		echo "$VNC_PASSWORD" | vncpasswd -f >${HOME_user}/.vnc/passwd
+		echo "$VNC_PASSWORD" |xargs -I@ x11vnc -storepasswd @ ${HOME_user}/.vnc/passwd
 	fi
 	chmod 600 ${HOME_user}/.vnc/passwd
 
@@ -84,10 +84,12 @@ if [ ! -e /dev/nvidia0 ]; then
 fi
 
 echo "start X "
+export DISPLAY=:1
 
 # Create the xstartup file
-echo "#!/bin/sh 
-
+echo "#!/bin/bash 
+source ~/.bashrc
+export DISPLAY=$DISPLAY
 sleep 1
 xterm -rv -geometry ${RESOL}-0-0 -e /opt/client_python ${DOCKERID} ${myPORT} ${myFront} &
 
@@ -104,11 +106,22 @@ chown -R myuser:myuser ${HOME_user}
 echo export DOCKERID=$DOCKERID >> ${HOME_user}/.bashrc
 
 
-# Run the vncserver
 cd
 echo $( hostname )
-su - myuser -c "/usr/bin/vncserver -geometry ${RESOL}  -fg  2>&1 |tee -a $LOGFILE"
-#exec /usr/bin/Xvnc -geometry ${RESOL}   
-#:1 -geometry 1024x768 -fp catalogue:/etc/X11/fontpath.d -autokill  -rfbwait 30000 -rfbauth /root/.vnc/passwd -rfbport 5901 -pn
+
+echo "#!/bin/bash 
+export LD_LIBRARY_PATH=/lib64:/usr/lib64/nvidia-current:/usr/lib64:/usr/lib64/dri
+#TODO tested : export LD_LIBRARY_PATH=/lib64:/usr/lib64/nvidia-current:/usr/lib64:/usr/lib64/dri
+Xvfb ${DISPLAY} -screen 0 ${RESOL}x24 2>&1 |tee -a $LOGFILE &
+sleep 2
+${HOME_user}/.vnc/xstartup
+" >${HOME_user}/startx
+chown myuser:myuser ${HOME_user}/startx
+chmod a+x ${HOME_user}/startx
+
+chown -R myuser:myuser ${HOME_user}
+
+# Start and wait for either Xvfb to be fully up or we hit the timeout.
+su - myuser -l -c ${HOME_user}/startx
 #ls -al /root/.vnc/
 #exec xterm 

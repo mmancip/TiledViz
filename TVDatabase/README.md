@@ -18,7 +18,7 @@ psql -h "${POSTGRES_HOST}" -U "$POSTGRES_USER" -d "$POSTGRES_DB"  -f TVDatabase/
 }}}
 
 model.py used by Flask and connections is built with : 
-sqlacodegen postgres://user:password/host@db --outfile=TVmodels.py --flask
+sqlacodegen postgres://user:password/host@db --outfile=models.py --flask
 
 user:password are given in the start file of database constructor.
 
