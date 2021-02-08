@@ -177,7 +177,7 @@ class TilesSet(threading.Thread):
                     client.execute(command)
                 else:
                     serverLogger.error("Error with list "+str(tileId)+" of tiles : "+str(AllTileId))
-                    TSconnect.send_OK(self.id,-9)
+                    self.TSconnect.send_OK(self.id,-9)
             self.laststate=True
         except Exception as err:
             serverLogger.error("Exception with list of tiles : "+str(err))

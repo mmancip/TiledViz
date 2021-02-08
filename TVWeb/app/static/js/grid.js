@@ -89,8 +89,6 @@ $(document).ready( function(){
 	    //verticalAlign : "middle",
 	});
     }
-    // Use to compute exact positions of tiles in the window for hiding some out of the real viewport.
-    relativeLeft=parseInt(htmlPrimaryParent.css('width'))/2;
 
     // Marge from top
     TopPP = htmlPrimaryParent.css("marginTop");
@@ -448,7 +446,7 @@ $(document).ready( function(){
     // suggestion_list from tags (this next line), comments, titles, variables, ...
     suggestion_list = globalTagsList
 	.concat($('.info').map(function(){ return $.trim($(this).text());}).get())
-	.concat(me.getNodes2().map(function(e){return $.trim(e.getJsonData().comment); }));
+	.concat(me.getNodesByLoc().map(function(e){return $.trim(e.getJsonData().comment); }));
     // if ( my_user == "Anonymous" ) {
 	// MinPP=Math.min.apply(Math, $('.node').map(function(){ return parseInt($(this).css("top")); }).get());
 	// console.log("min y tile ",MinPP)

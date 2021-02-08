@@ -1,9 +1,27 @@
+TVConnection is launched from tvconnections.sh in connection docker to manage password to Frontend of HPC machine.
+
+It creates VNC secure flux with TVSecure in secure host
+and a communication socket with the client browser through Flask server with action.json list of actions.
+
+It launchs the script job.
+
+Generic functions for all cases :
+"tileNum" is the number of a tile in a TileSet and "tileId" is a string for its Id given by containerId(tileNum+1).
+
+* Get_client_IP: return the IP of a client 
+* tunnel : launch /opt/tunnel_ssh for activating the secure tunnel of VNC stream.
+* vnc : launch the vnc server with /opt/vnccommand script.
+* init_wmctrl : call a global wmctrl call to list all windows in the tile.
+* clear_VNC : send clear-all command to the vnc server if it appears problems with keyboard interaction.
+* changeSize : change tile resolution.
+* fullscreenThisApp : toggle fullscreen option for a window.
+* showThisGUI : toggle above a window.
+* clickPoint : send a click event on a given position.
+
+* kill_all_containers : this function must be defined in all case script for killing all containers.
+
 Action sur les conteneurs :
-call_replace
-get_init_window
 grabwin
-kill_all_Xvnc
-kill_dockers
 kill_ssh
 launch_command
 launch_dockers

@@ -85,7 +85,8 @@ while [ $i -le ${NUM} ]; do
    if [ ${network} = X ] || [ ${domain} = 0 ] ; then
        SWARMARGS=
    else
-       SWARMARGS='--network='${network}' --network-alias='${nethost}${i0}' --ip='${domain}'.'$((i+init_IP-1))
+       SWARMARGS='--network='${network}' --network-alias='${nethost}${i0}
+       #' --ip='${domain}'.'$((i+init_IP-1))
    fi
    
    echo "${DOCKER} run --name ${DOCKERDIR} --add-host=${FRONTENDIP} \

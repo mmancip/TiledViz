@@ -195,6 +195,7 @@ CREATE TABLE public.connections(
 	scheduler character varying(15),
 	scheduler_file character varying(30),
 	config_files json,
+	connection_vnc smallint DEFAULT 0,
 	CONSTRAINT connections_pkey PRIMARY KEY (id)
 
 );
@@ -294,26 +295,12 @@ ALTER SEQUENCE public.sockets_id_seq OWNER TO tiledviz;
 -- object: public.many_users_has_many_sessions | type: TABLE --
 -- DROP TABLE IF EXISTS public.many_users_has_many_sessions CASCADE;
 CREATE TABLE public.many_users_has_many_sessions(
+	id_users integer NOT NULL,
+	id_sessions integer NOT NULL,
+	CONSTRAINT many_users_has_many_sessions_pk PRIMARY KEY (id_users,id_sessions)
 
 );
 -- ddl-end --
-
--- object: id_users | type: COLUMN --
--- ALTER TABLE public.many_users_has_many_sessions DROP COLUMN IF EXISTS id_users CASCADE;
-ALTER TABLE public.many_users_has_many_sessions ADD COLUMN id_users integer NOT NULL;
--- ddl-end --
-
-
--- object: id_sessions | type: COLUMN --
--- ALTER TABLE public.many_users_has_many_sessions DROP COLUMN IF EXISTS id_sessions CASCADE;
-ALTER TABLE public.many_users_has_many_sessions ADD COLUMN id_sessions integer NOT NULL;
--- ddl-end --
-
--- object: many_users_has_many_sessions_pk | type: CONSTRAINT --
--- ALTER TABLE public.many_users_has_many_sessions DROP CONSTRAINT IF EXISTS many_users_has_many_sessions_pk CASCADE;
-ALTER TABLE public.many_users_has_many_sessions ADD CONSTRAINT many_users_has_many_sessions_pk PRIMARY KEY (id_users,id_sessions);
--- ddl-end --
-
 
 -- object: users_fk | type: CONSTRAINT --
 -- ALTER TABLE public.many_users_has_many_sessions DROP CONSTRAINT IF EXISTS users_fk CASCADE;
@@ -339,26 +326,12 @@ ON DELETE RESTRICT ON UPDATE CASCADE;
 -- object: public.many_tiles_has_many_tile_sets | type: TABLE --
 -- DROP TABLE IF EXISTS public.many_tiles_has_many_tile_sets CASCADE;
 CREATE TABLE public.many_tiles_has_many_tile_sets(
+	id_tiles integer NOT NULL,
+	id_tile_sets integer NOT NULL,
+	CONSTRAINT many_tiles_has_many_tile_sets_pk PRIMARY KEY (id_tiles,id_tile_sets)
 
 );
 -- ddl-end --
-
--- object: id_tiles | type: COLUMN --
--- ALTER TABLE public.many_tiles_has_many_tile_sets DROP COLUMN IF EXISTS id_tiles CASCADE;
-ALTER TABLE public.many_tiles_has_many_tile_sets ADD COLUMN id_tiles integer NOT NULL;
--- ddl-end --
-
-
--- object: id_tile_sets | type: COLUMN --
--- ALTER TABLE public.many_tiles_has_many_tile_sets DROP COLUMN IF EXISTS id_tile_sets CASCADE;
-ALTER TABLE public.many_tiles_has_many_tile_sets ADD COLUMN id_tile_sets integer NOT NULL;
--- ddl-end --
-
--- object: many_tiles_has_many_tile_sets_pk | type: CONSTRAINT --
--- ALTER TABLE public.many_tiles_has_many_tile_sets DROP CONSTRAINT IF EXISTS many_tiles_has_many_tile_sets_pk CASCADE;
-ALTER TABLE public.many_tiles_has_many_tile_sets ADD CONSTRAINT many_tiles_has_many_tile_sets_pk PRIMARY KEY (id_tiles,id_tile_sets);
--- ddl-end --
-
 
 -- object: tiles_fk | type: CONSTRAINT --
 -- ALTER TABLE public.many_tiles_has_many_tile_sets DROP CONSTRAINT IF EXISTS tiles_fk CASCADE;
@@ -424,26 +397,12 @@ ON DELETE RESTRICT ON UPDATE CASCADE;
 -- object: public.many_sessions_has_many_tile_sets | type: TABLE --
 -- DROP TABLE IF EXISTS public.many_sessions_has_many_tile_sets CASCADE;
 CREATE TABLE public.many_sessions_has_many_tile_sets(
+	id_sessions integer NOT NULL,
+	id_tile_sets integer NOT NULL,
+	CONSTRAINT many_sessions_has_many_tile_sets_pk PRIMARY KEY (id_sessions,id_tile_sets)
 
 );
 -- ddl-end --
-
--- object: id_sessions | type: COLUMN --
--- ALTER TABLE public.many_sessions_has_many_tile_sets DROP COLUMN IF EXISTS id_sessions CASCADE;
-ALTER TABLE public.many_sessions_has_many_tile_sets ADD COLUMN id_sessions integer NOT NULL;
--- ddl-end --
-
-
--- object: id_tile_sets | type: COLUMN --
--- ALTER TABLE public.many_sessions_has_many_tile_sets DROP COLUMN IF EXISTS id_tile_sets CASCADE;
-ALTER TABLE public.many_sessions_has_many_tile_sets ADD COLUMN id_tile_sets integer NOT NULL;
--- ddl-end --
-
--- object: many_sessions_has_many_tile_sets_pk | type: CONSTRAINT --
--- ALTER TABLE public.many_sessions_has_many_tile_sets DROP CONSTRAINT IF EXISTS many_sessions_has_many_tile_sets_pk CASCADE;
-ALTER TABLE public.many_sessions_has_many_tile_sets ADD CONSTRAINT many_sessions_has_many_tile_sets_pk PRIMARY KEY (id_sessions,id_tile_sets);
--- ddl-end --
-
 
 -- object: sessions_fk | type: CONSTRAINT --
 -- ALTER TABLE public.many_sessions_has_many_tile_sets DROP CONSTRAINT IF EXISTS sessions_fk CASCADE;

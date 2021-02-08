@@ -384,7 +384,7 @@ def save_session(oldsessionname, newsuffix, newdescription, alltiles):
 @app.route('/home')
 def index():
     try: 
-        logging.warning(str(session))
+        #logging.warning(str(session))
         user = {"username" : session["username"] } # Test for cookie?
         project = session["projectname"]
         psession = session["sessionname"]
@@ -1617,8 +1617,6 @@ def edittileset():
 #     mystring=''.join(random.choice(ALPHABET) for i in range(nbchar)).encode('utf-8')
 #     return mystring
 
-PORTVNC=54040
-
 # Build iframe with noVNC (in template/noVNC ?) inside a comeback html script to be abble to go back with new message
 # Then kill connection link
 @app.route('/vncconnection', methods=['GET', 'POST'])
@@ -1670,7 +1668,21 @@ def vncconnection():
             message=request.args["message"]
             return redirect(url_for(".edittileset",message=message))
 
+    # TODO : wait for connection PORT instead of 3s ?
     time.sleep(3)
+
+    # Wait from TVSecure for connection PORT in DB
+    db.session.refresh(oldconnection)
+    connection_vnc=oldconnection.connection_vnc
+    logging.warning("PORT VNC :"+str(connection_vnc)) 
+    if (connection_vnc == 0):
+        flash_msg="Error reading PORT VNC :"+str(connection_vnc)
+        logging.error(flash_msg)
+        flash(flash_msg)
+        message=request.args["message"]
+        return redirect(url_for(".edittileset",message=message))
+    connection_vnc=connection_vnc+32768
+    
     if ( request.method == 'POST'):
         message=json.JSONEncoder().encode(vnctransfert["args"])
         
@@ -1717,7 +1729,7 @@ def vncconnection():
                 count=count+1
                 
     return render_template("vncconnection.html",
-                           port=PORTVNC,
+                           port=connection_vnc,
                            id=idconnection,
                            tsid=idtileset,
                            vncpassword=vnctransfert["vncpassword"],
@@ -1744,7 +1756,7 @@ def addconnection():
         newtileset=db.session.query(models.TileSet).filter_by(id=message["oldtilesetid"]).one()
 
         if (type(newtileset.id_connections) != type(None)):
-            logging.warning("detect an old connection :"+str(type(newtileset.id_connections)))
+            logging.warning("New connection created :"+str(newtileset.id_connections))
             try:
                 oldConnection=db.session.query(models.Connection).filter_by(id=newtileset.id_connections).one()
                 olddate=oldConnection.creation_date
@@ -2119,6 +2131,7 @@ def removeconnection():
     db.session.commit()
     myflush()
 
+    session["connection"+str(idconnection)]=""
     del(session["connection"+str(idconnection)])
     
     flash("Connection "+str(idconnection)+" for tileset "+oldtileset.name+" has been removed.")
@@ -2654,7 +2667,7 @@ def routevnc(path=None,dummy=None):
         VNCurl="http://127.0.0.1/"
         logging.debug("Connect with url : "+VNCurl+dummy)
         newurl=request.url.replace(request.host_url, VNCurl)
-        logging.warning("Replace url : "+newurl)
+        logging.debug("Replace url : "+newurl)
         
         logging.debug(dummy+" header :"+str(request.headers))
         resp = requests.request(
@@ -2665,7 +2678,7 @@ def routevnc(path=None,dummy=None):
             cookies=request.cookies,
             allow_redirects=False)
     else:
-        logging.warning("proxy unknwon path : \n "+str(path)+":"+str(dummy)+"  "+str(request.host_url))
+        logging.debug("proxy unknwon path : \n "+str(path)+":"+str(dummy)+"  "+str(request.host_url))
         resp = requests.request(
             method=request.method,
             url=request.host_url,

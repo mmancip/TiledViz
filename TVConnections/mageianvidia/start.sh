@@ -56,6 +56,7 @@ chown myuser:myuser $LOGFILE
 
 echo "start.sh with args : ${ARGS[*]}" >> $LOGFILE
 
+export LD_LIBRARY_PATH=/usr/local/lib64:/usr/lib64
 if ! [ -e ${HOME_user}/.vnc/passwd ]; then
 	if [ -z "$VNC_PASSWORD" ]; then
 		choose() { echo -n ${1:$((RANDOM%${#1})):1}; }
@@ -82,6 +83,9 @@ if [ ! -e /dev/nvidia0 ]; then
 	rm -f /etc/ld.so.conf.d/GL.conf
 	ldconfig
 fi
+
+echo "allowed_users = anybody" >> /etc/X11/Xwrapper.config
+#mknod -m 666 /dev/tty16 c 5 0
 
 echo "start X "
 export DISPLAY=:1
@@ -110,18 +114,18 @@ cd
 echo $( hostname )
 
 echo "#!/bin/bash 
-export LD_LIBRARY_PATH=/lib64:/usr/lib64/nvidia-current:/usr/lib64:/usr/lib64/dri
-#TODO tested : export LD_LIBRARY_PATH=/lib64:/usr/lib64/nvidia-current:/usr/lib64:/usr/lib64/dri
-Xvfb ${DISPLAY} -screen 0 ${RESOL}x24 2>&1 |tee -a $LOGFILE &
-sleep 2
-${HOME_user}/.vnc/xstartup
+export LD_LIBRARY_PATH=/usr/local/lib64:/usr/lib64:/usr/lib64/dri:/usr/lib64/nvidia390
+#LD_PRELOAD=/usr/lib64/nvidia-current/libGL.so.1 
+/usr/bin/vncserver -geometry ${RESOL}  -fg  2>&1 |tee -a $LOGFILE
+#sleep 2
+#${HOME_user}/.vnc/xstartup
 " >${HOME_user}/startx
 chown myuser:myuser ${HOME_user}/startx
 chmod a+x ${HOME_user}/startx
 
 chown -R myuser:myuser ${HOME_user}
 
-# Start and wait for either Xvfb to be fully up or we hit the timeout.
+# Start and wait for either Xvnc to be fully up or we hit the timeout.
 su - myuser -l -c ${HOME_user}/startx
 #ls -al /root/.vnc/
 #exec xterm 

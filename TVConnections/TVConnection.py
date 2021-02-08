@@ -145,7 +145,97 @@ class ClientAction(threading.Thread):
             traceback.print_exc(file=sys.stderr)
             logging.warning("ClientAction : problem with action "+funaction+" launch.")
             pass
-                
+
+# return the IP of a client tileNum or tileId
+def Get_client_IP(tileNum=-1,tileId='001'):
+    if ( tileNum > -1 ):
+        TilesStr=' Tiles=('+containerId(tileNum+1)+') '
+        Id=containerId(tileNum+1)
+    else:
+        TilesStr=' Tiles=('+tileId+') '
+        Id=tileId
+    fileIP='IP_'+Id
+    client.send_server(ExecuteTS+TilesStr+
+                       'bash -c "/usr/local/bin/get_ip.sh;' +
+                       'scp .vnc/myip '+HTTP_LOGIN+'@'+HTTP_FRONTEND+':'+JOBPath+'/'+fileIP+'"')
+    logging.debug("Out of get %s ip : %s " % ( Id,str(client.get_OK()) ))
+    get_file_client(client,TileSet,JOBPath,fileIP,".")
+    # while( get_file_client(client,TileSet,JOBPath,"serverip",".") < 0):
+    #     time.sleep(1)
+    #     pass
+    try:
+        with open(fileIP,'r') as fip:
+            IP=fip.read().replace(domain+'.',"").replace("\n","")
+            logging.warning("%s ip : "+domain+'.'+IP)
+            sys.stdout.flush()
+            return IP
+    except:
+        logging.error("Cannot retreive ip from %s." % (Id) )
+        return "-1"
+
+def tunnel():
+    client.send_server(ExecuteTS+' /opt/tunnel_ssh '+SOCKETdomain+' '+HTTP_FRONTEND+' '+HTTP_LOGIN)
+    logging.warning("Out of tunnel_ssh : "+ str(client.get_OK()))
+
+    
+def vnc():
+    client.send_server(ExecuteTS+' /opt/vnccommand')
+    logging.warning("Out of vnccommand : "+ str(client.get_OK()))
+
+
+def init_wmctrl():
+    client.send_server(ExecuteTS+' wmctrl -l -G')
+    logging.warning("Out of wmctrl : "+ str(client.get_OK()))
+
+    
+def clear_VNC(tileNum=-1,tileId='001'):
+    if ( tileNum > -1 ):
+        TilesStr=' Tiles=('+containerId(tileNum+1)+') '
+    else:
+        TilesStr=' Tiles=('+tileId+') '
+    client.send_server(ExecuteTS+TilesStr+' x11vnc -R clear-all')
+    logging.warning("Out of clear-vnc : "+ str(client.get_OK()))
+
+def changeSize(RESOL="1920x1080",tileNum=-1,tileId='001'):
+    if ( tileNum > -1 ):
+        TilesStr=' Tiles=('+containerId(tileNum+1)+') '
+    else:
+        TilesStr=' Tiles=('+tileId+') '
+    COMMAND=ExecuteTS+TilesStr+' xrandr --fb '+RESOL
+    logging.warning("call server with : "+COMMAND)
+    client.send_server(COMMAND)
+    logging.warning("server answer is "+str(client.get_OK()))
+        
+def fullscreenThisApp(App="xterm",tileNum=-1,tileId='001'):
+    COMMAND='/opt/movewindows '+App+' -b toggle,fullscreen'
+    if ( tileNum > -1 ):
+        TilesStr=' Tiles=('+containerId(tileNum+1)+') '            
+    else:
+        TilesStr=' Tiles=('+tileId+') '
+    client.send_server(ExecuteTS+TilesStr+COMMAND)
+    client.get_OK()
+
+def showThisGUI(App="xterm",tileNum=-1,tileId='001'):
+    COMMAND='/opt/movewindows '+App+' -b toggle,above'
+    if ( tileNum > -1 ):
+        TilesStr=' Tiles=('+containerId(tileNum+1)+') '            
+    else:
+        TilesStr=' Tiles=('+tileId+') '
+    client.send_server(ExecuteTS+TilesStr+COMMAND)
+    client.get_OK()
+
+def clickPoint(tileNum=-1,tileId='001',X=0,Y=0):
+    if ( tileNum > -1 ):
+        TilesStr=' Tiles=('+containerId(tileNum+1)+') '
+    else:
+        TilesStr=' Tiles=('+tileId+') '
+    COMMAND=" xdotool mousemove "+str(X)+" "+str(Y)+" click 1 mousemove restore"
+    # -> xdotool getmouselocation
+    client.send_server(ExecuteTS+TilesStr+COMMAND)
+    print("Out of click_point : "+ str(client.get_OK()))
+
+
+        
 if __name__ == '__main__':
     args = parse_args(sys.argv)
 
@@ -420,9 +510,10 @@ if __name__ == '__main__':
     isActions=False
     # Launch Action connection
     def launch_actions():
+        global isActions
         try:
             time.sleep(2)
-            print("GetActions=ClientAction("+str(connectionId)+",globals=dict(globals()),locals=dict(**locals()))")
+            logging.warning("Launch actions thread.")
             sys.stdout.flush()
             
             GetActions=ClientAction(connectionId,globals=dict(globals()),locals=dict(**locals()))
@@ -431,13 +522,13 @@ if __name__ == '__main__':
             traceback.print_exc(file=sys.stdout)
             code.interact(banner="Error ClientAction :",local=dict(globals(), **locals()))
 
-        print("Actions \n",str(tiles_actions))
+        #logging.warning("Actions \n",str(tiles_actions))
         sys.stdout.flush()
-        global isActions
         isActions=True
         
     # Launch Server for commands from FlaskDock
     def launch_actions_and_interact():
+        global isActions
         if (not isActions):
             launch_actions()
             

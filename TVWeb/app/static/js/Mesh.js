@@ -133,12 +133,15 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     
     me = this; // Reference to the mesh
     var nodeCardinal = cardinal; // Number of nodes on the mesh
-    var nodes = []; // Table containing all the nodes on the mesh indexed by --> "node"+id<-- 
-    // Example : nodes ["node"+0] -> get the node with id =0;
-    var nodes2 = []; // Table containing all the nodes on the mesh indexed by idLocation 
-    // Example : nodes2 [0]-> give the node located at the top-left place;
+    var nodesById = []; // Table containing all the nodes on the mesh indexed by --> "node"+id<-- 
+    // Example : nodesById ["node"+0] -> get the node with id =0;
+    var nodesByLoc = []; // Table containing all the nodes on the mesh indexed by idLocation 
+    // Example : nodesByLoc [0]-> give the node located at the top-left place;
     var nodesOldPositions = []; // Double table containing position of nodes after each user-made movement
-    // Example : nodes[5][3] ->gives the idlocation of third (id = 3) node after 5 users actions where node has been moved
+    // Example : nodesById[5][3] ->gives the idlocation of third (id = 3) node after 5 users actions where node has been moved
+    // To debug nodesByLoc and nodesById :
+    // arr=[]; for (var U in nodesById) { arr.push([nodesById[U].getIdLocation(),U,nodesById[U].getId()]) }; arr
+    // arr.sort((a, b) => a[0] - b[0]).map(x=>x[2]) must be always "equal" to nodesByLoc.map(x=>x.getId()) 
     var stepBack=1; // Variable to help managing nodesOldPositions : it is incremented when users go back and decremented when users go forward 
     var lines = []; // Contains references to the first node of each line
     var columns = []; // Contains references to the first node of each column
@@ -168,14 +171,15 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     var tagToRemove = "";
     var selectingTags = false;
     var tagToSelect = "";
-    var groupingTags = false;
-    var tagToGroup = "";
-    var hideNodeTags = false;
+    var alignTags = false;
+
+    var hideNodesTag = false;
+    var killNodesTag = false;
     var transparentNode = -1; // Default
 
-    var HideNodeTagFlag=false; // Flag indicated the use of HideTag menu to hide nodes with selected tag in tagMenu.
+    var HideNodesTagFlag=false; // Flag indicated the use of HideTags menu to hide nodes with selected tag in tagMenu.
 
-    var KillNodeTagFlag=false; // Flag indicated the use of KillTag menu to suppress nodes with selected tag in tagMenu.
+    var KillNodesTagFlag=false; // Flag indicated the use of KillTag menu to suppress nodes with selected tag in tagMenu.
     var SelectionNodeToTagFlag=false; // Flag indicated the use of SelectionNodeToTag menu to add tag for nodes in selection.
     var PaletteNodeTagFlag=false; // Flag indicated the use of ChoosingColor menu to change tag color with selected tag in tagMenu.
 
@@ -208,13 +212,21 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     };
 
     // Getters and setters for selectingTags
-    this.getSelectingTags = function()  { 
+    this.getSelectTags = function()  { 
 	return selectingTags;
     };
-    this.setSelectingTags = function(bool){
+    this.setSelectTags = function(bool){
 	selectingTags = bool;
     };
 
+    this.getSelectionTag = function()  { 
+	return SelectionNodeToTagFlag;
+    };
+    this.setSelectionTag = function(bool){
+	SelectionNodeToTagFlag = bool;
+    };
+
+    
     this.getTagToSelect = function(){
 	return tagToSelect;
     };
@@ -224,28 +236,42 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     };
 
 
-    // Getters and setters for groupingTags
-    this.getGroupingTags = function()  { 
-	return groupingTags;
+    // Getters and setters for alignTags
+    this.getAlignTags = function()  { 
+	return alignTags;
     };
-    this.setGroupingTags = function(bool){
-	groupingTags = bool;
-    };
-
-    this.getTagToGroup = function(){
-	return tagToGroup;
+    this.setAlignTags = function(bool){
+	alignTags = bool;
     };
 
-    this.setTagToGroup = function(text){
-	tagToGroup = text;
+    // Getters and setters for hideNodesTag
+    this.getHideNodesTag = function()  { 
+	return hideNodesTag;
+    };
+    this.setHideNodesTag = function(bool){
+	hideNodesTag = bool;
     };
 
-    // Getters and setters for hideNodeTags
-    this.getHideNodeTags = function()  { 
-	return hideNodeTags;
+    this.getHideNodesTagFlag = function()  { 
+	return HideNodesTagFlag;
     };
-    this.setHideNodeTags = function(bool){
-	hideNodeTags = bool;
+    this.setHideNodesTagFlag = function(bool){
+	HideNodesTagFlag = bool;
+    };
+
+    // Getters and setters for killNodesTag
+    this.getkillNodesTag = function()  { 
+	return killNodesTag;
+    };
+    this.setkillNodesTag = function(bool){
+	killNodesTag = bool;
+    };
+
+    this.getKillNodesTagFlag = function()  { 
+	return KillNodesTagFlag;
+    };
+    this.setKillNodesTagFlag = function(bool){
+	KillNodesTagFlag = bool;
     };
 
     // Add Opacity sliders zone
@@ -330,7 +356,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    
 	    $('#tileOpacitySlider'+id).remove();
 
-	    //nodes['node'+id].setLocation(me.locationProvider(id),false);
+	    //me.setLocation(nodesById['node'+id],me.locationProvider(id),false);
 	}
 
     };
@@ -490,8 +516,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 	    // unload nodes streams
 	    $('.node').children("iframe").hide(); //attr("src", "about:blank");
-	    for(O in nodes)  {
-		nodes[O].setLoadedStatus(false);
+	    for(O in nodesById)  {
+		nodesById[O].setLoadedStatus(false);
 	    }
 
 	    // Additionnal space between columns
@@ -566,7 +592,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		// console.log("sticker clicked", this.id);
 		var splittedId = this.id.split("_");
 		var nodeId = splittedId.pop();
-		var node = me.getNodes()["node"+nodeId];
+		var node = me.getNodesById()["node"+nodeId];
 		var zoomed = $('#Zoomed'+nodeId);
 		zoomed.children(".stickers_zone").find('#'+this.id).remove();
 		var nodelev=$('#'+nodeId).css("z-index");
@@ -771,6 +797,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			return
 		    
 		    var newZoom = $('#zoomSlider').val();
+		    $('#zoom').val(newZoom);
 		    var ratio = newZoom/zoomValue;
 		    $('#zoomSupport').css("-moz-transform","scale("+ratio+")").css("-webkit-transform","scale("+ratio+")").css("transform-origin", "0 0 0");
 		    e.stopPropagation(); // To stay on zoomSupport
@@ -818,12 +845,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    var firstLineTab = new Array();
 	    var secondLineTab = new Array();
 
-	    for (O in me.getNodes2())  { 
-		if (me.mlocationProvider(me.getNodes2()[O].getIdLocation()).getnY() == firstLine )  { 
-		    firstLineTab.push(me.getNodes2()[O]);
+	    for (O in nodesByLoc)  { 
+		if (me.mlocationProvider(nodesByLoc[O].getIdLocation()).getnY() == firstLine )  { 
+		    firstLineTab.push(nodesByLoc[O]);
 		}
-		else if (me.mlocationProvider(me.getNodes2()[O].getIdLocation()).getnY() == secondLine )  { 
-		    secondLineTab.push(me.getNodes2()[O]);
+		else if (me.mlocationProvider(nodesByLoc[O].getIdLocation()).getnY() == secondLine )  { 
+		    secondLineTab.push(nodesByLoc[O]);
 		}
 	    }
 	    for (var j=0; j<Math.max(firstLineTab.length, secondLineTab.length);j++)  { 
@@ -848,15 +875,14 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	//console.log("test refresh");
 
 	if (hasNoNode) {// ie no node specified -> refresh all nodes
-	    var nodes = me.getNodes();
-	    for (O in nodes) {
-		me.unsetDraggable(nodes[O].getId(), false, false);
+	    for (O in nodesById) {
+		me.unsetDraggable(nodesById[O].getId(), false, false);
 	    }
 	    Onnodes = $('.On').parent().parent().children('iframe');
 	    var oldSrc=[]
 	    for (node in Onnodes) {
 		if (node != "prevObject" && typeof Onnodes[node] == "object"
-		    && nodes2[Onnodes[node].parentElement.id].getLoadedStatus()) {
+		    && nodesByLoc[Onnodes[node].parentElement.id].getLoadedStatus()) {
 		    oldSrc.push(Onnodes[node].getAttribute("src"));
 		    Onnodes[node].setAttribute("src","")
 		    Onnodes[node].setAttribute("src",oldSrc[node]);
@@ -880,7 +906,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	var listSelectionIds = eval(sdata["Selection"]);
 	for (O in listSelectionIds) {
 	    var HB = $('#hitbox' + listSelectionIds[O]);
-	    var node = nodes["node"+listSelectionIds[O]];
+	    var node = nodesById["node"+listSelectionIds[O]];
 	    node.updateSelectedStatus(true); 
 	    me.addNodeToZoom(node); 
 	    HB.css({backgroundColor : colorHBtoZoom});
@@ -933,15 +959,25 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     var tagMenuIconClassAttributesTab = new Array();
     var tagMenuShareEvent = new Array();
 
-    var tagManagementMenuTitleTab = new Array();
-    var tagManagementMenuEventTab = new Array();
-    var tagManagementMenuIconClassAttributesTab = new Array();
-    var tagManagementMenuShareEvent = new Array();
+    var tagHideTagsMenuTitleTab = new Array();
+    var tagHideTagsMenuEventTab = new Array();
+    var tagHideTagsMenuIconClassAttributesTab = new Array();
+    var tagHideTagsMenuShareEvent = new Array();
+
+    var tagKillTagsMenuTitleTab = new Array();
+    var tagKillTagsMenuEventTab = new Array();
+    var tagKillTagsMenuIconClassAttributesTab = new Array();
+    var tagKillTagsMenuShareEvent = new Array();
 
     var tagSelectionMenuTitleTab = new Array();
     var tagSelectionMenuEventTab = new Array();
     var tagSelectionMenuIconClassAttributesTab = new Array();
     var tagSelectionMenuShareEvent = new Array();
+
+    var tagManagementMenuTitleTab = new Array();
+    var tagManagementMenuEventTab = new Array();
+    var tagManagementMenuIconClassAttributesTab = new Array();
+    var tagManagementMenuShareEvent = new Array();
 
     var EndOfGroupping=false;
     // User interaction
@@ -950,25 +986,23 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	if (! PaletteNodeTagFlag)
 	    if (emit_click("tag",this.id))
 		return
-	var nodes = me.getNodes2();
 	if(me.getRemovingTag())  { 
 	    var tagToRemove = document.getElementById(this.id);
-	    for(O in nodes)  { 
-		nodes[O].removeElementFromNodeTagList(this.id);
+	    for(O in nodesByLoc)  { 
+		nodesByLoc[O].removeElementFromNodeTagList(this.id);
 	    }
 	    $('#tag-notif').text("Tag " + this.id + " removed from tag list and tiles.");
 	    $('.tag#'+this.id).remove();//removeChild(tagToRemove);
 	    delete globalTagsList[globalTagsList.indexOf(this.id)];
 	    currentSelectedTag = "";
 
-	} else if (me.getSelectingTags())  { 
+	} else if (me.getSelectTags())  { 
 	    var tagToSelect = this.id;
-	    var nodes_tmp = nodes;
 	    var w = 0;
-	    for (O in nodes)  { 
-		if (me.hasTag(nodes[O], tagToSelect))  {
-		    var HB = $('#hitbox' + nodes[O].getId());
-		    nodeSelect(nodes[O],HB);
+	    for (O in nodesById)  { 
+		if (me.hasTag(nodesById[O], tagToSelect))  {
+		    var HB = $('#hitbox' + nodesById[O].getId());
+		    nodeSelect(nodesById[O],HB);
 		    w ++;
 		}
 	    }
@@ -979,26 +1013,40 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		addBlink(this);
 	    }
 
-	} else if (me.getGroupingTags())  { 
-	    var tagToGroup = this.id;
-	    var nodes_tmp = nodes;
+	} else if (me.getAlignTags())  { 
+	    var thisTagToGroup = this.id;
 	    var w = 0;
-	    for (O in nodes)  { 
-		if (me.hasTag(nodes[O], tagToGroup))  { 
-		    mesh.switchLocation(nodes_tmp[O], nodes2[w], false, true);
+	    var floatT=[]
+	    var hasFloatingT=false
+	    for (O in nodesById)  { 
+		if (me.hasTag(nodesById[O], thisTagToGroup))  {
+		    if (me.hasFloatingTag(nodesById[O], thisTagToGroup)) {
+			hasFloatingT=true;
+			floatT[w]=[nodesById[O].getFloatingTag()[thisTagToGroup]["val"],O,nodesById[O].getId()];
+		    } else {
+			mesh.switchLocation(nodesById[O], nodesByLoc[w], false, true);
+		    };
 		    w ++;
 		}
 	    }
+	    if (hasFloatingT) {
+		var sfloatT = Array.from(floatT);
+		sfloatT.sort((a, b) => a[0] - b[0]);
+		for (var w=0; w<sfloatT.length;w++)  { 
+		    var O=sfloatT[w][1];
+		    mesh.switchLocation(nodesById[O], nodesByLoc[w], false, true);
+		}
+	    }
 	    if (w==0){
-		$('#tag-notif').text("No matching tiles for tag " + tagToGroup + " found");
+		$('#tag-notif').text("No matching tiles for tag " + thisTagToGroup + " found");
 	    } else {
-		$('#tag-notif').text(w + " matching tiles for tag " + tagToGroup + " found");
+		$('#tag-notif').text(w + " matching tiles for tag " + thisTagToGroup + " found");
 		addBlink(this);
 	    }
 
 	    if(chargeAllContentOnStart==false)  { 
-		for(O in nodes ){
-		    node = nodes[O];
+		for(O in nodesById){
+		    node = nodesById[O];
 		    if( node.getLoadedStatus() == false && mesh.locationProvider(node.getIdLocation()).getY()<window.innerHeight  )  { 
 			//console.log(node.getmLocation().getnX());
 			ratio=mesh.loadContent(node.getId());
@@ -1008,47 +1056,48 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    }
 	    EndOfGroupping=true;
 
-	} else if (HideNodeTagFlag) {
-	    var tagToGroup = this.id;
-	    if (me.getHideNodeTags())  { 
+	} else if (HideNodesTagFlag) {
+	    var thisTagToGroup = this.id;
+	    if (me.getHideNodesTag())  { 
 		// Hide nodes for this tag 
-		for (O in nodes2)  { 
-		    if (me.hasTag(nodes2[O], tagToGroup))  { 
-			Id=nodes2[O].getId();
+		for (O in nodesByLoc)  { 
+		    if (me.hasTag(nodesByLoc[O], thisTagToGroup))  { 
+			Id=nodesByLoc[O].getId();
 			SetOff(Id);
 		    }
 		}
-		$('#tag-notif').text("Hiding the tiles bearing " + tagToGroup + " tag. (To make them visible again, click on the icon in the tag menu, then on the tag again)")
+		$('#tag-notif').text("Hiding the tiles bearing " + thisTagToGroup + " tag. (To make them visible again, click on the icon in the tag menu, then on the tag again)")
 		addBlink(this);
  	    } else {
 		// Show nodes for this tag 
-		for (O in nodes2)  { 
-		    if (me.hasTag(nodes2[O], tagToGroup))  { 
-			Id=nodes2[O].getId();
+		var thisTagToGroup = this.id;
+		for (O in nodesByLoc)  { 
+		    if (me.hasTag(nodesByLoc[O], thisTagToGroup))  { 
+			Id=nodesByLoc[O].getId();
 			SetOn(Id);
 		    }
 		}
-		$('#tag-notif').text("Showing the tiles bearing " + tagToGroup + " tag.")
+		$('#tag-notif').text("Showing the tiles bearing " + thisTagToGroup + " tag.")
 		addBlink(this);
+		hideNodesTag=true;
  	    }
-	    //			HideNodeTagFlag=false;
-	} else if (KillNodeTagFlag) {
+	} else if (KillNodesTagFlag) {
 	    var tagToKill = this.id;
 	    // Kill nodes for this tag 
-	    for (O in nodes2)  { 
-		if (me.hasTag(nodes2[O], tagToKill))  { 
-		    Id=nodes2[O].getId();
+	    for (O in nodesByLoc)  { 
+		if (me.hasTag(nodesByLoc[O], tagToKill))  { 
+		    Id=nodesByLoc[O].getId();
 		    nodeCardinal--;
 		    node=$('#'+Id);
 		    var OOF = $('#onoff'+Id);
 		    OOF.css('background-color', "red");
-		    nodes2[O].setOnOffStatus(false);
+		    nodesByLoc[O].setOnOffStatus(false);
 		    node.children("iframe").hide();
-		    nodes2[O].setLoadedStatus(false);
-		    nodes2[O].removeElementFromNodeTagList(tagToKill);
-		    nodeEnd=nodes2[nodeCardinal];
-		    mesh.switchLocationShiftColumnLine(nodes2[O],nodeEnd,false,false);
-		    nodes2.splice(nodeCardinal,1);
+		    nodesByLoc[O].setLoadedStatus(false);
+		    nodesByLoc[O].removeElementFromNodeTagList(tagToKill);
+		    nodeEnd=nodesByLoc[nodeCardinal];
+		    mesh.switchLocationShiftColumnLine(nodesByLoc[O],nodeEnd,false,false);
+		    nodesByLoc.splice(nodeCardinal,1);
 		    //node.hide();
 		}
  	    }
@@ -1125,7 +1174,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    return
 	var splittedId = this.id.split("_");
 	var nodeId = splittedId.pop();
-	var node = me.getNodes()["node"+nodeId];
+	var node = nodesById["node"+nodeId];
 	node.removeElementFromNodeTagList(splittedId.join("_"));
     };
 
@@ -1162,23 +1211,35 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     this.ChangeColorTag = function(thisTag, NewColor) {
 	$('#'+thisTag).css('background-color',NewColor);
 	attributedTagsColorsArray[thisTag] = NewColor;
-	for (O in nodes2)  { 
-	    if (me.hasTag(nodes2[O], thisTag))  { 
-		nodes2[O].getStickers().colorSticker(thisTag,NewColor);
+	for (O in nodesByLoc)  { 
+	    if (me.hasTag(nodesByLoc[O], thisTag))  { 
+		nodesByLoc[O].getStickers().colorSticker(thisTag,NewColor);
 	    }
 	}
     }
+    
+    /** Disable or enable other tags functions
+     */
+    this.disableOtherTagFunction = function (mytagfunction) {
+	var ListTagFunction=["AlignTags","HideNodesTagFlag","KillNodesTagFlag","SelectTags","SelectionTag"];
+	for (var otherTag in ListTagFunction) {
+	    var thisTag=ListTagFunction[otherTag];
+	    if ( thisTag != mytagfunction )
+		eval("me.set"+thisTag+"(false)");
+	}
+	eval("me.set"+mytagfunction+"(true)");
+    };
     
     // Align/group similarly tagged nodes
     tagMenuTitleTab.push("Align/group similarly tagged nodes")
     tagMenuEventTab.push(    function(v, id, optionNumber){
 	    if(v==true)  { 
 		//console.log("grouping tags");
-		me.setGroupingTags(true);
+		me.disableOtherTagFunction("AlignTags");
 		$('#'+id+'option'+optionNumber).removeClass('alignTagButtonIcon').addClass('closeAlignTagButtonIcon');
 	    } else { 
 		//console.log("end grouping tag");
-		me.setGroupingTags(false);
+		me.setAlignTags(false);
 		$('#'+id+'option'+optionNumber).removeClass('closeAlignTagButtonIcon').addClass('alignTagButtonIcon');
 	    }
 	});
@@ -1189,30 +1250,60 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     tagMenuTitleTab.push("Hide/Show nodes with tags menu")
     tagMenuEventTab.push(    function(v, id, optionNumber){
 	    if(v==true)  { 
-		//console.log("Hide nodes with tags");
-		HideNodeTagFlag=true;
-		me.setHideNodeTags(true);
-		$('#'+id+'option'+optionNumber).removeClass('HideTagButtonIcon').addClass('closeHideTagButtonIcon');
+		menuHideTags
+		    .css("top",menuTags.position()["top"]+200)
+		    .css("left",$('.hideTagsMenuButtonIcon').position()["left"]+menuTags.position()["left"])
+		    .css("visibility", "visible");
+		$('#'+id+'option'+optionNumber).removeClass('hideTagsMenuButtonIcon').addClass('closeHideTagsMenuButtonIcon');
 	    } else { 
-		HideNodeTagFlag=true;
-		//console.log("Show nodes with tags");
-		me.setHideNodeTags(false);
-		$('#'+id+'option'+optionNumber).removeClass('closeHideTagButtonIcon').addClass('HideTagButtonIcon');
+		me.tagHideTagsMenu.closeAllOptions();
+		menuHideTags.css("visibility", "hidden");
+		$('#'+id+'option'+optionNumber).removeClass('closeHideTagsMenuButtonIcon').addClass('hideTagsMenuButtonIcon');
 	    }
 	});
-    tagMenuIconClassAttributesTab.push("HideTagButtonIcon");
+    tagMenuIconClassAttributesTab.push("hideTagsMenuButtonIcon");
     tagMenuShareEvent.push(true);
+
+    tagHideTagsMenuTitleTab.push("Hide nodes")
+    tagHideTagsMenuEventTab.push(    function(v, id, optionNumber){
+    	    if(v==true)  { 
+		//console.log("Hide nodes with tags");
+    		me.disableOtherTagFunction("HideNodesTagFlag");
+    		$('#'+id+'option'+optionNumber).removeClass('hideTagsButtonIcon').addClass('closeHideTagsButtonIcon');
+	    } else { 
+		//console.log("Show nodes with tags");
+    		me.setHideNodesTagFlag(false);
+    		$('#'+id+'option'+optionNumber).removeClass('closeHideTagsButtonIcon').addClass('hideTagsButtonIcon');
+	    }
+	});
+    tagHideTagsMenuIconClassAttributesTab.push('hideTagsButtonIcon')
+    tagHideTagsMenuShareEvent.push(true);
+    
+    tagHideTagsMenuTitleTab.push("Show nodes")
+    tagHideTagsMenuEventTab.push(    function(v, id, optionNumber){
+    	    if(v==true)  { 
+    		//console.log("Hide nodes with tags");
+    		me.setHideNodesTagFlag(true);
+    		$('#'+id+'option'+optionNumber).removeClass('showTagsButtonIcon').addClass('closeShowTagsButtonIcon');
+    	    } else { 
+    		//console.log("Show nodes with tags");
+    		me.disableOtherTagFunction("HideNodesTagFlag");
+    		$('#'+id+'option'+optionNumber).removeClass('closeShowTagsButtonIcon').addClass('showTagsButtonIcon');
+    	    }
+    	});
+    tagHideTagsMenuIconClassAttributesTab.push('showTagsButtonIcon')
+    tagHideTagsMenuShareEvent.push(true);
 
     // Kill nodes with selected tags menu
     tagMenuTitleTab.push("Kill tiles with selected tag")
     tagMenuEventTab.push(    function(v, id, optionNumber){
 	    if(v==true)  { 
 		//console.log("Kill nodes with tags");
-		KillNodeTagFlag=true;
+		me.disableOtherTagFunction("KillNodesTagFlag");
 		$('#'+id+'option'+optionNumber).removeClass('KillTagButtonIcon').addClass('closeKillTagButtonIcon');
 	    } else { 
 		mesh.globalLocationProvider();
-		KillNodeTagFlag=false;
+		me.setKillNodesTagFlag(false);
 		//console.log("Show nodes with tags");
 		$('#'+id+'option'+optionNumber).removeClass('closeKillTagButtonIcon').addClass('KillTagButtonIcon');
 	    }
@@ -1243,11 +1334,11 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     tagSelectionMenuEventTab.push(    function(v, id, optionNumber){
 	    if(v==true)  { 
 		//console.log("selecting tags");
-		me.setSelectingTags(true);
+		me.disableOtherTagFunction("SelectTags");
 		$('#'+id+'option'+optionNumber).removeClass('selectTagButtonIcon').addClass('closeSelectTagButtonIcon');
 	    } else { 
 		//console.log("end selecting tag");
-		me.setSelectingTags(false);
+		me.setSelectTags(false);
 		$('#'+id+'option'+optionNumber).removeClass('closeSelectTagButtonIcon').addClass('selectTagButtonIcon');
 	    }
 	});
@@ -1259,7 +1350,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     tagSelectionMenuEventTab.push(    function(v, id, optionNumber){
 	    if(v==true)  { 
 		//console.log("Add tag for nodes in selection");
-		SelectionNodeToTagFlag=true;
+		me.disableOtherTagFunction("SelectionTag");
 		$('#'+id+'option'+optionNumber).removeClass('selectionToTagButtonIcon').addClass('closeSelectionToTagButtonIcon');
 	    } else {
 		SelectionNodeToTagFlag=false;
@@ -1420,8 +1511,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		while(globalTagsList.length>0)  { 
 		    buffer=globalTagsList.pop();
 
-		    for(O in nodes)  { 
-			nodes[O].removeElementFromNodeTagList(buffer);
+		    for(O in nodesById)  { 
+			nodesById[O].removeElementFromNodeTagList(buffer);
 		    }
 		}
 		$('#tag-legend').children().remove();
@@ -1812,7 +1903,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		    newImg.onload = function() {
 			
-			for(O in nodes2)  {
+			for(O in nodesByLoc)  {
 			    DrawNodeFun(nodeId,O);
 			}
 		
@@ -1913,7 +2004,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		
     		newImg.onload = function() {
     		    if (sdatai.allNodes) {
-    			for(O in nodes2)  {
+    			for(O in nodesByLoc)  {
     			    DrawNodeFun(nodeId,O);
     			}
     		    } else {
@@ -2058,7 +2149,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			    }
 			    menuMS.css("visibility", "visible");
 				    
-			    // for(O in nodes)  { 
+			    // for(O in nodesById)  { 
 			    // 	me.removeNodeToZoom(O);
 			    // }
 			    // me.setZoomSelection(true);
@@ -2075,12 +2166,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    me.resetNodesToZoom(); 					
 	    var nodeMSTab = me.getNodesToZoom();
 		    
-	    for(O in nodes)  { 
-		nodeMSTab.push(nodes[O]);
+	    for(O in nodesById)  { 
+		nodeMSTab.push(nodesById[O]);
 	    }
 	    menuMS.children("[class*=expandZoomButtonIcon]").click();
 
-	    for(O in nodes)  { 
+	    for(O in nodesById)  { 
 		me.removeNodeToZoom(O);
 	    }
 	    me.setZoomSelection(true);
@@ -2193,8 +2284,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		return function(v,id,optionNumber){
 
-		    // for(O in nodes)  { 
-		    // 	nodes[O].updateSelectedStatus(false);
+		    // for(O in nodesById)  { 
+		    // 	nodesById[O].updateSelectedStatus(false);
 		    // }
 
 		    if(v==true)  { 
@@ -2251,8 +2342,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
  		    
 		    me.setZoomSelection(true);
  
- 		    // for(O in nodes)  {
-		    // 	nodes[O].updateSelectedStatus(false);
+ 		    // for(O in nodesById)  {
+		    // 	nodesById[O].updateSelectedStatus(false);
 		    // }
  
 		    if(v==true) {
@@ -2527,72 +2618,71 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     /** Save working session : post its and position for each node will be copied to a .js file. */
     managementGlobalMenuTitleTab.push("Save working session")
     managementGlobalMenuEventTab.push(    function(v,id,optionNumber){
-	nodes2=me.getNodes2();
-	    // Concatenate json data
-	    idFinalLocation=0;
-	    for(O in nodes2)  { 	
-		var id=nodes2[O].getId();
-		if (nodes2[O].getOnOffStatus()) {
-		    // Save positions
-		    nodes2[O].getJsonData().IdLocation = nodes2[O].getIdLocation();
-		    idFinalLocation++;
-		    // Save usernotes
-		    nodes2[O].getJsonData().userNotes = nodes2[O].getComment();
-		    // Save tags
-		    nodes2[O].getJsonData().tags = nodes2[O].getNodeTagList();
-		}
+	// Concatenate json data
+	idFinalLocation=0;
+	for(O in nodesByLoc)  { 	
+	    var id=nodesByLoc[O].getId();
+	    if (nodesByLoc[O].getOnOffStatus()) {
+		// Save positions
+		nodesByLoc[O].getJsonData().IdLocation = nodesByLoc[O].getIdLocation();
+		idFinalLocation++;
+		// Save usernotes
+		nodesByLoc[O].getJsonData().userNotes = nodesByLoc[O].getComment();
+		// Save tags
+		nodesByLoc[O].getJsonData().tags = nodesByLoc[O].getNodeTagList();
 	    }
-	    // Reconstruct another nodes.js with the same structure
-	    var temp = "{\"nodes\": [XXX] }";
-	    var id=0;
+	}
+	// Reconstruct another nodes.js with the same structure
+	var temp = "{\"nodes\": [XXX] }";
+	var id=0;
 
-	    for(O in nodes2)  { 
+	for(O in nodesByLoc)  { 
 
-	    	if (nodes2[O].getOnOffStatus()) {
-	    	    id=nodes2[O].getId();
-	    	    //console.log(id);
+	    if (nodesByLoc[O].getOnOffStatus()) {
+	    	id=nodesByLoc[O].getId();
+	    	//console.log(id);
+		
+	    	var temp3 ="\n{{***}}";
 
-	    	    var temp3 ="\n{{***}}";
-
-	    	    for(W in nodes2[O].getJsonData())  {
- 			if (W == "tags" ) {
-			    var ListTags=new Array();
-			    nodes2[O].getNodeTagList().forEach(function(currentValue) {
-				if (currentValue in globalFloatingTags) {
-				    var ft=nodes2[O].getFloatingTag()
-				    ListTags.push("'{"+currentValue+","+ft[currentValue]["m"]+","+ft[currentValue]["val"]+","+ft[currentValue]["M"] + "}'") }
-				else {
-				    ListTags.push("'"+currentValue + "'") }
-			    })
-			    var mytext = "\""+W+"\""+" : "+"["+ListTags.toString().replace(/\'/g,'\"')+"],\n {***}"
-			} else if ( W == "comment") {
-			    // Don't save old comment because user may have modified it in postit. 
-			    var mytext = "{***}";
-			} else if ( W == "userNotes") {
-			    comment=nodes2[O].getJsonData()["userNotes"].toString().replace(/\"/g,"'")
-			    var mytext = "\"comment\""+" : "+"\""+comment+"\""+",\n {***}"
+	    	for(W in nodesByLoc[O].getJsonData())  {
+ 		    if (W == "tags" ) {
+			var ListTags=new Array();
+			nodesByLoc[O].getNodeTagList().forEach(function(currentValue) {
+			    if (currentValue in globalFloatingTags) {
+				var ft=nodesByLoc[O].getFloatingTag()
+				ListTags.push("'{"+currentValue+","+ft[currentValue]["m"]+","+ft[currentValue]["val"]+","+ft[currentValue]["M"] + "}'") }
+			    else {
+				ListTags.push("'"+currentValue + "'") }
+			})
+			var mytext = "\""+W+"\""+" : "+"["+ListTags.toString().replace(/\'/g,'\"')+"],\n {***}"
+		    } else if ( W == "comment") {
+			// Don't save old comment because user may have modified it in postit. 
+			var mytext = "{***}";
+		    } else if ( W == "userNotes") {
+			comment=nodesByLoc[O].getJsonData()["userNotes"].toString().replace(/\"/g,"'")
+			var mytext = "\"comment\""+" : "+"\""+comment+"\""+",\n {***}"
 			// } else if ( W == "IdLocation") {
-			//     var mytext = "\""+W+"\""+" : "+"\""+nodes2[0].getIdLocation().toString()+"\""+",\n {***}";
-			} else {
-	    		    var mytext = "\""+W+"\""+" : "+"\""+nodes2[O].getJsonData()[W].toString().replace(/\"/g,"'")+"\""+",\n {***}";
-			}
-	    		temp3=temp3.replace("{***}",mytext);
-	    	    }
-	    	    temp3=temp3.replace(",\n {***}","");
-	    	    temp=temp.replace("XXX",temp3+",XXX");
+			//     var mytext = "\""+W+"\""+" : "+"\""+nodesByLoc[0].getIdLocation().toString()+"\""+",\n {***}";
+		    } else {
+	    		var mytext = "\""+W+"\""+" : "+"\""+nodesByLoc[O].getJsonData()[W].toString().replace(/\"/g,"'")+"\""+",\n {***}";
+		    }
+	    	    temp3=temp3.replace("{***}",mytext);
 	    	}
+	    	temp3=temp3.replace(",\n {***}","");
+	    	temp=temp.replace("XXX",temp3+",XXX");
 	    }
-	    // Save the file with a clear name (date and time, name of the project) 
-	    temp=temp.replace(",XXX","");
-	    // tempFile = "var text_ = \n     "+temp+";\nvar jsDataTab = text_.nodes;";
-	    tempFile=temp;
+	}
+	// Save the file with a clear name (date and time, name of the project) 
+	temp=temp.replace(",XXX","");
+	// tempFile = "var text_ = \n     "+temp+";\nvar jsDataTab = text_.nodes;";
+	tempFile=temp;
 	
-	    var sessionDate = new Date();
-	    var strDate=sessionDate.toLocaleDateString({day: "2-digit", month: "2-digit"}).replace(/\//g, "-") + "_" + sessionDate.toLocaleTimeString("fr-FR").replace(/:/g, "-")
-	    //var fileName = my_session + "_" + "tiles_" + strDate + ".js"; 
+	var sessionDate = new Date();
+	var strDate=sessionDate.toLocaleDateString({day: "2-digit", month: "2-digit"}).replace(/\//g, "-") + "_" + sessionDate.toLocaleTimeString("fr-FR").replace(/:/g, "-")
+	//var fileName = my_session + "_" + "tiles_" + strDate + ".js"; 
 	//var file = new File([tempFile], fileName, {type: "text/plain;charset=utf-8"},{ autoBom: false });
-	    var fileName = my_session + "_" + "tiles_" + strDate + ".json"; 
-
+	var fileName = my_session + "_" + "tiles_" + strDate + ".json"; 
+	
 	// socket save new session ??
 	$('#notifications').html('<div id=saveValidate height="10%" width="50%"></div>');
 	// TODO method POST with
@@ -2970,8 +3060,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    
 		    if(configBehaviour.opacity*100 != $('#opacitySlider').val())  { 
 			configBehaviour.opacity = Math.max($('#opacitySlider').val()/100, 0.1);
-			for (O in nodes)  { 
-			    nodes[O].setNodeOpacity(configBehaviour.opacity);
+			for (O in nodesById)  { 
+			    nodesById[O].setNodeOpacity(configBehaviour.opacity);
 			}
 		    }
 		    tempBehaviour=tempBehaviour.replace("***","'opacity':"+configBehaviour.opacity+",\n ***");
@@ -3169,8 +3259,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 	if(tempBehaviour.hasOwnProperty('opacity')) {
 	    configBehaviour.opacity = tempBehaviour.opacity;
-	    for (O in nodes)  { 
-		nodes[O].setNodeOpacity(configBehaviour.opacity);
+	    for (O in nodesById)  { 
+		nodesById[O].setNodeOpacity(configBehaviour.opacity);
 	    }
 	}
 
@@ -3398,12 +3488,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 			    var u = 0;
 
-			    for(u=0;u<nodes2.length;u++)  { 	
-				me.switchLocation(me.getNode(nodesOldPositions[nodesOldPositions.length-stepBack][u]),nodes2[u],true,false);
+			    for(u=0;u<nodesByLoc.length;u++)  { 	
+				me.switchLocation(me.getNode(nodesOldPositions[nodesOldPositions.length-stepBack][u]),nodesByLoc[u],true,false);
 			    }
 			    // If the last movement was a "block movement", ie column or line swap, undo the
 			    // swap with only one click
-			    if (nodesOldPositions[nodesOldPositions.length - stepBack][nodes2.length])  { 
+			    if (nodesOldPositions[nodesOldPositions.length - stepBack][nodesByLoc.length])  { 
 				stepBack ++;
 				back();	
 			    }
@@ -3499,14 +3589,14 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			    var u = 0;
 
 			    //console.log(nodesOldPositions.length+stepForward);
-			    for(u=0;u<nodes2.length;u++)  { 	
-				me.switchLocation(me.getNode(nodesOldPositions[nodesOldPositions.length+stepForward][u]),nodes2[u],true,false);
+			    for(u=0;u<nodesByLoc.length;u++)  { 	
+				me.switchLocation(me.getNode(nodesOldPositions[nodesOldPositions.length+stepForward][u]),nodesByLoc[u],true,false);
 			    }
 			    // If the last undone movement was a block move, we want to detect it and re-do
 			    // it in one click
 			    if (stepForward + 1 <= -1)  { // Condition on length : we want the "nodesOldPositions.length + stepForward +1"-th element, this index has to be smaller than "nodesOldPositions.length - 1"
-				var boolCurrIdx = nodesOldPositions[nodesOldPositions.length+stepForward][nodes2.length];
-				var boolNextIdx = nodesOldPositions[nodesOldPositions.length+stepForward+1][nodes2.length];
+				var boolCurrIdx = nodesOldPositions[nodesOldPositions.length+stepForward][nodesByLoc.length];
+				var boolNextIdx = nodesOldPositions[nodesOldPositions.length+stepForward+1][nodesByLoc.length];
 				//console.log(boolCurrIdx, boolNextIdx);
 				if (boolNextIdx  || boolCurrIdx)  { 
 				    //console.log("detected block");
@@ -3754,16 +3844,16 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 					    for(e=0;e<textTab.length;e++)  { 
 						text_=textTab[e];
-						var nodesbis=nodes;
+						var nodesbis=nodesById;
 						var w=0;
 
 						if(appliedFilters.indexOf(text_)==-1)  { 
 						    // TO DO : study influence of nodes/nodesbis in the loops ?
 						    // TO DO : what happens when too many filters ?	
 						    for(O in nodesbis)  { 
-							if(me.hasTag(nodes[O],text_))  { 
-							    nodeZoomTab.push(nodes[O]);
-							    me.switchLocation(nodesbis[O],nodes2[w],false,true);
+							if(me.hasTag(nodesbis[O],text_))  { 
+							    nodeZoomTab.push(nodesById[O]);
+							    me.switchLocation(nodesbis[O],nodesByLoc[w],false,true);
 							    nodesbis[O].getHtmlNode().css({
 								    opacity : 1
 									});
@@ -3788,8 +3878,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 						    }
 
 						    var filtered = w;	
-						    while(w<nodes2.length)  { 											
-							nodes2[w].getHtmlNode().css({
+						    while(w<nodesByLoc.length)  { 											
+							nodesByLoc[w].getHtmlNode().css({
 								opacity : 0.5
 								    });
 							w++;
@@ -3817,8 +3907,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 					    // Load the nodes provided by the search which are outside the screen and not yet loaded 
 					    // depends on "chargeAllContentOnStart" and "distance_from_the_bottom_for_loading")
 					    if(chargeAllContentOnStart==false)  { 
-						for(O in nodes ){
-						    node = nodes[O];
+						for(O in nodesById ){
+						    node = nodesById[O];
 						    if( node.getLoadedStatus() == false && mesh.locationProvider(node.getIdLocation()).getY()<window.innerHeight  )  { 
 							//console.log(node.getmLocation().getnX());
 							ratio=mesh.loadContent(node.getId());
@@ -3855,8 +3945,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			    while(appliedFilters.length>0)  { 
 				buffer=appliedFilters.pop();
 
-				for(O in nodes)  { 
-				    nodes[O].removeElementFromNodeTagList(buffer);
+				for(O in nodesById)  { 
+				    nodesById[O].removeElementFromNodeTagList(buffer);
 				}
 
 				numOfFilter--;
@@ -3912,8 +4002,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     menuEventTab.push(    function(v,id,optionNumber){
 	
 	$('#'+id+'option'+optionNumber).removeClass('clearSelectionButtonIcon').addClass('closeClearSelectionButtonIcon');
-	for(O in nodes)  { 
-	    nodes[O].updateSelectedStatus(false);
+	for(O in nodesById)  { 
+	    nodesById[O].updateSelectedStatus(false);
 	}
 	$('#'+id+'option'+optionNumber).removeClass('closeClearSelectionButtonIcon').addClass('clearSelectionButtonIcon');
 	addBlink($('#'+id+'option'+optionNumber));
@@ -4124,11 +4214,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    else if (configTagsBehaviour.selectionMethod =="frequency")  { 
 			// Calculations on the dico
 			var tagHisto = new Array ();
-			var nodes = me.getNodes2();
 			var temp = 0;
 			for (var k=0;k<globalTagsList.length;k++)  { 	
 			    for (var i=0;i<me.getCardinal();i++)  { 
-				if(me.hasTag(nodes[i],globalTagsList[k]))  { 
+				if(me.hasTag(nodesByLoc[i],globalTagsList[k]))  { 
 				    temp +=1;
 				}
 			    }
@@ -4151,10 +4240,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 				attributedTagsColorsArray[computedTagsList[computedTagsList.length-1]] = 
 				    "rgb("+Math.floor(Math.random()*255) + ", " + Math.floor(Math.random()*255)+ ", " + Math.floor(Math.random()*255)+")";
 			    }
-			    for(O in nodes)  { 
-				if(me.hasTag(nodes[O], computedTagsList[k]) )  { 
+			    for(O in nodesByLoc)  { 
+				if(me.hasTag(nodesByLoc[O], computedTagsList[k]) )  { 
 				    var color = attributedTagsColorsArray[computedTagsList[k]];
-				    nodes[O].getStickers().addSticker(computedTagsList[k], color);
+				    nodesByLoc[O].getStickers().addSticker(computedTagsList[k], color);
 				}
 
 			    }
@@ -4202,11 +4291,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		    // for debugging : add tag with initial grid order
 		    if (debugPos) {
-			var nodes = me.getNodes2();
-			for(O in nodes)  { 
+			for(O in nodesByLoc)  { 
 		    	    me.AddNewTag("pos"+O);
-		    	    nodes[O].getStickers().addSticker("pos"+O, attributedTagsColorsArray["pos"+O]);
-		    	    nodes[O].addElementToNodeTagList("pos"+O);
+		    	    nodesByLoc[O].getStickers().addSticker("pos"+O, attributedTagsColorsArray["pos"+O]);
+		    	    nodesByLoc[O].addElementToNodeTagList("pos"+O);
 			}
 		    }
 		}
@@ -4379,8 +4467,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		    var p =0 ;
 
-		    for(p=0;p<nodes["node"+nodeId].getNodeMenu().getEventSelectedTab().length;p++)  { 
-			if(nodes["node"+nodeId].getNodeMenu().getEventSelectedTab()[p]==true)  { 
+		    for(p=0;p<nodesById["node"+nodeId].getNodeMenu().getEventSelectedTab().length;p++)  { 
+			if(nodesById["node"+nodeId].getNodeMenu().getEventSelectedTab()[p]==true)  { 
 			    $("#menu"+nodeId+">#option"+p).click();
 			    //console.log("obscure if condition in NodeMenu");
 			}
@@ -4658,6 +4746,25 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	});
     menuMS=$('#menuMS');	
 
+    this.tagHideTagsMenu = new Menu("HideTags", $('header'), tagHideTagsMenuTitleTab, tagHideTagsMenuEventTab, tagHideTagsMenuIconClassAttributesTab, tagHideTagsMenuShareEvent,{
+	    position : "fixed",
+	    top : 100,
+	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')), //parseInt(window.innerWidth) - tagMenuEventTab.length*200,
+	    visible : 'hidden',
+	    classN : 'taghidetags',
+	    height : 200,
+	    width : 200,
+	    rightMargin :0,
+	    backgroundColor: "rgba(0, 0, 0, 0.5)",
+	    //borderStyle : "solid",
+	    //borderWidth : "5px", 
+	    //borderColor : "green",
+	    orientation : "V",
+	    zIndex : 150
+
+	});
+    menuHideTags=$('#menuHideTags');
+
     this.tagSelectionMenu = new Menu("SelectionTags", $('header'), tagSelectionMenuTitleTab, tagSelectionMenuEventTab, tagSelectionMenuIconClassAttributesTab, tagSelectionMenuShareEvent,{
 	    position : "fixed",
 	    top : 100,
@@ -4735,7 +4842,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
     //--setter
     this.setNodes = function(){	
-	return nodes;
+	return nodesById;
     };
 
     //******heighttable and widthtable******//
@@ -4776,8 +4883,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		//console.log("scale", scaleX, scaleY, scale);
 		if(typeof id == 'undefined' || typeof id != 'number' || (id < 0) || !(id < cardinal))  { 
 		    spread=newSpread;
-		    for(O in nodes)  { 
-			nodes[O].updateHW(spread.Y,spread.X);
+		    for(O in nodesById)  { 
+			nodesById[O].updateHW(spread.Y,spread.X);
 
 		    }
 		    $('.selection').css({height : spread.Y,  width : spread.X});
@@ -4788,21 +4895,22 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    $('.hitbox').css("height", parseInt(spread.Y*0.9)).css("top",parseInt(spread.Y*0.1));
 		    $('.info').css("font-size", Math.min(configBehaviour.maxInfoFontSize,parseInt(configBehaviour.defaultInfoFontSize*scale)));
 
-		    for(O in nodes)  { 	
+		    for(O in nodesById)  { 	
 			if(ColumnStyle=="static") // Why are the two parts of this condition the same?!
 
 			    {
-				//var marginleft = (parseInt($('#'+nodes[O].getId()).css("width"))-widthTab[nodes[O].getId()]*scale)/2;
-				nodes[O].setLocation(me.locationProvider(nodes[O].getIdLocation()),false);
-				//var margintop = (parseInt($('#'+nodes[O].getId()).css("height"))-heightTab[nodes[O].getId()]*scale)/2;
-				$('#iframe'+nodes[O].getId()).css({marginTop : 0 , marginLeft : 0   });				
+				//var marginleft = (parseInt($('#'+nodesById[O].getId()).css("width"))-widthTab[nodesById[O].getId()]*scale)/2;
+				me.setLocation(nodesById[O],nodesById[O].getIdLocation(),false);
+				//var margintop = (parseInt($('#'+nodesById[O].getId()).css("height"))-heightTab[nodesById[O].getId()]*scale)/2;
+
+				$('#iframe'+nodesById[O].getId()).css({marginTop : 0 , marginLeft : 0   });				
 			    }
 			else // "dynamic" ColumnStyle
 			    {
-				//var marginleft = (parseInt($('#'+nodes[O].getId()).css("width"))-widthTab[nodes[O].getId()]*scale)/2;
-				nodes[O].setLocation(me.locationProvider(nodes[O].getIdLocation()),false);
-				//var margintop = (parseInt($('#'+nodes[O].getId()).css("height"))-heightTab[nodes[O].getId()]*scale)/2;
-				$('#iframe'+nodes[O].getId()).css({marginTop : 0,marginLeft : 0 });	
+				//var marginleft = (parseInt($('#'+nodesById[O].getId()).css("width"))-widthTab[nodesById[O].getId()]*scale)/2;
+				me.setLocation(nodesById[O],nodesById[O].getIdLocation(),false);
+				//var margintop = (parseInt($('#'+nodesById[O].getId()).css("height"))-heightTab[nodesById[O].getId()]*scale)/2;
+				$('#iframe'+nodesById[O].getId()).css({marginTop : 0,marginLeft : 0 });	
 			    }
 
 
@@ -4815,7 +4923,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		} else { 
 		    spread=newSpread;
 
-		    nodes["node"+id].updateHW(spread.Y,spread.X);
+		    nodesById["node"+id].updateHW(spread.Y,spread.X);
 
 		    $('.selection').css({height : spread.Y,  width : spread.X});
 		    $('iframe').height(spread.Y).width(spread.X);
@@ -4828,17 +4936,17 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    //console.log(parseInt($('.info').css("font-size")));
 
 		    if(ColumnStyle=="static")  { 
-			var marginleft = (parseInt($('#'+nodes["node"+id].getId()).css("width"))-widthTab[nodes["node"+id].getId()]*scale)/2;
-			nodes["node"+id].setLocation(me.locationProvider(nodes["node"+id].getIdLocation()),false);
-			var margintop = (parseInt($('#'+nodes["node"+id].getId()).css("height"))-heightTab[nodes["node"+id].getId()]*scale)/2;
+			var marginleft = (parseInt($('#'+nodesById["node"+id].getId()).css("width"))-widthTab[nodesById["node"+id].getId()]*scale)/2;
+			me.setLocation(nodesById["node"+id],nodesById["node"+id].getIdLocation(),false);
+			var margintop = (parseInt($('#'+nodesById["node"+id].getId()).css("height"))-heightTab[nodesById["node"+id].getId()]*scale)/2;
 
-			$('#iframe'+nodes["node"+id].getId()).css({marginTop : 0 , smarginLeft : 0   });
+			$('#iframe'+nodesById["node"+id].getId()).css({marginTop : 0 , smarginLeft : 0   });
 
 		    } else { 
-			var marginleft = (parseInt($('#'+nodes["node"+id].getId()).css("width"))-widthTab[nodes["node"+id].getId()]*scale)/2;
-			nodes["node"+id].setLocation(me.locationProvider(nodes["node"+id].getIdLocation()),false);
-			var margintop = (parseInt($('#'+nodes["node"+id].getId()).css("height"))-heightTab[nodes["node"+id].getId()]*scale)/2;
-			$('#iframe'+nodes["node"+id].getId()).css({marginTop : margintop,marginLeft : marginleft   });	
+			var marginleft = (parseInt($('#'+nodesById["node"+id].getId()).css("width"))-widthTab[nodesById["node"+id].getId()]*scale)/2;
+			me.setLocation(nodesById["node"+id],nodesById["node"+id].getIdLocation(),false);
+			var margintop = (parseInt($('#'+nodesById["node"+id].getId()).css("height"))-heightTab[nodesById["node"+id].getId()]*scale)/2;
+			$('#iframe'+nodesById["node"+id].getId()).css({marginTop : margintop,marginLeft : marginleft   });	
 		    }	
 		    $('.stickers_zone').css("left", spread.X);
 		    //console.log($('.info').css("font-size"));
@@ -4873,27 +4981,27 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
     //--getter 
     this.getNode = function(id){
-	return nodes["node"+id];
+	return nodesById["node"+id];
     };
 
     /**give table nodes*/	
 
     //--getter
     this.getNodes = function(){	
-	return nodes;
+	return nodesById;
     };
 
 
-    /**give table nodes2*/	
+    /**give table nodesByLoc*/	
 
     //--getter
-    this.getNodes2 = function(){	
-	return nodes2;
+    this.getNodesByLoc = function(){	
+	return nodesByLoc;
     };
 
     //--setter
-    setNodes2 = function(idLocation,node){	
-	nodes2[idLocation]=node;
+    setNodesByLoc = function(idLocation,node){	
+	nodesByLoc[idLocation]=node;
     };
 
 
@@ -4962,12 +5070,13 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	//if (!newNumOfColumns){
 	//newNumOfColumns = numOfColumns;
 	//}
-	for(O in nodes)  { 	
-	    if(!$('#' + nodes[O].getId()).hasClass("transparentNode")) { // Transparent nodes have sometimes to remain superposed
-		nodes[O].setLocation(me.locationProvider(nodes[O].getIdLocation(), newNumOfColumns),false);
+	for(O in nodesById)  { 	
+	    if(!$('#' + nodesById[O].getId()).hasClass("transparentNode")) { // Transparent nodes have sometimes to remain superposed
+		nodesById[O].setLocation(me.locationProvider(nodesById[O].getIdLocation(), newNumOfColumns),false);
+		setNodesByLoc(nodesById[O].getIdLocation(),nodesById[O]);
 	    } else {
-		$('#'+nodes[O].getId()).css("z-index", 899);
-		//console.log("getting new z-index at ", $('#'+nodes[O].getId()).css("z-index"));
+		$('#'+nodesById[O].getId()).css("z-index", 899);
+		//console.log("getting new z-index at ", $('#'+nodesById[O].getId()).css("z-index"));
 	    }
 			
 	}
@@ -4975,6 +5084,15 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	if (newNumOfColumns !=false)  
 	    numOfColumns = newNumOfColumns;
     };
+
+
+    // Change location of a node and update nodesByLoc table
+    this.setLocation = function(node, IdLoc, boolAnimation, animationSpeed) {
+	boolAnimation = boolAnimation || false;
+	animationSpeed = animationSpeed || configBehaviour.animationSpeed;
+	node.setLocation(me.locationProvider(IdLoc),boolAnimation,animationSpeed);
+	setNodesByLoc(node.getIdLocation(),node);
+    }
 
     //--Switch position between two nodes
 
@@ -4995,9 +5113,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	node2.setLocation(me.locationProvider(node2.getIdLocation()),boolAnimation,configBehaviour.animationSpeed);	
 
 
-	setNodes2(node2.getIdLocation(),node2);
-	setNodes2(node1.getIdLocation(),node1);
-
+	setNodesByLoc(node2.getIdLocation(),node2);
+	setNodesByLoc(node1.getIdLocation(),node1);
     }
 
     //--A node gets the position of another one
@@ -5027,44 +5144,44 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	var nX = [];
 	var nY = [];
 
-	for(O in this.getNodes2()) {
-	    nX[O]=this.mlocationProvider( this.getNodes2()[O].getIdLocation()).getnX();
-	    nY[O]=this.mlocationProvider( this.getNodes2()[O].getIdLocation()).getnY();
+	for(O in this.getNodesByLoc()) {
+	    nX[O]=this.mlocationProvider( this.getNodesByLoc()[O].getIdLocation()).getnX();
+	    nY[O]=this.mlocationProvider( this.getNodesByLoc()[O].getIdLocation()).getnY();
 	}
 
 	if ( lineDrag > lineDrop ) {
 	    if ( columnDrag > columnDrop ) {
 
-		for(O in this.getNodes2()) {
+		for(O in this.getNodesByLoc()) {
 			    
 		    if (nX[O] == columnDrop && lineDrag > nY[O] && !(nY[O] < lineDrop) ) {
-			this.getNodes2()[O].getHtmlNode().css({
+			this.getNodesByLoc()[O].getHtmlNode().css({
 				boxShadow: "0 0 0 10px blue"});//GLOBALCSS
-			ListMoveNodes.push(this.getNodes2()[O])
+			ListMoveNodes.push(this.getNodesByLoc()[O])
 				
 		    } else if ( !(nX[O] < columnDrop) && nY[O] == lineDrag && !(nX[O] > columnDrag) ) {
-			this.getNodes2()[O].getHtmlNode().css({
+			this.getNodesByLoc()[O].getHtmlNode().css({
 				boxShadow: "0 0 0 10px red"});//GLOBALCSS
-			ListMoveNodes.push(this.getNodes2()[O])
+			ListMoveNodes.push(this.getNodesByLoc()[O])
 		    }
 		}
 			
 	    } else {
 			
-		for(O in this.getNodes2()){
+		for(O in this.getNodesByLoc()){
 		    if (nX[O] == columnDrop && lineDrag > nY[O] && !(nY[O] < lineDrop) ) {
-			this.getNodes2()[O].getHtmlNode().css({
+			this.getNodesByLoc()[O].getHtmlNode().css({
 				boxShadow: "0 0 0 10px blue"});
-			ListMoveNodes.push(this.getNodes2()[O])
+			ListMoveNodes.push(this.getNodesByLoc()[O])
 		    }
 		}
 
 		ReverseList=[]
-		for(O in this.getNodes2()) {
+		for(O in this.getNodesByLoc()) {
 		    if ( !(nX[O] < columnDrag) && nY[O] == lineDrag && !(nX[O] > columnDrop) ) {
-			this.getNodes2()[O].getHtmlNode().css({
+			this.getNodesByLoc()[O].getHtmlNode().css({
 				boxShadow: "0 0 0 10px red"});
-			ReverseList=[this.getNodes2()[O]].concat(ReverseList)
+			ReverseList=[this.getNodesByLoc()[O]].concat(ReverseList)
 		    }
 		}
 		ListMoveNodes=ListMoveNodes.concat(ReverseList)
@@ -5075,20 +5192,20 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    if ( columnDrag > columnDrop ) {
 			
 		ReverseList=[]
-		for(O in this.getNodes2())  {
+		for(O in this.getNodesByLoc())  {
 		    if (nX[O] == columnDrop && (nY[O] > lineDrag) && !(lineDrop < nY[O]) ) {
-			this.getNodes2()[O].getHtmlNode().css({
+			this.getNodesByLoc()[O].getHtmlNode().css({
 				boxShadow: "0 0 0 10px blue"});
-			ReverseList=[this.getNodes2()[O]].concat(ReverseList)
+			ReverseList=[this.getNodesByLoc()[O]].concat(ReverseList)
 		    } 
 			    
 		}
 
-		for(O in this.getNodes2()) {
+		for(O in this.getNodesByLoc()) {
 		    if ( !(nX[O] < columnDrop) && nY[O] == lineDrag && !(nX[O] > columnDrag) ) {
-			this.getNodes2()[O].getHtmlNode().css({
+			this.getNodesByLoc()[O].getHtmlNode().css({
 				boxShadow: "0 0 0 10px red"});
-			ListMoveNodes.push(this.getNodes2()[O])
+			ListMoveNodes.push(this.getNodesByLoc()[O])
 		    }
 		}
 		ListMoveNodes=ReverseList.concat(ListMoveNodes)
@@ -5098,21 +5215,21 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		// ( columnDrag <= columnDrop )
 			
 		ReverseList=[]
-		for(O in this.getNodes2()) {
+		for(O in this.getNodesByLoc()) {
 		    if (nX[O] == columnDrop && (nY[O] > lineDrag) && !(lineDrop < nY[O]) ) {
-			this.getNodes2()[O].getHtmlNode().css({
+			this.getNodesByLoc()[O].getHtmlNode().css({
 				boxShadow: "0 0 0 10px blue"});
-			ReverseList=[this.getNodes2()[O]].concat(ReverseList)
+			ReverseList=[this.getNodesByLoc()[O]].concat(ReverseList)
 		    } 
 			    
 		}
 			
 		ReverseList2=[]
-		for(O in this.getNodes2()) {
+		for(O in this.getNodesByLoc()) {
 		    if ( !(nX[O] < columnDrag) && nY[O] == lineDrag && !(nX[O] > columnDrop) ) {
-			this.getNodes2()[O].getHtmlNode().css({
+			this.getNodesByLoc()[O].getHtmlNode().css({
 				boxShadow: "0 0 0 10px blue"});
-			ReverseList2=[this.getNodes2()[O]].concat(ReverseList2)
+			ReverseList2=[this.getNodesByLoc()[O]].concat(ReverseList2)
 		    } 
 			    
 		}
@@ -5186,7 +5303,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     //******nodes******//
 
     /**Here the table of nodes is filled*/
-    var nodes = (    function(){
+    nodesById = (    function(){
 
 	    var node = [];
 	    var nodes_ = [];
@@ -5196,7 +5313,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		temp = new Location(); // utility ?
 		node = new Tile(this);
 		nodes_["node"+node.getId()]=node;
-		nodes2[node.getIdLocation()]=node;
+		nodesByLoc[node.getIdLocation()]=node;
 	    }
 
 	    return nodes_;
@@ -5223,8 +5340,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 	var u = 0;
 
-	for(u=0;u<nodes2.length;u++)  { 
-	    nodesOldPositions[indice][u]=nodes2[u].getId();
+	for(u=0;u<nodesByLoc.length;u++)  { 
+	    nodesOldPositions[indice][u]=nodesByLoc[u].getId();
 	}
 	nodesOldPositions[indice].push(boolBlockMove); // The last element of the layer says if it’s part of a block move or not
 	    
@@ -5235,8 +5352,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
     /**this methods return true 
        when the input word is find on metadata of the node data 
-       these metadate are on the jsondata added on the création of the node
-       on particularly on the "comments"
+       these metadata are on the jsondata added on the creation of the node,
+       particularly on the "comments"
     */
     this.hasTag = function(node,word){
 	    
@@ -5246,6 +5363,14 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	else
 	    return false;			
 	    
+    };
+
+    /**this methods return true 
+       when the input word is find on metadata of the node data 
+       these metadata are floating tag on the jsondata added on the creation of the node
+    */
+    this.hasFloatingTag = function(node,word){
+	return node.getFloatingTag().hasOwnProperty(word)
     };
 
     /** Manage node size **/
@@ -5269,11 +5394,11 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     /**Put node above other node on the screen ( increase zindex )*/
     putOnTop = function(nodeId){
 	    
-	for ( O in nodes)  { 		
-	    if(!(nodes[O].getId()==nodeId))  { 
-		putDown(nodes[O].getId());
+	for ( O in nodesById)  { 		
+	    if(!(nodesById[O].getId()==nodeId))  { 
+		putDown(nodesById[O].getId());
 	    } else { 
-		$("#"+nodes[O].getId()).css("z-index",100);
+		$("#"+nodesById[O].getId()).css("z-index",100);
 	    }
 	}
     };
@@ -5294,7 +5419,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    var maxW = -1;
 	
 	    return function (nodeId)  { 
-		var node = nodes["node"+nodeId];
+		var node = nodesById["node"+nodeId];
 		var hnode=node.getHtmlNode();
 		var ratio = 1;
 		if ($("#"+nodeId).children("iframe").length == 0) {
@@ -5369,7 +5494,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     var SetOff = function(id) {
 	var node=$('#'+id);
 	var OOF = $('#onoff'+id);
-	var node2= nodes["node"+id];
+	var node2= nodesById["node"+id];
 	OOF.css('background-color', "red");
 	node2.setOnOffStatus(false);
 	node.children("iframe").hide();
@@ -5379,7 +5504,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     var SetOn = function(id) {
 	var node=$('#'+id);
 	var OOF = $('#onoff'+id);
-	var node2= nodes["node"+id];
+	var node2= nodesById["node"+id];
 	OOF.css('background-color', "green");
 	node2.setOnOffStatus(true);
 	node.children("iframe").show();
@@ -5465,6 +5590,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	// Reset events
 	$('.hitbox').off(); 
 	$('.node').off(); 
+	$('.qrcode').on({
+	    click : me.clickQRcode
+	});
 
 	_allowDragAndDrop = true;
 	touchspeed = configBehaviour.touchSpeed; // speed of touch move;
@@ -5547,7 +5675,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		$('#'+targetNode_).css("z-index", 3);
 	    }
 	    if (boolBorder) {
-		if (nodes2[targetNode_].getLoadedStatus()) {
+		if (nodesByLoc[targetNode_].getLoadedStatus()) {
 		    $('#' + targetNode_).css("background-color", "white");
 		    $('#' + targetNode_).css("border-display", "none");
 		    me.loadContent(targetNode_);
@@ -5587,20 +5715,20 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    allocate = false;
 	    for(i = 0 ; i < nodeCardinal ; i++) {
 		if(i != node.getId()) {
-		    var tmpNodeLoc = nodes["node" + i].getLocation();
+		    var tmpNodeLoc = nodesById["node" + i].getLocation();
 		    var tmpNodeX = tmpNodeLoc.getX();
 		    var tmpNodeY = tmpNodeLoc.getY();
 		    var v = nodeX - tmpNodeX;
 		    var w = nodeY - tmpNodeY;
 
 		    if((v>-spread.X/targetSize && w>-spread.Y/targetSize) && (v<spread.X/targetSize && w<spread.Y/targetSize)) { 
-			//console.log("found "+ nodes["node"+i].getId()+ " -> ("+ $('#' + node.getId()).attr("class")+")");
+			//console.log("found "+ nodesById["node"+i].getId()+ " -> ("+ $('#' + node.getId()).attr("class")+")");
 			if($('#'+node.getId()).hasClass("transparentNode")) { // Drop on corresponding tile
-			    node.setLocation(tmpNodeLoc);
+			    me.setLocation(node,tmpNodeLoc);
 			    allocate = true;
 
 			} else { // Drop besides the tile
-			    me.switchLocationShiftColumnLine(node,nodes["node"+i],true,true);
+			    me.switchLocationShiftColumnLine(node,nodesById["node"+i],true,true);
 			    allocate = true;
 			    node.updateSelectedStatus(false);
 			}
@@ -5610,7 +5738,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    }
 
 	    if (allocate == false) { // ie node not dropped, no corresponding tile found
-		node.setLocation(me.locationProvider(node.getIdLocation()),false,50);
+		me.setLocation(node,node.getIdLocation(),false,50);
 	    }
 
 	};
@@ -5647,13 +5775,13 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 	// Group tags along a pattern
 	var groupTags = function(pattern_) {
-	    var nodes = mesh.getNodes();
-	    var nodes2 = mesh.getNodes();
+	    var Nodes = mesh.getNodes();
+	    var NodesByLoc = mesh.getNodes();
 	    //console.log("grouping", pattern_);
 	    var w = 0;
-	    for (O in nodes)  { 
-		if (mesh.hasTag(nodes[O], pattern_))  { 
-		    mesh.switchLocation(nodes[O], nodes2[w], false, true)	
+	    for (O in Nodes)  { 
+		if (mesh.hasTag(Nodes[O], pattern_))  { 
+		    mesh.switchLocation(Nodes[O], NodesByLoc[w], false, true)	
 			}
 	    }
 	};
@@ -5779,7 +5907,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    if (emit_click("onoff",this.id))
 		return
 	    var id = this.id.replace("onoff", "");
-	    var node = nodes["node"+id];
+	    var node = nodesById["node"+id];
 	    if(	node.getOnOffStatus() ) {
 		SetOff(id);
 	    } else {
@@ -6222,7 +6350,7 @@ dblclick: dblclickFunction*/
 	    var splittedId = this.id.split("qrcode");
 	    var nodeId = splittedId.pop();	    
 	    var divnode = $('#'+nodeId);
-	    var node = me.getNodes2()[nodeId];
+	    var node = nodesById["node"+nodeId];
 	    var theqrcode = node.getQRcode();
 	    var thisqrcode = $('#qrcode'+nodeId);
 	    var qrcodeZoom=theqrcode.getZoom();
@@ -6264,11 +6392,7 @@ dblclick: dblclickFunction*/
 			height : parseInt(thisqrcode.css("height")),
 			});				
 	};
-		    
-	$('.qrcode').off("click").on({
-		click : clickQRcode
-		    });
-
+	
 	//when the window is reloaded...
 	$( window ).resize(    function() {
 

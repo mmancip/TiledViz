@@ -3,7 +3,7 @@
 CAUTION: Do not modify this file unless you know what you are doing.
          Unexpected results may occur if the code is changed deliberately.
 -->
-<dbmodel pgmodeler-ver="0.9.0" last-position="0,8" last-zoom="0.95"
+<dbmodel pgmodeler-ver="0.9.0" last-position="0,0" last-zoom="0.95"
 	 default-schema="public" default-owner="postgres">
 <role name="tiledviz"
       superuser="true"
@@ -246,6 +246,9 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	</column>
 	<column name="config_files">
 		<type name="json" length="0"/>
+	</column>
+	<column name="connection_vnc" default-value="0">
+		<type name="smallint" length="0"/>
 	</column>
 	<constraint name="connections_pkey" type="pk-constr" table="public.connections">
 		<columns names="id" ref-type="src-columns"/>

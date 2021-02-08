@@ -36,9 +36,9 @@
   </h3>
   <p> Hit &laquo; register tileset &raquo; button when VNC connection is closed </p>
   </br>
-  <p> Click in the border of the connection window to get hand inside it. </p>
+  <p> Click on the blue bar or in the grey border of the connection window to get hand inside it. </p>
   <script>
-    var VNCurl="http://"+flaskaddr+":5000/noVNC/vnc_auto.html?host="+flaskaddr+"&port="+(parseInt(connection_port)+parseInt(connection_id)).toString()+"&encrypt=0&password="+vncpassword+"&true_color=1"
+    var VNCurl="http://"+flaskaddr+":5000/noVNC/vnc_auto.html?host="+flaskaddr+"&port="+connection_port+"&encrypt=0&password="+vncpassword+"&true_color=1"
     var vncifrm = document.createElement('iframe');
     vncifrm.setAttribute('width', 1410);
     vncifrm.setAttribute('height', 740);

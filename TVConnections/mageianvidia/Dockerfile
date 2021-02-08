@@ -2,7 +2,10 @@
 FROM mageia:7
 MAINTAINER  "Martial Mancip" <Martial.Mancip@MaisondelaSimulation.fr>
 
-RUN dnf install -y lib64mesagl1 xkbcomp x11-server-xvfb x11-data-xkbdata x11-font-alias \
+#RUN dnf install -y lib64mesagl1 xkbcomp x11-server-xvfb x11-data-xkbdata x11-font-alias \
+#dnf install x11-server-xorg
+
+RUN dnf install -y lib64mesagl1 xkbcomp x11-data-xkbdata x11-font-alias tigervnc-server \
                   openssh xauth  xterm xset htop mesa-demos x11vnc xrandr \
 		  lib64sane1 lib64gtk+3_0 lib64virtualgl virtualgl wget htop man socat \
 		  lib64lapack3
@@ -39,7 +42,7 @@ RUN urpmi  -y  \
 	 gnu-free-serif-fonts-20120503-9 \
          gnu-free-fonts-common-20120503-9
 	 
-RUN dnf install -y alsa-utils lib64fribidi0 xdg-utils wmctrl openssh-clients xwd netpbm
+RUN dnf install -y alsa-utils lib64fribidi0 xdg-utils wmctrl xdotool openssh-clients xwd netpbm
 RUN dnf --downloadonly --downloaddir=/tmp/cache install -y icewm-theme-oxygen-aya \
     && ls -la /tmp/cache \
     && rpm -ip /tmp/cache/icewm-theme-oxygen-aya*.rpm --nodeps \
@@ -73,6 +76,8 @@ COPY TVConnections/mageianvidia/client_python /opt/client_python
 COPY TVConnections/mageianvidia/TileClient.py /opt/TileClient.py
 
 COPY TVConnections/connect /usr/lib64/python2.7/site-packages/connect
+
+COPY TVConnections/get_ip.sh /usr/local/bin
 
 RUN mkdir /home/myuser/.tiledviz
 COPY tiledviz.conf /home/myuser/.tiledviz

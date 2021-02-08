@@ -1029,14 +1029,22 @@ Tile = function(Mesh) {
 	You don't have to use directly these functions, they are just tools to others functions which manage 
 	node position
     */	
+    // Use to compute exact positions of tiles in the window for hiding some out of the real viewport.
+    var relativeLeft=parseInt(htmlPrimaryParent.css('width'))/2;
+    if ( mesh.me.getSpread().X > 3840 )
+	relativeLeft=parseInt(relativeLeft/2);
 
     this.isInViewport = function() {
 	if (my_inactive) {
 	    var hnode=this.getHtmlNode();
-	    window_test=my_window["left"] < relativeLeft+hnode.position().left+parseInt(hnode.css("width")) &&
-		my_window["right"] > relativeLeft+hnode.position().left && 
-		my_window["top"] < hnode.position().top+parseInt(hnode.css("height")) &&
-		my_window["down"] > hnode.position().top
+	    var maxLeft=relativeLeft+hnode.position().left+parseInt(hnode.css("width"));
+	    var minRight=relativeLeft+hnode.position().left;
+	    var maxTop=hnode.position().top+parseInt(hnode.css("height"));
+	    var minDown=hnode.position().top;
+	    window_test=my_window["left"] < maxLeft &&
+		my_window["right"] > minRight && 
+		my_window["top"] < maxTop &&
+		my_window["down"] > minDown
 	    //console.log("window test :",window_test)
 	    return window_test;
 	} else

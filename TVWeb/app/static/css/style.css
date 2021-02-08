@@ -420,14 +420,33 @@
 	background-image: url(../images/icons/tagmenu/closeAlignTags.png);
 }
 
-[class~=HideTagButtonIcon]
+[class~=hideTagsMenuButtonIcon]
+{
+	background-image: url(../images/icons/tagmenu/HideTag.png);
+}
+[class~=closeHideTagsMenuButtonIcon]
+{
+	background-image: url(../images/icons/tagmenu/closeHideTag.png);
+}
+
+[class~=hideTagsButtonIcon]
 {
 	background-image: url(../images/icons/tagmenu/HideTag.png);
 }
 
-[class~=closeHideTagButtonIcon]
+[class~=closeHideTagsButtonIcon]
 {
 	background-image: url(../images/icons/tagmenu/closeHideTag.png);
+}
+
+[class~=showTagsButtonIcon]
+{
+	background-image: url(../images/icons/tagmenu/hide/showTag.png);
+}
+
+[class~=closeShowTagsButtonIcon]
+{
+	background-image: url(../images/icons/tagmenu/hide/closeShowTag.png);
 }
 
 [class~=KillTagButtonIcon]
