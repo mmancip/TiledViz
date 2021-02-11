@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}
+    <title>Save Session</title>
+{% endblock %}
+
+{% block additional_scripts_css %}
+  <link rel="stylesheet"
+	href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
+	integrity="sha256-eZrrJcwDc/3uDhsdt61sL2oOBY362qM3lon1gyExkL0="
+	crossorigin="anonymous" />
+{% endblock %}
+
+{% block body %}
+<header>
+  <script type="text/javascript" charset="utf-8">
+    all_session={{ all_session|tojson }};
+  </script>
+</header>
+<body>
+  <h3>
+    Save currect session.
+  </h3>
+  <h4>
+    Attention:
+    this file contains connection informations on your HPC machines in TiledViz.
+  </h4>
+  <h4>
+    Never save session on a file in a public machine.
+  </h4>
+  <div id="management" name="buttons">
+    <form method="post">
+      <button class="btn btn-large btn-info" id="submit" name="submit" value="Submit">Go Home</button>
+    </form>
+    <!-- <div id="editsession" style="position: relative; top: -35px; left: 150px"> -->
+    <!--   <a class="btn btn-large btn-danger" -->
+    <!-- 	 href="/jsoneditor?message=%7B&quot;oldsessionname&quot;%3A&quot;{{ session }}&quot;%7D" >Cancel</a> -->
+    <!-- </div> -->
+  </div>
+  <script>
+    var sessiontxt = document.createElement('p');
+    // sessiontxt.setAttribute('width', 1410);
+    // sessiontxt.setAttribute('height', 740);
+    sessiontxt.innerText=all_session.toString().replace(/\"/g,"'").replace(/\\/g,"");
+    document.body.appendChild(sessiontxt);
+
+    json_all_session=$.parseJSON(all_session);
+    stra=JSON.stringify(all_session)
+    my_session="tiledviz_"+json_all_session["sessionname"].replace(" ","_");
+    var sessionDate = new Date();
+    var strDate=sessionDate.toLocaleDateString({day: "2-digit", month: "2-digit"}).replace(/\//g, "-") + "_" + sessionDate.toLocaleTimeString("fr-FR").replace(/:/g, "-");
+    var fileName = my_session + "_" + strDate + ".json";
+    //var file = new File([stra], fileName, {type: "text/plain;charset=utf-8"},{ autoBom: false });
+    //saveAs(file);
+
+    var a = document.createElement("a");
+    var file = new Blob([stra], {type: "text/plain;charset=utf-8"});
+    a.href = URL.createObjectURL(file);
+    a.download = fileName;
+    var button = document.createElement('button');
+    button.setAttribute('class',"btn btn-primary btn-lg");
+    button.innerText="Save";
+    button.onclick=function(){ a.click(); URL.revokeObjectURL(a.href) };
+    a.appendChild(button);
+    document.body.appendChild(a);
+
+  </script>
+</body>
+{% endblock %}
+

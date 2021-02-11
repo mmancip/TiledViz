@@ -48,6 +48,24 @@
     
   </div>
   </div>
+<div class="row">
+  <div class="col">
+    <a href="{{ url_for('logout')}}">
+      <button type="button" name="buttonLogout" class="btn btn-primary btn-block btn-lg">	Click to logout</button>
+    </a>
+  </div>
+  <div class="col">
+    <a href="{{ url_for('savesession')}}" >
+      <button type="button" name="buttonSave" class="btn btn-primary btn-block btn-lg">Save current session</button>
+      
+    </a>
+  </div>
+  <div class="col">
+    <a href="{{ url_for('retreivesession')}}" >
+      <button type="button" name="buttonRetreive" class="btn btn-primary btn-block btn-lg">Retreive previous session</button>
+    </a>
+  </div>
+</div>
 </div>
 </div>
 	

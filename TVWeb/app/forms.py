@@ -384,3 +384,17 @@ class RequestInvitLinks(FlaskForm):
 #     nbr_of_tiles = IntegerField("Number of tiles", validators=[InputRequired()])
 #     save = SubmitField("Go to grid")
 
+
+
+def BuildRetreiveSessionForm():
+    class RetreiveSessionForm(FlaskForm):
+        pass
+        
+    RetreiveSessionForm.session_file = FileField("Session file for TiledViz ",
+                                                 validators=[InputRequired()])
+    # RetreiveSessionForm.editjson = SubmitField("Use Json editor for this tileset.")
+        
+    RetreiveSessionForm.goback = SubmitField("Go back")
+    RetreiveSessionForm.submit = SubmitField("Next step")
+
+    return RetreiveSessionForm

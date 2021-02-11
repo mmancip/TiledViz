@@ -12,8 +12,8 @@ import requests
 
 from app import app, socketio, db
 
-from app.forms import RegisterForm, BuildLoginForm, BuildNewProjectForm, BuildAllProjectSessionForm, BuildOldProjectForm, BuildNewSessionForm, BuildTilesSetForm, BuildCopySessionForm, BuildOldTileSetForm, BuildConfigSessionForm, BuildTilesSetForm, BuildConnectionsForm
-#HomeForm, SettingsForm,
+from app.forms import RegisterForm, BuildLoginForm, BuildNewProjectForm, BuildAllProjectSessionForm, BuildOldProjectForm, BuildNewSessionForm, BuildTilesSetForm, BuildCopySessionForm, BuildOldTileSetForm, BuildConfigSessionForm, BuildConnectionsForm, BuildRetreiveSessionForm
+
 
 import app.models as models # DB management
 import json, os, pprint
@@ -380,8 +380,8 @@ def save_session(oldsessionname, newsuffix, newdescription, alltiles):
 # ====================================================================
 # Index/home page
 @app.route('/', methods=['GET', 'POST']) # decorators for routes ; all these ones will lead to index
-@app.route('/index')
-@app.route('/home')
+@app.route('/index', methods=['GET', 'POST'])
+@app.route('/home', methods=['GET', 'POST'])
 def index():
     try: 
         #logging.warning(str(session))
@@ -541,6 +541,104 @@ def login():
             flash("Unknown user {}".format(myform.username.data))
             return render_template("main_login.html", title="Unknown user : Login TiledViz", form=myform)
     return render_template("main_login.html", title="Login TiledViz", form=myform)        
+
+@app.route('/logout')
+def logout():
+    # remove the username from the session if it is there
+    session.pop('username', None)
+    return redirect(url_for('index'))
+
+@app.route('/savesession', methods=['GET', 'POST'])
+def savesession():
+
+    if ("username" in session):
+        user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
+    else:
+        flash("You are not connected. You must login before saving a session.")
+        return redirect("/login")
+
+    all_session={"username":session['username'],"is_client_active":session["is_client_active"],
+                 "projectname":session["projectname"],"sessionname":session["sessionname"]}
+    # logging.error("basic all_session : "+str(all_session))
+    for item in session:
+        logging.error("item all_session : "+str(item))
+        if item in all_session:
+            pass
+        elif (item == 'csrf_token'):
+            pass
+        else:
+            all_session[item]=session[item]
+            
+    logging.error("complete all_session : "+str(all_session))
+    
+    #all_connections=
+    # session["connection"+str(idconnection)])
+    # session["connection"+str(newconnection.id)]
+    json_all_session=json.JSONEncoder().encode(all_session)
+
+    if ( request.method == 'POST'):
+        flash("Session cookie saved.")
+        return redirect("/index")
+        #return redirect(url_for('index'))
+    
+    return render_template("savesession.html",
+                           all_session=json_all_session)
+
+@app.route('/retreivesession', methods=["GET", "POST"])
+def retreivesession():
+
+    if ("username" in session):
+        user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
+    else:
+        flash("You are not connected. You must login before retreive a session.")
+        return redirect("/login")
+
+    # if ( session["sessionname"] in  jsontransfert):
+    #     if ( "TheJson" in  jsontransfert[session["sessionname"]]):
+
+    myform = BuildRetreiveSessionForm()()
+
+    if myform.validate_on_submit():
+        logging.info("in tileset editor")
+
+        if(myform.goback.data):
+            logging.warning("go back to home without session.")
+            return redirect(url_for(".index"))
+        
+        if (myform.session_file.data) :
+            session_file = myform.session_file.data
+            logging.warning("Read session_file :"+myform.session_file.data.filename)
+            session_data = json.loads(json.loads(session_file.read().decode('utf-8')))
+            logging.warning("Session_data :"+str(session_data))
+            logging.warning("Session_data type :"+str(type(session_data)))
+            logging.warning("Session_data user :"+str(session_data['username']))
+            
+            session["username"]=session_data['username']
+            session["is_client_active"]=session_data["is_client_active"]
+            session["projectname"]=session_data["projectname"]
+            session["sessionname"]=session_data["sessionname"]
+            all_session={"username":session['username'],"is_client_active":session["is_client_active"],
+                 "projectname":session["projectname"],"sessionname":session["sessionname"]}
+            
+            logging.error("basic all_session : "+str(all_session))
+            for item in session_data:
+                if item in all_session:
+                    pass
+                else:
+                    session[item]=session_data[item]
+                    logging.error("item "+str(item)+" all_session : "+str(session_data[item]))
+
+            flash("Session cookie restored.")
+            return redirect("/index")
+
+        # if myform.editjson.data:
+        #     # jsontransfert[session["sessionname"]]={"callfunction": '{"function":"edittileset",'+'"args":{"oldtilesetid":"'+str(oldtilesetid)+'"}}',
+        #     #                                        "TheJson":json_tiles}
+        #     pass
+        
+    #    return render_template("retreivesession.html")
+    return render_template("main_login.html", title="Retreive saved session for TiledViz", form=myform)
+
 
 # For display in form list, specify length of elements
 sessionl=str(80)
@@ -1706,7 +1804,7 @@ def vncconnection():
                         jsontransfert[session["sessionname"]]={}
                         
                     json_tiles_file=open(out_nodes_json)
-                    # TODO jsontransfert[session["sessionname"]]["TheJson"] => TheJon for each tileset not just session !!
+                    # TODO jsontransfert[session["sessionname"]]["TheJson"] => TheJon for each tileset not just session !! NON
                     jsontransfert[session["sessionname"]]["TheJson"]=json.loads(json_tiles_file.read())
                     json_tiles_file.close()
                     logging.warning("nodes.json read and OK "+out_nodes_json)
