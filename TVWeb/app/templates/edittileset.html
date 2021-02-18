@@ -1,0 +1,71 @@
+{% extends "base_main_template.html" %}
+
+{% block additional_scripts_css %}
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/forms.css') }}">
+{% endblock %}
+
+{% block content %}
+<!-- 	<h1> Welcome!</h1>-->
+<div class=container>
+	<div class="column">
+		{% if message %}
+		<div class="row text-center warning_user">
+			{{ message }}
+		</div>
+		{% endif %}
+		{% with messagesF = get_flashed_messages() %}
+		{% if messagesF %}
+		<ul class=flashes>
+		  {% for messageF in messagesF %}
+		  <li>{{ messageF }}</li>
+		  {% endfor %}
+		</ul>
+		{% endif %}
+		{% endwith %}
+		{% import "bootstrap/wtf.html" as wtf %}
+		{{ wtf.quick_form(form, button_map={"submit":"primary"}, id="login-form") }}
+		<script type="text/javascript">
+		  jQuery(document).ready(function() {
+		      $("#editjson").after("<br />");
+		      $("#editjson").after("<br />");
+		      changeURL=function() {
+			  if($("#type_of_tiles-1")[0].checked ) {
+		              $("#dataset_path").parent().show();
+			  } else {
+		              $("#dataset_path").parent().hide();
+			  };
+		      }
+		    
+		      changeConnection=function() {
+			  if($("#type_of_tiles-2")[0].checked) {
+		              $("#script_launch_file").parent().show();
+		              $("#configfiles").parent().show();
+		              $("#editconnection").show();
+			      $('input[id^=manage_connection-]').parent().show()
+			      $('label[for=manage_connection]').parent().show()
+			      $('label[for=manage_connection]').parent().next().show()
+			  } else {
+		              $("#script_launch_file").parent().hide();
+		              $("#configfiles").parent().hide();
+		              $("#editconnection").hide();
+			      $('input[id^=manage_connection-]').parent().hide()
+			      $('label[for=manage_connection]').parent().hide()
+			      $('label[for=manage_connection]').parent().next().hide()
+			  };
+		      }
+		      changeALL=function() {
+			  changeURL();
+			  changeConnection();  
+		      }
+		      $("input[id^=type_of_tiles").on("change",changeALL);
+		      changeALL();
+		  });
+		</script>
+		<div class="row text-center">
+			<a href="{{ url_for('index')}}">
+				<button type="button" class="btn btn-primary btn-block btn-lg">Back to home page</button>
+			</a>
+		</div>
+	</div>
+</div>
+{% endblock %}

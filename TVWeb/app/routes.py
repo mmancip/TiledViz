@@ -311,7 +311,7 @@ def save_session(oldsessionname, newsuffix, newdescription, alltiles):
 
         urlbool=False
         connectionbool=False        
-        if (tileset.type_of_tiles == "PICTURE" or tileset.type_of_tiles == "URL"):
+        if (tileset.type_of_tiles == "URL"):
             urlbool=True
         elif(tileset.type_of_tiles == "CONNECTION"):
             # Creation of the tiles and launch connection to remote machine.
@@ -626,7 +626,6 @@ def retreivesession():
                     pass
                 else:
                     session[item]=session_data[item]
-                    logging.error("item "+str(item)+" all_session : "+str(session_data[item]))
 
             flash("Session cookie restored.")
             return redirect("/index")
@@ -1186,7 +1185,7 @@ def addtileset():
 
         urlbool=False
         connectionbool=False
-        if (myform.type_of_tiles.data == "PICTURE" or myform.type_of_tiles.data == "URL"):
+        if (myform.type_of_tiles.data == "URL"):
             urlbool=True
         elif(myform.type_of_tiles.data == "CONNECTION"):
             launch_file=myform.script_launch_file.data
@@ -1199,7 +1198,14 @@ def addtileset():
         conn_session=db.session.query(models.Session).filter_by(name=session["sessionname"]).one()
         creation_date=datetime.datetime.now()
         tilesetname=myform.name.data
-        datapath=str(myform.dataset_path.data)
+        if ( myform.dataset_path.data ):
+            datapath=str(myform.dataset_path.data)
+        else:
+            if (urlbool):
+                datapath="http"
+            else:
+                datapath=""
+                
         newtileset,exist=create_newtileset(tilesetname, conn_session, myform.type_of_tiles.data, datapath, creation_date)
         if (not exist):
             try:
@@ -1269,7 +1275,7 @@ def addtileset():
             message = '{"oldsessionname":"'+session["sessionname"]+'"}'
             return redirect(url_for(".editsession",message=message))
     
-    return render_template("main_login.html", title="New TileSet TiledViz", form=myform, message=message)
+    return render_template("edittileset.html", title="New TileSet TiledViz", form=myform, message=message)
 
 
 # Copy an old TileSet
@@ -1321,7 +1327,7 @@ def copytileset():
         # TODO : get back old connection if exists
         urlbool=False
         connectionbool=False
-        if (oldtileset.type_of_tiles == "PICTURE" or oldtileset.type_of_tiles == "URL"):
+        if (oldtileset.type_of_tiles == "URL"):
             urlbool=True
         elif(oldtileset.type_of_tiles == "CONNECTION"):
             connectionbool=True
@@ -1340,7 +1346,7 @@ def copytileset():
             message = '{"oldsessionname":"'+session["sessionname"]+'"}'
             return redirect(url_for(".editsession",message=message))
             
-    return render_template("main_login.html", title="Copy TileSet TiledViz", form=myform, message=message)
+    return render_template("edittileset.html", title="Copy TileSet TiledViz", form=myform, message=message)
 
 # Edit old new TileSet
 @app.route('/edittileset', methods=["GET", "POST"])
@@ -1598,15 +1604,19 @@ def edittileset():
             
 
         urlbool=False
-        
-        if (myform.type_of_tiles.data == "PICTURE" or myform.type_of_tiles.data == "URL"):
+        if (myform.type_of_tiles.data == "URL"):
             urlbool=True
 
         tilesetname=oldtileset.name
         
         creation_date=datetime.datetime.now()
-        datapath=str(myform.dataset_path.data)
-
+        if (myform.dataset_path.data):
+            datapath=str(myform.dataset_path.data)
+        else:
+            if (urlbool):
+                datapath="http"
+            else:
+                datapath=""          
         oldtileset.datapath=datapath
         oldtileset.creation_date=creation_date
         db.session.commit()
@@ -1707,7 +1717,7 @@ def edittileset():
             message = '{"oldsessionname":"'+session["sessionname"]+'"}'
             return redirect(url_for(".editsession",message=message))
     
-    return render_template("main_login.html", title="Edit TileSet TiledViz", form=myform, message=message)
+    return render_template("edittileset.html", title="Edit TileSet TiledViz", form=myform, message=message)
 
 # # 
 # def linkrandom(nbchar):
@@ -2748,7 +2758,7 @@ def not_found():
 def routevnc(path=None,dummy=None):
     is_noVNC=re.search(r''+"noVNC",dummy)
     if ( dummy == "favicon.ico" ):
-        logging.warning("proxy favicon : \n "+str(request.host_url))
+        # logging.warning("proxy favicon : \n "+str(request.host_url))
         resp = requests.request(
             method=request.method,
             url=request.host_url,

@@ -272,34 +272,36 @@ def BuildTilesSetForm(oldtileset=None,json_tiles_text=None,onlycopy=False,editco
     TilesSetForm.submit1 = SubmitField("Next step")
     TilesSetForm.name = StringField("Tiles Set name (required)", default=name, validators=[InputRequired()])
     if (not onlycopy):
-        TilesSetForm.dataset_path = StringField("Path or main URL of dataset (add to tiles)", default=dataset_path, validators=[Optional()])
         TilesSetForm.type_of_tiles = RadioField(label='Type of the tiles',
-                                                description='Connection with a VM, a picture, a web page.',
+                                                description='Connection with some pictures or web pages or remote VMs.',
                                                 choices=[("PICTURE","a set of pictures on the web or locally"),
                                                          ("URL","a set of web links in html"),
                                                          ("CONNECTION","Use a connection to a remote machine")
                                                 ],
                                                 default=type_of_tiles,
                                                 validators=[Optional()])
-        TilesSetForm.json_tiles_text = TextAreaField("Past json object for tileset ",default=json_tiles_text,
+        TilesSetForm.json_tiles_text = TextAreaField("Paste json object for tileset ",default=json_tiles_text,
                                                      validators=[Optional()])
         TilesSetForm.json_tiles_file = FileField("File json object for tileset ",
                                                  validators=[Optional()])
 
         TilesSetForm.editjson = SubmitField("Use Json editor for this tileset.")
         
-        TilesSetForm.script_launch_file = FileField(u'python script for Connection machine to launch the TileSet',
-                        validators=[Optional()])
+        TilesSetForm.dataset_path = StringField("Path or main URL of dataset (add to tiles)", default=dataset_path, validators=[Optional()])
+        TilesSetForm.script_launch_file = FileField(
+            u'python script for Connection machine to launch the TileSet',
+            validators=[Optional()])
 
         # TODO
         # TilesSetForm.script_launch_text = TextAreaField("u'Edit here python script for Connection machine.',
 
         # same option as Connection form in TileSet form because of config files that don't depend of connection.
-        TilesSetForm.configfiles = MultipleFileField(description="Configuration files placed in connection dir and upload in CASE dir on HPC frontend.",
-                                                     validators=[Optional()])
+        TilesSetForm.configfiles = MultipleFileField(label="ConfigFiles",
+            description="Configuration files placed in connection dir and upload in CASE dir on HPC frontend.",
+            validators=[Optional()])
 
         if (editconnection):
-            TilesSetForm.editconnection = SubmitField("Edit Connection")
+            TilesSetForm.editconnection = SubmitField(label="editconnection",description="Edit Connection")
             TilesSetForm.manage_connection= RadioField(label='Connections',
                                         description='Manage Connection for this tileset.',
                                         choices=[("Use","Use an old one."),
@@ -314,10 +316,10 @@ def BuildTilesSetForm(oldtileset=None,json_tiles_text=None,onlycopy=False,editco
             #TilesSetForm.editconnection = SubmitField("Manage connection for this tileset.")
 
         #TilesSetForm.openports_between_tiles = FieldList(IntegerField("port :",validators=[Optional()]),description="Open port in visualisation network",min_entries=2,max_entries=5) 
-   
+        
     TilesSetForm.goback = SubmitField("Go back")
     TilesSetForm.submit = SubmitField("Next step")
-
+    
     return TilesSetForm
 
 
@@ -340,6 +342,12 @@ def BuildConnectionsForm(oldconnection=None,json_tiles_text=None):
     ConnectionForm.host_address = StringField("Name or IP of the machine (required)", default=host_address, validators=[InputRequired()])
 
     ConnectionForm.debug = BooleanField("Debug mode",default=False)
+
+    # Connection files specific for associated TileSet
+    ConnectionForm.configfiles = MultipleFileField(label="Connection configuration files (required for connection). ",
+                                                   description="Configuration files placed in connection dir and upload in CASE dir on HPC frontend.",
+                                                   validators=[Optional()])
+
     
     #### liste A REVOIR  (cf TVConnection.py)
     ConnectionForm.auth_type = RadioField(label='Authentication type',
@@ -362,12 +370,6 @@ def BuildConnectionsForm(oldconnection=None,json_tiles_text=None):
                                           validators=[Optional()])
     ConnectionForm.scheduler_file = FileField("Script to launch CONTAINERs on remote machine (required for connection) : ",validators=[Optional()])
     # ConnectionForm.scheduler_text = TextAreaField("Edit here script to launch CONTAINERs on remote machine.",validators=[Optional()])
-    
-
-    # Connection files specific for associated TileSet
-    ConnectionForm.configfiles = MultipleFileField(label="Connection configuration files (required for connection). ",
-                                                   description="Configuration files placed in connection dir and upload in CASE dir on HPC frontend.",
-                                                   validators=[Optional()])
 
     ConnectionForm.submit = SubmitField("Next step")
     return ConnectionForm
