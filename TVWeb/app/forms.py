@@ -302,6 +302,7 @@ def BuildTilesSetForm(oldtileset=None,json_tiles_text=None,onlycopy=False,editco
 
         if (editconnection):
             TilesSetForm.editconnection = SubmitField(label="editconnection",description="Edit Connection")
+            TilesSetForm.shellconnection = SubmitField(label="shellconnection",description="Direct shell Connection")
             TilesSetForm.manage_connection= RadioField(label='Connections',
                                         description='Manage Connection for this tileset.',
                                         choices=[("Use","Use an old one."),

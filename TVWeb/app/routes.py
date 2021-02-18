@@ -272,6 +272,60 @@ def copy_tileset_connection(tileset,tileset1,sessionname ):
     tileset1.config_files=config_files
     tileset1.launch_file=tileset.launch_file
 
+
+# Function to launch connection page
+def launch_connection(theTS, theConnect, myhost_address, myauth_type, mycontainer, myscheduler):
+    try:
+        logging.warning("editconnection: "
+                        +str(session["username"])+" ; "
+                        +str(myhost_address)+" ; "
+                        +str(myauth_type)+" ; "
+                        +str(mycontainer)+" ; "
+                        +str(myscheduler)+" ; "
+                        +str(theTS.id)+" ; "
+                        +str(theConnect.id))
+        myflush()
+
+        #  Wait NbTimeAlive for TVSecure to get VNC view to give connection again.
+        NbTimeAlive = 20
+        passpath="/home/connect"+str(theConnect.id)+"/vncpassword"
+        logging.warning("Go to vnc with path "+passpath)
+        
+        count=0
+        while(True):
+            if (count > NbTimeAlive):
+                strerror="Connection has never been reach. Go back to TileSet."
+                logging.error(strerror)
+                flash(strerror)
+                message = '{"oldtilesetid": "'+str(theTS.id)+'"}'
+                logging.warning(strerror+" message "+message)
+                return redirect(url_for(".edittileset",message=message))
+            count=count+1
+            logging.warning("count = "+str(count))
+            # GET VNC password in 
+            # security problem here if server is attacked ?
+            time.sleep(timeAlive)
+            #os.system("ls -la "+passpath)
+            if (os.path.isfile(passpath)):
+                with open(passpath,'r') as f:
+                    vncpassword=re.sub(r'\n',r'',f.read())
+                f.close()
+                logging.warning("and password : "+vncpassword)
+            else:
+                logging.error("File not found in connection container "+passpath)
+                vncpassword=""
+            
+            message = '{"oldtilesetid":'+str(theTS.id)+',"connectionid":'+str(theConnect.id)+',"sessionname":"'+session["sessionname"]+'"}'
+            session["connection"+str(theConnect.id)]=' {"callfunction":"edittileset",'+'"args":{"oldsessionname":"'+str(session["sessionname"])+'","oldtilesetid":"'+str(theTS.id)+'"}, "vncpassword":"'+vncpassword+'"}'
+
+            logging.warning("editconnection in session : "+str(session["connection"+str(theConnect.id)])+" message :"+str(message))
+            #TODO logging.debug
+            myflush()
+            return message
+    except Exception:
+        traceback.print_exc(file=sys.stderr)
+
+
 # Define new session
 def save_session(oldsessionname, newsuffix, newdescription, alltiles):
     creation_date=datetime.datetime.now()
@@ -561,7 +615,7 @@ def savesession():
                  "projectname":session["projectname"],"sessionname":session["sessionname"]}
     # logging.error("basic all_session : "+str(all_session))
     for item in session:
-        logging.error("item all_session : "+str(item))
+        logging.info("item all_session : "+str(item))
         if item in all_session:
             pass
         elif (item == 'csrf_token'):
@@ -569,7 +623,7 @@ def savesession():
         else:
             all_session[item]=session[item]
             
-    logging.error("complete all_session : "+str(all_session))
+    logging.info("complete all_session : "+str(all_session))
     
     #all_connections=
     # session["connection"+str(idconnection)])
@@ -620,7 +674,7 @@ def retreivesession():
             all_session={"username":session['username'],"is_client_active":session["is_client_active"],
                  "projectname":session["projectname"],"sessionname":session["sessionname"]}
             
-            logging.error("basic all_session : "+str(all_session))
+            logging.info("basic all_session : "+str(all_session))
             for item in session_data:
                 if item in all_session:
                     pass
@@ -1430,6 +1484,9 @@ def edittileset():
             if (myform.editconnection.data):
                 message = '{"oldtilesetid":'+str(oldtileset.id)+',"oldsessionname":"'+session["sessionname"]+'"}'
                 return redirect(url_for(".editconnection",message=message))
+            if (myform.shellconnection.data):
+                message = '{"direct":1,"oldtilesetid":'+str(oldtileset.id)+',"oldsessionname":"'+session["sessionname"]+'"}'
+                return redirect(url_for(".editconnection",message=message))
             
         if(myform.goback.data):
             logging.debug("go back to edit old session : "+session["sessionname"])
@@ -1730,7 +1787,8 @@ def edittileset():
 @app.route('/vncconnection', methods=['GET', 'POST'])
 def vncconnection():
     logging.warning("Enter in connection.")
-
+    myflush()
+    
     try:
         message=json.loads(request.args["message"])
     except json.decoder.JSONDecodeError as e:
@@ -1986,7 +2044,7 @@ def addconnection():
                 with open(passpath,'r') as f:
                     vncpassword=re.sub(r'\n',r'',f.read())
                 f.close()
-                logging.debug("and password : "+vncpassword)
+                logging.info("and password : "+vncpassword)
 
                 message = '{"oldtilesetid":'+str(newtileset.id)+',"connectionid":'+str(newConnection.id)+',"sessionname":"'+session["sessionname"]+'"}'
                 session["connection"+str(newConnection.id)]=' {"callfunction":"edittileset",'+'"args":{"oldsessionname":"'+str(session["sessionname"])+'","oldtilesetid":"'+str(newtileset.id)+'"}, "vncpassword":"'+vncpassword+'"}'
@@ -2033,8 +2091,18 @@ def editconnection():
         logging.error("You (user "+str(user_id)+") don't have connection information in your personal cookie for this connection : "+str(idconnection))
         message=request.args["message"]
         return redirect(url_for(".edittileset",message=message))
+          
+    if ("direct" in message):
+        del message["direct"]
+        message=launch_connection(oldtileset,oldconnection,
+                          oldconnection.host_address,
+                          oldconnection.auth_type,
+                          oldconnection.container,
+                          oldconnection.scheduler)
+        return redirect(url_for(".vncconnection",message=message))
+        flash("Error direct connection to shell.")
+
         
-    
     myform = BuildConnectionsForm(oldconnection)()
     logging.debug("ConnectionForm edit."+str(message))
     if myform.validate_on_submit():
@@ -2131,51 +2199,12 @@ def editconnection():
                 strrm="rm -f "+newfilename
                 os.system(strrm)
 
-        logging.warning("editconnection: "
-                        +str(session["username"])+" ; "
-                        +str(myform.host_address.data)+" ; "
-                        +str(myform.auth_type.data)+" ; "
-                        +str(myform.container.data)+" ; "
-                        +str(myform.scheduler.data)+" ; "
-                        +str(oldtileset.id)+" ; "
-                        +str(oldconnection.id))
-        myflush()
-
-        #  Wait NbTimeAlive for TVSecure to get VNC view to give connection again.
-        NbTimeAlive = 20
-        passpath="/home/connect"+str(oldconnection.id)+"/vncpassword"
-        logging.warning("Go to vnc with path "+passpath)
-    
-        count=0
-        while(True):
-            if (count > NbTimeAlive):
-                strerror="Connection has never been reach. Go back to TileSet."
-                logging.error(strerror)
-                flash(strerror)
-                message = '{"oldtilesetid": "'+str(oldtileset.id)+'"}'
-                logging.warning(strerror+" message "+message)
-                return redirect(url_for(".edittileset",message=message))
-            count=count+1
-            
-            # GET VNC password in 
-            # security problem here if server is attacked ?
-            time.sleep(timeAlive)
-            #os.system("ls -la "+passpath)
-            if (os.path.isfile(passpath)):
-                with open(passpath,'r') as f:
-                    vncpassword=re.sub(r'\n',r'',f.read())
-                f.close()
-                logging.debug("and password : "+vncpassword)
-            else:
-                logging.error("File not found in connection container "+passpath)
-                vncpassword=""
-                
-            message = '{"oldtilesetid":'+str(oldtileset.id)+',"connectionid":'+str(oldconnection.id)+',"sessionname":"'+session["sessionname"]+'"}'
-            session["connection"+str(oldconnection.id)]=' {"callfunction":"edittileset",'+'"args":{"oldsessionname":"'+str(session["sessionname"])+'","oldtilesetid":"'+str(oldtileset.id)+'"}, "vncpassword":"'+vncpassword+'"}'
-
-            logging.warning("editconnection in session : "+str(session["connection"+str(oldconnection.id)])+" message :"+str(message))
-            #TODO logging.debug
-            return redirect(url_for(".vncconnection",message=message))
+        message=launch_connection(oldtileset,oldconnection,
+                                  myform.host_address.data,
+                                  myform.auth_type.data,
+                                  myform.container.data,
+                                  myform.scheduler.data)
+        return redirect(url_for(".vncconnection",message=message))
 
     return render_template("main_login.html", title="Edit Connection TiledViz", form=myform, message=message)
 
