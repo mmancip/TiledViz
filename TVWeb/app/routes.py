@@ -192,8 +192,7 @@ def convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath):
 # => copy connection + config files +     vnctransfert=json.loads(session["connection"+str(idconnection)]) + session["connection"+str(idconnection)]
 # TODO message to connection user owner grid : "Are you OK to copy your connection for tileset.name ?"
 def copy_connection(oldtileset,newtileset,newsessionname):
-    oldconnection=oldtileset.connection
-    idconnection=oldconnection.id
+    oldconnection=oldtileset.connection        
     user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
 
     message = '{"oldtilesetid":'+str(newtileset.id)+',"oldsessionname":"'+session["sessionname"]+'"}'
@@ -256,7 +255,9 @@ def copy_connection(oldtileset,newtileset,newsessionname):
 
 # Copy a mirror connection and tileset files
 def copy_tileset_connection(tileset,tileset1,sessionname ):
-    copy_connection(tileset,tileset1,sessionname)
+    oldconnection=tileset.connection
+    if (oldconnection):
+        copy_connection(tileset,tileset1,sessionname)
     user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
     user_path=os.path.join("/TiledViz/TVFiles",str(user_id))
     olddir=os.path.join(user_path,str(tileset.id_connections))
@@ -380,8 +381,9 @@ def save_session(oldsessionname, newsuffix, newdescription, alltiles):
             logging.error("copy config data :"+tileset.launch_file+"  "+str(tileset.config_files))
 
             copy_tileset_connection(tileset,tileset1,newsession.name)
-            logging.error("copy id connection :  "+str(tileset1.id_connections))
-            
+            if (tileset1.connection):
+                logging.error("copy id connection :  "+str(tileset1.id_connections))
+
             logging.error("copy config data 1 :"+tileset1.launch_file+"  "+str(tileset1.config_files))
             
             
@@ -421,6 +423,41 @@ def save_session(oldsessionname, newsuffix, newdescription, alltiles):
     db.session.commit()
     return newsession
     
+def remove_this_connection(oldtileset,idconnection,user_id):
+    oldconnection=oldtileset.connection
+    oldtilesetid=oldtileset.id
+    if (oldconnection.id != idconnection):
+        logging.error()
+        return
+    # Build connection path
+    user_path=os.path.join("/TiledViz/TVFiles",str(user_id))
+    connectionpath=os.path.join(user_path,str(idconnection))
+
+    for (dirpath, dirname, filelist) in os.walk(connectionpath):
+        for filename in filelist:
+            strrm="rm -f "+os.path.join(dirpath,filename)
+            #TODO
+            os.system(strrm)
+            logging.warning("Remove file for tileset "+oldtileset.name+" : "+os.path.join(dirpath,filename))
+        #TODO
+        os.rmdir(dirpath)
+        logging.warning("Remove dir for tileset "+oldtileset.name+" : "+dirpath)
+    
+    oldtileset.id_connections=None
+    #oldtileset.type_of_tiles == None
+    oldtileset.config_files=""
+    flag_modified(oldtileset,"config_files")
+    oldconnection.config_files=""
+    flag_modified(oldconnection,"config_files")
+    logging.warning("removeconnection: "
+                    +str(session["username"])+" ; "
+                    +str(oldtilesetid)+" ; "
+                    +str(idconnection))
+    db.session.commit()
+    myflush()
+
+    session["connection"+str(idconnection)]=""
+    del(session["connection"+str(idconnection)])
 
 # @app.route('/upload', methods=['GET', 'POST'])
 # async def upload(request):
@@ -846,7 +883,8 @@ def allmysessions():
             session["sessionname"]=myform.chosen_session_invited.data
         else:
             logging.warning("You must choose a session")
-            flash("You must choose a session in your projects or one you were invited on.")
+            flash("You didn't select a session or click 'Go' button on search bar.\n"+
+                  "You must choose a session in your projects or one you were invited on.")
             return redirect("/allsessions")
             
         logging.debug("Which is session "+str(db.session.query(models.Session.id).filter_by(name=session["sessionname"]).one()[0]))
@@ -2241,35 +2279,7 @@ def removeconnection():
         message=request.args["message"]
         return redirect(url_for(".edittileset",message=message))
 
-    # Build connection path
-    user_path=os.path.join("/TiledViz/TVFiles",str(user_id))
-    connectionpath=os.path.join(user_path,str(idconnection))
-
-    for (dirpath, dirname, filelist) in os.walk(connectionpath):
-        for filename in filelist:
-            strrm="rm -f "+os.path.join(dirpath,filename)
-            #TODO
-            os.system(strrm)
-            logging.warning("Remove file for tileset "+oldtileset.name+" : "+os.path.join(dirpath,filename))
-        #TODO
-        os.rmdir(dirpath)
-        logging.warning("Remove dir for tileset "+oldtileset.name+" : "+dirpath)
-    
-    oldtileset.id_connections=None
-    #oldtileset.type_of_tiles == None
-    oldtileset.config_files=""
-    flag_modified(oldtileset,"config_files")
-    oldconnection.config_files=""
-    flag_modified(oldconnection,"config_files")
-    logging.warning("removeconnection: "
-                    +str(session["username"])+" ; "
-                    +str(oldtilesetid)+" ; "
-                    +str(idconnection))
-    db.session.commit()
-    myflush()
-
-    session["connection"+str(idconnection)]=""
-    del(session["connection"+str(idconnection)])
+    remove_this_connection(oldtileset,idconnection,user_id)
     
     flash("Connection "+str(idconnection)+" for tileset "+oldtileset.name+" has been removed.")
     message=request.args["message"]
@@ -2438,6 +2448,10 @@ def show_grid():
                 actions_file=open(thistileset.config_files["actions.json"],'r')
                 tiles_actions[thistileset.name]=json.load(actions_file)
                 tiles_actions[thistileset.name]["action0"]=["launch_nodes_json","system_update_alt"]
+                # Search kill_all_containers action to register it in session cookie for this connection:
+                for actionid in tiles_actions[thistileset.name]:
+                    if (tiles_actions[thistileset.name][actionid][0] == "kill_all_containers"):
+                        session["connection"+str(tsconnection.id)]=session["connection"+str(tsconnection.id)].replace(', "vncpassword"',', "killid":"'+actionid.replace("action","")+'", "vncpassword"')
         else:
             tiles_actions[thistileset.name]={}
         ts=ts+1
@@ -2587,16 +2601,26 @@ def ClickAction(cdata):
     logging.warning("[->] Click on action "+action+ " "+ str(cdata["id"]) + " in room " + str(croom) + " for selection "+ str(selections))
 
     actionid=action.replace("action", "")
-    selections=actionid+","+selections
+    command=actionid+","+selections
     
     oldtileset=db.session.query(models.TileSet).filter_by(name=TS).one()
     oldconnection=oldtileset.connection
-    logging.warning("action: "
-                    +str(session["username"])+" ; "
-                    +str(oldtileset.id)+" ; "
-                    +str(oldconnection.id)+" ; "
-                    +str(selections))
-    myflush()
+    user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
+    if (oldconnection):
+        if  (user_id == oldconnection.id_users) :
+            logging.warning("action: "
+                            +str(session["username"])+" ; "
+                            +str(oldtileset.id)+" ; "
+                            +str(oldconnection.id)+" ; "
+                            +str(command))
+            myflush()
+            if (selections==","):
+                searchKillid=re.search(r'"killid":"\d+"',session["connection"+str(oldconnection.id)])
+                if (searchKillid):
+                    killid=searchKillid.group().replace('"killid":','').replace('"','')
+                    if (actionid==killid):
+                        time.sleep(timeAlive)                        
+                        remove_this_connection(oldtileset,oldconnection.id,user_id)
 
 # Draw    
 sidDraw=""

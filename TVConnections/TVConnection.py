@@ -146,6 +146,13 @@ class ClientAction(threading.Thread):
             logging.warning("ClientAction : problem with action "+funaction+" launch.")
             pass
 
+# This function must be overlap in CASE job script for specific request:
+def kill_all_containers():
+    client.send_server(ExecuteTS+' killall Xvnc')
+    print("Out of killall command : "+ str(client.get_OK()))
+    client.send_server(LaunchTS+" "+COMMANDStop)
+    client.close()
+        
 # return the IP of a client tileNum or tileId
 def Get_client_IP(tileNum=-1,tileId='001'):
     if ( tileNum > -1 ):
@@ -172,7 +179,7 @@ def Get_client_IP(tileNum=-1,tileId='001'):
     except:
         logging.error("Cannot retreive ip from %s." % (Id) )
         return "-1"
-
+    
 def tunnel():
     client.send_server(ExecuteTS+' /opt/tunnel_ssh '+SOCKETdomain+' '+HTTP_FRONTEND+' '+HTTP_LOGIN)
     logging.warning("Out of tunnel_ssh : "+ str(client.get_OK()))
@@ -521,7 +528,7 @@ if __name__ == '__main__':
         except:
             traceback.print_exc(file=sys.stdout)
             code.interact(banner="Error ClientAction :",local=dict(globals(), **locals()))
-
+        
         #logging.warning("Actions \n",str(tiles_actions))
         sys.stdout.flush()
         isActions=True

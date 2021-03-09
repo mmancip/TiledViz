@@ -592,7 +592,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		// console.log("sticker clicked", this.id);
 		var splittedId = this.id.split("_");
 		var nodeId = splittedId.pop();
-		var node = me.getNodesById()["node"+nodeId];
+		var node = me.getNodes()["node"+nodeId];
 		var zoomed = $('#Zoomed'+nodeId);
 		zoomed.children(".stickers_zone").find('#'+this.id).remove();
 		var nodelev=$('#'+nodeId).css("z-index");
@@ -1056,7 +1056,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    }
 	    EndOfGroupping=true;
 
-	} else if (HideNodesTagFlag) {
+	} else if (me.getHideNodesTagFlag()) {
 	    var thisTagToGroup = this.id;
 	    if (me.getHideNodesTag())  { 
 		// Hide nodes for this tag 
@@ -1079,7 +1079,6 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		}
 		$('#tag-notif').text("Showing the tiles bearing " + thisTagToGroup + " tag.")
 		addBlink(this);
-		hideNodesTag=true;
  	    }
 	} else if (KillNodesTagFlag) {
 	    var tagToKill = this.id;
@@ -1269,10 +1268,13 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     	    if(v==true)  { 
 		//console.log("Hide nodes with tags");
     		me.disableOtherTagFunction("HideNodesTagFlag");
+    		me.setHideNodesTagFlag(true);
+		me.setHideNodesTag(true);
     		$('#'+id+'option'+optionNumber).removeClass('hideTagsButtonIcon').addClass('closeHideTagsButtonIcon');
 	    } else { 
 		//console.log("Show nodes with tags");
     		me.setHideNodesTagFlag(false);
+		me.setHideNodesTag(false);
     		$('#'+id+'option'+optionNumber).removeClass('closeHideTagsButtonIcon').addClass('hideTagsButtonIcon');
 	    }
 	});
@@ -1284,11 +1286,14 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     	    if(v==true)  { 
     		//console.log("Hide nodes with tags");
     		me.setHideNodesTagFlag(true);
+		me.setHideNodesTag(false);
     		$('#'+id+'option'+optionNumber).removeClass('showTagsButtonIcon').addClass('closeShowTagsButtonIcon');
     	    } else { 
     		//console.log("Show nodes with tags");
     		me.disableOtherTagFunction("HideNodesTagFlag");
     		$('#'+id+'option'+optionNumber).removeClass('closeShowTagsButtonIcon').addClass('showTagsButtonIcon');
+    		me.setHideNodesTagFlag(false);
+		me.setHideNodesTag(true);
     	    }
     	});
     tagHideTagsMenuIconClassAttributesTab.push('showTagsButtonIcon')
@@ -3945,9 +3950,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			    while(appliedFilters.length>0)  { 
 				buffer=appliedFilters.pop();
 
-				for(O in nodesById)  { 
-				    nodesById[O].removeElementFromNodeTagList(buffer);
-				}
+				// for(O in nodesById)  { 
+				//     nodesById[O].removeElementFromNodeTagList(buffer);
+				// }
 
 				numOfFilter--;
 			    }
@@ -4013,6 +4018,19 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
     /** Show next tiles. */
     nextList=[]
+    var IntervalClearSelection=100;
+    var IntervalCloseTagsGlobal=100;
+    var IntervalSelectOffStickers=100;
+    var IntervalShareSelection=100;
+    var IntervalAddNextTag=300;
+    var IntervalCloseSelectTag=100;
+    var IntervalSelectionToTag=100;
+    var IntervalApplyToTag=200;
+    var IntervalcheckCloseSelectTag=100;
+    var IntervalCloseSelect=100;
+    var IntervalAlignTag=100;
+    var IntervalCloseAll=300;
+
     menuTitleTab.push("Show next tiles.")
     menuEventTab.push(    function(v,id,optionNumber){
 	
@@ -4021,97 +4039,128 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	if ($('#'+globalTagsList[0]).position() == undefined)
 	    $('.tagsGlobalMenuButtonIcon').click()
 
-	me.setSelectingTags(true);
+	me.setSelectTags(true);
 	$('#clearSelectionButtonIcon').click();
+
 	var checkEndcloseTagsGlobalMenu = setInterval(function() {
 	    if ($('.closeTagsGlobalMenuButtonIcon').length ) {
 		clearInterval(checkEndcloseTagsGlobalMenu);
+		
+		// We can't click on SelectTagMenu and .tagsMenuSelectButton
+		// because nodes tagged off are not identically distributed to all clients.
+		// Then we use here internal function setSelectTags and share_Selection after.
+		if ($('.closeSelectTagMenuButtonIcon').length == 0)
+		    $('.selectTagMenuButtonIcon').click();
+
+		var checkselectTagMenu = setInterval(function() {
+		    if ($('.closeSelectTagMenuButtonIcon').length) {
+			clearInterval(checkselectTagMenu);
+			$('#tag-legend>#Off').click();
+			addBlink($('#tag-legend>#Off'));
+     			//console.log("Selection Off");
+			var numberOff=$('.Off').length;
+			var numberOn=$('.On').length;
+			// Select next "Off" tiles with max number "On" or "Off" if it is lower
+			var numberToView=Math.min(numberOn,numberOff)
+
+			
+			var checkEndselectOffStickers = setInterval(function() {
+			    if ( me.getSelectedNodes().length >= numberToView) {
+				clearInterval(checkEndselectOffStickers);
+				selectedNodes=selectedNodes.slice(0,numberToView);
 	
-	// We can't click on SelectTagMenu and .tagsMenuSelectButton
-	// because nodes tagged off are not identically distributed to all clients.
-	// Then we use here internal function setSelectingTags and share_Selection after.
-	$('.selectTagMenuButtonIcon').click();
-	$('#tag-legend>#Off').click();
-	addBlink($('#tag-legend>#Off'));
-     	//console.log("Selection Off");
-	var numberOff=$('.Off').length;
-	var numberOn=$('.On').length;
-	// Select next "Off" tiles with max number "On" or "Off" if it is lower
-	var numberToView=Math.min(numberOn,numberOff)
-	
-	var checkEndselectOffStickers = setInterval(function() {
-	    if ( me.getSelectedNodes().length >= numberToView) {
-		clearInterval(checkEndselectOffStickers);
-		selectedNodes=selectedNodes.slice(0,numberToView);
+				addBlink($('.selectTagButtonIcon'))
+				me.setSelectTags(false);
+				//$('#tag-legend>#Off').click();
+     				//console.log("unSelection Off");
+				
+    				var listSelectionIds = [];
+    				var listSelectionTiles=me.getSelectedNodes();
+    				for(O in listSelectionTiles)  { 
+    				    listSelectionIds.push(listSelectionTiles[O].getId());
+    				}
+     				//console.log("share_Selection",listSelectionIds);
+				receive_deploy_Selection=false;
+    				var cdata ={"room":my_session, "Selection": "["+listSelectionIds.toString()+"]" }
+    				socket.emit("share_Selection", cdata);
+				addBlink($('.selectTagButtonIcon'));
 
-	addBlink($('.selectTagButtonIcon'))
-	me.setSelectingTags(false);
-	//$('#tag-legend>#Off').click();
-     	//console.log("unSelection Off");
+				
+				var checkEndshareSelectionOff = setInterval(function() {
+				    if (receive_deploy_Selection) {
+					clearInterval(checkEndshareSelectionOff);
+					$('.closeSelectTagMenuButtonIcon').click();
 
-    	var listSelectionIds = [];
-    	var listSelectionTiles=me.getSelectedNodes();
-    	for(O in listSelectionTiles)  { 
-    	    listSelectionIds.push(listSelectionTiles[O].getId());
-    	}
-     	//console.log("share_Selection",listSelectionIds);
-	receive_deploy_Selection=false;
-    	var cdata ={"room":my_session, "Selection": "["+listSelectionIds.toString()+"]" }
-    	socket.emit("share_Selection", cdata);
-	addBlink($('.selectTagButtonIcon'));
-	var checkEndshareSelectionOff = setInterval(function() {
-	    if (receive_deploy_Selection) {
-		clearInterval(checkEndshareSelectionOff);
+					var checkCloseSelectTag = setInterval(function() {
+					    if ($('.selectTagMenuButtonIcon').length) {
+						clearInterval(checkCloseSelectTag);
+						var newtag="Next"+nextList.length;
+						nextList.push(newtag);
+						receive_Add_Tag=false;
+						cdata={"room":my_session,"NewTag":newtag};
+						socket.emit("add_Tag", cdata, callback=function(sdata){
+ 						    console.log("socket add New Tag ", cdata);
+						});
+						
+						var checkEndaddNextTag = setInterval(function() {
+						    if (receive_Add_Tag) {
+							clearInterval(checkEndaddNextTag);
+							$('.selectionToTagButtonIcon').click()
+							addBlink($('.selectionToTagButtonIcon'));
+							
+							var checkEndselectionToTag = setInterval(function() {
+							    if ( $('.closeSelectionToTagButtonIcon').length) {
+								clearInterval(checkEndselectionToTag);
+								$('#tag-legend>#'+newtag).click();
+								
+								var checkApplyNewTag = setInterval(function() {
+								    if ( $('.'+newtag).length >= numberToView ) {
+									clearInterval(checkApplyNewTag);
+									$('.closeSelectionToTagButtonIcon').click();
+									$('.closeSelectTagMenuButtonIcon').click();
 
-	var newtag="Next"+nextList.length;
-	nextList.push(newtag);
-	receive_Add_Tag=false;
-	cdata={"room":my_session,"NewTag":newtag};
-	socket.emit("add_Tag", cdata, callback=function(sdata){
- 	    console.log("socket add New Tag ", cdata);
-	});
+									var checkCloseSelect = setInterval(function() {
+									    if ( $('.closeSelectionToTagButtonIcon').length + $('.closeSelectTagMenuButtonIcon').length == 0 ) {
+										clearInterval(checkCloseSelect);
+										$('.alignTagButtonIcon').click();
+										addBlink($('.alignTagButtonIcon'));
 
-	addNextTag=0;
-	var checkEndaddNextTag = setInterval(function() {
-	    if (receive_Add_Tag) {
-		clearInterval(checkEndaddNextTag);
-	
-	$('.selectionToTagButtonIcon').click()
-	addBlink($('.selectionToTagButtonIcon'));
-	$('#tag-legend>#'+newtag).click();
-	var checkEndselectionToTag = setInterval(function() {
-	    if ( $('.'+newtag).length >= numberToView ) {
-		clearInterval(checkEndselectionToTag);
+										var checkEndalignTag = setInterval(function() {
+										    if ( $('.closeAlignTagButtonIcon').length ) {
+											clearInterval(checkEndalignTag);
+											EndOfGroupping=false;
+											$('#tag-legend>#'+newtag).click();
+											
+											var checkCloseAll = setInterval(function() {
+											    if ( EndOfGroupping) {
+												clearInterval(checkCloseAll);
+												// HowTo/NeedTo Wait for click on new tag here ?
+												$('.closeAlignTagButtonIcon').click();
+												$('.clearSelectionButtonIcon').click();	
+												$('#'+id+'option'+optionNumber).removeClass('closeNextTilesButtonIcon').addClass('nextTilesButtonIcon');
 
-	$('.closeSelectTagMenuButtonIcon').click();
-
-	$('.alignTagButtonIcon').click();
-	addBlink($('.alignTagButtonIcon'));
-	EndOfGroupping=false;
-	$('#tag-legend>#'+newtag).click();
-
-	var checkEndalignTag = setInterval(function() {
-	    if ( EndOfGroupping ) {
-		clearInterval(checkEndalignTag);
-
-	$('.closeAlignTagButtonIcon').click();
-
-	$('.clearSelectionButtonIcon').click();
-
-	$('#'+id+'option'+optionNumber).removeClass('closeNextTilesButtonIcon').addClass('nextTilesButtonIcon');
-
+											    }
+											}, IntervalCloseAll)
+										    }
+										}, IntervalAlignTag)
+									    }
+									}, IntervalCloseSelect)
+								    }
+								}, IntervalApplyToTag)
+							    }
+							}, IntervalSelectionToTag)
+						    }
+						}, IntervalAddNextTag)
+					    }
+					}, IntervalCloseSelectTag)
+				    }
+				}, IntervalShareSelection)
+			    }
+			}, IntervalSelectOffStickers)
+		    }
+		}, IntervalCloseTagsGlobal)
 	    }
-	}, 100)
-	    }
-	}, 100)
-	    }
-	}, 100)
-	    }
-	}, 100)
-	    }
-	}, 100)
-	    }
-	}, 100)
+	}, IntervalClearSelection)
     });
     menuIconClassAttributesTab.push("nextTilesButtonIcon");
     menuShareEvent.push(false);

@@ -597,9 +597,9 @@ Tile = function(Mesh) {
 		    mesh.me.setcolumnSelected(mesh.me.mlocationProvider( mesh.me.getNode(nodeId).getIdLocation()).getnX());
 		    //console.log("colonne : "+mesh.me.mlocationProvider( mesh.me.getNode(nodeId).getIdLocation()).getnX());
 
-		    for(O in mesh.me.getNodes2())  { 
-			if(mesh.me.getcolumnSelected() == mesh.me.mlocationProvider( mesh.me.getNodes2()[O].getIdLocation()).getnX() )
-			    mesh.me.getNodes2()[O].getHtmlNode().css('boxShadow', configCSS.columnSwapBoxShadow);
+		    for(O in mesh.me.getNodes())  { 
+			if(mesh.me.getcolumnSelected() == mesh.me.mlocationProvider( mesh.me.getNodes()[O].getIdLocation()).getnX() )
+			    mesh.me.getNodes()[O].getHtmlNode().css('boxShadow', configCSS.columnSwapBoxShadow);
 		    }
 
 		}
@@ -611,16 +611,16 @@ Tile = function(Mesh) {
 		    var column1Tab = [];
 		    var column2Tab = [];
 
-		    for(O in mesh.me.getNodes2())  { 
+		    for(O in mesh.me.getNodes())  { 
 
-			if(mesh.me.getcolumnSelected() == mesh.me.mlocationProvider( mesh.me.getNodes2()[O].getIdLocation()).getnX() )  { 
-			    column1Tab.push( mesh.me.getNodes2()[O]);
-			    mesh.me.getNodes2()[O].getHtmlNode().css({
+			if(mesh.me.getcolumnSelected() == mesh.me.mlocationProvider( mesh.me.getNodes()[O].getIdLocation()).getnX() )  { 
+			    column1Tab.push( mesh.me.getNodes()[O]);
+			    mesh.me.getNodes()[O].getHtmlNode().css({
 				    boxShadow: "none"});				
 			}
 
-			if(secondColumnSelected == mesh.me.mlocationProvider( mesh.me.getNodes2()[O].getIdLocation()).getnX() )  { 
-			    column2Tab.push( mesh.me.getNodes2()[O]);			
+			if(secondColumnSelected == mesh.me.mlocationProvider( mesh.me.getNodes()[O].getIdLocation()).getnX() )  { 
+			    column2Tab.push( mesh.me.getNodes()[O]);			
 			}
 
 		    }
@@ -664,9 +664,9 @@ Tile = function(Mesh) {
 		    mesh.me.setlineSelected(mesh.me.mlocationProvider( mesh.me.getNode(nodeId).getIdLocation()).getnY());
 		    //console.log("line : "+mesh.me.mlocationProvider( mesh.me.getNode(nodeId).getIdLocation()).getnY());
 
-		    for(O in mesh.me.getNodes2())  { 
-			if(mesh.me.getlineSelected() == mesh.me.mlocationProvider( mesh.me.getNodes2()[O].getIdLocation()).getnY() )
-			    mesh.me.getNodes2()[O].getHtmlNode().css('boxShadow', configCSS.lineSwapBoxShadow);
+		    for(O in mesh.me.getNodes())  { 
+			if(mesh.me.getlineSelected() == mesh.me.mlocationProvider( mesh.me.getNodes()[O].getIdLocation()).getnY() )
+			    mesh.me.getNodes()[O].getHtmlNode().css('boxShadow', configCSS.lineSwapBoxShadow);
 		    }
 		}
 		else if(mesh.me.getlineSelected() != -1)  { 
@@ -677,15 +677,15 @@ Tile = function(Mesh) {
 		    var line1Tab = [];
 		    var line2Tab = [];
 
-		    for(O in mesh.me.getNodes2())  { 
-			//console.log("aa",mesh.me.getlineSelected(),mesh.me.mlocationProvider( mesh.me.getNodes2()[O].getIdLocation()).getnY());
-			if(mesh.me.getlineSelected() == mesh.me.mlocationProvider( mesh.me.getNodes2()[O].getIdLocation()).getnY() )  { 
-			    line1Tab.push( mesh.me.getNodes2()[O]);	
-			    mesh.me.getNodes2()[O].getHtmlNode().css({boxShadow: "none"});						
+		    for(O in mesh.me.getNodes())  { 
+			//console.log("aa",mesh.me.getlineSelected(),mesh.me.mlocationProvider( mesh.me.getNodes()[O].getIdLocation()).getnY());
+			if(mesh.me.getlineSelected() == mesh.me.mlocationProvider( mesh.me.getNodes()[O].getIdLocation()).getnY() )  { 
+			    line1Tab.push( mesh.me.getNodes()[O]);	
+			    mesh.me.getNodes()[O].getHtmlNode().css({boxShadow: "none"});						
 			}
 
-			if(secondLineSelected == mesh.me.mlocationProvider( mesh.me.getNodes2()[O].getIdLocation()).getnY() )  { 
-			    line2Tab.push( mesh.me.getNodes2()[O]);			
+			if(secondLineSelected == mesh.me.mlocationProvider( mesh.me.getNodes()[O].getIdLocation()).getnY() )  { 
+			    line2Tab.push( mesh.me.getNodes()[O]);			
 			}
 
 		    }

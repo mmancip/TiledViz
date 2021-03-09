@@ -1,13 +1,18 @@
 #!/bin/bash
-SOCKETdomain=$1
-HTTP_FRONTEND=$2
-HTTPLOGNAME=$3
-shift 3
+HTTP_FRONTEND=$1
+HTTPLOGNAME=$2
+shift 2
 OPTIONS=$@
 
-. /home/myuser/.bashrc 
-COMMANDssh="ssh -T -N -nf -R \*:${SOCKETdomain}${DOCKERID}:localhost:5902 ${OPTIONS} ${HTTPLOGNAME}@${HTTP_FRONTEND}"
+. /home/myuser/.bashrc
+
+PORT=$( ssh -T ${HTTPLOGNAME}@${HTTP_FRONTEND} python -c "'import socket; s=socket.socket(); s.bind((\"\", 0)); print(s.getsockname()[1]); s.close()'" )
+
+COMMANDssh="ssh -T -N -nf -R \*:$PORT:localhost:5902 ${OPTIONS} ${HTTPLOGNAME}@${HTTP_FRONTEND}"
 echo $COMMANDssh
+
+echo $PORT > /home/myuser/.vnc/port
+
 i=0
 while [ true ]; do
   ${COMMANDssh} > /home/myuser/.vnc/out_tunnel_ssh 2>&1

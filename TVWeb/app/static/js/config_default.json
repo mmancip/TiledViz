@@ -25,8 +25,8 @@
 		"meshCardinal" : "jsDataTab.length", 
 		
 		"fixColumnNumber" : false,
-		"maxColumnNumber" : 10, 
-		"spaceBetweenColumns" : 100, 
+		"maxColumnNumber" : 9, 
+		"spaceBetweenColumns" : 130, 
 		"spaceBetweenLines" : 120, 
 		"targetSize" : 2.1, 
 	        "primaryZoomSlider" : false,
@@ -34,15 +34,15 @@
 		"draw":{ 
 			"style" : "round",
 			"width" : 10,
-			"defaultColor" : "black"
+			"defaultColor" : "grey"
 		},
 		"minHeight" : 150, 
 		"minWidth" : 150, 
 		"showAnimationsLineColSwap" : false, 
 		"animationSpeed" : 15, 
 		"spread" : {
-			"X" : 950,
-			"Y" : 446 
+			"X" : 1440,
+			"Y" : 900
 		},
 		"borderSize" : 0, 
 		"onlyOneTransparentTile" : false,

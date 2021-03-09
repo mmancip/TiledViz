@@ -28,6 +28,7 @@ RUN apt-get autoclean \
 COPY TVConnections/mageianvidia/ssh /home/myuser/.ssh/
 
 COPY TVConnections/tileubuntu/.bashrc /home/myuser/.bashrc
+COPY TVConnections/mageianvidia/tunnel_ssh /opt/tunnel_ssh
 COPY TVConnections/tileubuntu/start.sh /start.sh
 
 ENTRYPOINT ["/start.sh"]
