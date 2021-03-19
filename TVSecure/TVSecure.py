@@ -15,6 +15,7 @@ import configparser
 
 import tarfile
 from io import BytesIO
+# import tempfile
 import json
 
 import socket
@@ -684,7 +685,7 @@ class ConnectionDocker(threading.Thread):
         actionPort=ActionPort+self.ConnectNum
         search_docker0_ip="ip -4 addr show docker0 | grep -Po 'inet \K[\d.]+'"
         p=subprocess.Popen(search_docker0_ip, shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)        
-        output, errors = p.communicate()
+        output, errs = p.communicate()
         ipdocker0=output.decode('utf-8').replace('\n','')
         logging.warning("ConnectionDocker : connection for actions with port %d and ip for docker0 %s" % (actionPort,ipdocker0))
 
@@ -720,15 +721,14 @@ class ConnectionDocker(threading.Thread):
                     logging.warning("GET "+path_nodesjson+ " file from Connection Docker.")
                     
                     if (debug):
-                        logging.warning("Infos "+str(stat))
+                        logging.error("Infos "+str(stat))
                     else:
-                        logging.debug("Infos "+str(stat))
+                        logging.warning("Infos "+str(stat))
                 
                     outHandler.flush()
                     try:
                         if stat["size"]==0 :
-                            logging.warning("Infos "+str(stat))
-                            logging.warning(" nodes.json size == 0")
+                            logging.error(" nodes.json size == 0")
                             # code.interact(banner="Test stat0 :",local=dict(globals(), **locals()))
                             raise ValueError                        
                         # raise NodeSizeError
@@ -736,20 +736,35 @@ class ConnectionDocker(threading.Thread):
                         filetar = BytesIO()
                         for chunk in bits:
                             filetar.write(chunk)
-                            filetar.seek(0)
-                            
+                            # logging.error("chunk "+str(len(chunk)))
+                        filetar.seek(0)
+                        
+                        # tf=tempfile.NamedTemporaryFile(mode="w+b",dir="/tmp",prefix="",suffix=".tar",delete=False)
+                        # tf.write(filetar.read())
+                        # tf.close()
+                        
                         mytar=tarfile.TarFile(fileobj=filetar, mode='r')
                         mytar.extractall(self.dir_out)
                         mytar.close()
+                        # os.system("ls -la "+self.dir_out)
                         filetar.close()
 
-                    except:
-                        logging.warning("Error with stat : try again.")
+                    except ValueError as err:
+                        traceback.print_exc(file=errors)
+                        logging.error("ValueError with GET "+path_nodesjson+" : try again."+str(err))
                         time.sleep(2)
+                        # Get back nodes.json from connection docker ?
+                        bits, stat = self.containerConnect.get_archive(path=path_nodesjson)
+                        if (debug):
+                            logging.error("Infos "+str(stat))
+                        else:
+                            logging.warning("Infos "+str(stat))
+                
+                        outHandler.flush()
                         try:
                             if stat["size"]==0 :
-                                logging.warning("Infos "+str(stat))
-                                logging.warning(" nodes.json size == 0")
+                                logging.error("Infos "+str(stat))
+                                logging.error(" nodes.json size == 0")
                                 # code.interact(banner="Test stat0 :",local=dict(globals(), **locals()))
                                 raise ValueError                        
                             # raise NodeSizeError
@@ -757,14 +772,19 @@ class ConnectionDocker(threading.Thread):
                             filetar = BytesIO()
                             for chunk in bits:
                                 filetar.write(chunk)
-                                filetar.seek(0)
+                            filetar.seek(0)
                             
                             mytar=tarfile.TarFile(fileobj=filetar, mode='r')
                             mytar.extractall(self.dir_out)
                             mytar.close()
                             filetar.close()
-                        except:
-                            logging.warning("Error with stat : try again.")
+                        except Exception as err:
+                            traceback.print_exc(file=errors)
+                            logging.error("Error with GET "+path_nodesjson+" : stop trying. "+str(err))
+
+                    except Exception as err:
+                        traceback.print_exc(file=errors)
+                        logging.error("Error with GET "+path_nodesjson+". tar error.")
 
                         # Send again get via action launch_nodes_json
                         #raise ValueError                        
@@ -774,18 +794,25 @@ class ConnectionDocker(threading.Thread):
 
                     # Server in TVSecure wait for connection from TVConnection in connectionDocker to send actions commands.
                     self.ActionConnect=sock.server(actionPort)
-                    logging.warning("Action server launched on "+str(actionPort)+".")
-                    outHandler.flush()
-                    self.ActionConnect.new_connect(1)
-                    # Send Not an action message after Hello
-                    HelloMsg=self.ActionConnect.recv(1)
-                    logging.warning("Action client hello message : "+HelloMsg)
+                    try:
+                        logging.warning("Action server launched on "+str(actionPort)+".")
+                        outHandler.flush()
+                        self.ActionConnect.new_connect(1)
+                        # Send Not an action message after Hello
+                        HelloMsg=self.ActionConnect.recv(1)
+                        logging.warning("Action client hello message : "+HelloMsg)
+                        outHandler.flush()
 
-                    self.ActionConnect.send_client(1,"Hello connection"+str(self.ConnectionDB.id))
-                    logging.warning("Action client receive OK "+str(self.ActionConnect.get_OK(1)))
-
-                    self.ActionConnect.send_client(1,"Not an action first.")
-                    logging.warning("Action client receive OK from not-an-action message "+str(self.ActionConnect.get_OK(1)))
+                        self.ActionConnect.send_client(1,"Hello connection"+str(self.ConnectionDB.id))
+                        logging.warning("Action client receive OK "+str(self.ActionConnect.get_OK(1)))
+                        outHandler.flush()
+                        
+                        self.ActionConnect.send_client(1,"Not an action first.")
+                        logging.warning("Action client receive OK from not-an-action message "+str(self.ActionConnect.get_OK(1)))
+                        outHandler.flush()
+                    except Exception as err:
+                        traceback.print_exc(file=errors)
+                        logging.error("Error with Action client "+str(self.ConnectionDB.id)+" : "+str(err))
 
                     self.killTunnel()
                     logging.warning("Job started.")

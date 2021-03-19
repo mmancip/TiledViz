@@ -1901,36 +1901,31 @@ def vncconnection():
 
         # Wait NbTimeAlive to get files from connection
         NbTimeAlive=20
-        
+
+        if ( not session["sessionname"] in  jsontransfert):
+            jsontransfert[session["sessionname"]]={}
+            
         count=0
         while True:
+            time.sleep(timeAlive)
+            if (count > NbTimeAlive):
+                if ("TheJson" in jsontransfert[session["sessionname"]]):
+                    del(jsontransfert[session["sessionname"]]["TheJson"])
+                return redirect(url_for("."+callfunction,message=message))
             if ( os.path.exists( out_nodes_json ) ):
                 try:
-                    if ( not session["sessionname"] in  jsontransfert):
-                        jsontransfert[session["sessionname"]]={}
-                        
                     json_tiles_file=open(out_nodes_json)
-                    # TODO jsontransfert[session["sessionname"]]["TheJson"] => TheJon for each tileset not just session !! NON
                     jsontransfert[session["sessionname"]]["TheJson"]=json.loads(json_tiles_file.read())
                     json_tiles_file.close()
                     logging.warning("nodes.json read and OK "+out_nodes_json)
-                except:
+                    return redirect(url_for("."+callfunction,message=message))
+                except Exception as err:
                     traceback.print_exc(file=sys.stderr)
-                    strerror="Error from json "+out_nodes_json+" file from connection."
-                    flash(strerror)
+                    strerror="Error from json "+out_nodes_json+" file from connection : "+str(err)
                     logging.error(strerror)
-
-                return redirect(url_for("."+callfunction,message=message))
-            elif (count > NbTimeAlive):
-                if ( not session["sessionname"] in  jsontransfert):
-                    jsontransfert[session["sessionname"]]={}
-                elif ("TheJson" in jsontransfert[session["sessionname"]]):
-                    del(jsontransfert[session["sessionname"]]["TheJson"])
-                return redirect(url_for("."+callfunction,message=message))
             else:
                 logging.warning("Wait for "+out_nodes_json)
-                time.sleep(timeAlive)
-                count=count+1
+            count=count+1
                 
     return render_template("vncconnection.html",
                            port=connection_vnc,
@@ -2063,7 +2058,7 @@ def addconnection():
         myflush()
 
         #  Wait NbTimeAlive for TVSecure to get VNC view to put connection datas.
-        NbTimeAlive = 20
+        NbTimeAlive = 40
         count=0
         while(True):
             if (count > NbTimeAlive):
@@ -2444,14 +2439,20 @@ def show_grid():
 
         if (type(tsconnection) != type(None) and
             len(thistileset.config_files) > 0):
-            if ( "actions.json" in thistileset.config_files ):
+            if (( "actions.json" in thistileset.config_files ) and
+                ("connection"+str(tsconnection.id) in session) ):
+                
                 actions_file=open(thistileset.config_files["actions.json"],'r')
                 tiles_actions[thistileset.name]=json.load(actions_file)
                 tiles_actions[thistileset.name]["action0"]=["launch_nodes_json","system_update_alt"]
                 # Search kill_all_containers action to register it in session cookie for this connection:
-                for actionid in tiles_actions[thistileset.name]:
-                    if (tiles_actions[thistileset.name][actionid][0] == "kill_all_containers"):
-                        session["connection"+str(tsconnection.id)]=session["connection"+str(tsconnection.id)].replace(', "vncpassword"',', "killid":"'+actionid.replace("action","")+'", "vncpassword"')
+                
+                if (session["is_client_active"]):
+                    rekillid=re.compile(r'"killid"')
+                    for actionid in tiles_actions[thistileset.name]:
+                        if (tiles_actions[thistileset.name][actionid][0] == "kill_all_containers" and
+                            not re.search(rekillid,session["connection"+str(tsconnection.id)])):
+                            session["connection"+str(tsconnection.id)]=session["connection"+str(tsconnection.id)].replace(', "vncpassword"',', "killid":"'+actionid.replace("action","")+'", "vncpassword"')
         else:
             tiles_actions[thistileset.name]={}
         ts=ts+1
@@ -2593,34 +2594,35 @@ def addNewTagShare(cdata):
 
 @socketio.on("action_click")
 def ClickAction(cdata):
-    croom=cdata["room"]
-    action=cdata["action"]
-    TS=cdata["TileSet"]
-    selections=cdata["selections"]
-    logging.info(action+" for TileSet "+TS)
-    logging.warning("[->] Click on action "+action+ " "+ str(cdata["id"]) + " in room " + str(croom) + " for selection "+ str(selections))
+    if (session["is_client_active"]):
+        croom=cdata["room"]
+        action=cdata["action"]
+        TS=cdata["TileSet"]
+        selections=cdata["selections"]
+        logging.info(action+" for TileSet "+TS)
+        logging.warning("[->] Click on action "+action+ " "+ str(cdata["id"]) + " in room " + str(croom) + " for selection "+ str(selections))
 
-    actionid=action.replace("action", "")
-    command=actionid+","+selections
-    
-    oldtileset=db.session.query(models.TileSet).filter_by(name=TS).one()
-    oldconnection=oldtileset.connection
-    user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
-    if (oldconnection):
-        if  (user_id == oldconnection.id_users) :
-            logging.warning("action: "
-                            +str(session["username"])+" ; "
-                            +str(oldtileset.id)+" ; "
-                            +str(oldconnection.id)+" ; "
-                            +str(command))
-            myflush()
-            if (selections==","):
-                searchKillid=re.search(r'"killid":"\d+"',session["connection"+str(oldconnection.id)])
-                if (searchKillid):
-                    killid=searchKillid.group().replace('"killid":','').replace('"','')
-                    if (actionid==killid):
-                        time.sleep(timeAlive)                        
-                        remove_this_connection(oldtileset,oldconnection.id,user_id)
+        actionid=action.replace("action", "")
+        command=actionid+","+selections
+        
+        oldtileset=db.session.query(models.TileSet).filter_by(name=TS).one()
+        oldconnection=oldtileset.connection
+        user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
+        if (oldconnection):
+            if  (user_id == oldconnection.id_users) :
+                logging.warning("action: "
+                                +str(session["username"])+" ; "
+                                +str(oldtileset.id)+" ; "
+                                +str(oldconnection.id)+" ; "
+                                +str(command))
+                myflush()
+                if (selections==","):
+                    searchKillid=re.search(r'"killid":"\d+"',session["connection"+str(oldconnection.id)])
+                    if (searchKillid):
+                        killid=searchKillid.group().replace('"killid":','').replace('"','')
+                        if (actionid==killid):
+                            time.sleep(timeAlive)                        
+                            remove_this_connection(oldtileset,oldconnection.id,user_id)
 
 # Draw    
 sidDraw=""
