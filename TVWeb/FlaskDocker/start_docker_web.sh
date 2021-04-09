@@ -4,13 +4,14 @@
 
 
 export POSTGRES_HOST=$1
-export POSTGRES_DB=$2
-export POSTGRES_USER=$3
-export POSTGRES_PASSWORD="$4"
-export flaskhost=$5
-export UserId=$6
-export GroupId=$7
-shift 7
+export POSTGRES_PORT=$2
+export POSTGRES_DB=$3
+export POSTGRES_USER=$4
+export POSTGRES_PASSWORD="$5"
+export flaskhost=$6
+export UserId=$7
+export GroupId=$8
+shift 8
 export SECRET_KEY="$@"
 
 groupadd -r -g $GroupId flaskusr && useradd -r -u $UserId -g flaskusr flaskusr && \
@@ -36,8 +37,8 @@ sed -e 's&listen \[\:\:\]\:80 default_server;&#listen [::]:80 default_server;&' 
 nginx -g "daemon off;" &
 
 if ($debug_Flask); then
-    su - flaskusr -c '/bin/bash -vx -c /TiledViz/TVWeb/FlaskDocker/launch_flask ' $POSTGRES_HOST $POSTGRES_DB $POSTGRES_USER "$POSTGRES_PASSWORD" $flaskhost "$SECRET_KEY"
+    su flaskusr -c "/bin/bash -vx -c \"/TiledViz/TVWeb/FlaskDocker/launch_flask $POSTGRES_HOST $POSTGRES_PORT $POSTGRES_DB $POSTGRES_USER '$POSTGRES_PASSWORD' $flaskhost '$SECRET_KEY'\""
     while true; do sleep 10; done
 else
-    su - flaskusr /TiledViz/TVWeb/FlaskDocker/launch_flask $POSTGRES_HOST $POSTGRES_DB $POSTGRES_USER "$POSTGRES_PASSWORD" $flaskhost "$SECRET_KEY"
+    su - flaskusr -c "/bin/bash -c \"/TiledViz/TVWeb/FlaskDocker/launch_flask $POSTGRES_HOST $POSTGRES_PORT $POSTGRES_DB $POSTGRES_USER '$POSTGRES_PASSWORD' $flaskhost '$SECRET_KEY'\""
 fi

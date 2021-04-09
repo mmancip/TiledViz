@@ -6,6 +6,8 @@ from flask_socketio import SocketIO
 from flask_sqlalchemy import SQLAlchemy
 from flask_bootstrap import Bootstrap
 from config import Config
+#from app import config
+
 
 # Logging configuration # TODO: maybe switch to a config file ?
 import logging, sys
@@ -32,9 +34,11 @@ logging.getLogger('engineio').setLevel(logging.ERROR)
 # logging.getLogger('requests').setLevel(logging.CRITICAL)
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
-
+#SQLALCHEMY_DATABASE_URI=os.environ("DATABASE_URL")
 app = Flask(__name__)
 app.config.from_object(Config) # There are given the secret key and other app settings
+logging.debug("Flask App config for TiledViz : "+str(app.config))
+
 bootstrap = Bootstrap(app)
 socketio = SocketIO(app) # Replaces app.run()
 #socketio = io.connect({transports: ['websocket']});
@@ -42,6 +46,6 @@ socketio = SocketIO(app) # Replaces app.run()
 #cors_allowed_origins ? List of origins that are allowed to connect to this server. All origins are allowed by default.
 
 db = SQLAlchemy(app)
-logging.info("Flask-SocketIO server for TiledViz up and running")
+logging.warning("Flask-SocketIO server for TiledViz up and running")
 
 from app import routes

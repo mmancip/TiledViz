@@ -2,6 +2,8 @@
 FROM mageia:7
 MAINTAINER  "Martial Mancip" <Martial.Mancip@MaisondelaSimulation.fr>
 
+ENV SMTP TODO_SMTP
+
 RUN dnf install -y lib64mesagl1 xkbcomp x11-server-xvfb x11-data-xkbdata x11-font-alias \
                   openssh xauth  xterm xset htop mesa-demos x11vnc xrandr \
 		  lib64sane1 lib64gtk+3_0 lib64virtualgl virtualgl wget htop man socat \
@@ -53,7 +55,9 @@ RUN dnf install -y ntp \
     && rm /etc/localtime \
     && ln -s /usr/share/zoneinfo/Europe/Paris /etc/localtime
 
-RUN dnf install -y sendmail
+RUN dnf install -y postfix \
+    && echo "relayhost=$SMTP"  >> /etc/postfix/main.cf \
+    && sed -e "s&inet_protocols = all&inet_protocols = ipv4&" -i /etc/postfix/main.cf
 
 COPY ./ /TiledViz
 

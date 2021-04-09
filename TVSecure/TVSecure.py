@@ -80,7 +80,8 @@ debug_Flask=False
 #sys.path.append(os.path.abspath('./'))
 
 POSTGRES_HOST="postgres"
-POSTGRES_IP="192.168.0.12"
+POSTGRES_IP="172.17.0.2"
+POSTGRES_PORT="6431"
 POSTGRES_USER="tiledviz"
 POSTGRES_DB="TiledViz"
 POSTGRES_PASSWORD="m_test/@03"
@@ -90,18 +91,20 @@ client = docker.from_env()
 def parse_args(argv):
     parser = argparse.ArgumentParser(
         'Launch Flask docker with postgres parameters. Lauch on-demand connections.')
-    parser.add_argument('--POSTGRES_HOST', default='postgres',
-                        help='POSTGRES_HOST (default: postgres)')
-    parser.add_argument('--POSTGRES_IP', default='192.168.0.12',
-                        help='POSTGRES_IP (default: 192.168.0.12)')
-    parser.add_argument('--POSTGRES_USER', default='tiledviz',
-                        help='POSTGRES_USER (default: tiledviz)')
-    parser.add_argument('--POSTGRES_DB', default='TiledViz',
-                        help='POSTGRES_DB (Default: TiledViz)')
-    parser.add_argument('--POSTGRES_PASSWORD', default='"m_test/@03"',
-                        help='POSTGRES_PASSWORD (default: "m_test/@03")')
-    parser.add_argument('--secretKey', default="my Preci0us secr_t key for t&sts.",
-                        help='secretKey (default: "my Preci0us secr_t key for t&sts.")')
+    parser.add_argument('--POSTGRES_HOST', default=POSTGRES_HOST,
+                        help='POSTGRES_HOST (default: '+POSTGRES_HOST+')')
+    parser.add_argument('--POSTGRES_IP', default=POSTGRES_IP,
+                        help='POSTGRES_IP (default: '+POSTGRES_IP+')')
+    parser.add_argument('--POSTGRES_PORT', default=POSTGRES_PORT,
+                        help='POSTGRES_PORT (default: '+POSTGRES_PORT+')')
+    parser.add_argument('--POSTGRES_USER', default=POSTGRES_USER,
+                        help='POSTGRES_USER (default: '+POSTGRES_USER+')')
+    parser.add_argument('--POSTGRES_DB', default=POSTGRES_DB,
+                        help='POSTGRES_DB (Default: '+POSTGRES_DB+')')
+    parser.add_argument('--POSTGRES_PASSWORD', default='"'+POSTGRES_PASSWORD+'"',
+                        help='POSTGRES_PASSWORD (default: "'+POSTGRES_PASSWORD+'")')
+    parser.add_argument('--secretKey', default=secretKey,
+                        help='secretKey (default: "'+secretKey+'")')
     args = parser.parse_args(argv[1:])
     return args
 
@@ -138,24 +141,26 @@ def NewStringFinder(string1, string2):
 
 class FlaskDocker(threading.Thread):
     def __init__(self,
-                 POSTGRES_HOST=POSTGRES_HOST, POSTGRES_IP=POSTGRES_IP,
+                 POSTGRES_HOST=POSTGRES_HOST, POSTGRES_IP=POSTGRES_IP, POSTGRES_PORT=POSTGRES_PORT,
                  POSTGRES_DB=POSTGRES_DB, POSTGRES_USER=POSTGRES_USER, POSTGRES_PASSWORD=POSTGRES_PASSWORD,
                  secretKey=secretKey ):
-        self.thread = threading.Thread(target=self.run, args=( POSTGRES_HOST, POSTGRES_IP,
+
+        self.thread = threading.Thread(target=self.run, args=( POSTGRES_HOST, POSTGRES_IP, POSTGRES_PORT,
                                                                POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD,
                                                                secretKey ))
+        
         threads["flaskdock"]=self.thread
         self.thread.start()
 
     def run(self,
-            POSTGRES_HOST=POSTGRES_HOST, POSTGRES_IP=POSTGRES_IP,
+            POSTGRES_HOST=POSTGRES_HOST, POSTGRES_IP=POSTGRES_IP, POSTGRES_PORT=POSTGRES_PORT,
             POSTGRES_DB=POSTGRES_DB, POSTGRES_USER=POSTGRES_USER, POSTGRES_PASSWORD=POSTGRES_PASSWORD,
             secretKey=secretKey ):
 
         self.oldtime=time.time()
 
         flaskaddr=socket.gethostbyname(socket.gethostname())
-        self.commandFlask=[POSTGRES_HOST, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, flaskaddr, str(os.getuid()),str(os.getgid()), secretKey]
+        self.commandFlask=[POSTGRES_HOST,POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, flaskaddr, str(os.getuid()),str(os.getgid()), secretKey]
         
         # Si on passe secretKey et password comme secret (seulement comme services dans un swarm!), on doit modifier TVWeb/FlaskDocker/launch_flask
         # pgpassword=client.secrets.create(name="POSTGRES_PASSWORD",data=POSTGRES_PASSWORD)
@@ -188,6 +193,9 @@ class FlaskDocker(threading.Thread):
         else:
             ENVFlask=["debug_Flask=false"]
 
+        # ENVFlask=ENVFlask+["DATABASE_URL=postgresql://"+POSTGRES_USER+"@"+POSTGRES_HOST+":"+POSTGRES_PORT]
+        # logging.error("Before create Flask docker. env variables :" +str(ENVFlask))
+        
         # Detect or create flask container :
         try:
             self.containerFlask=client.containers.create(
@@ -372,7 +380,7 @@ class FlaskDocker(threading.Thread):
                         if (debug):
                             logging.warning("Debug mode for connection.")
                         ThisConnection=ConnectionDocker(self.containerFlask, debug, firstFree,
-                                                        POSTGRES_HOST, POSTGRES_IP, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD)
+                                                        POSTGRES_HOST, POSTGRES_IP, POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD)
                         Connections[firstFree]["ThisConnection"]=ThisConnection
                 else:
                     logging.warning("A connection already exists with parameters :"+create_newconnect.group("username")+" "+create_newconnect.group("hostname")+" "+str(create_newconnect.group("idCon")))
@@ -474,11 +482,11 @@ class FlaskDocker(threading.Thread):
 class ConnectionDocker(threading.Thread):
     
     def __init__(self,containerFlask, debug, ConnectNum,
-                 POSTGRES_HOST=POSTGRES_HOST, POSTGRES_IP=POSTGRES_IP,
+                 POSTGRES_HOST=POSTGRES_HOST, POSTGRES_IP=POSTGRES_IP, POSTGRES_PORT=POSTGRES_PORT,
                  POSTGRES_DB=POSTGRES_DB, POSTGRES_USER=POSTGRES_USER, POSTGRES_PASSWORD=POSTGRES_PASSWORD):
         threading.Thread.__init__(self)
         self.thread = threading.Thread(target=self.run,args=(containerFlask,debug, ConnectNum,
-                                                             POSTGRES_HOST, POSTGRES_IP,
+                                                             POSTGRES_HOST, POSTGRES_IP, POSTGRES_PORT,
                                                              POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD,)).start()
         
         time.sleep(10)
@@ -486,7 +494,7 @@ class ConnectionDocker(threading.Thread):
         #threading.Thread.__init__(self, target=self.run_forever)
 
     def run(self,containerFlask,debug, ConnectNum,
-            POSTGRES_HOST=POSTGRES_HOST, POSTGRES_IP=POSTGRES_IP,
+            POSTGRES_HOST=POSTGRES_HOST, POSTGRES_IP=POSTGRES_IP, POSTGRES_PORT=POSTGRES_PORT,
             POSTGRES_DB=POSTGRES_DB, POSTGRES_USER=POSTGRES_USER, POSTGRES_PASSWORD=POSTGRES_PASSWORD):
 
         self.user="myuser"
@@ -513,10 +521,10 @@ class ConnectionDocker(threading.Thread):
         XLocale=docker.types.Mount(source="/usr/share/X11/locale",target="/usr/share/X11/locale",type='bind')
 
         if (debug):
-            self.commandConnect=[str(self.connectionId),POSTGRES_HOST,POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,'-r',CONNECTION_RESOL,'-u',str(os.getuid()),'-g',str(os.getgid()),'-d']
+            self.commandConnect=[str(self.connectionId),POSTGRES_HOST+":"+POSTGRES_PORT,POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,'-r',CONNECTION_RESOL,'-u',str(os.getuid()),'-g',str(os.getgid()),'-d']
             self.cont_auto_remove=False
         else:
-            self.commandConnect=[str(self.connectionId),POSTGRES_HOST,POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,'-r',CONNECTION_RESOL,'-u',str(os.getuid()),'-g',str(os.getgid())]
+            self.commandConnect=[str(self.connectionId),POSTGRES_HOST+":"+POSTGRES_PORT,POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,'-r',CONNECTION_RESOL,'-u',str(os.getuid()),'-g',str(os.getgid())]
             self.cont_auto_remove=True
 
         logging.debug("Input param commandConnect : '"+str(self.commandConnect)+"'")
@@ -584,7 +592,7 @@ class ConnectionDocker(threading.Thread):
         logging.debug("We have built container for user '"+self.user+"' with IP "+ipconnect+".")
         logging.warning("User container status :"+str(self.containerConnect.status))
         time.sleep(timeWait)
-
+        
         # Create temporary user on flask docker :
         self.flaskusr="connect"+str(self.connectionId)
         flaskhome="/home/"+self.flaskusr
@@ -932,10 +940,12 @@ class ConnectionDocker(threading.Thread):
         logging.debug("Tunnel command in "+self.tunnel_script+" : "+self.tunnel_command)
         self.LogTunnel=self.containerConnect.exec_run(cmd="sh -c "+self.tunnel_script,user=self.user,detach=True)
         time.sleep(1)
+        # outHandler.flush()
         # testTunnel="sh -c \'pgrep -fla \"ssh.*"+self.flaskusr+"\"\'"
         # self.LogTestTunnel=container_exec_out(self.containerConnect, testTunnel,user=self.user)
-        # logging.warning("Tunnel to Flask docker :\n"+re.sub(r'\*n',r'\\n',self.LogTestTunnel))
+        # logging.debug("Tunnel to Flask docker :\n"+re.sub(r'\*n',r'\\n',self.LogTestTunnel))
         logging.warning("Container connected.")
+        outHandler.flush()
 
     def action(self,callfunct):
         # Get action num + selection of tiles (if needed by the function)
@@ -1011,11 +1021,13 @@ if __name__ == '__main__':
 
     args.__dict__['host']=args.POSTGRES_HOST
     args.__dict__['login']=args.POSTGRES_USER
+    args.__dict__['port']=args.POSTGRES_PORT
     args.__dict__['databasename']=args.POSTGRES_DB
     metadata, conn, engine, pool, session = tvdb.SQLconnector(args)
     
     FlaskDock= FlaskDocker(POSTGRES_HOST=args.POSTGRES_HOST,
                            POSTGRES_IP=args.POSTGRES_IP,
+                           POSTGRES_PORT=args.POSTGRES_PORT,
                            POSTGRES_DB=args.POSTGRES_DB,
                            POSTGRES_USER=args.POSTGRES_USER,
                            POSTGRES_PASSWORD=args.POSTGRES_PASSWORD,

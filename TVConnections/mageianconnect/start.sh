@@ -46,6 +46,8 @@ fi
 fi
 
 
+/etc/init.d/postfix start
+
 groupadd -g ${myGID} myuser
 useradd -r -u ${myUID} -g myuser myuser
 HOME_user=/home/myuser
@@ -101,7 +103,7 @@ sleep 1
 if [ X\"$debug\" != X ]; then optDEB=1; fi
 stty sane
 export TERM=linux
-xterm -rv -fullscreen -fa 'Adobe Courrier:size=12:antialias=true' -e /TiledViz/TVConnections/tvconnections.sh ${ConnectionId} ${POSTGRES_HOST} ${POSTGRES_DB} ${POSTGRES_USER} ${POSTGRES_PASSWORD} \$optDEB
+xterm -rv -fullscreen -fa 'Adobe Courrier:size=12:antialias=true' -e /TiledViz/TVConnections/tvconnections.sh ${ConnectionId} ${POSTGRES_HOST} ${POSTGRES_DB} ${POSTGRES_USER} '${POSTGRES_PASSWORD}' \$optDEB
 " >${HOME_user}/.vnc/xstartup
 chmod 755 ${HOME_user}/.vnc/xstartup
 
@@ -110,7 +112,7 @@ chown -R myuser:myuser ${HOME_user}
 echo export DOCKERID=$DOCKERID >> ${HOME_user}/.bashrc
 
 # Build database model
-sqlacodegen postgres://${POSTGRES_USER}:"${POSTGRES_PASSWORD}"@${POSTGRES_HOST}/${POSTGRES_DB} --outfile=/TiledViz/TVDatabase/TVDb/models.py
+sqlacodegen postgresql://${POSTGRES_USER}:"${POSTGRES_PASSWORD}"@${POSTGRES_HOST}/${POSTGRES_DB} --outfile=/TiledViz/TVDatabase/TVDb/models.py
 
 # Run the vncserver
 cd

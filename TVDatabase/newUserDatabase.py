@@ -9,15 +9,22 @@ errors=sys.stderr
 
 from TVDb import tvdb
 
+POSTGRES_HOST="postgres"
+POSTGRES_PORT="6431"
+POSTGRES_USER="tiledviz"
+POSTGRES_DB="TiledViz"
+
 def parse_args(argv):
     parser = argparse.ArgumentParser(
         'Add User with password and salt Transform old nodes.js database to TiledViz database.')
-    parser.add_argument('--host', default='localhost',
-                        help='Database host (default: localhost)')
-    parser.add_argument('-l', '--login', default='tiledviz',
-                        help='Database login (default: tiledviz)')
-    parser.add_argument('-n', '--databasename', default='TiledViz',
-                        help='Database name (default: TiledViz)')
+    parser.add_argument('--host', default=POSTGRES_HOST,
+                        help='Database host (default: '+POSTGRES_HOST+')')
+    parser.add_argument('--port', default=POSTGRES_PORT,
+                        help='Port (default: '+POSTGRES_PORT+')')
+    parser.add_argument('-l', '--login', default=POSTGRES_USER,
+                        help='Database login (default: '+POSTGRES_USER+')')
+    parser.add_argument('-n', '--databasename', default=POSTGRES_DB,
+                        help='Database name (default: '+POSTGRES_DB+')')
     parser.add_argument('-t', '--usertest', default='ddurandi',
                         help='User name for test (default: ddurandi)')
     parser.add_argument('-p', '--passwordtest', default='5#f_@-m/1ArtOvx0',

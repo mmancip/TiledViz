@@ -2,9 +2,6 @@
 FROM mageia:7
 MAINTAINER  "Martial Mancip" <Martial.Mancip@MaisondelaSimulation.fr>
 
-#RUN dnf install -y lib64mesagl1 xkbcomp x11-server-xvfb x11-data-xkbdata x11-font-alias \
-#dnf install x11-server-xorg
-
 RUN dnf install -y lib64mesagl1 xkbcomp x11-data-xkbdata x11-font-alias tigervnc-server \
                   openssh xauth  xterm xset htop mesa-demos x11vnc xrandr \
 		  lib64sane1 lib64gtk+3_0 lib64virtualgl virtualgl wget htop man socat \
@@ -57,7 +54,7 @@ RUN dnf install -y ntp \
     && ln -s /usr/share/zoneinfo/Europe/Paris /etc/localtime
 
 RUN dnf install -y python python-pip \
-    && pip2 install --upgrade pip && pip2 install wheel numpy pexpect configparser
+    && pip2 install wheel numpy pexpect configparser
 
 COPY TVConnections/mageianvidia/ssh /home/myuser/.ssh/
 

@@ -26,4 +26,4 @@ EXPOSE 22
 
 ENTRYPOINT ["/TiledViz/TVWeb/FlaskDocker/start_docker_web.sh"]
 
-CMD ["localhost", "TiledViz", "tiledviz", "m_test/@03", "flaskhost", "1002", "1002", "I-am-a-wonderful-unicorn"]
+CMD ["localhost", "6431", "TiledViz", "tiledviz", "m_test/@03", "flaskhost", "1002", "1002", "I-am-a-wonderful-unicorn"]

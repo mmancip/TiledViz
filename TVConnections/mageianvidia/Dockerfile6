@@ -6,7 +6,6 @@ RUN dnf install -y notification-daemon lib64mesaegl1 lib64mesagl1 xkbcomp x11-da
                   openssh xauth  xterm xset htop mesa-demos xrandr \
 		  lib64sane1 lib64gtk+3_0 lib64virtualgl virtualgl wget htop man socat \
 		  lib64lapack3
-#x11vnc
 
 #RUN urpmi --replacepkgs cracklib-dicts
 RUN dnf install -y  dnf-plugins-core \
@@ -30,14 +29,13 @@ RUN dnf install -y \
          gnu-free-fonts-common \
 	 x11-font-adobe-75dpi \
 	 x11-font-bh-75dpi \
-	 x11-font-cursor-misc \
-	 x11-font-misc-misc \
+	 x11-font-bh-lucidatypewriter-75dpi \
+	 x11-font-bitstream-75dpi \
+	 x11-font-bitstream-type1 \
 	 x11-font-type1 \
 	 x11-font-xfree86-type1 \
 	 xorg-x11-75dpi-fonts \
         && /bin/dbus-uuidgen --ensure
-#	 x11-font-bitstream \
-#	 x11-font-bh-lucidatypewriter \
 
 RUN dnf install -y alsa-utils lib64fribidi0 xdg-utils wmctrl xdotool xprop xwininfo openssh-clients xwd netpbm
 RUN dnf --downloadonly --downloaddir=/tmp/cache install -y icewm-theme-oxygen-aya \
@@ -67,9 +65,7 @@ RUN dnf install -y autogen autoconf automake cmake \
 
 
 RUN dnf install -y python python-pip python-configparser python-numpy \
-    && pip2 install wheel pexpect 
-#numpy
-#pip2 install --upgrade pip &&
+    && pip2 install wheel pexpect configparser
 
 COPY TVConnections/mageianvidia/ssh /home/myuser/.ssh/
 

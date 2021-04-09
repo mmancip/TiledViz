@@ -11,6 +11,11 @@ errors=sys.stderr
 
 from TVDb import tvdb
 
+POSTGRES_HOST="postgres"
+POSTGRES_PORT="6431"
+POSTGRES_USER="tiledviz"
+POSTGRES_DB="TiledViz"
+
 oldnodefile='TVDatabase/OLDcases/ANATOMIST/nodes.js'
 oldcasefile='TVDatabase/OLDcases/ANATOMIST/case_config_mandelbrot'
 projectNAME='testCASE'
@@ -24,12 +29,14 @@ def parse_args(argv):
                         help='Old case_config_machine path (default: ANATOMIST Mandelbrot).')
     parser.add_argument('-f', '--oldnodefile', default=oldnodefile,
                         help='Old nodes.js path (default: ANATOMIST Mandelbrot).')
-    parser.add_argument('--host', default='localhost',
-                        help='Database host (default: localhost)')
-    parser.add_argument('-l', '--login', default='tiledviz',
-                        help='Database login (default: tiledviz)')
-    parser.add_argument('-n', '--databasename', default='TiledViz',
-                        help='Database name (default: TiledViz)')
+    parser.add_argument('--host', default=POSTGRES_HOST,
+                        help='Database host (default: '+POSTGRES_HOST+')')
+    parser.add_argument('--port', default=POSTGRES_PORT,
+                        help='Port (default: '+POSTGRES_PORT+')')
+    parser.add_argument('-l', '--login', default=POSTGRES_USER,
+                        help='Database login (default: '+POSTGRES_USER+')')
+    parser.add_argument('-n', '--databasename', default=POSTGRES_DB,
+                        help='Database name (default: '+POSTGRES_DB+')')
     parser.add_argument('-t', '--usertest', default='ddurandi',
                         help='User name for test (default: ddurandi)')
     parser.add_argument('-p', '--projectNAME', default=projectNAME,
@@ -42,10 +49,12 @@ def parse_args(argv):
                         help='Create a connection object to this host')
     parser.add_argument('-r', '--testsets', default='testTileSets',
                         help='Type for test (default: testTileSets)')
-    parser.add_argument('-m', '--typeoftiles', default='CONTAINER',
-                        help='Type of tiles (default: CONTAINER, PICTURE, HTML)')
+    parser.add_argument('-m', '--typeoftiles', default='CONNECTION',
+                        help='Type of tiles (default: CONNECTION, PICTURE, HTML)')
     parser.add_argument('-d', '--datapath', default=datapath,
                         help='Path for data (default: '+datapath+')')
+    parser.add_argument('-o', '--passwordtest', default='5#f_@-m/1ArtOvx0',
+                        help='Project for test (default: "5#f_@-m/1ArtOvx0")')
 
     args = parser.parse_args(argv[1:])
     return args
@@ -195,7 +204,8 @@ if __name__ == '__main__':
     for _t in metadata.tables:
         print("Table: ", _t)
 
-    id_users, uniqUser = tvdb.insert_table('users',{"name":args.usertest})
+    hashpass, salt=tvdb.passprotected(args.passwordtest)
+    id_users, uniqUser = tvdb.insert_table('users',{"name":args.usertest,"salt":salt,"password":hashpass})
     # print("connections :",pool.checkedout())
     tvdb.print_table("users")
     

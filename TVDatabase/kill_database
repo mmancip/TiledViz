@@ -1,0 +1,5 @@
+#!/bin/bash
+
+source $HOME/.cache/envTiledViz
+
+docker exec ${postgresNAME} rm -rf /var/lib/postgresql/data

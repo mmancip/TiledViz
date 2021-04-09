@@ -198,11 +198,14 @@ def copy_connection(oldtileset,newtileset,newsessionname):
     message = '{"oldtilesetid":'+str(newtileset.id)+',"oldsessionname":"'+session["sessionname"]+'"}'
     
     #TODO : session from/to right user for connection
+    if (oldconnection.id == None ):
+        return
+    else:
+        idconnection=oldconnection.id
     if ( not "connection"+str(idconnection) in session):
         flash("You don't have connection information in your personal cookie for this connection.")
         logging.error("You (user "+str(user_id)+") don't have connection information in your personal cookie for this connection : "+str(idconnection))
-        # TODO /grid?
-        return redirect(url_for(".edittileset",message=message))
+        return
 
     #TODO : vncpassword from/to right user for connection
     if  (user_id != oldconnection.id_users) :
@@ -302,7 +305,7 @@ def launch_connection(theTS, theConnect, myhost_address, myauth_type, mycontaine
                 logging.warning(strerror+" message "+message)
                 return redirect(url_for(".edittileset",message=message))
             count=count+1
-            logging.warning("count = "+str(count))
+            logging.debug("count = "+str(count))
             # GET VNC password in 
             # security problem here if server is attacked ?
             time.sleep(timeAlive)
@@ -436,10 +439,8 @@ def remove_this_connection(oldtileset,idconnection,user_id):
     for (dirpath, dirname, filelist) in os.walk(connectionpath):
         for filename in filelist:
             strrm="rm -f "+os.path.join(dirpath,filename)
-            #TODO
             os.system(strrm)
             logging.warning("Remove file for tileset "+oldtileset.name+" : "+os.path.join(dirpath,filename))
-        #TODO
         os.rmdir(dirpath)
         logging.warning("Remove dir for tileset "+oldtileset.name+" : "+dirpath)
     
@@ -477,12 +478,18 @@ def index():
     try: 
         #logging.warning(str(session))
         user = {"username" : session["username"] } # Test for cookie?
-        project = session["projectname"]
-        psession = session["sessionname"]
         if (session["username"] != "Anonymous"):
             session["is_client_active"]=True
+        if ( "projectname" in session ):
+            project = session["projectname"]
+        else:
+            project = ""
+        if ("sessionname" in session ):
+            psession = session["sessionname"]
+        else:
+            psession=""
     except KeyError as e: # If session["username"] does not exist (no cookie yet)
-        logging.warning(e)
+        logging.error("Home error : "+e)
         # If the cookie is not present
         project = "test"
         psession = "testsession"
@@ -509,8 +516,10 @@ def register():
         #     flash("Login requested for user {} in project {}, remember_me={}".format(myform.username.data, myform.projectname.data, myform.remember_me.data))
         #     showlogin=False
         #     return render_template("main_login.html", title="TiledViz register", form=myform)
-        
-        exists = db.session.query(models.User.id).filter_by(name=session["username"]).scalar() is not None
+        try:
+            exists = db.session.query(models.User.id).filter_by(name=session["username"]).scalar() is not None
+        except Exception:
+            exists=False
         if exists:
             if (showexist):
                 flash("Known user {}, remember_me={}".format(myform.username.data, myform.remember_me.data))
@@ -598,9 +607,9 @@ def login():
         if ( myform.newuser.data ):
             # Ask for new user finally
             return redirect("/register")
-        session["username"] = myform.username.data
         try:
-            User=db.session.query(models.User).filter_by(name=session["username"]).one()
+            User=db.session.query(models.User).filter_by(name=myform.username.data).one()
+            session["username"] = myform.username.data
         except:
             flash("Login rejected : '{}' for username does not exist.".format(session["username"]))
             return redirect("/login")
@@ -611,14 +620,15 @@ def login():
             hashSalt=User.salt
             testP=tvdb.testpassprotected(models.User,session["username"],myform.password.data,hashPassword,hashSalt)
             if (testP):
-                logging.info('Correct password.')
+                logging.warning('Correct password.')
                 session["is_client_active"]=True
                 if(myform.choice_project.data == "create"):
                     # Go to project page now
                     return redirect("/project")
-                elif (myform.choice_project.data == "modify"):
-                    return redirect("/oldsessions")
+                elif (myform.choice_project.data == "connect"):
+                    return redirect("/allsessions")
                 else:
+                    logging.error("Before leave login page choice_project : " + myform.choice_project.data)
                     # Want to use a project now :
                     # 1. list (user/ ?) (own ?) projects/session for user
                     # 2. ask a invite links from another user ?
@@ -754,19 +764,22 @@ def project():
     myprojects=[]
     myprojects.append(('NoChoice',printstr.format("Project name","Description","Date and Time","All sessions")))
 
-    for theproject in projects:
-        ListsessionsTheproject=db.session.query(models.Session.name).filter_by(id_projects=theproject.id)
-        allsessionsname=[ asessionTheproject.name for asessionTheproject in ListsessionsTheproject ]
-        thedate=theproject.creation_date.isoformat().replace("T"," ")
-        
-        myprojects.append((str(theproject.id),
-                           printstr.format(
-                               theproject.name,
-                               theproject.description,
-                               thedate,
-                               str(allsessionsname)
-                           )))
-
+    try:
+        for theproject in projects:
+            ListsessionsTheproject=db.session.query(models.Session.name).filter_by(id_projects=theproject.id)
+            allsessionsname=[ asessionTheproject.name for asessionTheproject in ListsessionsTheproject ]
+            thedate=theproject.creation_date.isoformat().replace("T"," ")
+            
+            myprojects.append((str(theproject.id),
+                               printstr.format(
+                                     theproject.name,
+                                     theproject.description,
+                                     thedate,
+                                     str(allsessionsname))
+                               ))
+    except:
+        pass
+    
     myform = BuildNewProjectForm(myprojects)()
     if myform.validate_on_submit():
         user=db.session.query(models.User.id).filter_by(name=session["username"]).one()
@@ -820,8 +833,13 @@ def project():
 @app.route('/allsessions', methods=["GET", "POST"])
 def allmysessions():
     if ("username" in session):
+        if (session["username"] == "Anonymous"):
+            return redirect("/login")
+
         flash("All projects and sessions for user {}".format(session["username"]))
-        user=db.session.query(models.User.id).filter_by(name=session["username"]).one()
+        logging.warning("All projects and sessions for user {}".format(session["username"]))
+        user=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
+        logging.warning("User id {}".format(user))
     elif (not 'is_client_active' in session):
         flash("You are not connected. You must login before using a grid.")
         return redirect("/login")
@@ -829,49 +847,60 @@ def allmysessions():
         flash("All projects and sessions : User must login !")
         return redirect("/login")
 
-    if (session["username"] == "Anonymous"):
-        return 'User not logged in <br>' + "<b><a href = '/login'>click here to log in.</a></b>"
 
     message='{"username": '+session["username"]+'}'
-    logging.info("in allmysessions")
+    logging.info("in allsessions")
 
     # All projects own by user
     projects = db.session.query(models.Project).filter_by(id_users=user)
+    
     # All sessions own of those projects
     mysessions=[]
-    for theproject in projects:
-        ListsessionsTheproject=db.session.query(models.Session.name).filter_by(id_projects=theproject.id)
-        [ mysessions.append((theproject.name,ListsessionTheproject)) for ListsessionTheproject in ListsessionsTheproject ]
-
+    try:
+        for theproject in projects:
+            ListsessionsTheproject=db.session.query(models.Session.name).filter_by(id_projects=theproject.id)
+            [ mysessions.append((theproject.name,ListsessionTheproject)) for ListsessionTheproject in ListsessionsTheproject ]
+    except:
+        pass
+    
     printstr="{1:\xa0<"+sessionl+"."+sessionl+"}|{0:\xa0<"+projectl+"."+projectl+"}|\xa0{2:\xa0<"+datel+"."+datel+"}\xa0|\xa0{3:\xa0<"+descrl+"."+descrl+"}"
     listmyprojectssession=[]
     listmyprojectssession.append(('NoChoice',printstr.format("Project name","Session name","Date and Time","Description")))
     listmysession=[]
-    for thissessions in mysessions:
-
-        for thissession in thissessions[1]:
-            listmysession.append(thissession)
-            thedate=db.session.query(models.Session.creation_date).filter_by(name=str(thissession)).one()[0].isoformat().replace("T"," ")
-
-            listmyprojectssession.append((str(thissession),printstr.
-                                          format(str(thissessions[0]),
-                                                 str(thissession),
-                                                 thedate,
-                                                 db.session.query(models.Session).filter_by(name=thissession).one().description)))
+    try:
+        for thissessions in mysessions:
             
+            for thissession in thissessions[1]:
+                listmysession.append(thissession)
+                thedate=db.session.query(models.Session.creation_date).filter_by(name=str(thissession)).one()[0].isoformat().replace("T"," ")
+                SessDesc=db.session.query(models.Session).filter_by(name=thissession).one().description
+                listmyprojectssession.append((str(thissession),printstr.
+                                              format(str(thissessions[0]),
+                                                     str(thissession),
+                                                     thedate,SessDesc)
+                                              )
+                                             )
+    except:
+        pass
+    
     # All sessions this user has been invited to
-    invite_sessions = db.session.query(models.Session.name).filter(models.Session.users.any(id=user)).all()
-    printstr="{0:\xa0<"+sessionl+"."+sessionl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"
     listsessions=[]
-    listsessions.append(('NoChoice',printstr.format("Session name","Date and Time","Description")))
-    for thissession in invite_sessions:
-        logging.debug("Build listsessions for invite_session "+str(thissession.name))
-        if (thissession.name not in listmysession):
-            thedate=db.session.query(models.Session.creation_date).filter_by(name=thissession.name).one()[0].isoformat().replace("T"," ")
-            listsessions.append((str(thissession.name),printstr.
-                                 format(str(thissession.name),
-                                        thedate,
-                                        db.session.query(models.Session).filter_by(name=thissession.name).one().description)))
+    try:
+        invite_sessions = db.session.query(models.Session.name).filter(models.Session.users.any(id=user)).all()
+        printstr="{0:\xa0<"+sessionl+"."+sessionl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"        
+        listsessions.append(('NoChoice',printstr.format("Session name","Date and Time","Description")))
+        for thissession in invite_sessions:
+            logging.debug("Build listsessions for invite_session "+str(thissession.name))
+            if (thissession.name not in listmysession):
+                thedate=db.session.query(models.Session.creation_date).filter_by(name=thissession.name).one()[0].isoformat().replace("T"," ")
+                SessDesc=db.session.query(models.Session).filter_by(name=thissession.name).one().description
+                listsessions.append((str(thissession.name),printstr.
+                                     format(str(thissession.name),
+                                            thedate, SessDesc)
+                                     )
+                                    )
+    except:
+        pass
 
     myform = BuildAllProjectSessionForm(listmyprojectssession,listsessions)()
     if myform.validate_on_submit():
@@ -2068,22 +2097,25 @@ def addconnection():
                 message = '{"oldtilesetid": "'+str(newtileset.id)+'"}'
                 return redirect(url_for(".edittileset",message=message))
             count=count+1
+            #logging.warning("addconnection count : "+str(count))
             
             # GET VNC password in 
             # security problem here if server is attacked ?
             time.sleep(timeAlive)
             #os.system("ls -la "+passpath)
+            #sys.stdout.flush()
             if (os.path.isfile(passpath)):
                 with open(passpath,'r') as f:
                     vncpassword=re.sub(r'\n',r'',f.read())
                 f.close()
-                logging.info("and password : "+vncpassword)
+                logging.debug("and password : "+vncpassword)
 
                 message = '{"oldtilesetid":'+str(newtileset.id)+',"connectionid":'+str(newConnection.id)+',"sessionname":"'+session["sessionname"]+'"}'
                 session["connection"+str(newConnection.id)]=' {"callfunction":"edittileset",'+'"args":{"oldsessionname":"'+str(session["sessionname"])+'","oldtilesetid":"'+str(newtileset.id)+'"}, "vncpassword":"'+vncpassword+'"}'
 
                 logging.warning("addconnection in session : "+str(session["connection"+str(newConnection.id)]))
                 #TODO logging.debug
+                myflush()
                 return redirect(url_for(".vncconnection",message=message))
         
     return render_template("main_login.html", title="Add new Connection TiledViz", form=myform, message=message)
@@ -2750,7 +2782,7 @@ def handle_invite_link_request(cdata):
 # Invite link management
 @app.route("/join/<link>")
 def handle_join_with_invite_link(link):
-    logging.warning(link)
+    logging.warning("Handle join with invite link : "+link)
     if "active" in link:
         new_client_type = "active"
         session["is_client_active"]=True

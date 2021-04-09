@@ -1,217 +1,62 @@
 How to install TiledViz ?
 
+You can use default installation with
+> ./install.sh > install.log 2>&1
+
+But you may have some configuration to check before doing it:
+ 1. Docker settings
+ 2. Postgresql environement
+ 3. TVSecure parameters in tiledviz.conf
+ 4. SMTP relay in connection docker if needed.
+ 
+For host part (named TiledViz Secure), you need to install python3
+and python packager pip3 (in python3-pip).
+
+Install will create $HOME/.tiledviz directory.
+
+There are two configuration files :
+ * envDB for the postgresql parameter en python3 virtual environmeent.
+   It will be filled in a file ${HOME}/.cache/envTiledViz  
+ * tiledviz.conf will be copied in ${HOME}/.tiledviz directory.
+
+This virtualenv directory will be TiledVizEnv_${DATE} where ${DATE} is the date of
+installation saved in envTiledViz.
+
 1. Docker rights
 
 You must first install docker package (at least 17.03 version).
 
 You must be in docker groups (don't forget to relog after and see "id" command
-output) to be abble to launch docker containers :
-> chown :docker /var/run/docker.sock
-No need to be root for TiledViz host part. No TiledViz containers are execute with
-root users for security.
+output) to be abble to launch docker containers.
 
-2. Python3 environment
-For host part (named TiledViz Secure) you must have installed postgresql client
-tools and python3, pip3 (in python3-pip).
+No TiledViz containers are execute with root users for security.
 
-You may also use a python3 environement as non root user  :
-- sudo apt-get install -y python3-pip postgresql-client libpq-dev
-- sudo pip3 install virtualenv
-- export DATE=$(date +%F_%H-%M-%S)
-- mkdir TiledVizEnv_${DATE}
-- virtualenv TiledVizEnv_${DATE}
-  (on some system, you may have to use virtualenv-3.? where 3.? is the default python version)
-- source TiledVizEnv_${DATE}/bin/activate
+2. Postgresql environment
 
-This virtualenv directory may be changed in launch_TiledViz script in line 17.
+PostgreSQL service will be downloaded in DockerHub with alpine system.
 
-3. Requirements
+You can change PostgreSQL port in envDB before install if you need many
+postgres-alpine dockers running.
+This file is private and keep the PostgreSQL password for the postgres service.
 
-You have to go to TiledViz dir.
-Then all other tools are installed in you local environment with :
-    - pip3 install -r requirements.txt
-You need noVNC : https://travis-ci.org/novnc/noVNC in TVWeb subdirectory.
-Use these commands to install and patch :
-{{{
-cd TVWeb
-git clone https://github.com/novnc/noVNC.git noVNC
-cd noVNC
-git checkout 33e1462
-cd ..
-cp vnc_multi.html noVNC
-patch -p0 < patch_devices_noVNC 
-}}}
+3. TVSecure parameters in tiledviz.conf
 
-4. Database
-After installing client side of postgresql database, in stage 2, you have to choose
-if you prefer install the TiledViz database in your host system or having a container
-dedicated to database managment.
-You may read TVDatabase/README.md file for documentation on PostgreSQL DB.
+You may change the values in tiledviz.conf before installation:
+NbSecureConnection is the number of thread pool for TVSecure.
+And ConnectionPort and ActionPort are the port for its connections to TiledViz intermediate dockers to HPC machines.
 
-a. Environment
-We need those environment variables to be set to the right values in TiledViz/envDB file :
-{{{
-export POSTGRES_HOST=postgres
-export POSTGRES_USER=tiledviz
-export POSTGRES_DB=TiledViz
-export POSTGRES_PASSWORD="your_postgres_password"
-export passwordDB="$POSTGRES_PASSWORD"
-}}}
-You have to choose your own PostgreSQL password.
+4. SMTP relay in connection docker if needed.
 
-b. docker + localhost
-It is the simplest way to have the DB for TiledViz but it may lost the DB if the
-machine is shutting down.
+Install will build connection docker if you want to launch connection 
+containers. Please add SMTP server (the IP because DNS may not work) parameter (in
+replacement of TODO_SMTP) in
+TVConnections/mageianconnect/Dockerfile,
+if you want to use some automatic email in your scripts.
 
-start_postgres is a script to do that.
-
-You can choose to run PostgreSQL db server on your host or on a docker as a micro service.
-{{{
-export postgresNAME=tiledvizpg
-}}}
-
-For docker container, a simple postgres alpine is very small :
-{{{
-docker run -d -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_DB=$POSTGRES_DB -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD --name=$postgresNAME postgres:9.6-alpine
-}}}
-This will download DockerHub version of postgres with alpine system.
-
-The IP of postgres container is given by command as
-{{{
-export IPPOSTGRES=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $postgresNAME)
-}}}
-
-You can restart postgres container (in STOP state - see "docker ps -a") with
-{{{
-docker start ${postgresNAME}
-}}}
-
-c. For local postgresql db you have to install posrgres "postgresql9.6-server" on your system.
-
-Please note you should find docker0 IP with
-{{{
-/sbin/ip -4 addr show docker0 | grep -Po 'inet \K[\d.]+'
-}}}
-and to protect the DB and you must add docker0 address (and note all network interfaces) in postgresql conf file (and '*' for all interfaces):
-{{{
-nano /var/lib/pgsql/data/postgresql.conf
-listen_addresses = 'localhost,172.17.0.1'
-}}}
-or with debian base linux and # as the postgresql main version
-{{{
-nano /etc/postgresql/#/main/postgresql.conf
-}}}
-
-Then after restart postgresql service as root you should have
-{{{
-netstat -latupen |grep 5432
-tcp        0      0 172.17.0.1:5432         0.0.0.0:*               LISTEN      980        1005010    28363/postgres      
-tcp        0      0 127.0.0.1:5432          0.0.0.0:*               LISTEN      980        1005009    28363/postgres      
-tcp6       0      0 ::1:5432                :::*                    LISTEN      980        1005008    28363/postgres   
-}}}
-
-If you choose docker0 interface for DB, you must restart postgresql service
-because docker server may have started after this one:
-{{{
-systemctl restart postgresql
-}}}
-
-You must give some authorization to access to postgresql DB :
-in /var/lib/pgsql/data/pg_hba.conf (or in /etc/postgresql/#/main/pg_hba.conf in debian/ubuntu
-
-  host    all             all             0.0.0.0/0         trust
-  host    all             tiledviz        172.17.0.0/24         trust
-TODO : lazy.
-
-
-
-d. Install Database
-
-Note that the DATABASE PASSWORD MUST BE CHANGED in this TiledViz.sql file.
-{{{
-sed -e "s&	ENCRYPTED PASSWORD 'm_test/@03';&	ENCRYPTED PASSWORD 'your_real_postgres_password';&" -i TVDatabase/TiledViz.sql
-}}}
-NOT with 'your_postgres_password' of course.
-
-Then you can use psql tool to insert database structure with IPPOSTGRES variable
-previously defined for postgres container installation :
-{{{
-psql -h $IPPOSTGRES -U tiledviz -d TiledViz -f TVDatabase/TiledViz.sql
-}}}
-
-Or you can use psql tool to insert database structure for local postgres service :
-{{{
-psql -h localhost -U tiledviz -d TiledViz -f TVDatabase/TiledViz.sql
-}}}
-and replace localhost by postgres.
-
-You should also add functions and views to ease database management with psql tool :
-{{{
-psql -h localhost -U tiledviz -d TiledViz -f TVDatabase/management.sql
-}}}
-and replace localhost by postgres.
-Of course change localhost for $IPPOSTGRES for container installation.
-
-d. Fill values
+5. Fill values
 For Gitlab Continuous Integration script file .gitlab-ci.yml, we have prepared fill script of the database with old TileViz demo files :
-- TVDatabase/filledDatabase.sh
+> TVDatabase/filledDatabase.sh
 
-e. Get models.py
-
-A module TVDB in TVdatabase subdirectory
-Because the database is built graphicaly with pgModeler and saved in file TVDatabase/TiledViz.dbm, we need
-to compile a sqlalchemy python representation of it :
-{{{
-sqlacodegen postgres://${POSTGRES_USER}:"${POSTGRES_PASSWORD}"@${POSTGRES_HOST}/${POSTGRES_DB} --outfile=TVDatabase/TVDb/models.py
-}}}
-
-6. Build connect docker
-First get websockify source :
-- pushd TVConnections
-- git clone https://github.com/novnc/websockify
-- popd
-
-Create $HOME/.tiledviz directory.
-Change parameters for socket in TiledViz/tiledviz.conf and copy this file in
-$HOME/.tiledviz.
-
-In  TiledViz directory, you may build connection docker if you want to launch containers :
-- docker build -t mageiaconnect -f TVConnections/mageianconnect/Dockerfile .
-
-
-7. Build HPC docker
-You must download TiledViz on your HPC machine in order to build HPC visualization
-dockers.
-You have some examples with Mageia7 and Ubuntu 18.04.
-You may want GPU acceleration inside this container then GLX extension is required.
-Take care of x11-driver-video-nvidia390 or x11-driver-vidio-nvidia-current package to
-be able to use you Nvidia GPU already installed in the shared kernel of the HPC node. 
-You can try TiledTest CASE with glxgears to test GLX extension.
-
-Those HPC containers musn't be shared between users.
-You must copy your ssh private key to authorize redirection of VNC stream on your frontend
-- cp my_id_dsa* in TVConnections/mageianvidia/ssh
-with good rights.
-
-And build a VNC container on HPC machine as in TVConnections/mageianvidia (NOT on
-your local machine):
-- docker build -t mageianvidia -f TVConnections/mageianvidia/Dockerfile .
-
-Thoses containers must be launch with the HPC machine scheduler. You may use
-TVConnections/Swarm/launch_dockers script.
-
-8. Running Flask
-a. build
-- docker build -t flaskimage -f TVWeb/FlaskDocker/Dockerfile.web .
-
-b. run
-Flask is running inside TVSecure then you don't need to run its docker container
-mannually.
-
-launch_TiledViz script run this TVSecure tool.
-
-You have to modify launch_TiledViz to fix your own secret key for TVSecure :
-argument --secretKey='my Preci0us secr_t key for t&sts.'.
 
 You may create an empty .netrc file for python lower module:
 {{{
@@ -219,45 +64,19 @@ touch ~/.netrc
 }}}
 
 
-c. test
-TiledViz is regularly tested with our CI on gitlab.maisondelasimulation.fr with
-Selenium web engine driver. 
-    - export IPFlask=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' flaskdock)
-    - TVDatabase/getDatabase.sh
-    - docker run -t -v $(pwd)/TVWeb/Selenium:/usr/local/Selenium --add-host="flaskdock:$IPFlask" --name=selenium --rm joyzoursky/python-chromedriver:3.7-alpine3.8-selenium python3 /usr/local/Selenium/test_script.py 
-d. log
-    - docker exec -t flaskdock cat /TiledViz/TVWeb/TiledViz.log
-e. stop
-    - docker stop flaskdock
-
-8. TiledViz Secure
-You may want to use secure connection to watch remote VNC stream from computing
-machine with TiledViz.
-
-To have this functionnality, you must fill launch_TiledViz script with previous
-parameters you have already chosen and execute this script. Be carefull to change
-"./TiledVizEnv_" string for the virtualenv directory path you have chosen.
-Then in TiledViz, execute launch_TiledViz:
-> cd TiledViz
-> ./launch_TiledViz
-
-
-10. ssh parameters
+6. ssh parameters
 One must have uncomment 
 GatewayPorts yes
 in sshd config file on the web server.
 
-11. Error in starting TiledViz
+7. Use debug option in web Connection form.
 
-a. Firewall error
-If you see a message with "docker0: iptables: No chain/target/match by that name.",
-you may restart your docker daemon process as root :
-sudo systemctl restart docker
+If you want to build your own TiledViz cases, you may read
+TVConnection/TVConnections.py
+because it contains initialization and functions for calling in case job. 
 
-b. Use debug option in Connection form.
-
-This option may stop the connection script before you launch your own job then you
-can test it manualy.
+This debug option may stop the connection script before you launch your own job then
+you can test it manualy.
 
 You may use os.system('/cat_between #Line1 #Line2 file.py') to display and copy/paste
 parts of your script in the prompt.

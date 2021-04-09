@@ -1,19 +1,52 @@
 #!/bin/bash
-source ./envDB
 
-export PythonVENV=../TiledVizEnv_${DATE}
+source $HOME/.cache/envTiledViz
 
-docker run -d -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_DB=$POSTGRES_DB -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD --name=$postgresNAME postgres:9.6-alpine
+export PythonVENV=./TiledVizEnv_${DATE}
 
+echo "===== 1 List and close active containers =====" 
+docker container ls -a --filter=name=$postgresNAME && docker container ls -a -q --filter=name=$postgresNAME |xargs docker rm -f -v
+
+echo "===== 2 PostgreSQL container ====="
+PostgresDock=postgres:9.6-alpine
+if ( ! docker images --filter "reference=${PostgresDock}" >/dev/null ); then
+    docker pull ${PostgresDock}
+    sleep 2
+fi
+
+docker run -v $(pwd)/TVDatabase/postgresql/data:/var/lib/postgresql/data -p ${POSTGRES_PORT}:5432 -e PGPORT=${POSTGRES_PORT}  -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_DB=$POSTGRES_DB -e POSTGRES_PASSWORD="$POSTGRES_PASSWORD" --name=$postgresNAME ${PostgresDock} &
 sleep 5
-export IPPOSTGRES=${POSTGRES_HOST}
 
-sed -e "s&	ENCRYPTED PASSWORD 'm_test/@03';&	ENCRYPTED PASSWORD '$passwordDB';&" -i TVDatabase/TiledViz.sql
-
-psql -W -h $IPPOSTGRES -U tiledviz -d TiledViz -f TVDatabase/TiledViz.sql
-sleep 2
-psql -W -h $IPPOSTGRES -U tiledviz -d TiledViz -f TVDatabase/management.sql
-
+source  $HOME/.cache/envTiledViz
 source ${PythonVENV}/bin/activate
-sqlacodegen postgres://${POSTGRES_USER}:"${POSTGRES_PASSWORD}"@${POSTGRES_HOST}/${POSTGRES_DB} --outfile=TVDatabase/TVDb/models.py
 
+pathtodump=$(python3 -c "import zenipy; pathtodump=zenipy.zenipy.file_selection(title='Do you want to restore from a PostgreSQL dump file ? Please give the path to file or cancel if not : ', width=450, height=120, timeout=None); print(str(pathtodump))")
+
+if [ $pathtodump == "None" ]; then
+
+    echo "===== 3 Patch TiledViz DB definition =====" 
+
+    replpass=$( echo $POSTGRES_PASSWORD | sed -e "s|\&|\\\&|g" )
+    sed -e "s|	ENCRYPTED PASSWORD '\(.*\)';|	ENCRYPTED PASSWORD '$replpass';|" TVDatabase/TiledViz.sql > $HOME/tmp/TiledViz.sql
+    export PGPASSWORD=$POSTGRES_PASSWORD
+
+    echo "===== 4 Apply TiledViz DB definition =====" 
+
+    psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f $HOME/tmp/TiledViz.sql
+    rm $HOME/tmp/TiledViz.sql
+
+    sleep 2
+    echo "===== 5 Apply TiledViz management functions =====" 
+    psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f TVDatabase/management.sql
+else
+    echo "===== 3 Restore Old DB =====" 
+
+    replpass=$( echo $POSTGRES_PASSWORD | sed -e "s|\&|\\\&|g" )
+    sed -e "s|	ENCRYPTED PASSWORD '\(.*\)';|	ENCRYPTED PASSWORD '$replpass';|" TVDatabase/TiledViz_role.sql > $HOME/tmp/TiledViz_role.sql
+    export PGPASSWORD=$POSTGRES_PASSWORD
+
+    psql -h ${POSTGRES_IP} -p ${POSTGRES_PORT} -U ${POSTGRES_USER} -d ${POSTGRES_DB} < $pathtodump
+    #rm $HOME/tmp/TiledViz.dump
+fi
+echo "===== 6 Build model =====" 
+sqlacodegen postgresql://${POSTGRES_USER}:"${POSTGRES_PASSWORD}"@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB} --outfile=TVDatabase/TVDb/models.py

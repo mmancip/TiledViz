@@ -3,3 +3,5 @@ psycopg2-binary
 pexpect
 sqlacodegen
 docker
+zenipy
+vext.gi

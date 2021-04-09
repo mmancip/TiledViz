@@ -1,10 +1,10 @@
 #!/bin/bash
-source ./envDB
+source $HOME/.cache/envTiledViz
 
-export PythonVENV=../TiledVizEnv_${DATE}
+export PythonVENV=./TiledVizEnv_${DATE}
 
 rm TVSecure.log TVWeb/TiledViz.log
-docker rm -f flaskdock
+docker container ls -a --filter=name=flaskdock && docker container ls -a -q --filter=name=flaskdock |xargs docker rm -f -v
 if [ X$(docker ps -a| grep "mageiaconnect"|sed -e 's/\([0-9a-z]*\) .*/\1/' |wc -l) != X"" ]; then
     docker ps -a| grep "mageiaconnect" |sed -e 's/\([0-9a-z]*\) .*/\1/' |xargs docker rm -f
     rm -Rf /tmp/connectiondock*
@@ -12,7 +12,11 @@ fi
 
 pwd
 source ${PythonVENV}/bin/activate
-python3 TVSecure/TVSecure.py --POSTGRES_HOST=${POSTGRES_HOST} --POSTGRES_IP=${POSTGRES_IP} \
+passwordFlask=$(python3 -c "import zenipy; password=zenipy.zenipy.password(title='Flask password',text='Please give a password for your Flask server : ', width=450, height=120, timeout=None); print(str(password))")
+echo "pass : " $passwordFlask
+python3 TVSecure/TVSecure.py --POSTGRES_HOST=${POSTGRES_HOST} --POSTGRES_IP=${POSTGRES_IP} --POSTGRES_PORT=${POSTGRES_PORT} \
 	--POSTGRES_DB=${POSTGRES_DB} --POSTGRES_USER=${POSTGRES_USER} --POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
-	--secretKey='my Preci0us secr_t key for t&sts.' 2>&1 | grep -v "DEBUG:urllib3.*" | grep -v " :running" | sed -e "s%\(.*\) \- Thread-\([0-9]*\) \- DEBUG: .* HTTP/1.1\" 200 None%\1 \2%" | grep -v " 1 " | grep -v 404
+	--secretKey="$passwordFlask" 2>&1 \
+    | grep -v "DEBUG:urllib3.*" | grep -v " :running" \
+    | sed -e "s%\(.*\) \- Thread-\([0-9]*\) \- DEBUG: .* HTTP/1.1\" 200 None%\1 \2%" | grep -v " 1 " | grep -v 404
 echo "Exit :" $?

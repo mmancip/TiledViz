@@ -24,7 +24,7 @@ from sqlalchemy.exc import IntegrityError
 
 def SQLconnector(args):
     global metadata,conn,engine,pool,session
-    engine = create_engine(make_url("postgresql://"+args.login+":"+os.getenv("passwordDB")+"@"+args.host+"/"+args.databasename),
+    engine = create_engine(make_url("postgresql://"+args.login+":"+os.getenv("passwordDB")+"@"+args.host+":"+args.port+"/"+args.databasename),
                            convert_unicode= True,
                            poolclass= QueuePool
                            )
@@ -67,7 +67,9 @@ def insert_table(table_name,values):
     now = datetime.datetime.now()
 
     try:
-        myinsert = table_.insert().returning(table_.c.id).values(values,creation_date=now)
+        if ("creation_date" in table_.c and "creation_date" in values):
+            values["creation_date"]=now
+        myinsert = table_.insert().returning(table_.c.id).values(values)
     except (KeyError, AttributeError):
         myinsert = table_.insert().returning(table_.c[values.copy().popitem()[0]]).values(values)
 

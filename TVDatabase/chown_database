@@ -1,0 +1,5 @@
+#!/bin/bash
+
+source $HOME/.cache/envTiledViz
+
+docker exec ${postgresNAME} chown -R $(id -u):$(id -g) /var/lib/postgresql/data
