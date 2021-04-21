@@ -196,7 +196,7 @@ def copy_connection(oldtileset,newtileset,newsessionname):
     user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
 
     message = '{"oldtilesetid":'+str(newtileset.id)+',"oldsessionname":"'+session["sessionname"]+'"}'
-    
+
     #TODO : session from/to right user for connection
     if (oldconnection.id == None ):
         return
@@ -429,8 +429,10 @@ def save_session(oldsessionname, newsuffix, newdescription, alltiles):
 def remove_this_connection(oldtileset,idconnection,user_id):
     oldconnection=oldtileset.connection
     oldtilesetid=oldtileset.id
+    logging.warning("Remove connection of tileset %d" % (oldtilesetid))
+
     if (oldconnection.id != idconnection):
-        logging.error()
+        logging.error("id %d to be removed is not this tileset %d id %d." % (idconnection, oldtilesetid, oldconnection.id))
         return
     # Build connection path
     user_path=os.path.join("/TiledViz/TVFiles",str(user_id))
@@ -477,7 +479,11 @@ def remove_this_connection(oldtileset,idconnection,user_id):
 def index():
     try: 
         #logging.warning(str(session))
-        user = {"username" : session["username"] } # Test for cookie?
+        try:
+            user = {"username" : session["username"] } # Test for cookie?
+        except:
+            user = {"username" : "Anonymous"}
+            session["username"]="Anonymous"
         if (session["username"] != "Anonymous"):
             session["is_client_active"]=True
         if ( "projectname" in session ):
@@ -1522,7 +1528,7 @@ def edittileset():
         except AttributeError:
             #message = '{"oldtilesetid":'+str(oldtileset.id)+',"oldsessionname":"'+session["sessionname"]+'"}'
             #return redirect(url_for(".addconnection",message=message))
-            Atraceback.print_exc(file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
             logging.error("Error get old connection for tileset %s : %s" % ( oldtileset.name, err ))
             flash("Tileset {} edit for user {} : AttributeError ! ".format(oldtileset.name,session["username"]))
 
@@ -1679,13 +1685,17 @@ def edittileset():
         else:
             # if json structure is inserted with text area
             json_tiles = myform.json_tiles_text.data
-        
-        if myform.editjson.data:
-            jsontransfert[session["sessionname"]]={"callfunction": '{"function":"edittileset",'+'"args":{"oldtilesetid":"'+str(oldtilesetid)+'"}}',
+
+        try:    
+            if myform.editjson.data:
+                jsontransfert[session["sessionname"]]={"callfunction": '{"function":"edittileset",'+'"args":{"oldtilesetid":"'+str(oldtilesetid)+'"}}',
                                                    "TheJson":json_tiles}
-            # json_gziped=base64.b64encode(gzip.compress(json_tiles.encode('utf-8')))
-            #return redirect(url_for(".jsoneditor",callfunction=callfunction,TheJson=json_gziped))
-            return redirect(url_for(".jsoneditor"))
+                # json_gziped=base64.b64encode(gzip.compress(json_tiles.encode('utf-8')))
+                #return redirect(url_for(".jsoneditor",callfunction=callfunction,TheJson=json_gziped))
+                return redirect(url_for(".jsoneditor"))
+        except Exception as err:
+            traceback.print_exc(file=sys.stderr)
+            logging.error("Error editjson %s : %s" % ( str(myform.editjson), err ))
 
         # Translate json text in structure
         if (len(json_tiles) > 0):
@@ -1993,11 +2003,16 @@ def addconnection():
             except:
                 return
         
+        if (myform.scheduler_file.data):
+            scheduler_filename=myform.scheduler_file.data.filename
+        else:
+            scheduler_filename=""
+
         newConnection = models.Connection(host_address=myform.host_address.data,
                                           auth_type=myform.auth_type.data,
                                           container=myform.container.data,
                                           scheduler=myform.scheduler.data,
-                                          scheduler_file=myform.scheduler_file.data.filename,
+                                          scheduler_file=scheduler_filename,
                                           id_users=user_id,
                                           creation_date= creation_date)
 
@@ -2055,11 +2070,13 @@ def addconnection():
         
         # Save scheduler_file in connectionpath and tmp filename in ConnConfigjson
         if (myform.scheduler_file.data):
+            logging.warning("Scheduler file : %s " % (str(myform.scheduler_file.data)))
             scheduler_file=myform.scheduler_file.data
-            tf = tempfile.NamedTemporaryFile(mode="w+b",dir=connectionpath,prefix="",delete=False)
-            tf.write(scheduler_file.read())
-            ConnConfigjson[scheduler_file.filename]=tf.name
-            tf.close()
+            if ( scheduler_file != "" ):
+                tf = tempfile.NamedTemporaryFile(mode="w+b",dir=connectionpath,prefix="",delete=False)
+                tf.write(scheduler_file.read())
+                ConnConfigjson[scheduler_file.filename]=tf.name
+                tf.close()
 
         sTSConfigjson=str(TSConfigjson).replace("'", '"')
         logging.warning("Configuration files for TileSet %s : %s " % (newtileset.name,sTSConfigjson) )
@@ -2365,6 +2382,11 @@ def show_grid():
                 return redirect("/login")
 
 
+        if (not "sessionname" in session or
+            not "projectname" in session):
+            flash("No project or session defined yet. Please chose one.")
+            return redirect("/allsessions")
+
         psession = session["sessionname"]
         project = session["projectname"]
         logging.info("Into '/grid' with GET for session room to " + psession)
@@ -2641,7 +2663,7 @@ def ClickAction(cdata):
         oldconnection=oldtileset.connection
         user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
         if (oldconnection):
-            if  (user_id == oldconnection.id_users) :
+            if  (user_id == oldconnection.id_users and session["is_client_active"]):
                 logging.warning("action: "
                                 +str(session["username"])+" ; "
                                 +str(oldtileset.id)+" ; "

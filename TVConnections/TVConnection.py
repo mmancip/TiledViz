@@ -44,6 +44,8 @@ def parse_args(argv):
         'From a connection Id in PostgreSQL DB get connection parameters from TiledViz database.')
     parser.add_argument('--host', default='localhost',
                         help='Database host (default: localhost)')
+    parser.add_argument('--port', default='6431',
+                        help='Port (default: 6431)')
     parser.add_argument('-l', '--login', default='tiledviz',
                         help='Database login (default: tiledviz)')
     parser.add_argument('-n', '--databasename', default='TiledViz',

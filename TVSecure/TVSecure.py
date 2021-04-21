@@ -521,10 +521,10 @@ class ConnectionDocker(threading.Thread):
         XLocale=docker.types.Mount(source="/usr/share/X11/locale",target="/usr/share/X11/locale",type='bind')
 
         if (debug):
-            self.commandConnect=[str(self.connectionId),POSTGRES_HOST+":"+POSTGRES_PORT,POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,'-r',CONNECTION_RESOL,'-u',str(os.getuid()),'-g',str(os.getgid()),'-d']
+            self.commandConnect=[str(self.connectionId),POSTGRES_HOST,POSTGRES_PORT,POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,'-r',CONNECTION_RESOL,'-u',str(os.getuid()),'-g',str(os.getgid()),'-d']
             self.cont_auto_remove=False
         else:
-            self.commandConnect=[str(self.connectionId),POSTGRES_HOST+":"+POSTGRES_PORT,POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,'-r',CONNECTION_RESOL,'-u',str(os.getuid()),'-g',str(os.getgid())]
+            self.commandConnect=[str(self.connectionId),POSTGRES_HOST,POSTGRES_PORT,POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,'-r',CONNECTION_RESOL,'-u',str(os.getuid()),'-g',str(os.getgid())]
             self.cont_auto_remove=True
 
         logging.debug("Input param commandConnect : '"+str(self.commandConnect)+"'")

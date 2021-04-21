@@ -8,7 +8,7 @@ echo "==== Build Virtualenv for TVSecure ===="
 export DATE=$(date +%F_%H-%M-%S)
 echo "DATE=$DATE"
 mkdir TiledVizEnv_${DATE}
-virtualenv TiledVizEnv_${DATE}
+python3 -m venv TiledVizEnv_${DATE}
 source TiledVizEnv_${DATE}/bin/activate
 
 echo "==== Copy TiledViz env in .cache ===="

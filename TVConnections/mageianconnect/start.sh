@@ -14,19 +14,20 @@ myGID=1000
 
 export ConnectionId=$1
 export POSTGRES_HOST=$2
-export POSTGRES_DB=$3
-export POSTGRES_USER=$4
-export POSTGRES_PASSWORD="$5"
+export POSTGRES_PORT=$3
+export POSTGRES_DB=$4
+export POSTGRES_USER=$5
+export POSTGRES_PASSWORD="$6"
 
 if [ -z "$5" ]; then
-	echo Usage: $0 ConnectionId POSTGRES_HOST POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD [-r RESOL_XxRESOL_Y] -u UID [-g GID] [-d]
+	echo Usage: $0 ConnectionId POSTGRES_HOST POSTGRES_PORT POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD [-r RESOL_XxRESOL_Y] -u UID [-g GID] [-d]
 	exit 1
 else
     IFS=' ' read -ra ADDR <<< "$ARGS"
 
     lenADDR=${#ADDR[@]}
     if [ ${lenADDR} -gt 0 ]; then
-	i=5
+	i=6
 	while [ $i -lt ${lenADDR} ]; do
 	    case "${ADDR[$i]}" in
 		'-r') 
@@ -103,7 +104,7 @@ sleep 1
 if [ X\"$debug\" != X ]; then optDEB=1; fi
 stty sane
 export TERM=linux
-xterm -rv -fullscreen -fa 'Adobe Courrier:size=12:antialias=true' -e /TiledViz/TVConnections/tvconnections.sh ${ConnectionId} ${POSTGRES_HOST} ${POSTGRES_DB} ${POSTGRES_USER} '${POSTGRES_PASSWORD}' \$optDEB
+xterm -rv -fullscreen -fa 'Adobe Courrier:size=12:antialias=true' -e /TiledViz/TVConnections/tvconnections.sh ${ConnectionId} ${POSTGRES_HOST} ${POSTGRES_PORT} ${POSTGRES_DB} ${POSTGRES_USER} '${POSTGRES_PASSWORD}' \$optDEB
 " >${HOME_user}/.vnc/xstartup
 chmod 755 ${HOME_user}/.vnc/xstartup
 
@@ -112,7 +113,7 @@ chown -R myuser:myuser ${HOME_user}
 echo export DOCKERID=$DOCKERID >> ${HOME_user}/.bashrc
 
 # Build database model
-sqlacodegen postgresql://${POSTGRES_USER}:"${POSTGRES_PASSWORD}"@${POSTGRES_HOST}/${POSTGRES_DB} --outfile=/TiledViz/TVDatabase/TVDb/models.py
+sqlacodegen postgresql://${POSTGRES_USER}:"${POSTGRES_PASSWORD}"@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB} --outfile=/TiledViz/TVDatabase/TVDb/models.py
 
 # Run the vncserver
 cd

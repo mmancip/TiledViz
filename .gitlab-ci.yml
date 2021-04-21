@@ -4,6 +4,7 @@ services:
 
 variables:
   POSTGRES_HOST: postgres
+  POSTGRES_PORT: 5432
   POSTGRES_DB: TiledViz
   POSTGRES_USER: tiledviz
   POSTGRES_PASSWORD: "m_test/@03"

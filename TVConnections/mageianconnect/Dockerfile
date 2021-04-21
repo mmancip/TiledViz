@@ -84,6 +84,6 @@ ENTRYPOINT ["/start.sh"]
 RUN touch /home/myuser/.Xauthority
 
 
-CMD ["-1", "localhost", "TiledViz", "tiledviz", "m_test/@03", "-r","800x600","-u","1000","-g","1000","-d"]
+CMD ["-1", "localhost", "6431", "TiledViz", "tiledviz", "m_test/@03", "-r","800x600","-u","1000","-g","1000","-d"]
 
 
