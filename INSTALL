@@ -15,7 +15,7 @@ and python packager pip3 (in python3-pip).
 Install will create $HOME/.tiledviz directory.
 
 There are two configuration files :
- * envDB for the postgresql parameter en python3 virtual environmeent.
+ * envTiledViz for the postgresql parameter en python3 virtual environmeent.
    It will be filled in a file ${HOME}/.cache/envTiledViz  
  * tiledviz.conf will be copied in ${HOME}/.tiledviz directory.
 
@@ -35,7 +35,7 @@ No TiledViz containers are execute with root users for security.
 
 PostgreSQL service will be downloaded in DockerHub with alpine system.
 
-You can change PostgreSQL port in envDB before install if you need many
+You can change PostgreSQL port in envTiledViz before install if you need many
 postgres-alpine dockers running.
 This file is private and keep the PostgreSQL password for the postgres service.
 

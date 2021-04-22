@@ -20,8 +20,17 @@ sleep 5
 source  $HOME/.cache/envTiledViz
 source ${PythonVENV}/bin/activate
 
-pathtodump=$(python3 -c "import zenipy; pathtodump=zenipy.zenipy.file_selection(title='Do you want to restore from a PostgreSQL dump file ? Please give the path to file or cancel if not : ', width=450, height=120, timeout=None); print(str(pathtodump))")
-
+if ( $installX11 ); then
+    pathtodump=$(python3 -c "import zenipy; pathtodump=zenipy.zenipy.file_selection(title='Do you want to restore from a PostgreSQL dump file ? Please give the path to file or cancel if not : ', width=450, height=120, timeout=None); print(str(pathtodump))")
+else
+    echo
+    echo
+    echo "Do you want to restore from a PostgreSQL dump file ? Please give the path to file or empty string if not"
+    read pathtodump;
+    if [ X$pathtodump == X ]; then
+	pathtodump="None"
+    fi
+fi
 if [ $pathtodump == "None" ]; then
 
     echo "===== 3 Patch TiledViz DB definition =====" 
@@ -42,11 +51,12 @@ else
     echo "===== 3 Restore Old DB =====" 
 
     replpass=$( echo $POSTGRES_PASSWORD | sed -e "s|\&|\\\&|g" )
-    sed -e "s|	ENCRYPTED PASSWORD '\(.*\)';|	ENCRYPTED PASSWORD '$replpass';|" TVDatabase/TiledViz_role.sql > $HOME/tmp/TiledViz_role.sql
+    #sed -e "s|	ENCRYPTED PASSWORD '\(.*\)';|	ENCRYPTED PASSWORD '$replpass';|" TVDatabase/TiledViz_role.sql > $HOME/tmp/TiledViz_role.sql
+    #rm $HOME/tmp/TiledViz_role.sql
     export PGPASSWORD=$POSTGRES_PASSWORD
 
     psql -h ${POSTGRES_IP} -p ${POSTGRES_PORT} -U ${POSTGRES_USER} -d ${POSTGRES_DB} < $pathtodump
-    #rm $HOME/tmp/TiledViz.dump
+    #rm $pathtodump
 fi
 echo "===== 6 Build model =====" 
 sqlacodegen postgresql://${POSTGRES_USER}:"${POSTGRES_PASSWORD}"@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB} --outfile=TVDatabase/TVDb/models.py

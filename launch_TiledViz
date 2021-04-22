@@ -12,7 +12,13 @@ fi
 
 pwd
 source ${PythonVENV}/bin/activate
-passwordFlask=$(python3 -c "import zenipy; password=zenipy.zenipy.password(title='Flask password',text='Please give a password for your Flask server : ', width=450, height=120, timeout=None); print(str(password))")
+if ( $installX11 ); then
+    passwordFlask=$(python3 -c "import zenipy; password=zenipy.zenipy.password(title='Flask password',text='Please give a password for your Flask server : ', width=450, height=120, timeout=None); print(str(password))")
+else
+    echo "Please give a password for your Flask server."
+    read  -s passwordFlask;
+fi
+
 echo "pass : " $passwordFlask
 python3 TVSecure/TVSecure.py --POSTGRES_HOST=${POSTGRES_HOST} --POSTGRES_IP=${POSTGRES_IP} --POSTGRES_PORT=${POSTGRES_PORT} \
 	--POSTGRES_DB=${POSTGRES_DB} --POSTGRES_USER=${POSTGRES_USER} --POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \

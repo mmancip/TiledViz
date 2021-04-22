@@ -13,9 +13,10 @@ source TiledVizEnv_${DATE}/bin/activate
 
 echo "==== Copy TiledViz env in .cache ===="
 [ ! -d $HOME/.cache ] && mkdir $HOME/.cache
-sed -e "s&DATE=.*&DATE=$DATE&" envDB > $HOME/.cache/envTiledViz
+sed -e "s&DATE=.*&DATE=$DATE&" envTiledViz > $HOME/.cache/envTiledViz
 chmod 600 $HOME/.cache/envTiledViz
 ls -la $HOME/.cache/envTiledViz
+source $HOME/.cache/envTiledViz
 
 echo "==== Install environment ===="
 pip3 install -r requirements.txt
@@ -33,8 +34,12 @@ popd
 
 # Launch postgresql docker
 echo "==== Launch postgresql docker ===="
-password=$(python3 -c "import zenipy; password=zenipy.zenipy.password(title='PostgreSQL password',text='Please give a password for your postgresql DB : (no @ !)', width=450, height=120, timeout=None); print(str(password))")
-
+if ( $installX11 ); then
+    password=$(python3 -c "import zenipy; password=zenipy.zenipy.password(title='PostgreSQL password',text='Please give a password for your postgresql DB : (no '@' or '/' !)', width=450, height=120, timeout=None); print(str(password))")
+else
+    echo "Please give a password for your postgresql DB : (no '@' or '/' !)"
+    read -s password;
+fi
 replpass=$( echo $password | sed -e "s|\&|\\\&|g" )
 sed -e "s|your_postgres_password|$replpass|" -i $HOME/.cache/envTiledViz
 
