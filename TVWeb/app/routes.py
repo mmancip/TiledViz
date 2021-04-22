@@ -64,6 +64,15 @@ jsontransfert={}
 
 # Global functions : creation and copy DB elements
 
+# Test login user :
+def get_user(fun,username):
+    try:
+        user=db.session.query(models.User.id).filter_by(name=session["username"]).one()
+    except:
+        flash(fun+" requested : User must login !")
+        return redirect(url_for("login"))
+    return user[0]
+
 # copy users in Session
 def copy_users_session(newsession,oldusers):
     if ( len(oldusers) > 0 ):
@@ -71,7 +80,7 @@ def copy_users_session(newsession,oldusers):
         for newuser in oldusers:
             thisuserq=db.session.query(models.User).filter_by(name=newuser.data)
             if db.session.query(thisuserq.exists()).scalar():
-                user=thisuserq.one()
+                user=thisuserq.scalar()
                 # don't register a user two times
                 if (user not in newsession.users):
                     newsession.users.append(user)
@@ -117,7 +126,7 @@ def create_newtileset(tilesetname, thesession, type_of_tiles, datapath, creation
         thesession.tile_sets.append(newtileset)
         db.session.commit()
     else:
-        newtileset=db.session.query(models.TileSet).filter_by(name=tilesetname).one()
+        newtileset=db.session.query(models.TileSet).filter_by(name=tilesetname).first()
     return newtileset,exist
 
 # Convert Tile fron json file structure to database object
@@ -193,7 +202,7 @@ def convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath):
 # TODO message to connection user owner grid : "Are you OK to copy your connection for tileset.name ?"
 def copy_connection(oldtileset,newtileset,newsessionname):
     oldconnection=oldtileset.connection        
-    user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
+    user_id=db.session.query(models.User.id).filter_by(name=session["username"]).scalar()
 
     message = '{"oldtilesetid":'+str(newtileset.id)+',"oldsessionname":"'+session["sessionname"]+'"}'
 
@@ -261,7 +270,7 @@ def copy_tileset_connection(tileset,tileset1,sessionname ):
     oldconnection=tileset.connection
     if (oldconnection):
         copy_connection(tileset,tileset1,sessionname)
-    user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
+    user_id=db.session.query(models.User.id).filter_by(name=session["username"]).scalar()
     user_path=os.path.join("/TiledViz/TVFiles",str(user_id))
     olddir=os.path.join(user_path,str(tileset.id_connections))
     newdir=os.path.join(user_path,str(tileset1.id_connections))
@@ -333,7 +342,7 @@ def launch_connection(theTS, theConnect, myhost_address, myauth_type, mycontaine
 # Define new session
 def save_session(oldsessionname, newsuffix, newdescription, alltiles):
     creation_date=datetime.datetime.now()
-    oldsession=db.session.query(models.Session).filter_by(name=oldsessionname).one()
+    oldsession=db.session.query(models.Session).filter_by(name=oldsessionname).scalar()
     projectid=oldsession.id_projects
     # TODO : max length of Session.name (=80) ?
     # mais parent with date may be too long
@@ -532,7 +541,7 @@ def register():
                 showexist=False
                 return render_template("main_login.html", title="TiledViz register", form=myform)
             logging.warning("username already exists.")
-            hashPassword,hashSalt=db.session.query(models.User.password,models.User.salt).filter_by(name=session["username"]).one()
+            hashPassword,hashSalt=db.session.query(models.User.password,models.User.salt).filter_by(name=session["username"]).scalar()
             testP=tvdb.testpassprotected(models.User,session["username"],myform.password.data,hashPassword,hashSalt)
             if (testP):
                 logging.info("Correct password !")
@@ -614,7 +623,7 @@ def login():
             # Ask for new user finally
             return redirect("/register")
         try:
-            User=db.session.query(models.User).filter_by(name=myform.username.data).one()
+            User=db.session.query(models.User).filter_by(name=myform.username.data).scalar()
             session["username"] = myform.username.data
         except:
             flash("Login rejected : '{}' for username does not exist.".format(session["username"]))
@@ -631,8 +640,8 @@ def login():
                 if(myform.choice_project.data == "create"):
                     # Go to project page now
                     return redirect("/project")
-                elif (myform.choice_project.data == "connect"):
-                    return redirect("/allsessions")
+                elif (myform.choice_project.data == "modify"):
+                    return redirect("/oldsessions")
                 else:
                     logging.error("Before leave login page choice_project : " + myform.choice_project.data)
                     # Want to use a project now :
@@ -659,7 +668,7 @@ def logout():
 def savesession():
 
     if ("username" in session):
-        user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
+        user_id=get_user("Savession",session["username"])).id
     else:
         flash("You are not connected. You must login before saving a session.")
         return redirect("/login")
@@ -695,7 +704,7 @@ def savesession():
 def retreivesession():
 
     if ("username" in session):
-        user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
+        user_id=db.session.query(models.User.id).filter_by(name=session["username"]).scalar()
     else:
         flash("You are not connected. You must login before retreive a session.")
         return redirect("/login")
@@ -756,12 +765,8 @@ descrl=str(62)
 # Create new project
 @app.route('/project', methods=["GET", "POST"])
 def project():
-    try:
-        flash("Create new or use an old project for user {}".format(session["username"]))
-        user=db.session.query(models.User.id).filter_by(name=session["username"]).one()
-    except:
-        flash("Project requested : User must login !")
-        return redirect("/login")
+    flash("Create new or use an old project for user {}".format(session["username"]))
+    user=get_user("Project",session("username"))
 
     # All projects own by user
     printstr="{0:\xa0<"+projectl+"."+projectl+"}|\xa0{2:\xa0<"+datel+"."+datel+"}\xa0|\xa0{1:\xa0<"+descrl+"."+descrl+"}|\xa0{3:\xa0<"+descrl+"}"
@@ -788,7 +793,6 @@ def project():
     
     myform = BuildNewProjectForm(myprojects)()
     if myform.validate_on_submit():
-        user=db.session.query(models.User.id).filter_by(name=session["username"]).one()
         logging.info("in project")
         
         # TODO : Add test if the user is authorized to use this project ? ==> NO only own project
@@ -820,9 +824,11 @@ def project():
                 return redirect("/oldsessions")
         elif (myform.chosen_project.data=="NoChoice"):
             creation_date=datetime.datetime.now()
+            screation_date=str(creation_date),
+            logging.error("create project date "+screation_date)
             project = models.Project(name=str(myform.projectname.data),
-                                     creation_date=str(creation_date),
-                                     id_users=user,
+                                     creation_date=screation_date,
+                                     id_users=user.id,
                                      description=myform.description.data) # DANGEROUS: TODO: clean string
             db.session.add(project)
             db.session.commit()
@@ -844,7 +850,7 @@ def allmysessions():
 
         flash("All projects and sessions for user {}".format(session["username"]))
         logging.warning("All projects and sessions for user {}".format(session["username"]))
-        user=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
+        user=get_user("allsavessions",session["username"]))
         logging.warning("User id {}".format(user))
     elif (not 'is_client_active' in session):
         flash("You are not connected. You must login before using a grid.")
@@ -878,8 +884,8 @@ def allmysessions():
             
             for thissession in thissessions[1]:
                 listmysession.append(thissession)
-                thedate=db.session.query(models.Session.creation_date).filter_by(name=str(thissession)).one()[0].isoformat().replace("T"," ")
-                SessDesc=db.session.query(models.Session).filter_by(name=thissession).one().description
+                thedate=db.session.query(models.Session.creation_date).filter_by(name=str(thissession)).scalar().isoformat().replace("T"," ")
+                SessDesc=db.session.query(models.Session).filter_by(name=thissession).scalar().description
                 listmyprojectssession.append((str(thissession),printstr.
                                               format(str(thissessions[0]),
                                                      str(thissession),
@@ -898,8 +904,8 @@ def allmysessions():
         for thissession in invite_sessions:
             logging.debug("Build listsessions for invite_session "+str(thissession.name))
             if (thissession.name not in listmysession):
-                thedate=db.session.query(models.Session.creation_date).filter_by(name=thissession.name).one()[0].isoformat().replace("T"," ")
-                SessDesc=db.session.query(models.Session).filter_by(name=thissession.name).one().description
+                thedate=db.session.query(models.Session.creation_date).filter_by(name=thissession.name).scalar().isoformat().replace("T"," ")
+                SessDesc=db.session.query(models.Session).filter_by(name=thissession.name).scalar().description
                 listsessions.append((str(thissession.name),printstr.
                                      format(str(thissession.name),
                                             thedate, SessDesc)
@@ -922,9 +928,9 @@ def allmysessions():
                   "You must choose a session in your projects or one you were invited on.")
             return redirect("/allsessions")
             
-        logging.debug("Which is session "+str(db.session.query(models.Session.id).filter_by(name=session["sessionname"]).one()[0]))
-        its_project_id=db.session.query(models.Session).filter_by(name=session["sessionname"]).one().id_projects
-        session["projectname"]=db.session.query(models.Project).filter_by(id=its_project_id).one().name
+        logging.debug("Which is session "+str(db.session.query(models.Session.id).filter_by(name=session["sessionname"]).scalar()))
+        its_project_id=db.session.query(models.Session).filter_by(name=session["sessionname"]).scalar().id_projects
+        session["projectname"]=db.session.query(models.Project).filter_by(id=its_project_id).scalar().name
         logging.debug("And have project id "+str(its_project_id)+" which is "+str(session["projectname"]))
         session["is_client_active"]=True
         if(myform.edit.data):
@@ -1012,7 +1018,7 @@ def newsession():
 def copysession():
     message=json.loads(request.args["message"])
     oldsessionname=message["oldsessionname"]
-    oldsession = db.session.query(models.Session).filter_by(name=oldsessionname).one()    
+    oldsession = db.session.query(models.Session).filter_by(name=oldsessionname).scalar()    
     myform = BuildCopySessionForm(oldsession,edit=False)()
     if myform.validate_on_submit():
         logging.debug("copySessionForm : ")
@@ -1075,7 +1081,7 @@ def copysession():
 def editsession():
     message=json.loads(request.args["message"])
     oldsessionname=message["oldsessionname"]
-    oldsession = db.session.query(models.Session).filter_by(name=oldsessionname).one()    
+    oldsession = db.session.query(models.Session).filter_by(name=oldsessionname).scalar()    
     myform = BuildCopySessionForm(oldsession,edit=True)()
     if myform.validate_on_submit():
         logging.debug("editSessionForm : ")
@@ -1137,14 +1143,14 @@ def editsession():
             return redirect(url_for(".searchtileset",message=message))
         elif(theaction == "remove"):
             try:
-                thistileset=db.session.query(models.TileSet).filter_by(id=tilesetid).one()
+                thistileset=db.session.query(models.TileSet).filter_by(id=tilesetid).scalar()
                 logging.debug("TileSet for remove : "+str(thistileset))
                 oldsession.tile_sets.remove(thistileset)
                 db.session.commit()
             except Exception:
                 traceback.print_exc(file=sys.stderr)
                 
-                flash("Error remove tileset {}".format(db.session.query(models.TileSet).filter_by(id=tilesetid).one().name))
+                flash("Error remove tileset {}".format(db.session.query(models.TileSet).filter_by(id=tilesetid).scalar().name))
             message = '{"oldsessionname":"'+oldsessionname+'"}'
             return redirect(url_for(".editsession",message=message))
     return render_template("main_login.html", title="Edit session TiledViz", form=myform, message=message)
@@ -1162,7 +1168,7 @@ def searchtileset():
         message=json.loads(request.args["message"].replace("'", '"'))
 
     oldsessionname=message["oldsessionname"]
-    oldsession = db.session.query(models.Session).filter_by(name=oldsessionname).one()    
+    oldsession = db.session.query(models.Session).filter_by(name=oldsessionname).scalar()    
 
     querysessions= models.Session.query.filter(models.Session.users.any(name=session["username"])).all()
 
@@ -1174,7 +1180,7 @@ def searchtileset():
         #thissession=db.session.query(model.Session).filter_by(id=thissessionid[0])
         for tileset in thissession.tile_sets:
             if ( tileset.name not in listtilesets ):
-                thedate=db.session.query(models.TileSet.creation_date).filter_by(name=tileset.name).one()[0].isoformat().replace("T"," ")
+                thedate=db.session.query(models.TileSet.creation_date).filter_by(name=tileset.name).scalar().isoformat().replace("T"," ")
                 listtilesets.append((str(tileset.id),
                                      printstr.format(
                                          str(tileset.name),
@@ -1189,7 +1195,7 @@ def searchtileset():
             return redirect(url_for(".searchtileset",message=message))
         else:
             logging.warning("Out of forms, add tilesets :"+str(myform.chosen_tileset.data))
-            thisTS=db.session.query(models.TileSet).filter_by(id=myform.chosen_tileset.data).one()
+            thisTS=db.session.query(models.TileSet).filter_by(id=myform.chosen_tileset.data).scalar()
             logging.warning("For user : "+session["username"]+", add tilesets :"+str(thisTS.name))
             oldsession.tile_sets.append(thisTS)
             db.session.commit()
@@ -1205,7 +1211,7 @@ def configsession():
     message=json.loads(request.args["message"])
 
     sessionname=message["sessionname"]
-    thesession = db.session.query(models.Session).filter_by(name=sessionname).one()
+    thesession = db.session.query(models.Session).filter_by(name=sessionname).scalar()
 
     # Detect how the data of config has been inserted :        
     if ( session["sessionname"] in  jsontransfert):
@@ -1322,7 +1328,7 @@ def addtileset():
             connectionbool=True
 
         #print(session["sessionname"])
-        conn_session=db.session.query(models.Session).filter_by(name=session["sessionname"]).one()
+        conn_session=db.session.query(models.Session).filter_by(name=session["sessionname"]).scalar()
         creation_date=datetime.datetime.now()
         tilesetname=myform.name.data
         if ( myform.dataset_path.data ):
@@ -1412,7 +1418,7 @@ def copytileset():
     message=json.loads(request.args["message"])
     logging.warning("copytileset : "+str(message))
     oldtilesetid=message["oldtilesetid"]
-    oldtileset=db.session.query(models.TileSet).filter_by(id=oldtilesetid).one()
+    oldtileset=db.session.query(models.TileSet).filter_by(id=oldtilesetid).scalar()
 
     myform = BuildTilesSetForm(oldtileset,onlycopy=True)()
 
@@ -1428,7 +1434,7 @@ def copytileset():
 
         nbr_of_tiles = len(oldtileset.tiles)
         
-        sessioncopy=db.session.query(models.Session).filter_by(name=session["sessionname"]).one()
+        sessioncopy=db.session.query(models.Session).filter_by(name=session["sessionname"]).scalar()
         creation_date=datetime.datetime.now()
         tilesetname=myform.name.data
         newtileset, exist=create_newtileset(myform.name.data, sessioncopy, oldtileset.type_of_tiles, oldtileset.Dataset_path, creation_date)
@@ -1489,7 +1495,7 @@ def edittileset():
     logging.warning("edittileset : "+str(message))
 
     oldtilesetid=message["oldtilesetid"]
-    oldtileset=db.session.query(models.TileSet).filter_by(id=oldtilesetid).one()
+    oldtileset=db.session.query(models.TileSet).filter_by(id=oldtilesetid).scalar()
 
     # TODO : test if user is in a session with this tileset
     
@@ -1517,7 +1523,7 @@ def edittileset():
         # Try to get the old connection
         oldConnection_id=-1
         try:
-            oldconnection=db.session.query(models.Connection).filter_by(id=oldtileset.id_connections).one()
+            oldconnection=db.session.query(models.Connection).filter_by(id=oldtileset.id_connections).scalar()
             oldConnection_id=oldtileset.id_connections
             buildargs["editconnection"]=True
         
@@ -1567,7 +1573,7 @@ def edittileset():
             return redirect(url_for(".editsession",message=message))
 
         if(oldtileset.type_of_tiles == "CONNECTION" and myform.manage_connection.data != "reNew"):
-            user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
+            user_id=db.session.query(models.User.id).filter_by(name=session["username"]).scalar()
             if ( not "connection"+str(oldConnection_id) in session):
                 flash("You don't have connection information in your personal cookie for this connection.")
                 logging.error("You (user "+str(user_id)+") don't have connection information in your personal cookie for this connection : "+str(oldConnection_id))
@@ -1885,7 +1891,7 @@ def vncconnection():
         return redirect(url_for(".edittileset",message=message))
 
     if ("username" in session):
-        user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
+        user_id=db.session.query(models.User.id).filter_by(name=session["username"]).scalar()
     else:
         flash("You are not connected. You must login before using a connection.")
         return redirect("/login")
@@ -1988,15 +1994,15 @@ def addconnection():
         logging.info(str(session["username"])+" "+str(myform.host_address.data)+"  "+str(myform.auth_type.data)+"  "+str(myform.container.data))
 
         creation_date=datetime.datetime.now()
-        user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
+        user_id=db.session.query(models.User.id).filter_by(name=session["username"]).scalar()
 
         # Test if a connection is already attached few seconds ago for the tileset :
-        newtileset=db.session.query(models.TileSet).filter_by(id=message["oldtilesetid"]).one()
+        newtileset=db.session.query(models.TileSet).filter_by(id=message["oldtilesetid"]).scalar()
 
         if (type(newtileset.id_connections) != type(None)):
             logging.warning("New connection created :"+str(newtileset.id_connections))
             try:
-                oldConnection=db.session.query(models.Connection).filter_by(id=newtileset.id_connections).one()
+                oldConnection=db.session.query(models.Connection).filter_by(id=newtileset.id_connections).scalar()
                 olddate=oldConnection.creation_date
                 if ((creation_date-olddate).seconds < 3):
                     return
@@ -2151,7 +2157,7 @@ def editconnection():
         message=json.loads(request.args["message"].replace("'", '"'))
     
     oldtilesetid=message["oldtilesetid"]
-    oldtileset=db.session.query(models.TileSet).filter_by(id=oldtilesetid).one()
+    oldtileset=db.session.query(models.TileSet).filter_by(id=oldtilesetid).scalar()
 
     oldconnection=oldtileset.connection
     try:
@@ -2162,7 +2168,7 @@ def editconnection():
         message=request.args["message"]
         return redirect(url_for(".edittileset",message=message))
         
-    user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
+    user_id=db.session.query(models.User.id).filter_by(name=session["username"]).scalar()
     # Build connection path
     user_path=os.path.join("/TiledViz/TVFiles",str(user_id))
     connectionpath=os.path.join(user_path,str(oldconnection.id))
@@ -2305,7 +2311,7 @@ def removeconnection():
         message=json.loads(request.args["message"].replace("'", '"'))
 
     oldtilesetid=message["oldtilesetid"]
-    oldtileset=db.session.query(models.TileSet).filter_by(id=oldtilesetid).one()
+    oldtileset=db.session.query(models.TileSet).filter_by(id=oldtilesetid).scalar()
 
     oldconnection=oldtileset.connection
     try:
@@ -2316,7 +2322,7 @@ def removeconnection():
         message=request.args["message"]
         return redirect(url_for(".edittileset",message=message))
         
-    user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
+    user_id=db.session.query(models.User.id).filter_by(name=session["username"]).scalar()
     if ( not "connection"+str(idconnection) in session):
         flash("You don't have connection information in your personal cookie for this connection.")
         logging.error("You (user "+str(user_id)+") don't have connection information in your personal cookie for this connection : "+str(idconnection))
@@ -2372,7 +2378,7 @@ def show_grid():
         # (usefulness? it's only a testing tool at this point')
         logging.info("[!] Change session room to " + psession)
         session["sessionname"]=psession
-        thesession = db.session.query(models.Session).filter_by(name=psession).one()
+        thesession = db.session.query(models.Session).filter_by(name=psession).salar()
         project = session["projectname"]=thesession.project.name
     else: # GET
         if (session["is_client_active"]):
@@ -2580,7 +2586,7 @@ def handle_click_event(cdata):
     socketio.emit('receive_move', sdata, room=croom )
     tileid=tiles_data["nodes"][int(cdata["id"])]["dbid"]
     logging.debug("move id = "+cdata["id"]+" db id = "+str(tileid))
-    tile=db.session.query(models.Tile).filter_by(id=tileid).one()
+    tile=db.session.query(models.Tile).filter_by(id=tileid).scalar()
     logging.debug("title = "+tile.title)
     logging.debug("old pos  = (%d,%d)" % (int(tile.pos_px_x),int(tile.pos_px_y)))
     tile.pos_px_x=int(cdata["posX"])
@@ -2659,9 +2665,9 @@ def ClickAction(cdata):
         actionid=action.replace("action", "")
         command=actionid+","+selections
         
-        oldtileset=db.session.query(models.TileSet).filter_by(name=TS).one()
+        oldtileset=db.session.query(models.TileSet).filter_by(name=TS).scalar()
         oldconnection=oldtileset.connection
-        user_id=db.session.query(models.User.id).filter_by(name=session["username"]).one()[0]
+        user_id=db.session.query(models.User.id).filter_by(name=session["username"]).scalar()
         if (oldconnection):
             if  (user_id == oldconnection.id_users and session["is_client_active"]):
                 logging.warning("action: "
