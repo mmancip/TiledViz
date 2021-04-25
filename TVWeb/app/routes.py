@@ -80,7 +80,7 @@ def copy_users_session(newsession,oldusers):
         for newuser in oldusers:
             thisuserq=db.session.query(models.User).filter_by(name=newuser.data)
             if db.session.query(thisuserq.exists()).scalar():
-                user=thisuserq.scalar()
+                user=thisuserq.one()
                 # don't register a user two times
                 if (user not in newsession.users):
                     newsession.users.append(user)
@@ -126,7 +126,7 @@ def create_newtileset(tilesetname, thesession, type_of_tiles, datapath, creation
         thesession.tile_sets.append(newtileset)
         db.session.commit()
     else:
-        newtileset=db.session.query(models.TileSet).filter_by(name=tilesetname).first()
+        newtileset=db.session.query(models.TileSet).filter_by(name=tilesetname).one()
     return newtileset,exist
 
 # Convert Tile fron json file structure to database object
@@ -202,7 +202,7 @@ def convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath):
 # TODO message to connection user owner grid : "Are you OK to copy your connection for tileset.name ?"
 def copy_connection(oldtileset,newtileset,newsessionname):
     oldconnection=oldtileset.connection        
-    user_id=db.session.query(models.User.id).filter_by(name=session["username"]).scalar()
+    user_id=get_user("copy_connection",session["username"]).id
 
     message = '{"oldtilesetid":'+str(newtileset.id)+',"oldsessionname":"'+session["sessionname"]+'"}'
 
@@ -270,7 +270,7 @@ def copy_tileset_connection(tileset,tileset1,sessionname ):
     oldconnection=tileset.connection
     if (oldconnection):
         copy_connection(tileset,tileset1,sessionname)
-    user_id=db.session.query(models.User.id).filter_by(name=session["username"]).scalar()
+    user_id=get_user("copy_tileset_connection",session["username"]).id
     user_path=os.path.join("/TiledViz/TVFiles",str(user_id))
     olddir=os.path.join(user_path,str(tileset.id_connections))
     newdir=os.path.join(user_path,str(tileset1.id_connections))
@@ -342,7 +342,7 @@ def launch_connection(theTS, theConnect, myhost_address, myauth_type, mycontaine
 # Define new session
 def save_session(oldsessionname, newsuffix, newdescription, alltiles):
     creation_date=datetime.datetime.now()
-    oldsession=db.session.query(models.Session).filter_by(name=oldsessionname).scalar()
+    oldsession=db.session.query(models.Session).filter_by(name=oldsessionname).one()
     projectid=oldsession.id_projects
     # TODO : max length of Session.name (=80) ?
     # mais parent with date may be too long
@@ -541,7 +541,8 @@ def register():
                 showexist=False
                 return render_template("main_login.html", title="TiledViz register", form=myform)
             logging.warning("username already exists.")
-            hashPassword,hashSalt=db.session.query(models.User.password,models.User.salt).filter_by(name=session["username"]).scalar()
+            user=get_user("register",session["username"])
+            hashPassword,hashSalt=(user.password,user.salt)
             testP=tvdb.testpassprotected(models.User,session["username"],myform.password.data,hashPassword,hashSalt)
             if (testP):
                 logging.info("Correct password !")
@@ -623,7 +624,7 @@ def login():
             # Ask for new user finally
             return redirect("/register")
         try:
-            User=db.session.query(models.User).filter_by(name=myform.username.data).scalar()
+            User=db.session.query(models.User).filter_by(name=myform.username.data).one()
             session["username"] = myform.username.data
         except:
             flash("Login rejected : '{}' for username does not exist.".format(session["username"]))
@@ -668,7 +669,7 @@ def logout():
 def savesession():
 
     if ("username" in session):
-        user_id=get_user("Savession",session["username"])).id
+        user_id=get_user("Savession",session["username"]).id
     else:
         flash("You are not connected. You must login before saving a session.")
         return redirect("/login")
@@ -704,7 +705,7 @@ def savesession():
 def retreivesession():
 
     if ("username" in session):
-        user_id=db.session.query(models.User.id).filter_by(name=session["username"]).scalar()
+        user_id=get_user("retreivesession",session["username"]).id
     else:
         flash("You are not connected. You must login before retreive a session.")
         return redirect("/login")
@@ -850,7 +851,7 @@ def allmysessions():
 
         flash("All projects and sessions for user {}".format(session["username"]))
         logging.warning("All projects and sessions for user {}".format(session["username"]))
-        user=get_user("allsavessions",session["username"]))
+        user=get_user("allsavessions",session["username"])
         logging.warning("User id {}".format(user))
     elif (not 'is_client_active' in session):
         flash("You are not connected. You must login before using a grid.")
@@ -1181,6 +1182,7 @@ def searchtileset():
         for tileset in thissession.tile_sets:
             if ( tileset.name not in listtilesets ):
                 thedate=db.session.query(models.TileSet.creation_date).filter_by(name=tileset.name).scalar().isoformat().replace("T"," ")
+                logging.error("Compare thedate : %s %s" % (thedate, tielset.creation_date.isoformat().replace("T"," ")))
                 listtilesets.append((str(tileset.id),
                                      printstr.format(
                                          str(tileset.name),
@@ -1495,7 +1497,7 @@ def edittileset():
     logging.warning("edittileset : "+str(message))
 
     oldtilesetid=message["oldtilesetid"]
-    oldtileset=db.session.query(models.TileSet).filter_by(id=oldtilesetid).scalar()
+    oldtileset=db.session.query(models.TileSet).filter_by(id=oldtilesetid).one()
 
     # TODO : test if user is in a session with this tileset
     
@@ -1523,7 +1525,7 @@ def edittileset():
         # Try to get the old connection
         oldConnection_id=-1
         try:
-            oldconnection=db.session.query(models.Connection).filter_by(id=oldtileset.id_connections).scalar()
+            oldconnection=db.session.query(models.Connection).filter_by(id=oldtileset.id_connections).one()
             oldConnection_id=oldtileset.id_connections
             buildargs["editconnection"]=True
         
@@ -1531,7 +1533,7 @@ def edittileset():
             flash("Tileset {} edit for user {} : no connection found ! ".format(oldtileset.name,session["username"]))
             oldConnection_id = 0
             buildargs["editconnection"]=True
-        except AttributeError:
+        except AttributeError as err:
             #message = '{"oldtilesetid":'+str(oldtileset.id)+',"oldsessionname":"'+session["sessionname"]+'"}'
             #return redirect(url_for(".addconnection",message=message))
             traceback.print_exc(file=sys.stderr)
@@ -1573,7 +1575,7 @@ def edittileset():
             return redirect(url_for(".editsession",message=message))
 
         if(oldtileset.type_of_tiles == "CONNECTION" and myform.manage_connection.data != "reNew"):
-            user_id=db.session.query(models.User.id).filter_by(name=session["username"]).scalar()
+            user_id=get_user("edittileset",session["username"]).id
             if ( not "connection"+str(oldConnection_id) in session):
                 flash("You don't have connection information in your personal cookie for this connection.")
                 logging.error("You (user "+str(user_id)+") don't have connection information in your personal cookie for this connection : "+str(oldConnection_id))
@@ -1891,7 +1893,7 @@ def vncconnection():
         return redirect(url_for(".edittileset",message=message))
 
     if ("username" in session):
-        user_id=db.session.query(models.User.id).filter_by(name=session["username"]).scalar()
+        user_id=get_user("vncconnection",session["username"]).id
     else:
         flash("You are not connected. You must login before using a connection.")
         return redirect("/login")
@@ -1994,15 +1996,15 @@ def addconnection():
         logging.info(str(session["username"])+" "+str(myform.host_address.data)+"  "+str(myform.auth_type.data)+"  "+str(myform.container.data))
 
         creation_date=datetime.datetime.now()
-        user_id=db.session.query(models.User.id).filter_by(name=session["username"]).scalar()
+        user_id=get_user("addconnection",session["username"]).id
 
         # Test if a connection is already attached few seconds ago for the tileset :
-        newtileset=db.session.query(models.TileSet).filter_by(id=message["oldtilesetid"]).scalar()
+        newtileset=db.session.query(models.TileSet).filter_by(id=message["oldtilesetid"]).one()
 
         if (type(newtileset.id_connections) != type(None)):
             logging.warning("New connection created :"+str(newtileset.id_connections))
             try:
-                oldConnection=db.session.query(models.Connection).filter_by(id=newtileset.id_connections).scalar()
+                oldConnection=db.session.query(models.Connection).filter_by(id=newtileset.id_connections).one()
                 olddate=oldConnection.creation_date
                 if ((creation_date-olddate).seconds < 3):
                     return
@@ -2157,7 +2159,7 @@ def editconnection():
         message=json.loads(request.args["message"].replace("'", '"'))
     
     oldtilesetid=message["oldtilesetid"]
-    oldtileset=db.session.query(models.TileSet).filter_by(id=oldtilesetid).scalar()
+    oldtileset=db.session.query(models.TileSet).filter_by(id=oldtilesetid).one()
 
     oldconnection=oldtileset.connection
     try:
@@ -2168,7 +2170,7 @@ def editconnection():
         message=request.args["message"]
         return redirect(url_for(".edittileset",message=message))
         
-    user_id=db.session.query(models.User.id).filter_by(name=session["username"]).scalar()
+    user_id=get_user("editconnection",session["username"]).id
     # Build connection path
     user_path=os.path.join("/TiledViz/TVFiles",str(user_id))
     connectionpath=os.path.join(user_path,str(oldconnection.id))
@@ -2311,7 +2313,7 @@ def removeconnection():
         message=json.loads(request.args["message"].replace("'", '"'))
 
     oldtilesetid=message["oldtilesetid"]
-    oldtileset=db.session.query(models.TileSet).filter_by(id=oldtilesetid).scalar()
+    oldtileset=db.session.query(models.TileSet).filter_by(id=oldtilesetid).one()
 
     oldconnection=oldtileset.connection
     try:
@@ -2322,7 +2324,7 @@ def removeconnection():
         message=request.args["message"]
         return redirect(url_for(".edittileset",message=message))
         
-    user_id=db.session.query(models.User.id).filter_by(name=session["username"]).scalar()
+    user_id=get_user("removeconnection",session["username"]).id
     if ( not "connection"+str(idconnection) in session):
         flash("You don't have connection information in your personal cookie for this connection.")
         logging.error("You (user "+str(user_id)+") don't have connection information in your personal cookie for this connection : "+str(idconnection))
@@ -2586,7 +2588,7 @@ def handle_click_event(cdata):
     socketio.emit('receive_move', sdata, room=croom )
     tileid=tiles_data["nodes"][int(cdata["id"])]["dbid"]
     logging.debug("move id = "+cdata["id"]+" db id = "+str(tileid))
-    tile=db.session.query(models.Tile).filter_by(id=tileid).scalar()
+    tile=db.session.query(models.Tile).filter_by(id=tileid).one()
     logging.debug("title = "+tile.title)
     logging.debug("old pos  = (%d,%d)" % (int(tile.pos_px_x),int(tile.pos_px_y)))
     tile.pos_px_x=int(cdata["posX"])
@@ -2665,9 +2667,9 @@ def ClickAction(cdata):
         actionid=action.replace("action", "")
         command=actionid+","+selections
         
-        oldtileset=db.session.query(models.TileSet).filter_by(name=TS).scalar()
+        oldtileset=db.session.query(models.TileSet).filter_by(name=TS).one()
         oldconnection=oldtileset.connection
-        user_id=db.session.query(models.User.id).filter_by(name=session["username"]).scalar()
+        user_id=get_user("action_click",session["username"]).id
         if (oldconnection):
             if  (user_id == oldconnection.id_users and session["is_client_active"]):
                 logging.warning("action: "
