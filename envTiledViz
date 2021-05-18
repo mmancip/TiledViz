@@ -1,0 +1,16 @@
+export postgresNAME=tiledvizpostg
+export POSTGRES_HOST=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $postgresNAME)
+#export POSTGRES_HOST=$(/sbin/ip -4 addr show docker0 | grep -Po 'inet \K[\d.]+')
+export POSTGRES_PORT=6431
+#export PGPORT=$POSTGRES_PORT
+
+export POSTGRES_DB=TiledViz
+export POSTGRES_USER=tiledviz
+export POSTGRES_IP=${POSTGRES_HOST}
+export POSTGRES_PASSWORD="your_postgres_password"
+export passwordDB="$POSTGRES_PASSWORD"
+
+# Install with X11
+export installX11=true
+# Virtualenv DATE
+export DATE=

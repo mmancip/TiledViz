@@ -824,7 +824,7 @@ def project():
                 return redirect("/oldsessions")
         elif (myform.chosen_project.data=="NoChoice"):
             creation_date=datetime.datetime.now()
-            screation_date=str(creation_date),
+            screation_date=str(creation_date)
             logging.error("create project date "+screation_date)
             project = models.Project(name=str(myform.projectname.data),
                                      creation_date=screation_date,
@@ -1573,6 +1573,26 @@ def edittileset():
             message = '{"oldsessionname":"'+session["sessionname"]+'"}'
             return redirect(url_for(".editsession",message=message))
 
+        # Detect how the data of tiles has been inserted :
+        if (myform.json_tiles_file.data) :
+            json_tiles_file = myform.json_tiles_file.data
+            logging.warning("Read json_tiles_file :"+myform.json_tiles_file.data.filename)
+            json_tiles = json_tiles_file.read()
+        else:
+            # if json structure is inserted with text area
+            json_tiles = myform.json_tiles_text.data
+
+        try:    
+            if myform.editjson.data:
+                jsontransfert[session["sessionname"]]={"callfunction": '{"function":"edittileset",'+'"args":{"oldtilesetid":"'+str(oldtilesetid)+'"}}',
+                                                   "TheJson":json_tiles}
+                # json_gziped=base64.b64encode(gzip.compress(json_tiles.encode('utf-8')))
+                #return redirect(url_for(".jsoneditor",callfunction=callfunction,TheJson=json_gziped))
+                return redirect(url_for(".jsoneditor"))
+        except Exception as err:
+            traceback.print_exc(file=sys.stderr)
+            logging.error("Error editjson %s : %s" % ( str(myform.editjson), err ))
+
         if(oldtileset.type_of_tiles == "CONNECTION" and myform.manage_connection.data != "reNew"):
             user_id=get_user_id("edittileset",session["username"])
             if ( not "connection"+str(oldConnection_id) in session):
@@ -1683,26 +1703,6 @@ def edittileset():
             oldtileset.launch_file=launch_file.filename
             db.session.commit()
             
-
-        # Detect how the data of tiles has been inserted :
-        if (myform.json_tiles_file.data) :
-            json_tiles_file = myform.json_tiles_file.data
-            logging.warning("Read json_tiles_file :"+myform.json_tiles_file.data.filename)
-            json_tiles = json_tiles_file.read()
-        else:
-            # if json structure is inserted with text area
-            json_tiles = myform.json_tiles_text.data
-
-        try:    
-            if myform.editjson.data:
-                jsontransfert[session["sessionname"]]={"callfunction": '{"function":"edittileset",'+'"args":{"oldtilesetid":"'+str(oldtilesetid)+'"}}',
-                                                   "TheJson":json_tiles}
-                # json_gziped=base64.b64encode(gzip.compress(json_tiles.encode('utf-8')))
-                #return redirect(url_for(".jsoneditor",callfunction=callfunction,TheJson=json_gziped))
-                return redirect(url_for(".jsoneditor"))
-        except Exception as err:
-            traceback.print_exc(file=sys.stderr)
-            logging.error("Error editjson %s : %s" % ( str(myform.editjson), err ))
 
         # Translate json text in structure
         if (len(json_tiles) > 0):
