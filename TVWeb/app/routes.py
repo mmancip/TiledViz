@@ -909,17 +909,17 @@ def allmysessions():
         logging.debug("Build listsessions for invite_session "+str(thissession.name))
         if (thissession.name not in listmysession):
             thedate="1970-01-01"
-        try:
-            thedate=db.session.query(models.Session.creation_date).filter_by(name=thissession.name).scalar().isoformat().replace("T"," ")
-        except:
-            pass
-        SessDesc=db.session.query(models.Session).filter_by(name=thissession.name).scalar().description
-        listsessions.append(
-            (str(thissession.name),printstr.
-             format(str(thissession.name),
-                    thedate, SessDesc)
+            try:
+                thedate=db.session.query(models.Session.creation_date).filter_by(name=thissession.name).scalar().isoformat().replace("T"," ")
+            except:
+                pass
+            SessDesc=db.session.query(models.Session).filter_by(name=thissession.name).scalar().description
+            listsessions.append(
+                (str(thissession.name),printstr.
+                 format(str(thissession.name),
+                        thedate, SessDesc)
+                )
             )
-        )
         
     logging.debug("My project sessions :"+str(listmyprojectssession))
     logging.debug("My invited sessions :"+str(listsessions))
