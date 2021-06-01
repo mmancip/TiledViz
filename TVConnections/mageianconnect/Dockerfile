@@ -41,7 +41,7 @@ RUN urpmi  -y  \
 	 gnu-free-serif-fonts-20120503-9 \
          gnu-free-fonts-common-20120503-9
 	 
-RUN dnf install -y alsa-utils lib64fribidi0 xdg-utils wmctrl openssh-clients xwd netpbm
+RUN dnf install -y alsa-utils lib64fribidi0 xdg-utils wmctrl openssh-clients xwd netpbm envsubst
 RUN dnf --downloadonly --downloaddir=/tmp/cache install -y icewm-theme-oxygen-aya \
     && ls -la /tmp/cache \
     && rpm -ip /tmp/cache/icewm-theme-oxygen-aya*.rpm --nodeps \

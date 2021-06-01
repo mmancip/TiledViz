@@ -176,23 +176,23 @@ def BuildNewSessionForm():
     NewSessionForm.submit = SubmitField("Next step")
     return NewSessionForm
 
-def BuildCopySessionForm(oldsession=None,edit=True):
-    class copySessionForm(FlaskForm):
+def BuildEditsessionform(oldsession=None,edit=True):
+    class editsessionform(FlaskForm):
         pass
-    copySessionForm.submit1 = SubmitField("Next step")
-    copySessionForm.sessionname = StringField("New session name", default=oldsession.name, validators=[InputRequired()])
-    copySessionForm.description = StringField("Description of this session", default=oldsession.description, validators=[InputRequired()])
+    editsessionform.submit1 = SubmitField("Next step")
+    editsessionform.sessionname = StringField("New session name", default=oldsession.name, validators=[InputRequired()])
+    editsessionform.description = StringField("Description of this session", default=oldsession.description, validators=[InputRequired()])
     ListAllTileSet_ThisSession=[ (str(thistileset.id), thistileset.name) for thistileset in oldsession.tile_sets]
     if (len(ListAllTileSet_ThisSession) > 0):
-        copySessionForm.tilesetchoice = RadioField(label='listtilesets',
+        editsessionform.tilesetchoice = RadioField(label='listtilesets',
                                                    description='List all tilesets for this session',
                                                    choices=ListAllTileSet_ThisSession,
                                                    default=ListAllTileSet_ThisSession[0][0],
                                                    validators=[Optional()])
         
-        copySessionForm.edit = SubmitField("Edit selected tileset.")
         if edit:
-            copySessionForm.tilesetaction = RadioField(label='tilesetaction',
+            editsessionform.edit = SubmitField("Edit selected tileset.")
+            editsessionform.tilesetaction = RadioField(label='tilesetaction',
                                                        description='Choose to create and add a new tileset or just use all existing ones.',
                                                        choices=[("create","Add a new tileset."),
                                                                 ("copy","Copy an old tileset into a new one."),
@@ -202,36 +202,37 @@ def BuildCopySessionForm(oldsession=None,edit=True):
                                                        default='useold',
                                                        validators=[Optional()])
         else:
-            copySessionForm.tilesetaction = RadioField(label='tilesetaction',
+            editsessionform.tilesetaction = RadioField(label='tilesetaction',
                                                        description='Choose to create and add a new tileset or just use all existing ones.',
                                                        choices=[("create","Add a new tileset."),
                                                                 ("copy","Copy an old tileset into a new one."),
-                                                                ("search","Search another tileset for Session.")],
-                                                       default='search',
+                                                                ("search","Search another tileset for Session."),
+                                                                ("useold","Use existing tilesets and go to grid.")],
+                                                       default='useold',
                                                        validators=[Optional()])
             
         ListAllUsers_ThisSession=[ thisuser.name for thisuser in oldsession.users]
-        copySessionForm.users = FieldList(description="Others users",
+        editsessionform.users = FieldList(description="Others users",
                                           unbound_field=StringField("user", validators=[Optional()]),
                                           default=ListAllUsers_ThisSession,
                                           min_entries=5,max_entries=10)
     else:
         if edit:
-            copySessionForm.tilesetaction = RadioField(label='tilesetaction',
+            editsessionform.tilesetaction = RadioField(label='tilesetaction',
                                                        description='No old tilesets. Create a first tileset.',
                                                        choices=[("create","Add a new tileset."),
                                                                 ("search","Search another tileset for Session.")],
                                                        default='create',
                                                        validators=[Optional()])
         ListAllUsers_ThisSession=[ thisuser.name for thisuser in oldsession.users]
-        copySessionForm.users = FieldList(description="Others users",
+        editsessionform.users = FieldList(description="Others users",
                                           unbound_field=StringField("user", validators=[Optional()]),
                                           default=ListAllUsers_ThisSession,
                                           min_entries=5,max_entries=10)
-    copySessionForm.Session_config = SubmitField("Edit configuration of the session")
-    copySessionForm.add_users = SubmitField('Add more users')
-    copySessionForm.submit = SubmitField("Next step")
-    return copySessionForm
+    editsessionform.Session_config = SubmitField("Edit configuration of the session")
+    editsessionform.add_users = SubmitField('Add more users')
+    editsessionform.submit = SubmitField("Next step")
+    return editsessionform
 
 def BuildOldTileSetForm(username,listtilesets):
     class OldTileSetForm(FlaskForm):

@@ -12,7 +12,7 @@ import requests
 
 from app import app, socketio, db
 
-from app.forms import RegisterForm, BuildLoginForm, BuildNewProjectForm, BuildAllProjectSessionForm, BuildOldProjectForm, BuildNewSessionForm, BuildTilesSetForm, BuildCopySessionForm, BuildOldTileSetForm, BuildConfigSessionForm, BuildConnectionsForm, BuildRetreiveSessionForm
+from app.forms import RegisterForm, BuildLoginForm, BuildNewProjectForm, BuildAllProjectSessionForm, BuildOldProjectForm, BuildNewSessionForm, BuildTilesSetForm, BuildEditsessionform, BuildOldTileSetForm, BuildConfigSessionForm, BuildConnectionsForm, BuildRetreiveSessionForm
 
 
 import app.models as models # DB management
@@ -865,6 +865,7 @@ def allmysessions():
 
     # All projects own by user
     projects = db.session.query(models.Project).filter_by(id_users=user_id)
+    logging.debug("My projects :"+str([ theproject.name for theproject in projects]))
     
     # All sessions own of those projects
     mysessions=[]
@@ -874,46 +875,54 @@ def allmysessions():
             [ mysessions.append((theproject.name,ListsessionTheproject)) for ListsessionTheproject in ListsessionsTheproject ]
     except:
         pass
+    logging.debug("My sessions :"+str(mysessions))
     
     printstr="{1:\xa0<"+sessionl+"."+sessionl+"}|{0:\xa0<"+projectl+"."+projectl+"}|\xa0{2:\xa0<"+datel+"."+datel+"}\xa0|\xa0{3:\xa0<"+descrl+"."+descrl+"}"
     listmyprojectssession=[]
     listmyprojectssession.append(('NoChoice',printstr.format("Project name","Session name","Date and Time","Description")))
     listmysession=[]
-    try:
-        for thissessions in mysessions:
+    for thissessions in mysessions:
             
-            for thissession in thissessions[1]:
-                listmysession.append(thissession)
+        for thissession in thissessions[1]:
+            listmysession.append(thissession)
+            thedate="1970-01-01"
+            try:
                 thedate=db.session.query(models.Session.creation_date).filter_by(name=str(thissession)).scalar().isoformat().replace("T"," ")
-                SessDesc=db.session.query(models.Session).filter_by(name=thissession).scalar().description
-                listmyprojectssession.append((str(thissession),printstr.
-                                              format(str(thissessions[0]),
-                                                     str(thissession),
-                                                     thedate,SessDesc)
-                                              )
-                                             )
-    except:
-        pass
+            except:
+                pass
+            SessDesc=db.session.query(models.Session).filter_by(name=thissession).scalar().description
+            listmyprojectssession.append(
+                (str(thissession),printstr.
+                 format(str(thissessions[0]),
+                        str(thissession),
+                        thedate,SessDesc)
+                )
+            )
     
     # All sessions this user has been invited to
     listsessions=[]
-    try:
-        invite_sessions = db.session.query(models.Session.name).filter(models.Session.users.any(id=user_id)).all()
-        printstr="{0:\xa0<"+sessionl+"."+sessionl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"        
-        listsessions.append(('NoChoice',printstr.format("Session name","Date and Time","Description")))
-        for thissession in invite_sessions:
-            logging.debug("Build listsessions for invite_session "+str(thissession.name))
-            if (thissession.name not in listmysession):
-                thedate=db.session.query(models.Session.creation_date).filter_by(name=thissession.name).scalar().isoformat().replace("T"," ")
-                SessDesc=db.session.query(models.Session).filter_by(name=thissession.name).scalar().description
-                listsessions.append((str(thissession.name),printstr.
-                                     format(str(thissession.name),
-                                            thedate, SessDesc)
-                                     )
-                                    )
-    except:
-        pass
 
+    invite_sessions = db.session.query(models.Session.name).filter(models.Session.users.any(id=user_id)).all()
+    printstr="{0:\xa0<"+sessionl+"."+sessionl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"        
+    listsessions.append(('NoChoice',printstr.format("Session name","Date and Time","Description")))
+    for thissession in invite_sessions:
+        logging.debug("Build listsessions for invite_session "+str(thissession.name))
+        if (thissession.name not in listmysession):
+            thedate="1970-01-01"
+        try:
+            thedate=db.session.query(models.Session.creation_date).filter_by(name=thissession.name).scalar().isoformat().replace("T"," ")
+        except:
+            pass
+        SessDesc=db.session.query(models.Session).filter_by(name=thissession.name).scalar().description
+        listsessions.append(
+            (str(thissession.name),printstr.
+             format(str(thissession.name),
+                    thedate, SessDesc)
+            )
+        )
+        
+    logging.debug("My project sessions :"+str(listmyprojectssession))
+    logging.debug("My invited sessions :"+str(listsessions))
     myform = BuildAllProjectSessionForm(listmyprojectssession,listsessions)()
     if myform.validate_on_submit():
         if (myform.chosen_project_session.data != "NoChoice"):
@@ -1019,7 +1028,7 @@ def copysession():
     message=json.loads(request.args["message"])
     oldsessionname=message["oldsessionname"]
     oldsession = db.session.query(models.Session).filter_by(name=oldsessionname).scalar()    
-    myform = BuildCopySessionForm(oldsession,edit=False)()
+    myform = BuildEditsessionform(oldsession,edit=False)()
     if myform.validate_on_submit():
         logging.debug("copySessionForm : ")
         if myform.add_users.data:
@@ -1045,26 +1054,25 @@ def copysession():
             message = '{"oldsessionname":"'+oldsessionname+'"}'
             flash("You must change session name in session {}".format(myform.sessionname.data))
             return render_template("main_login.html", title="Copy session TiledViz", form=myform, message=message)
-        if (myform.edit.data):
-            #print("Go to editsession on"+newsession.name)
-            message = '{"oldsessionname":"'+newsession.name+'"}'
-            return redirect(url_for(".editsession",message=message))
-        
+
         theaction=myform.tilesetaction.data
         
-        try:    
-            oldtilesetid=int(myform.tilesetchoice.data)
-            message = '{"oldtilesetid":'+str(tilesetid)+'}'
-        except :
-            #traceback.print_exc(file=sys.stderr)
-            if ( theaction != "search" and theaction != "copy" and not myform.edit.data):
-                    logging.debug("You must check a tileset for this action {}".format(theaction))
-                    flash("You must check a tileset for this action {}".format(theaction))
-                    message = '{"oldsessionname":'+newsession.name+'}'
-                    return redirect(url_for(".editsession",message=message))
+        # try:    
+        #     oldtilesetid=int(myform.tilesetchoice.data)
+        #     message = '{"oldtilesetid":'+str(tilesetid)+'}'
+        # except :
+        #     traceback.print_exc(file=sys.stderr)
+        #     if ( theaction != "search" and theaction != "copy" ): #and theaction != "useold"
+        #             logging.error("You must check a tileset for this action {}".format(theaction))
+        #             flash("You must check a tileset for this action {}".format(theaction))
+        #             message = '{"oldsessionname":'+newsession.name+'}'
+        #             return redirect(url_for(".editsession",message=message))
 
         logging.debug("Action tileset : "+str(message)+" "+theaction)
-        if myform.Session_config.data:
+        if(theaction == "useold"):
+            session["is_client_active"]=True
+            return redirect("/grid")
+        elif myform.Session_config.data:
             message = '{"sessionname":"'+newsession.name+'"}'
             return redirect(url_for(".configsession",message=message))
         elif(theaction == "copy"):
@@ -1082,7 +1090,7 @@ def editsession():
     message=json.loads(request.args["message"])
     oldsessionname=message["oldsessionname"]
     oldsession = db.session.query(models.Session).filter_by(name=oldsessionname).scalar()    
-    myform = BuildCopySessionForm(oldsession,edit=True)()
+    myform = BuildEditsessionform(oldsession,edit=True)()
     if myform.validate_on_submit():
         logging.debug("editSessionForm : ")
         if myform.add_users.data:
@@ -1181,7 +1189,7 @@ def searchtileset():
         for tileset in thissession.tile_sets:
             if ( tileset.name not in listtilesets ):
                 thedate=db.session.query(models.TileSet.creation_date).filter_by(name=tileset.name).scalar().isoformat().replace("T"," ")
-                logging.error("Compare thedate : %s %s" % (thedate, tielset.creation_date.isoformat().replace("T"," ")))
+                logging.error("Compare thedate : %s %s" % (thedate, tileset.creation_date.isoformat().replace("T"," ")))
                 listtilesets.append((str(tileset.id),
                                      printstr.format(
                                          str(tileset.name),
@@ -1350,6 +1358,9 @@ def addtileset():
                 
                 flash("TileSet with name {} creation problem :".format(tilesetname))    
                 return render_template("main_login.html", title="New TileSet TiledViz", form=myform, message=message)
+        else:
+            flash("TileSet with name {} already exists : Please give another name ".format(tilesetname))
+            return render_template("main_login.html", title="New TileSet TiledViz", form=myform, message=message)
         
         # Register config files in jsontransfert to write them in connection path
         if (connectionbool):

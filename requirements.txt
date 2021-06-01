@@ -1,3 +1,4 @@
+six
 sqlalchemy
 psycopg2-binary
 pexpect
