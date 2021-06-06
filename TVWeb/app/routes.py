@@ -2390,7 +2390,7 @@ def show_grid():
         # (usefulness? it's only a testing tool at this point')
         logging.info("[!] Change session room to " + psession)
         session["sessionname"]=psession
-        thesession = db.session.query(models.Session).filter_by(name=psession).salar()
+        thesession = db.session.query(models.Session).filter_by(name=psession).scalar()
         project = session["projectname"]=thesession.project.name
     else: # GET
         if (session["is_client_active"]):
