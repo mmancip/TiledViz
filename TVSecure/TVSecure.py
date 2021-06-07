@@ -925,9 +925,12 @@ class ConnectionDocker(threading.Thread):
         # logging.warning("Kill Action connection in conncetion docker :\n"+re.sub(r'\*n',r'\\n',self.LogKillAction))
 
         # suppress connection docker
-        self.containerConnect.stop()
-        if ( not self.cont_auto_remove ):
-            self.containerConnect.remove(v=True,force=True)
+        try:
+            self.containerConnect.stop()
+            if ( not self.cont_auto_remove ):
+                self.containerConnect.remove(v=True,force=True)
+        except:
+            pass
         logging.warning("After remove "+self.name+", containers list :"+str(client.containers.list()))
         Connections[self.ConnectNum]=sqltConnections
         usedConnections[self.ConnectNum]=False
