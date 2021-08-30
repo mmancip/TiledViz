@@ -33,6 +33,7 @@ import datetime,time
 import random
 
 import tempfile, filecmp
+import tarfile
 
 sys.path.append(os.path.abspath('../TVDatabase'))
 from TVDb import tvdb
@@ -94,17 +95,23 @@ def create_newsession(sessionname, description, projectid, oldusers):
                                 id_projects=projectid,
                                 creation_date=creation_date)
 
-    lastsession=db.session.query(models.Session.id).order_by(models.Session.id.desc()).first()
-    if ( lastsession ):
-        newsession.id=lastsession.id+1
+    exist=db.session.query(models.Session.id).filter_by(name=sessionname).scalar() is not None
+
+    if (not exist):
+        lastsession=db.session.query(models.Session.id).order_by(models.Session.id.desc()).first()
+        if ( lastsession ):
+            newsession.id=lastsession.id+1
+        else:
+            newsession.id=1
+        db.session.commit()
+        copy_users_session(newsession,oldusers)
+        db.session.commit()
     else:
-        newsession.id=1
-    db.session.commit()
-    copy_users_session(newsession,oldusers)
-    db.session.commit()
+        newsession=db.session.query(models.Session).filter_by(name=sessionname).one()
         
     session["sessionname"]=str(sessionname)
-    return newsession
+            
+    return newsession,exist
     
 # Define new TileSet
 def create_newtileset(tilesetname, thesession, type_of_tiles, datapath, creation_date):
@@ -133,7 +140,6 @@ def create_newtileset(tilesetname, thesession, type_of_tiles, datapath, creation
 def convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath):
     url=Mynode["url"]
 
-    # TODO : add connectionbool test
     ConnectionPort=0
     if (urlbool and len(datapath) > 0):
         # Detect if path is already in tiles source url
@@ -416,7 +422,8 @@ def save_session(oldsessionname, newsuffix, newdescription, alltiles):
             if (i > -1):
                 Mynode=alltilesjson[i]
                 #print("Mynode :",str(Mynode)," type ",str(type(Mynode))," type tags ",str(type(Mynode["tags"])))
-                title,name,comment,tags,variable,pos_px_x,pos_px_y,IdLocation,url,ConnectionPort = convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath)
+                title,name,comment,tags,variable,pos_px_x,pos_px_y,IdLocation,url,ConnectionPort = \
+                    convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath)
                 tile.tags=tags
                 tile.source= {"name" : name,
                               "connection" : ConnectionPort,
@@ -997,15 +1004,20 @@ def newsession():
             return render_template("main_login.html", title="New session TiledViz", form=myform)
         logging.info("in session")
         id_projects=db.session.query(models.Project.id).filter_by(name=session["projectname"])
-        newsession=create_newsession(myform.sessionname.data, myform.description.data, id_projects, myform.users)
-        try:
-            db.session.add(newsession)
-            db.session.commit()
-        except Exception:
-            traceback.print_exc(file=sys.stderr)
+        sessionname=myform.sessionname.data
+        newsession,exist=create_newsession(sessionname, myform.description.data, id_projects, myform.users)
+        if (not exist):
+            try:
+                db.session.add(newsession)
+                db.session.commit()
+            except Exception:
+                traceback.print_exc(file=sys.stderr)
             
-            flash("Session with name {} already exists".format(myform.sessionname.data))
-            return render_template("main_login.html", title="New session TiledViz", form=myform)
+                flash("Session with name {} creation problem.".format(sessionname))    
+                return render_template("main_login.html", title="New Session TiledViz", form=myform, message=message)
+        else:
+            flash("Session with name {} already exists".format(sessionname))
+            return render_template("main_login.html", title="New Session TiledViz", form=myform)
 
         # Create default config for new session 
         config_default_file=open("app/static/js/config_default.json",'r')
@@ -1038,22 +1050,26 @@ def copysession():
             # TODO !! => send invitation to new users ?
             return render_template("main_login.html", title="Copy session TiledViz", form=myform)
 
-        newsession=create_newsession(myform.sessionname.data, myform.description.data, oldsession.id_projects, myform.users)
+        newsession,exist=create_newsession(myform.sessionname.data, myform.description.data, oldsession.id_projects, myform.users)
 
-        nbts=len(oldsession.tile_sets)
-        for i in range(nbts):
-            newsession.tile_sets.append(oldsession.tile_sets[i])
-
-        try:
-            # if user has not change session.name, it can't be created.
-            db.session.add(newsession)
-            db.session.commit()
-        except Exception:
-            traceback.print_exc(file=sys.stderr)
+        if (not exist):
+            nbts=len(oldsession.tile_sets)
+            for i in range(nbts):
+                newsession.tile_sets.append(oldsession.tile_sets[i])
+                
+            try:
+                # if user has not change session.name, it can't be created.
+                db.session.add(newsession)
+                db.session.commit()
+            except Exception:
+                traceback.print_exc(file=sys.stderr)
             
-            message = '{"oldsessionname":"'+oldsessionname+'"}'
-            flash("You must change session name in session {}".format(myform.sessionname.data))
-            return render_template("main_login.html", title="Copy session TiledViz", form=myform, message=message)
+                message = '{"oldsessionname":"'+oldsessionname+'"}'
+                flash("Session with name {} creation problem.".format(myform.sessionname.data))
+                return render_template("main_login.html", title="Copy session TiledViz", form=myform, message=message)
+        else:
+            flash("You must change session name {} for new session.".format(sessionname))
+            return render_template("main_login.html", title="Copy Session TiledViz", form=myform)
 
         theaction=myform.tilesetaction.data
         
@@ -1383,7 +1399,8 @@ def addtileset():
             for i in range(nbr_of_tiles):
                 Mynode=jsonTileSet["nodes"][i]
 
-                title,name,comment,tags,variable,pos_px_x,pos_px_y,IdLocation,url,ConnectionPort = convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath)
+                title,name,comment,tags,variable,pos_px_x,pos_px_y,IdLocation,url,ConnectionPort = \
+                    convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath)
             
                 newtile = models.Tile(title=title,
                                       comment=comment,
@@ -1781,7 +1798,8 @@ def edittileset():
             Mynode=jsonTileSet["nodes"][i]
             #print (str(i)+" "+str(Mynode))
 
-            title,name,comment,tags,variable,pos_px_x,pos_px_y,IdLocation,url,ConnectionPort = convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath)
+            title,name,comment,tags,variable,pos_px_x,pos_px_y,IdLocation,url,ConnectionPort = \
+                convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath)
             
             # Insert and create only NEW tiles into TileSet or
             # TODO: edit OLD tiles from TileSet.tiles list ? (add a suppress old tiles button in form).
@@ -1898,7 +1916,7 @@ def vncconnection():
         oldconnection=db.session.query(models.Connection).filter_by(id=idconnection).first()
     except:
         flash("This connection doesn't exist.")
-        logging.error("This connection doesn't exist : "+idconnection)
+        logging.error("This connection doesn't exist.")
         message=request.args["message"]
         return redirect(url_for(".edittileset",message=message))
 
@@ -2085,7 +2103,22 @@ def addconnection():
                 # TODO : Add dir (in JOBPath on HPC machine) info for files ? 
                 ConnConfigjson[FileS.filename]=tf.name
                 tf.close() 
-        
+
+        # if (myform.configfiles.data):
+        #     for FileS in myform.configfiles.data:
+        #         logging.error("Config type file : %s " % (str(type(FileS))))
+        #         outHandler.flush()
+        #         if ( type(FileS) != type("AA") ):
+        #             logging.error("Config file : %s " % (FileS))
+        #             tf = tempfile.NamedTemporaryFile(mode="w+b",dir=connectionpath,prefix="",delete=False)
+        #             tf.write(myform.configfiles.data[FileS].read())
+        #             # TODO : Add dir (in JOBPath on HPC machine) info for files ? 
+        #             ConnConfigjson[FileS]=tf.name
+        #             tf.close()
+        #         else:
+        #             logging.warning("Config file : %s " % (FileS))
+        #             outHandler.flush()
+
         # Save scheduler_file in connectionpath and tmp filename in ConnConfigjson
         if (myform.scheduler_file.data):
             logging.warning("Scheduler file : %s " % (str(myform.scheduler_file.data)))
@@ -2330,7 +2363,7 @@ def removeconnection():
         idconnection=oldconnection.id
     except:
         flash("This connection doesn't exist.")
-        logging.error("This connection doesn't exist : "+idconnection)
+        logging.error("This connection doesn't exist.")
         message=request.args["message"]
         return redirect(url_for(".edittileset",message=message))
         
@@ -2417,7 +2450,7 @@ def show_grid():
         logging.info("first to join the room "+session["username"])
     
     try:
-        logging.debug("Grid with session :"+str(session["projectname"])+" "+srt(session["sessionname"])+" "+str(session["username"]))
+        logging.debug("Grid with session :"+str(session["projectname"])+" "+str(session["sessionname"])+" "+str(session["username"]))
     except :
         pass
 
@@ -2511,20 +2544,33 @@ def show_grid():
 
         if (type(tsconnection) != type(None) and
             len(thistileset.config_files) > 0):
-            if (( "actions.json" in thistileset.config_files ) and
-                ("connection"+str(tsconnection.id) in session) ):
+            if ("connection"+str(tsconnection.id) in session):
+                asaction=False
+                if ( "config.tar" in thistileset.config_files ):
+                    tar_config_file=tarfile.TarFile(name=thistileset.config_files["config.tar"],mode='r')
+                    tar_config_file.list()
+                    try:
+                        actions_file=tar_config_file.extractfile("actions.json")
+                        tiles_actions[thistileset.name]=json.loads(actions_file.read().decode('utf-8'))
+                        asaction=True
+                    except:
+                        pass
                 
-                actions_file=open(thistileset.config_files["actions.json"],'r')
-                tiles_actions[thistileset.name]=json.load(actions_file)
-                tiles_actions[thistileset.name]["action0"]=["launch_nodes_json","system_update_alt"]
-                # Search kill_all_containers action to register it in session cookie for this connection:
-                
-                if (session["is_client_active"]):
-                    rekillid=re.compile(r'"killid"')
-                    for actionid in tiles_actions[thistileset.name]:
-                        if (tiles_actions[thistileset.name][actionid][0] == "kill_all_containers" and
-                            not re.search(rekillid,session["connection"+str(tsconnection.id)])):
-                            session["connection"+str(tsconnection.id)]=session["connection"+str(tsconnection.id)].replace(', "vncpassword"',', "killid":"'+actionid.replace("action","")+'", "vncpassword"')
+                if ( "actions.json" in thistileset.config_files ):
+                    actions_file=open(thistileset.config_files["actions.json"],'r')
+                    tiles_actions[thistileset.name]=json.load(actions_file)
+                    asaction=True
+                if (asaction):
+                    tiles_actions[thistileset.name]["action0"]=["get_new_nodes","system_update_alt"]
+                    # Search kill_all_containers action to register it in session cookie for this connection:
+                    if (session["is_client_active"]):
+                        rekillid=re.compile(r'"killid"')
+                        for actionid in tiles_actions[thistileset.name]:
+                            if (tiles_actions[thistileset.name][actionid][0] == "kill_all_containers" and
+                                not re.search(rekillid,session["connection"+str(tsconnection.id)])):
+                                session["connection"+str(tsconnection.id)]=session["connection"+str(tsconnection.id)].replace(', "vncpassword"',', "killid":"'+actionid.replace("action","")+'", "vncpassword"')
+                else:
+                    tiles_actions[thistileset.name]={}
         else:
             tiles_actions[thistileset.name]={}
         ts=ts+1
@@ -2578,7 +2624,7 @@ def deploySession(cdata):
     socketio.emit('receive_deploy_Session', sdata,room=croom) # change room for new session ?
 
 @socketio.on("share_Config")
-def saveSession(cdata):
+def shareConfig(cdata):
     croom=cdata["room"]
     logging.warning("[->] shareConfig in room " + str(croom))
     configJson=json.loads(cdata["Config"].replace("'", '"'));
@@ -2674,28 +2720,159 @@ def ClickAction(cdata):
         logging.info(action+" for TileSet "+TS)
         logging.warning("[->] Click on action "+action+ " "+ str(cdata["id"]) + " in room " + str(croom) + " for selection "+ str(selections))
 
-        actionid=action.replace("action", "")
-        command=actionid+","+selections
+        actionid=int(action.replace("action", ""))
+        command=str(actionid)+","+selections
         
         oldtileset=db.session.query(models.TileSet).filter_by(name=TS).one()
         oldconnection=oldtileset.connection
         user_id=get_user_id("action_click",session["username"])
-        if (oldconnection):
-            if  (user_id == oldconnection.id_users and session["is_client_active"]):
-                logging.warning("action: "
-                                +str(session["username"])+" ; "
-                                +str(oldtileset.id)+" ; "
-                                +str(oldconnection.id)+" ; "
-                                +str(command))
-                myflush()
-                if (selections==","):
-                    searchKillid=re.search(r'"killid":"\d+"',session["connection"+str(oldconnection.id)])
-                    if (searchKillid):
-                        killid=searchKillid.group().replace('"killid":','').replace('"','')
-                        if (actionid==killid):
-                            time.sleep(timeAlive)                        
-                            remove_this_connection(oldtileset,oldconnection.id,user_id)
 
+        if (not oldconnection):
+            logging.error("[->] NO Connection : "+str(oldconnection)+" on tileset "+str(oldtileset)+" for user "+str(user_id))
+            return
+        
+        if  (user_id != oldconnection.id_users or not session["is_client_active"]):
+            logging.error("[->] Connection id : "+str(oldconnection.id_users)+" for user "+str(user_id)+"  and session active "+str(session["is_client_active"]))
+            myflush()
+            return
+        
+        logging.warning("actionid %d" % (actionid))
+        myflush()
+        if (actionid == 0):
+            ThisSession=db.session.query(models.Session).filter(models.Session.name == session["sessionname"]).first()
+            # save old nodes.json before get new
+            out_nodes_json = os.path.join("/TiledViz/TVFiles", str(oldconnection.id_users), str(oldconnection.id),"nodes.json")
+            mvDATE=datetime.datetime.now().isoformat().replace(":","-")
+            save_nodes_json=out_nodes_json+"_"+mvDATE
+            logging.warning("action 0 : Save old nodes.json in %s" % (save_nodes_json))
+            myflush()
+            os.system("mv "+out_nodes_json+" "+save_nodes_json)
+            # selection must be all tileset
+            command=str(actionid)+","+","
+        logging.warning("action command %s" % (command))
+        myflush()
+
+        searchKillid=re.search(r'"killid":"\d+"',session["connection"+str(oldconnection.id)])
+        killid=-1
+        if (searchKillid):
+            killid=int(searchKillid.group().replace('"killid":','').replace('"',''))
+            if (actionid==killid):
+                logging.warning("action %d : Find kill_all_containers action." % (actionid))
+                command=str(actionid)+","+","
+                
+        logging.warning("action: "
+                        +str(session["username"])+" ; "
+                        +str(oldtileset.id)+" ; "
+                        +str(oldconnection.id)+" ; "
+                        +str(command))
+        myflush()
+        
+        if (searchKillid):
+            if (actionid==killid):
+                time.sleep(timeAlive)                        
+                logging.warning("action %d : Remove connection %d ." % (actionid,oldconnection.id))
+                remove_this_connection(oldtileset,oldconnection.id,user_id)
+            
+        if (actionid == 0):
+            try:
+                logging.warning("Update nodes for session %s" % (session["sessionname"]))
+                myflush()
+                ThisSession=db.session.query(models.Session).filter(models.Session.name == session["sessionname"]).first()
+                # action0 == get new nodes.json file
+                time.sleep(timeAlive)
+                
+                # copy old nodes.json
+                out_nodes_json = os.path.join("/TiledViz/TVFiles", str(oldconnection.id_users), str(oldconnection.id),"nodes.json") 
+                #diff save_nodes_json out_nodes_json ?
+                
+                # Old tile set data
+                with open(save_nodes_json) as save_json_tiles_file:
+                    tiledata1=json.loads(save_json_tiles_file.read())
+                    save_json_tiles_file.close()
+
+                # Add old index => For oldtiledset.tiles ??
+                itiledata1={"nodes":[]}; 
+                for idx, tile in enumerate(tiledata1["nodes"]):
+                    itiledata1["nodes"].append({"i":idx, "title":tile["title"]})
+
+                # New tile set data
+                count_exist_new_nodes=0
+                not_loaded=True
+                while(not_loaded):
+                    try:
+                        time.sleep(timeAlive)
+                        with open(out_nodes_json) as json_tiles_file:
+                            tiledata2=json.loads(json_tiles_file.read())
+                            json_tiles_file.close()
+                        not_loaded=False
+                    except Exception as err:
+                        count_exist_new_nodes=count_exist_new_nodes+1
+                        NbIter=10
+                        if ( count_exist_new_nodes > NbIter):
+                            traceback.print_exc(file=sys.stderr)
+                            strerror=str(err)
+                            logging.error("After %d x %d s we still have this error :\n %s" % (NbIter, timeAlive,strerror))
+                            return 
+                        
+                # sort Tiles data for old and new version of tileset
+                sortdata1 = sorted(tiledata1["nodes"], key=lambda v: v["title"])
+                isortdata1 = sorted(itiledata1["nodes"], key=lambda v: v["title"])
+                sortdata2 = sorted(tiledata2["nodes"], key=lambda v: v["title"])
+
+                connectionbool=True
+                urlbool=False
+                datapath=""
+                creation_date=datetime.datetime.now()
+                
+                # DIFF sorted tiledata1 and tildedata2 and modify them in oldtiledset.tiles
+                logging.warning("DIFF sorted tiledata1 and tildedata2 ")
+                myflush()
+                modtiles_data=[]
+                for idx1, tile1 in enumerate(sortdata1):
+                    found=False
+                    for idx2, tile2 in enumerate(sortdata2):
+                        if (tile1 == tile2):
+                            del sortdata2[idx2]
+                            logging.debug("OK equal tiles %d %d " % (idx1, idx2))
+                            found=True
+                            break
+                        elif (tile1["url"] == tile2["url"]):
+                            logging.debug("equal url modify tiles %d %d " % (idx1, idx2))
+                            i=isortdata1[idx1]["i"]
+
+                            title,name,comment,tags,variable,pos_px_x,pos_px_y,IdLocation,url,ConnectionPort = \
+                                convertTile(tile2,oldtileset.name,connectionbool,urlbool,datapath)
+                                
+                            oldtileset.tiles[i].tags=tags
+                            oldtileset.tiles[i].source= {"name" : name,
+                                                         "connection" : ConnectionPort,
+                                                         "url" : url,
+                                                         "variable": variable}
+                            flag_modified(oldtileset.tiles[i],"source")
+                            
+                            oldtileset.tiles[i].pos_px_x= pos_px_x
+                            oldtileset.tiles[i].pos_px_y= pos_px_y
+                            oldtileset.tiles[i].IdLocation=IdLocation
+                            db.session.commit()
+                            logging.debug("OK equal url modify tile")
+                            
+                            modtiles_data.append((i,tile2))
+                            
+                            del sortdata2[idx2]
+                            found=True
+                            break
+                
+                # emit receive_deploy_nodes
+                sdata = {"id":cdata["id"], "modtiles_data":modtiles_data}
+                logging.warning("receive_deploy_nodes data : "+str(sdata))
+                myflush()
+
+                socketio.emit('receive_deploy_nodes', sdata,room=croom)
+            except Exception as err:
+                traceback.print_exc(file=sys.stderr)
+                strerror=str(err)
+                logging.error(strerror)
+                        
 # Draw    
 sidDraw=""
 @socketio.on("drawBlob")

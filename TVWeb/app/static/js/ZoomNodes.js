@@ -16,6 +16,6 @@ $(document).ready(    function (){
 		     zIndex : 112,
 		     });
 	    
-	 $('.zoomNodeButtonIcon').hide();
+	 zoomNodediv.hide();
      };
     })

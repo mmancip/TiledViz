@@ -71,11 +71,11 @@ Tile = function(Mesh) {
 			infoToDisplay = id;
 	    }
 	    $('#'+id).append('<div id=info'+id+' class=info>' + infoToDisplay +'</div>');
-	    $('.info').css("font-family", configBehaviour.infoFonts[Math.min(configBehaviour.defaultFontIndex, configBehaviour.infoFonts.length)]);
-	    $('.info').css("color", configBehaviour.infoTextColor);
-	    $('.info').css("font-size", configBehaviour.defautInfoFontSize);
+	    $('#info'+id).css("font-family", configBehaviour.infoFonts[Math.min(configBehaviour.defaultFontIndex, configBehaviour.infoFonts.length)]);
+	    $('#info'+id).css("color", configBehaviour.infoTextColor);
+	    $('#info'+id).css("font-size", configBehaviour.defautInfoFontSize);
 	    if (configBehaviour.alwaysShowInfo)  { 
-		$('.info').show();
+		$('#info'+id).show();
 	    }
 	    $('#hitbox'+id).css('background-color', colorHBdefault);
 	    // Handle to drag
@@ -98,46 +98,53 @@ Tile = function(Mesh) {
 
 	    return $('#'+id);
 	}());
+
+    var jsNode = document.getElementById(id);
     
     /** Tag management
      * */
     var nodeTagList = [];
     var floatingTag = {};
 
-    if (typeof jsonData.tags != 'undefined')  { 
-	var nodeTagListTmp = [];
-	if (typeof jsonData.tags == "object")  { 
-	    nodeTagListTmp = jsonData.tags;
-	}
-	else if (typeof jsonData.tags == "string" && jsonData.tags != "")  { 
-	    nodeTagListTmp = jsonData.tags.split(",");
-	}
-
-
-	for (var item=0;item<nodeTagListTmp.length;item++) {
-	    if ( nodeTagListTmp[item].search('{')==0 ) {
-		if ( nodeTagListTmp[item].search('{"') == -1 ) {
-		    nodeTagListTmp[item]=nodeTagListTmp[item].replace(/{([^,]*),([^,]*),([^,]*),([^,]*)}/,
-								      '{"name":"$1","m":$2,"val":$3,"M":$4}')
-		}
-		nodeTagListTmp[item]=JSON.parse(nodeTagListTmp[item]);
-		name=newTag_conformance(nodeTagListTmp[item].name);
-		floatingTag[name]={"id": item, "m":nodeTagListTmp[item].m,"val":nodeTagListTmp[item].val, "M":nodeTagListTmp[item].M};
-		nodeTagListTmp[item]=name
-	    } else {
-		nodeTagListTmp[item] = newTag_conformance(nodeTagListTmp[item]);
+    this.initTag = function(thisjson) {
+	if (typeof thisjson.tags != 'undefined')  { 
+	    var nodeTagListTmp = [];
+	    var floatingTagTmp = {};
+	    if (typeof thisjson.tags == "object")  { 
+		nodeTagListTmp = thisjson.tags;
 	    }
-	}
-	nodeTagList = nodeTagListTmp;
-    }
-    if (! nodeTagList.some(function(e) {return e=='Off'}) )
-	nodeTagList.push("Off");
-    nodeTagList.sort();
-    // Add On at the end to initialise its color and globalTagsList.
-    if ( nodeTagList.some(function(e) {return e=='On'}) )
-	nodeTagList.splice(nodeTagList.findIndex(function(e) {return e=='On'}),1);
-    nodeTagList.push("On");
+	    else if (typeof thisjson.tags == "string" && thisjson.tags != "")  { 
+		nodeTagListTmp = thisjson.tags.split(",");
+	    }
 
+
+	    for (var item=0;item<nodeTagListTmp.length;item++) {
+		if ( nodeTagListTmp[item].search('{')==0 ) {
+		    if ( nodeTagListTmp[item].search('{"') == -1 ) {
+			nodeTagListTmp[item]=nodeTagListTmp[item].replace(/{([^,]*),([^,]*),([^,]*),([^,]*)}/,
+									  '{"name":"$1","m":$2,"val":$3,"M":$4}')
+		    }
+		    nodeTagListTmp[item]=JSON.parse(nodeTagListTmp[item]);
+		    name=newTag_conformance(nodeTagListTmp[item].name);
+		    floatingTagTmp[name]={"id": item, "m":nodeTagListTmp[item].m,"val":nodeTagListTmp[item].val, "M":nodeTagListTmp[item].M};
+		    nodeTagListTmp[item]=name
+		} else {
+		    nodeTagListTmp[item] = newTag_conformance(nodeTagListTmp[item]);
+		}
+	    }
+	    nodeTagList = nodeTagListTmp;
+	    floatingTag = floatingTagTmp;
+	}
+	if (! nodeTagList.some(function(e) {return e=='Off'}) )
+	    nodeTagList.push("Off");
+	nodeTagList.sort();
+	// Add On at the end to initialise its color and globalTagsList.
+	if ( nodeTagList.some(function(e) {return e=='On'}) )
+	    nodeTagList.splice(nodeTagList.findIndex(function(e) {return e=='On'}),1);
+	nodeTagList.push("On");
+    }
+    this.initTag(jsonData);
+    
     /** Creation of the PostIt related to the node to take some notes about the simulations
 	For more details : http://postitall.txusko.com/plugin.html
     */
@@ -597,9 +604,10 @@ Tile = function(Mesh) {
 		    mesh.me.setcolumnSelected(mesh.me.mlocationProvider( mesh.me.getNode(nodeId).getIdLocation()).getnX());
 		    //console.log("colonne : "+mesh.me.mlocationProvider( mesh.me.getNode(nodeId).getIdLocation()).getnX());
 
-		    for(O in mesh.me.getNodes())  { 
-			if(mesh.me.getcolumnSelected() == mesh.me.mlocationProvider( mesh.me.getNodes()[O].getIdLocation()).getnX() )
-			    mesh.me.getNodes()[O].getHtmlNode().css('boxShadow', configCSS.columnSwapBoxShadow);
+		    var allnodes=mesh.me.getNodes();
+		    for(O in allnodes)  { 
+			if(mesh.me.getcolumnSelected() == mesh.me.mlocationProvider( allnodes[O].getIdLocation()).getnX() )
+			    allnodes[O].getHtmlNode().css('boxShadow', configCSS.columnSwapBoxShadow);
 		    }
 
 		}
@@ -611,16 +619,17 @@ Tile = function(Mesh) {
 		    var column1Tab = [];
 		    var column2Tab = [];
 
-		    for(O in mesh.me.getNodes())  { 
+		    var allnodes=mesh.me.getNodes();
+		    for(O in allnodes)  { 
 
-			if(mesh.me.getcolumnSelected() == mesh.me.mlocationProvider( mesh.me.getNodes()[O].getIdLocation()).getnX() )  { 
-			    column1Tab.push( mesh.me.getNodes()[O]);
-			    mesh.me.getNodes()[O].getHtmlNode().css({
+			if(mesh.me.getcolumnSelected() == mesh.me.mlocationProvider( allnodes[O].getIdLocation()).getnX() )  { 
+			    column1Tab.push( allnodes[O]);
+			    allnodes[O].getHtmlNode().css({
 				    boxShadow: "none"});				
 			}
 
-			if(secondColumnSelected == mesh.me.mlocationProvider( mesh.me.getNodes()[O].getIdLocation()).getnX() )  { 
-			    column2Tab.push( mesh.me.getNodes()[O]);			
+			if(secondColumnSelected == mesh.me.mlocationProvider( allnodes[O].getIdLocation()).getnX() )  { 
+			    column2Tab.push( allnodes[O]);			
 			}
 
 		    }
@@ -664,9 +673,10 @@ Tile = function(Mesh) {
 		    mesh.me.setlineSelected(mesh.me.mlocationProvider( mesh.me.getNode(nodeId).getIdLocation()).getnY());
 		    //console.log("line : "+mesh.me.mlocationProvider( mesh.me.getNode(nodeId).getIdLocation()).getnY());
 
-		    for(O in mesh.me.getNodes())  { 
-			if(mesh.me.getlineSelected() == mesh.me.mlocationProvider( mesh.me.getNodes()[O].getIdLocation()).getnY() )
-			    mesh.me.getNodes()[O].getHtmlNode().css('boxShadow', configCSS.lineSwapBoxShadow);
+		    var allnodes=mesh.me.getNodes();
+		    for(O in allnodes)  { 
+			if(mesh.me.getlineSelected() == mesh.me.mlocationProvider( allnodes[O].getIdLocation()).getnY() )
+			    allnodes[O].getHtmlNode().css('boxShadow', configCSS.lineSwapBoxShadow);
 		    }
 		}
 		else if(mesh.me.getlineSelected() != -1)  { 
@@ -677,15 +687,16 @@ Tile = function(Mesh) {
 		    var line1Tab = [];
 		    var line2Tab = [];
 
-		    for(O in mesh.me.getNodes())  { 
-			//console.log("aa",mesh.me.getlineSelected(),mesh.me.mlocationProvider( mesh.me.getNodes()[O].getIdLocation()).getnY());
-			if(mesh.me.getlineSelected() == mesh.me.mlocationProvider( mesh.me.getNodes()[O].getIdLocation()).getnY() )  { 
-			    line1Tab.push( mesh.me.getNodes()[O]);	
-			    mesh.me.getNodes()[O].getHtmlNode().css({boxShadow: "none"});						
+		    var allnodes=mesh.me.getNodes();
+		    for(O in allnodes)  { 
+			//console.log("aa",mesh.me.getlineSelected(),mesh.me.mlocationProvider( allnodes[O].getIdLocation()).getnY());
+			if(mesh.me.getlineSelected() == mesh.me.mlocationProvider( allnodes[O].getIdLocation()).getnY() )  { 
+			    line1Tab.push( allnodes[O]);	
+			    allnodes[O].getHtmlNode().css({boxShadow: "none"});						
 			}
 
-			if(secondLineSelected == mesh.me.mlocationProvider( mesh.me.getNodes()[O].getIdLocation()).getnY() )  { 
-			    line2Tab.push( mesh.me.getNodes()[O]);			
+			if(secondLineSelected == mesh.me.mlocationProvider( allnodes[O].getIdLocation()).getnY() )  { 
+			    line2Tab.push( allnodes[O]);			
 			}
 
 		    }
@@ -718,95 +729,116 @@ Tile = function(Mesh) {
     menuIconClassAttributesTab.push("lineButtonIcon");
     MenuShareEvent.push(true);
 
-    /** Here is created the menu of the node*/
-    var nodeMenu = new Menu(id,htmlNode,menuTitleTab,menuEventTab,menuIconClassAttributesTab,MenuShareEvent,{
+    var nodeMenu="";
+    this.setOpacityLocation = function () {};
+    
+    this.buildmenu=function() {
+	/** Here is created the menu of the node*/
+	nodeMenu = new Menu(id,htmlNode,menuTitleTab,menuEventTab,menuIconClassAttributesTab,MenuShareEvent,{
 
-	    // Position
-	    position : "absolute",  
-	    top : -120, // GLOBAL ?
-	    left : 0,
-	    // Style 
-	    visible : "hidden", 
-	    //margin : "0px 5px 10px 15px", // Not useful, only for the menu and not the buttons
+    	    // Position
+    	    position : "absolute",  
+    	    top : -120, // GLOBAL ?
+    	    left : 0,
+    	    // Style 
+    	    visible : "hidden", 
+    	    //margin : "0px 5px 10px 15px", // Not useful, only for the menu and not the buttons
 
-	    // Button default class
-	    classN : "node",
-	    // Button size
-	    height : 100, 
-	    width : 100,
-	    rightMargin : 30,
-	    // Button style
-	    //borderStyle : "solid", // GLOBAL
-	    //borderWidth : "5px", // GLOBAL
-	    //borderColor : "blue" //GLOBAL
-	    menubox : false
+    	    // Button default class
+    	    classN : "node",
+    	    // Button size
+    	    height : 100, 
+    	    width : 100,
+    	    rightMargin : 30,
+    	    // Button style
+    	    //borderStyle : "solid", // GLOBAL
+    	    //borderWidth : "5px", // GLOBAL
+    	    //borderColor : "blue" //GLOBAL
+    	    menubox : false
+    	});
+
+	var mymenu=$('#menu'+id);
+	mymenu.append("<div id=fake-tile-opacity-"+id+"></div>");
+	$(OpacityZone).append("<div id=tile-opacity-"+id+" class=tile-opacity-menu-zone></div>");
+	// tileOpacitySlider is placed after the transparentButtonIcon (in first place)
+	var tileOpacityLeft=parseInt($(mymenu[0].childNodes[1]).css("left"))+20;
+	var fake_tile_opacity=$('#fake-tile-opacity-'+id);
+	var fake_tile_opacityjs=document.getElementById("fake-tile-opacity-"+id)
+	fake_tile_opacity.css({
+    	    position : "relative",
+    	    visibility : "hidden",
+    	    top :0,
+    	    left : tileOpacityLeft,
+    	    //parseInt(mymenu.css("width")),
+    	    //backgroundColor : "red",
+    	    height : parseInt(mymenu.css("height")),
+    	    width : parseInt($('#'+id).css("width")) - tileOpacityLeft,
+    	    zIndex : 0
 	});
-
-    $('#menu'+id).append("<div id=fake-tile-opacity-"+id+"></div>");
-    $(OpacityZone).append("<div id=tile-opacity-"+id+" class=tile-opacity-menu-zone></div>");
-    // tileOpacitySlider is placed after the transparentButtonIcon (in first place)
-    tileOpacityLeft=parseInt($($('#menu'+id)[0].childNodes[1]).css("left"))+20;
-    $('#fake-tile-opacity-'+id).css({
-	position : "relative",
-	visibility : "hidden",
-	top :0,
-	left : tileOpacityLeft,
-	//parseInt($('#menu'+id).css("width")),
-	//backgroundColor : "red",
-	height : parseInt($('#menu'+id).css("height")),
-	width : parseInt($('#'+id).css("width")) - tileOpacityLeft,
-	zIndex : 0
-    });
-    this.setOpacityLocation = function () {
-	$('#tile-opacity-'+id).css({
-	    position : "absolute",
-	    top : $('#fake-tile-opacity-'+id).offset().top,
-	    left : $('#fake-tile-opacity-'+id).offset().left,
-	    //parseInt($('#menu'+id).css("width")),
-	    //backgroundColor : "red",
-	    height : parseInt($('#menu'+id).css("height")),
-	    width : parseInt($('#'+id).css("width")) - tileOpacityLeft,
-	    zIndex : 130
-	});
+	var hmymenu=parseInt(mymenu.css("height"));
+	var wtile=parseInt($('#'+id).css("width"));
+	var tile_opacity = $('#tile-opacity-'+id);
+	this.setOpacityLocation = function () {
+    	    tile_opacity.css({
+    	    position : "absolute",
+    	    top : fake_tile_opacityjs.offsetTop,
+    	    left : fake_tile_opacityjs.offsetLeft,
+    	    //parseInt(mymenu.css("width")),
+    	    //backgroundColor : "red",
+    	    height : hmymenu,
+    	    width : wtile - tileOpacityLeft,
+    	    zIndex : 130
+    	    });
+	}
+	this.setOpacityLocation();
+	tile_opacity.css("visibility","hidden")
+	//this.setOpacityLocation = function () {};
+	
+	//tile_opacity.append("<input id=tileOpacitySlider"+id+" class=tile-opacity-slider type='range' name=tileOpacitySlider"+id+" min=0 max=100 value="+nodeOpacity*100+">");
     }
-    this.setOpacityLocation();
-    $('#tile-opacity-'+id).css("visibility","hidden")
-
-    //$('#tile-opacity-'+id).append("<input id=tileOpacitySlider"+id+" class=tile-opacity-slider type='range' name=tileOpacitySlider"+id+" min=0 max=100 value="+nodeOpacity*100+">");
-
+    
     /** Stickers to tag the node 
 	There are 10 differents colors for the tags, some more for other informations.
     */
     var stickers = new Stickers(id,htmlNode);
 
-    for(var k=0;k < nodeTagList.length;k++)  { 
-	var name=nodeTagList[k];
-	if ($.inArray(nodeTagList[k], globalTagsList) == -1)  { 
-	    globalTagsList.push(nodeTagList[k]);
-	    var l=globalTagsList.length-1;
-	    if (name in floatingTag) {
-		globalFloatingTags[name]={"l":l,"m":floatingTag[name]["m"], "M":floatingTag[name]["M"]}
-		var outColors=ColorSticker(l,floatingTag[name]);
-		globalFloatingTags[name]["cm"]=outColors["cm"];
-		globalFloatingTags[name]["cM"]=outColors["cM"];
-		globalFloatingTags[name]["symb"]=outColors["symb"];
-		attributedTagsColorsArray[name] = globalFloatingTags[name]["cm"];
-	    } else {
-		attributedTagsColorsArray[name] = ColorSticker(l);
+    this.tileUpdateStickers = function () {
+	var newTags=[];
+	for(var k=0;k < nodeTagList.length;k++)  { 
+	    var name=nodeTagList[k];
+	    if ($.inArray(name, globalTagsList) == -1)  {
+		newTags.push(name);
+		globalTagsList.push(name);
+		var l=globalTagsList.length-1;
+		if (name in floatingTag) {
+		    globalFloatingTags[name]={"l":l,"m":floatingTag[name]["m"], "M":floatingTag[name]["M"]}
+		    var outColors=ColorSticker(l,floatingTag[name]);
+		    globalFloatingTags[name]["cm"]=outColors["cm"];
+		    globalFloatingTags[name]["cM"]=outColors["cM"];
+		    globalFloatingTags[name]["symb"]=outColors["symb"];
+		    attributedTagsColorsArray[name] = globalFloatingTags[name]["cm"];
+		} else {
+		    globalTagsColors[name]={"l":l};
+		    attributedTagsColorsArray[name] = ColorSticker(l);
+		}
+	    }
+	    if (configTagsBehaviour.showAll)  { 
+		if (name in floatingTag) {
+		    var outColors=ColorSticker(globalFloatingTags[name]["l"],floatingTag[name]);
+		    stickers.addSticker(name,attributedTagsColorsArray[name],false,outColors,floatingTag[name]["val"]);
+		} else {
+		    stickers.addSticker(name,attributedTagsColorsArray[name],false);
+		}
 	    }
 	}
-	if (configTagsBehaviour.showAll)  { 
-	    if (name in floatingTag) {
-		var outColors=ColorSticker(globalFloatingTags[name]["l"],floatingTag[name]);
-		stickers.addSticker(name,attributedTagsColorsArray[name],outColors);
-	    } else {
-		stickers.addSticker(name,attributedTagsColorsArray[name]);
-	    }		
-	}
+	globalTagsList.sort();
+
+	return newTags;
     }
-    globalTagsList.sort();
+    var newTags=this.tileUpdateStickers();
+    
     // remove Off tag at the end of nodeTagList.
-    stickers.removeSticker('On');
+    stickers.removeSticker('On',true);
     nodeTagList.pop();
     //console.log("nodeTagList",nodeTagList)
 
@@ -831,15 +863,15 @@ Tile = function(Mesh) {
 	if (bool) {
 	    if ( nodeTagList.some(function(e) {return e=='Off'}) ) {
 		nodeTagList[nodeTagList.findIndex(function(e) {return e=='Off'})] = "On";
-		stickers.removeSticker('Off');
-		stickers.addSticker("On",attributedTagsColorsArray["On"]);
+		stickers.removeSticker('Off',false);
+		stickers.addSticker("On",attributedTagsColorsArray["On"],true);
 		this.setQRcodeStatus()
 	    }
 	} else {
 	    if ( nodeTagList.some(function(e) {return e=='On'}) ) {
 		nodeTagList[nodeTagList.findIndex(function(e) {return e=='On'})] = "Off";
-		stickers.removeSticker('On');
-		stickers.addSticker("Off",attributedTagsColorsArray["Off"]);
+		stickers.removeSticker('On',false);
+		stickers.addSticker("Off",attributedTagsColorsArray["Off"],true);
 	    }
 	}
 	//console.log("nodeTagList setLoadedStatus",nodeTagList, bool)
@@ -906,7 +938,7 @@ Tile = function(Mesh) {
     //*****Comment******//
 
     this.getComment = function()  { 
-	return $('#postit'+id)[0].textContent;
+	return $('#postit'+id).text();
     }
 
     //******nodeOpacity******//
@@ -960,7 +992,7 @@ Tile = function(Mesh) {
 	    }
 
 	}
-	stickers.removeSticker(text_);
+	stickers.removeSticker(text_,false);
 	//console.log("after removing", nodeTagList);
     };
 
@@ -1082,6 +1114,10 @@ Tile = function(Mesh) {
 	position.top=loc.getY();
 	// This line is the grid :
 	htmlNode.offset(position);
+	// jsNode.style.offsetLeft = position.left
+	// jsNode.style.offsetTop = position.top;
+	//jsNode.left = position.left
+	//jsNode.top = position.top;
 	// Update URL if tile becomes visible
 	this.updateUrl();
     };
@@ -1091,11 +1127,43 @@ Tile = function(Mesh) {
     };
 
     this.updateLocFromHtmlNode = function(booleanAnimation){
-	var position = htmlNode.offset();
-	location.setX(position.left);
-	location.setY(position.top);	
+	location.setX(jsNode.offsetLeft);
+	location.setY(jsNode.offsetTop);	
     };
 
+    this.updatedata = function(tile2) {
+	jsonData=tile2;
+	
+	if ("usersNotes" in tile2) {
+	    NewNote = tile2.usersNotes;
+	} else if ("comment" in tile2) {
+	    NewNote = tile2.comment;
+	}
+	$('#postit'+id).text(NewNote);
+
+	var infoToDisplay = "";
+	if (configJsonData.useTitle && tile2.title != "")  { 
+	    infoToDisplay = tile2.title.replace(".png", "");
+	} else { 
+	    infoToDisplay = id;
+	    }
+	$('#info'+id).html(infoToDisplay)
+	
+	var oldNodeTagList=nodeTagList;
+	var oldFloatingTag=floatingTag;
+	stickers.resetStickerTab();
+	this.initTag(tile2);
+
+	// Update Global Tag and Stickers :
+	var newTags=this.tileUpdateStickers();
+
+	if (this.getOnOffStatus())
+	    stickers.removeSticker('Off');
+	else
+	    stickers.removeSticker('On');
+	
+	return newTags;
+    };
 
     //******State******// 
     //remember state is a number and are just a way to distinguish different state of the node
@@ -1251,8 +1319,8 @@ Tile = function(Mesh) {
 	// for(var k=0;k < nodeTagList.length;k++)  { 
 	//     var name=nodeTagList[k];
 	//     if (name in floatingTag) {
-	// 	$('#postit'+id)[0].textContent=$('#postit'+id)[0].textContent+'\n'
-	// 	    +floatingTag[name]["m"].toString()+" <= "+floatingTag[name]["val"].toString()+" <= "+floatingTag[name]["M"].toString();
+	// 	$('#postit'+id).text($('#postit'+id).text()+'\n'
+	// 	    +floatingTag[name]["m"].toString()+" <= "+floatingTag[name]["val"].toString()+" <= "+floatingTag[name]["M"].toString());
 	//     }
 	// }
 

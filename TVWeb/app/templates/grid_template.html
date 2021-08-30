@@ -10,12 +10,16 @@
 {% endblock %}
 
 {% block additional_scripts_css %}
-
+  <!-- TileViz CSS -->
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/style.css')}}">
   <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/base.css')}}">
   <!-- <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/grid.css')}}"> -->
+
+  <!-- PorstItAll -->
   <link rel="stylesheet"
 	href="https://combinatronics.com/txusko/PostItAll/master/dist/jquery.postitall.css">
+
+  <!-- Actions Icons -->
   <link rel="stylesheet"
 	 href="https://fonts.googleapis.com/icon?family=Material+Icons">
   
@@ -26,41 +30,53 @@
     my_session = "{{ session }}";
     my_description = "{{ description }}";
     my_geometry = {{ json_geom|tojson }};
+  </script>
+  <script type="text/javascript" charset="utf-8">
     json_data = {{ json_data|tojson }};
+  </script>
+  <script type="text/javascript" charset="utf-8">
     json_config = {{ json_config|tojson }};
     json_actions = {{ json_actions|tojson }};
-    jsDataTab = json_data.nodes;
     helpPath = "{{ helpPath }}";
+  </script>
+  <script type="text/javascript" charset="utf-8">
+    jsDataTab = json_data.nodes;
   </script>
   <!-- My scripts -->
 
     <!-- <script type="text/javascript" src="{{ url_for('static', filename='js/menu_config.js') }}"></script> -->
     <!-- <script type="text/javascript" src="{{ url_for('static', filename='js/menu_options.js') }}"></script> -->
 
+    <!-- PorstItAll -->
     <script type="text/javascript"
 	    src="https://combinatronics.com/txusko/PostItAll/master/dist/jquery.postitall.js"></script>
 
+    <!-- FileSaver -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.2/FileSaver.min.js"
 	    integrity="sha512-k8F8QynmFNURwbUJC8drKA+fo3YfNvjqKzStdydD6au+MzvxBoRnxH8E31RJXwDY9DrnEiPhh9wBoDSIxhkyHQ=="
 	    crossorigin="anonymous"></script>
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/javascript-canvas-to-blob/3.28.0/js/canvas-to-blob.js" -->
-    <!-- 	    integrity="sha512-QinObFNs7mVBtipyw8BEERLHKQ1P2n5Wbxd8Kt+G9ST/lp99qZKlJUUsNSZYSPf/yGL7eNN0UCcDaMiZjXMtGg==" -->
-    <!-- 	    crossorigin="anonymous"></script> -->
+
+    <!-- Canvas to Blob : save pictures -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/javascript-canvas-to-blob/3.28.0/js/canvas-to-blob.min.js"
 	    integrity="sha512-Q0RYciuNUJLzUgA9T0A0yj1A5wR+rM7MDr3hKBJuNBaSW5O2TqRyBMMLswe7Z/M9czXRnD/5mh1/xQpDpxFZaA=="
-	    crossorigin="anonymous"></script>
+	    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <!-- Waypoints : optimize non visible tiles -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/waypoints/4.0.1/noframework.waypoints.min.js"
 	    integrity="sha256-XJuslujM3cGzRZGiSi/KNSdk58uORO/mmrEQNjVtb5k="
 	    crossorigin="anonymous"></script>
     
+    <!-- q : promise/deference for pictures -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/q.js/1.5.1/q.min.js"
 	    integrity="sha256-URAm3POAyTpcU8ACdb2iIjMWFuTai4/fCdXdeqGN3h8="
 	    crossorigin="anonymous"></script>
-    
+        
+    <!-- QRcodes : lib with correction -->
     <!-- <script type="text/javascript" -->
     <!-- 	    src="https://combinatronics.com/davidshimjs/qrcodejs/master/qrcode.js"></script> -->
     <script type="text/javascript" src="{{ url_for('static', filename='dist/js/qrcode.js')}}"></script>
     
+    <!-- Test Anonymous connection -->
     {% if is_client_active %}
     <script type="text/javascript" charset="utf-8">
       my_inactive=false;
@@ -247,5 +263,28 @@
 
   </script>
   {% endif %}
+  <script type="text/javascript">
+    function executeAtEnd() {
+	setTimeout(function() {
+	    console.log("Build nodes menus")
+	    if (typeof mesh == "undefined")
+		executeAtEnd();
+	    else {
+		var Nodes=mesh.getNodes();
+		for (O in Nodes)
+		    Nodes[O].buildmenu();
+	    }
+	}, 200);	
+    }
+    if (document.readyState == 'complete') {
+	executeAtEnd();
+    } else {
+        document.onreadystatechange = function () {
+            if (document.readyState === "complete") {
+                executeAtEnd();
+            }
+        }
+    }
+  </script>
 
 {% endblock %}

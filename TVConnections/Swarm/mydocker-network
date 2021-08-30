@@ -8,12 +8,13 @@ DATE=$(date +%F_%H-%M)
 
 docker swarm init
 docker node ls
-docker network create --driver overlay --attachable --subnet=${domain}.0/24 --gateway=${domain}.1 ${network}
+docker network create --driver overlay --attachable --scope=swarm --subnet=${domain}.0/24 --gateway=${domain}.1 ${network}
 docker network ls
 docker network inspect ${network}
 # Get all IPs
 docker network inspect ${network} |grep "IPv4Address" |sort
 docker network ls -q | xargs docker network inspect --format '{{range .IPAM.Config}}{{.Subnet}}{{end}} {{.Name}}' |sort
+#docker network ls -q | xargs docker network inspect --format "{{.Name}}: {{json .IPAM.Config}}"
 
 # command to remove the network and the swarm
 echo docker network remove ${network}

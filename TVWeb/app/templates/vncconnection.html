@@ -22,6 +22,10 @@
   </script>
 </header>
 <body>
+  <script type="text/javascript">
+      $('document').ready(autoadaptzoom)
+  </script>
+<div id="icontainer" class="container">    
   <h3>
     Connection secure to HPC machine.
   </h3>
@@ -34,7 +38,7 @@
     vncifrm.setAttribute('width', 1410);
     vncifrm.setAttribute('height', 740);
     vncifrm.setAttribute('src', VNCurl);
-    document.body.appendChild(vncifrm);
+    $("#icontainer").append(vncifrm);
   </script>
   <div id="management" name="buttons">
     <form method="post">
@@ -54,6 +58,7 @@
       : Completly suppress connection.
     </div>
   </div>
+</div>
 </body>
 {% endblock %}
 

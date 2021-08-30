@@ -45,3 +45,20 @@ It will be saved in ".config/google-chrome/default/Current Session" binary file.
 On Mozilla Firefox you just have to go on  about:config
 and get the list 
 toolkit.zoomManager.zoomValues
+
+
+7. Use debug option in web Connection form.
+
+If you want to build your own TiledViz cases, you may read
+TVConnection/TVConnections.py
+because it contains initialization and functions for calling in case job. 
+
+This debug option may stop the connection script before you launch your own job then
+you can test it manualy.
+
+You may use os.system('/cat_between #Line1 #Line2 file.py') to display and copy/paste
+parts of your script in the ipython prompt.
+
+You can either have python sources of your functions already loaded with this command
+print(inspect.getsource(myfun))
+on ipython prompt.

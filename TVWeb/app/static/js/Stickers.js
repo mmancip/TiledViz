@@ -91,11 +91,17 @@ $(document).ready(    function (){
 	    this.getStickerTab = function()  {
 		return stickerTab.toString();
 	    }
-	    
-	    this.updateStickers = function()  { 
-		//console.log("updating stickers");
+	    this.resetStickerTab = function()  {
 		$('#stickers_'+id).children(".sticker").remove();
-		var it = 0;
+		return stickerTab = [];
+	    }
+	    
+	    this.updateStickers = function(reset)  {
+		if (typeof(reset) != "undefined")
+		    $('#stickers_'+id).children(".sticker").remove();
+		    
+		//console.log("updating stickers");
+		var it = $('#stickers_'+id).children(".sticker").length;
 		while (it < stickerTab.length)  {
 		    var thisstickerTab=stickerTab[it];
 		    
@@ -103,19 +109,39 @@ $(document).ready(    function (){
 		    var color = thisstickerTab[1];
 		    //console.log(text_, color);
 
-		    var thisSticker = $('#stickers_'+id).children(".sticker")[it];
 		    var idSticker = text_ + "_" + id;
 
-		    $('#stickers_'+id).append("<div id='" +idSticker +"' class='"+text_+ " sticker' " + "name='"+idSticker+"_"+it+"' ></div>");
+		    $('#stickers_'+id).append("<div id='" +idSticker +"' title='"+text_ +"' class='"+text_+ " sticker' " + "name='"+idSticker+"_"+it+"' ></div>");
 		    $('#'+idSticker).css({
 			classN : "sticker",
 			backgroundColor : color,
 			top : 50*it+"px",		
 		    });
+		    $('#stickers_'+id).on('mouseover',function() {
+			if (configBehaviour.tooltip) {
+		    	    $(this).append('<div id=tooltip class="tooltipfrom'+id
+		    			   +' fg-tooltip ui-widget ui-widget-content ui-corner-all" style="font-size: 40px"></div>');
+		    	    var tooltip=$('#tooltip');
+		    	    tooltip.html($(this).attr("title"));
+			    $(this).attr("title","");
+		    	    tooltip.append('<div class="fg-tooltip-pointer-down ui-widget-content"><div class="fg-tooltip-pointer-down-inner"></div></div></div>');
+			    tooltip.css("top","-180px");
+			    
+		    	    tooltip.fadeIn('500');
+		    	    tooltip.fadeTo('10',10);
+			}
+		    }).on('mouseout',function() {
+			if (configBehaviour.tooltip) {
+			    $(this).attr("title",$(this).children('div#tooltip').text());
+		    	    $(this).children('div#tooltip').remove();
+			}
+		    })
 
 		    if ( thisstickerTab.length > 2 ) {
 
 			$('#'+idSticker).html(thisstickerTab[2]);
+			var val=thisstickerTab[5];
+			$('#'+idSticker).attr('title',val);
 			
 			$('#'+idSticker).on({
 			    mouseenter: function() {
@@ -185,7 +211,7 @@ $(document).ready(    function (){
 
 	    /* addSticker tests if the sticker is already present, if not, add it to the stickerTab and updates the stickers to make the new one appear */
 
-	    this.addSticker = function(text_, color, outColors)  { 
+	    this.addSticker = function(text_, color, updateAll, outColors, val)  { 
 		var found =0;
 		for (var i=0;i<stickerTab.length;i++)  { 
 			
@@ -196,15 +222,16 @@ $(document).ready(    function (){
 		}
 		if (found==0)  {
 		    if (typeof(outColors) != "undefined") {
-			stickerTab.push([text_, outColors["cval"], outColors["symb"], outColors["cm"], outColors["cM"]]);
+			stickerTab.push([text_, outColors["cval"], outColors["symb"], outColors["cm"], outColors["cM"], val]);
 		    } else {
 			stickerTab.push([text_, color]);
 		    }
 		}
-		this.updateStickers();
+		if (updateAll)
+		    this.updateStickers();
 	    }
 
-	    this.removeSticker = function(text_)  { 
+	    this.removeSticker = function(text_,updateAll)  { 
 		var color = attributedTagsColorsArray[text_];
 		var found = false;
 		var index = -1;
@@ -219,22 +246,9 @@ $(document).ready(    function (){
 		if (found)  { 
 		    stickerTab.splice(index, 1);
 		}
-		this.updateStickers();	
+		if (updateAll)
+		    this.updateStickers(true);
 	    }
-
-	    // this.createSticker = function(text_, color)  { 
-	    // 	if($('#stickers_'+id).children("."+text_).length == 0)  { 			
-	    // 	    $('#stickers_'+id).append("<div id='" + text_ + "_" + id +"' class='"+text_+ " sticker'" + "></div>");
-	    // 	    //console.log($('#stickers_'+id).children(".sticker").length, numOfTags);
-	    // 	    $('#'+ text_ + "_" +id).css({
-	    // 		    classN : "sticker",
-	    // 			backgroundColor : color,
-	    // 			top : 50*($('#stickers_'+id).children(".sticker").length-1)+"px",
-	    // 			});
-	    // 	} else { 
-	    // 	    //console.log("Sticker already exists");
-	    // 	}
-	    // }
 
 	    this.colorSticker = function(text_, color)  { 
 		if($('#stickers_'+id).children("."+text_).length != 0)  { 				

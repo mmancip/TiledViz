@@ -777,7 +777,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			     + 'color-stop(' + val + ', rgb(0, 255, 0))'
 			     + ')'
 			     );
-	$('output').css({
+	$('#zoom').css({
 		position: "fixed",
 		    fontSize : "150px",
 		    left : parseInt($('#zoomSlider').css("width")) + parseInt($('#zoomSlider').css("left")),
@@ -879,13 +879,11 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		me.unsetDraggable(nodesById[O].getId(), false, false);
 	    }
 	    Onnodes = $('.On').parent().parent().children('iframe');
-	    var oldSrc=[]
 	    for (node in Onnodes) {
 		if (node != "prevObject" && typeof Onnodes[node] == "object"
 		    && nodesByLoc[Onnodes[node].parentElement.id].getLoadedStatus()) {
-		    oldSrc.push(Onnodes[node].getAttribute("src"));
 		    Onnodes[node].setAttribute("src","")
-		    Onnodes[node].setAttribute("src",oldSrc[node]);
+		    Onnodes[node].setAttribute("src",nodesById["node"+Onnodes[node].parentElement.id].getJsonData().url);
 		}
 	    }
 	    // for (node in Onnodes) {
@@ -914,6 +912,40 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	receive_deploy_Selection=true
     });
 
+    // Update the Mesh
+    socket.on('receive_deploy_nodes', function(sdata){
+     	console.log("receive_deploy_nodes",sdata);
+	var jsDataTab_mod = sdata["modtiles_data"]; // modtiles_data.append([tile1,tile2])
+
+	// modifiy some nodes
+	for ( idadd in jsDataTab_mod ) {
+	    var tile1=jsDataTab_mod[idadd][0]
+	    var tile2=jsDataTab_mod[idadd][1]
+	    for (O in nodesById)  {
+		var node=nodesById[O];
+		var Id=node.getId();
+		if (node.getJsonData()["url"] == tile2["url"]) {
+
+		    var newTags=node.updatedata(tile2);
+		    
+		    // update global Tags ?
+		    for (var itag in newTags) { 
+			me.AddNewTag(newTags[itag]);
+		    }			
+		}
+	    }
+	}
+	
+
+	refreshNodes();
+	me.meshEventStart();
+	me.startLoading();
+	
+	// update search list
+	suggestion_list = globalTagsList
+	    .concat($('.info').map(function(){ return $.trim($(this).text());}).get())
+	    .concat(Object.keys(nodesById).map(function(e){return $.trim(nodesById[e].getJsonData().comment); }));
+    });
     
     /**	Here is created a tab menuEventTab related to the parameters menuEventTab_ of the Menu constructor (see below)
 
@@ -993,7 +1025,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    }
 	    $('#tag-notif').text("Tag " + this.id + " removed from tag list and tiles.");
 	    $('.tag#'+this.id).remove();//removeChild(tagToRemove);
-	    delete globalTagsList[globalTagsList.indexOf(this.id)];
+	    var idTag=globalTagsList.indexOf(this.id)
+	    var name=globalTagsList[idTag];
+	    delete globalTagsColors[name];
+	    globalTagsList.splice(idTag,1);
 	    currentSelectedTag = "";
 
 	} else if (me.getSelectTags())  { 
@@ -1110,9 +1145,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    for(O in listSelectionTiles)  { 
 		var HBid = "hitbox"+listSelectionTiles[O].getId();
 		//clickHBTag(HBid);
-		listSelectionTiles[O].getStickers().addSticker(currentSelectedTag, attributedTagsColorsArray[currentSelectedTag]);
+		listSelectionTiles[O].getStickers().addSticker(currentSelectedTag, attributedTagsColorsArray[currentSelectedTag],true);
 		listSelectionTiles[O].addElementToNodeTagList(currentSelectedTag);
 	    }
+	    
 	    addBlink(this);
 	} else if (PaletteNodeTagFlag) {
 	    var tagToColor = this.id;
@@ -1179,14 +1215,21 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
     // Add a tag
     this.AddNewTag=function(tmpNewTag) {
-	globalTagsList.push(tmpNewTag); 
-	var k = globalTagsList.length -1;
+	var k = -1;
+	if ( $.inArray(tmpNewTag, globalTagsList) == -1 ) {
+	    globalTagsList.push(tmpNewTag);
+	    var k = globalTagsList.length -1;
+	    var l = k;
+	} else {
+	    var k = globalTagsList.indexOf(tmpNewTag);
+	    var l = globalTagsColors[tmpNewTag]["l"];
+	}	    
 	$('#tag-legend').append('<div id =' + globalTagsList[k] + ' class=tag>' + globalTagsList[k] + '</div>');
 	if ($('#'+globalTagsList[k]).position().left==0) {
 	    $("#tag-legend").css({ height: $("#tag-legend").height()+$('#'+globalTagsList[k]).height() });
 	}
 	try  {
-	    $('#'+globalTagsList[k]).css('background-color',ColorSticker(k));
+	    $('#'+globalTagsList[k]).css('background-color',ColorSticker(l));
 	    attributedTagsColorsArray[globalTagsList[k]] =$('#'+globalTagsList[k]).css("background-color");
 	    $('#tag-notif').text("New tag added: " + tmpNewTag);
 	}
@@ -1514,8 +1557,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		if (emit_click("validateDelTags","validButtonYes"))
 		    return
 		while(globalTagsList.length>0)  { 
+		    delete globalTagsColors[globalTagsList[globalTagsList.length-1]];
 		    buffer=globalTagsList.pop();
-
+		    
 		    for(O in nodesById)  { 
 			nodesById[O].removeElementFromNodeTagList(buffer);
 		    }
@@ -1576,7 +1620,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    idAction = parseInt(thisAction_.replace("action",""));
 
     		    var selections = [];
-    		    var listSelectionTiles=me.getSelectedNodes();
+    		    var listSelectionTiles=me.getNodesToZoom();
     		    for(O in listSelectionTiles)  {
 			// Only selection for the right tag
 			if (listSelectionTiles[O].getJsonData().tags.filter(x=>x==TS_).length)
@@ -3862,7 +3906,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 							    nodesbis[O].getHtmlNode().css({
 								    opacity : 1
 									});
-							    nodesbis[O].getStickers().addSticker(text_,colorFilterStickersTab[numOfFilter]);
+							    nodesbis[O].getStickers().addSticker(text_,colorFilterStickersTab[numOfFilter],true);
 							    w++;
 							}
 						    }
@@ -4010,6 +4054,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	for(O in nodesById)  { 
 	    nodesById[O].updateSelectedStatus(false);
 	}
+	me.setZoomSelection(false);
+	me.resetNodesToZoom();
 	$('#'+id+'option'+optionNumber).removeClass('closeClearSelectionButtonIcon').addClass('clearSelectionButtonIcon');
 	addBlink($('#'+id+'option'+optionNumber));
     });
@@ -4230,6 +4276,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		var tmp = document.getElementById("tag-legend");
 		if (tmp == null)  { 
+		    // Init tag-legend
 		    menuTags.append('<div id=tag-legend class=legend scrollable="yes"></div>');
 
 		    $('#tag-legend').css({//GLOBALCSS
@@ -4292,7 +4339,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			    for(O in nodesByLoc)  { 
 				if(me.hasTag(nodesByLoc[O], computedTagsList[k]) )  { 
 				    var color = attributedTagsColorsArray[computedTagsList[k]];
-				    nodesByLoc[O].getStickers().addSticker(computedTagsList[k], color);
+				    nodesByLoc[O].getStickers().addSticker(computedTagsList[k], false, color);
 				}
 
 			    }
@@ -4342,9 +4389,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    if (debugPos) {
 			for(O in nodesByLoc)  { 
 		    	    me.AddNewTag("pos"+O);
-		    	    nodesByLoc[O].getStickers().addSticker("pos"+O, attributedTagsColorsArray["pos"+O]);
+		    	    nodesByLoc[O].getStickers().addSticker("pos"+O, attributedTagsColorsArray["pos"+O],false);
 		    	    nodesByLoc[O].addElementToNodeTagList("pos"+O);
 			}
+		    }
+		    for(O in nodesByLoc)  { 
+			nodesByLoc[O].getStickers().updateStickers();
 		    }
 		}
 		$('.stickers_zone').css("visibility", "visible");
@@ -4383,6 +4433,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		currentSelectedTag = "";
 		$('#new-tag').remove();
 		$('#add-tag').remove();
+		//??
 		$('new-tag').remove();	
 		me.meshEventReStart();
 
@@ -4415,12 +4466,19 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		})() )
 		.css("left",menuGlobal.position()["left"]+menuGlobal.width())
 		.css("visibility", "visible");
+
+	    BlockDragAndDrop();
 	    
+	    $('.node').off();
 	    $('.hitbox').off("click").on("click", clickHBSelect);
+	    $('.hitbox').off("mouseenter");
+	    me.resetNodesToZoom();
+	    me.setZoomSelection(true);
 	    $('#'+id+'option'+optionNumber).removeClass('actionGlobalMenuButtonIcon').addClass('closeActionGlobalMenuButtonIcon');
 	} else { 
 	    me.actionGlobalMenu.closeAllOptions();
 	    menuActionGlobal.css("visibility", "hidden");
+	    me.setZoomSelection(false);
 	    $('.hitbox').off("click").on("click",clickHB);
 	    $('#'+id+'option'+optionNumber).removeClass('closeActionGlobalMenuButtonIcon').addClass('actionGlobalMenuButtonIcon');
 	}
@@ -4740,11 +4798,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	});
     menuUpdownGlobal=$('#menuupdownGlobal');
     subMenusGlobal.push(this.updownGlobalMenu);
-    
+
+    var menutagsGlobaljs=document.getElementById("menutagsGlobal");
     this.drawMenu = new Menu("Draw", $('header'), drawMenuTitleTab, drawMenuEventTab, drawMenuIconClassAttributesTab, drawMenuShareEvent,{
 	    position : "fixed",
 	    top : 0,
- 	    left : $('#menutagsGlobal').offset().left+$('#menutagsGlobal').width(),
+ 	    left : menutagsGlobaljs.offsetLeft+$('#menutagsGlobal').width(),
 	    visible : 'hidden',
 	    classN : 'draw',
 	    height : 200,
@@ -4762,7 +4821,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     this.zoomMenu = new Menu("Zoom", $('header'), zoomMenuTitleTab, zoomMenuEventTab, zoomMenuIconClassAttributesTab, zoomMenuShareEvent, {
 	    position : "fixed",
 	    top : 0,
-	    left : $('#menutagsGlobal').offset().left+$('#menutagsGlobal').width(),
+	    left : menutagsGlobaljs.offsetLeft+$('#menutagsGlobal').width(),
 	    visible : 'hidden',
 	    classN : 'zoomAction',
 	    height : 200,
@@ -4780,7 +4839,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     this.MSMenu = new Menu("MS", $('header'), MSMenuTitleTab, MSMenuEventTab, MSMenuIconClassAttributesTab, MSMenuShareEvent, {
 	    position : "fixed",
 	    top : 0,
-	    left : $('#menutagsGlobal').offset().left+$('#menutagsGlobal').width(),
+	    left : menutagsGlobaljs.offsetLeft+$('#menutagsGlobal').width(),
 	    visible : 'hidden',
 	    classN : 'masterslave',
 	    height : 200,
@@ -4930,7 +4989,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		var scaleY=(newSpread.Y/ initialSpread.Y);
 		scale = (scaleX + scaleY)/2;
 		//console.log("scale", scaleX, scaleY, scale);
-		if(typeof id == 'undefined' || typeof id != 'number' || (id < 0) || !(id < cardinal))  { 
+		if(typeof id == 'undefined' || typeof id != 'number' || (id < 0) || !(id < nodeCardinal))  { 
 		    spread=newSpread;
 		    for(O in nodesById)  { 
 			nodesById[O].updateHW(spread.Y,spread.X);
@@ -4974,6 +5033,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		    nodesById["node"+id].updateHW(spread.Y,spread.X);
 
+		    // ?? Global functions for update spread for one tile ?? 
 		    $('.selection').css({height : spread.Y,  width : spread.X});
 		    $('iframe').height(spread.Y).width(spread.X);
 		    //$('iframe').css( '-webkit-transform', "scale("+scaleX+","+ scaleY +")");
@@ -5104,10 +5164,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	var temp = me.mlocationProvider(node_idLocation, newNumOfColumns);
 	var nX =temp.getnX();
 	var nY =temp.getnY();
-	//var x = nX*Math.floor(((widthScreen-numOfColumns+1)/(numOfColumns)))+ (nX)*borderSize+htmlPrimaryParent.offset().left;
-	var x = nX*(spread.X+gapBetweenColumns)+ (nX)*borderSize+htmlPrimaryParent.offset().left;
-	//var y = nY*Math.floor(((widthScreen-numOfColumns+1)/(numOfColumns)))+ (nY)*borderSize+htmlPrimaryParent.offset().top;
-	var y = nY*(spread.Y+gapBetweenLines)+ (nY)*borderSize+htmlPrimaryParent.offset().top;
+	//var x = nX*Math.floor(((widthScreen-numOfColumns+1)/(numOfColumns)))+ (nX)*borderSize+primaryparent.offsetLeft;	
+	// var x = nX*(spread.X+gapBetweenColumns)+ (nX)*borderSize+htmlPrimaryParent.offset().left;
+	var x = nX*(spread.X+gapBetweenColumns)+ (nX)*borderSize+primaryparent.offsetLeft;
+	//var y = nY*Math.floor(((widthScreen-numOfColumns+1)/(numOfColumns)))+ (nY)*borderSize+primaryparent.offsetTop;
+	//var y = nY*(spread.Y+gapBetweenLines)+ (nY)*borderSize+htmlPrimaryParent.offset().top;
+	var y = nY*(spread.Y+gapBetweenLines)+ (nY)*borderSize+primaryparent.offsetTop;
 	return (new Location(x,y));
     };
 
@@ -5510,6 +5572,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			    mesh.changeNodeSize();
 			    
 			};
+
 		    }
 
 		    node.updateUrl();
@@ -5642,7 +5705,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	$('.qrcode').on({
 	    click : me.clickQRcode
 	});
-
+	
 	_allowDragAndDrop = true;
 	touchspeed = configBehaviour.touchSpeed; // speed of touch move;
 
@@ -6057,7 +6120,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    if(currentSelectedTag != "")  { 
 		var id = id_.replace("hitbox", "");
 		var node = me.getNodes()["node"+id];
-		node.getStickers().addSticker(currentSelectedTag, attributedTagsColorsArray[currentSelectedTag]);
+		node.getStickers().addSticker(currentSelectedTag, attributedTagsColorsArray[currentSelectedTag],true);
 		addBorderBlink($("#iframe"+id),attributedTagsColorsArray[currentSelectedTag])
 		node.addElementToNodeTagList(currentSelectedTag);
 		$('.sticker').off();
@@ -6456,7 +6519,8 @@ dblclick: dblclickFunction*/
 		}
 		    
 	    }) 
-		    
+
     }; // End meshEventStart
+
 };
     })

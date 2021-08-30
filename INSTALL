@@ -69,14 +69,3 @@ One must have uncomment
 GatewayPorts yes
 in sshd config file on the web server.
 
-7. Use debug option in web Connection form.
-
-If you want to build your own TiledViz cases, you may read
-TVConnection/TVConnections.py
-because it contains initialization and functions for calling in case job. 
-
-This debug option may stop the connection script before you launch your own job then
-you can test it manualy.
-
-You may use os.system('/cat_between #Line1 #Line2 file.py') to display and copy/paste
-parts of your script in the prompt.

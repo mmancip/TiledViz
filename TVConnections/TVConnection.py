@@ -70,7 +70,7 @@ class ClientAction(threading.Thread):
 
     def run(self,connectionId,globals,locals):
         global tiles_actions
-        tiles_actions["action0"]=["launch_nodes_json","system_update_alt"]
+        tiles_actions["action0"]=["get_new_nodes","system_update_alt"]
         
         self.actionclient=sock.client(ActionPort)
         self.actionclient.send_OK(1)
@@ -475,6 +475,10 @@ if __name__ == '__main__':
     #                                       default=scheduler,
     #                                       validators=[Optional()])
 
+    # Empty function to let TVSecure get new nodes.json from connectiondock.
+    def get_new_nodes():
+        return
+    
     # Launch nodes.json file
     def launch_nodes_json():
         if (os.path.exists("nodes.json")):

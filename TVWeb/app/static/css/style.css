@@ -614,8 +614,6 @@ iframe
 	background-image: url(../images/tiles/rotate.png);
 }
 
-}
-
 #blackboard 
 {
 	/* background-image: url(bb.jpeg);
@@ -993,7 +991,7 @@ ul.ui-autocomplete.ui-menu{
 	width: 80%;
 	height:100;
 	font-size: 100px;
-	border: 25;
+	border: 25px;
 	background-color: red;
 	margin: auto;
 }

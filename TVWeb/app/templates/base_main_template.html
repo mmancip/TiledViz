@@ -23,6 +23,9 @@
     
 {% block body %}
 <body>
-		{% block content %}{% endblock %}
+  <script type="text/javascript">
+    $('document').ready(autoadaptzoom)
+  </script>		  
+  {% block content %}{% endblock %}
 </body>
 {% endblock %}

@@ -9,7 +9,6 @@ import sys,os,stat
 import argparse
 import json
 import datetime
-import traceback
 import re
 import configparser
 
@@ -208,16 +207,13 @@ class FlaskDocker(threading.Thread):
                 detach=True) #auto_remove=True,
             
         except docker.errors.ContainerError:
-            logging.error("The container exits with a non-zero exit code and detach is False.")
-            traceback.print_exc(file=errors)
+            logging.error("The container exits with a non-zero exit code and detach is False.", exc_info=True)
             sys.exit(listerrors["createError"])
         except docker.errors.ImageNotFound:
-            logging.error("The specified image does not exist.")
-            traceback.print_exc(file=errors)
+            logging.error("The specified image does not exist.", exc_info=True)
             sys.exit(listerrors["ImageError"])
         except docker.errors.APIError:
-            logging.error("The server returns an error.")
-            traceback.print_exc(file=errors)
+            logging.error("The server returns an error.", exc_info=True)
             sys.exit(listerrors["APIError"])
             
         self.user="flaskusr"
@@ -229,7 +225,7 @@ class FlaskDocker(threading.Thread):
         try :
             self.containerFlask.start()
         except docker.errors.APIError :
-            traceback.print_exc(file=errors)
+            logging.error("Error start Flask", exc_info=True)
             sys.exit(listerrors["start"])
             
         logging.warning("After start Flask, containers list :"+str(client.containers.list()))
@@ -359,8 +355,7 @@ class FlaskDocker(threading.Thread):
                             logging.warning("Connection pool loop :"+str(firstFree))
                             FindFree=True
                         except:
-                            traceback.print_exc(file=errors)
-                            logging.error("ERROR : Full Connection pool. No new connection possible.")
+                            logging.error("ERROR : Full Connection pool. No new connection possible.", exc_info=True)
                     logging.warning("Connection pool slot :"+str(firstFree))
 
                     if (FindFree):
@@ -554,16 +549,13 @@ class ConnectionDocker(threading.Thread):
                 auto_remove=self.cont_auto_remove, detach=True)
 
         except docker.errors.ContainerError:
-            logging.error("The container exits with a non-zero exit code and detach is False.")
-            traceback.print_exc(file=errors)
+            logging.error("The container exits with a non-zero exit code and detach is False.", exc_info=True)
             sys.exit(listerrors["createError"])
         except docker.errors.ImageNotFound:
-            logging.error("The specified image does not exist.")
-            traceback.print_exc(file=errors)
+            logging.error("The specified image does not exist.", exc_info=True)
             sys.exit(listerrors["ImageError"])
         except docker.errors.APIError:
-            logging.error("The server returns an error.")
-            traceback.print_exc(file=errors)
+            logging.error("The server returns an error.", exc_info=True)
             sys.exit(listerrors["APIError"])
 
         self.daterun=datetime.datetime.now()
@@ -572,7 +564,7 @@ class ConnectionDocker(threading.Thread):
             self.containerConnect.start()
             logging.warning("Connection started.")
         except docker.errors.APIError :
-            traceback.print_exc(file=errors)
+            logging.error("The container can't start.", exc_info=True)
             sys.exit(listerrors["start"])
             
         logging.warning("After start "+self.name+", containers list :"+str(client.containers.list()))
@@ -607,14 +599,24 @@ class ConnectionDocker(threading.Thread):
         logging.debug("Add user "+self.flaskusr+" on Flask container."+re.sub(r'\*n',r'\\n',self.LogAddUser))
         
         # Get id_rsa.pub for tunneling VNC flux
-        time.sleep(timeWait)
-        commandAuthKey = "cat "+self.home+"/.ssh/id_rsa.pub"
-        self.LogAuthKey = container_exec_out(self.containerConnect, commandAuthKey)
-        self.LogAuthorized_key = re.sub(r'\n',r'',self.LogAuthKey)
-        # print("Key : ",self.LogAuthorized_key)
-        authorized_key=re.sub(r'\*n',r'\\n',self.LogAuthorized_key)
-        logging.debug("Authorized_key from connection container : \n'"+authorized_key+"'")
-
+        authorized_key="No such file or directory"
+        re_wrong_key=re.compile(r''+authorized_key)
+        match_authorized=re_wrong_key.search(authorized_key)
+        count_authorized=0
+        while(match_authorized):
+            time.sleep(timeWait)
+            commandAuthKey = "cat "+self.home+"/.ssh/id_rsa.pub"
+            self.LogAuthKey = container_exec_out(self.containerConnect, commandAuthKey)
+            self.LogAuthorized_key = re.sub(r'\n',r'',self.LogAuthKey)
+            # print("Key : ",self.LogAuthorized_key)
+            authorized_key=re.sub(r'\*n',r'\\n',self.LogAuthorized_key)
+            match_authorized=re_wrong_key.search(authorized_key)
+            logging.debug("Authorized_key from connection container : \n'"+authorized_key+"'")
+            count_authorized=count_authorized+1
+            if (count_authorized > 20):
+                logging.error("Authorized_key error from connection container : \n'"+authorized_key+"'")
+                break
+        
         # Put this key in flask docker
         commandBuildSsh="mkdir "+flaskhome+"/.ssh"
         self.LogBuildSsh=container_exec_out(self.containerFlask, commandBuildSsh,user=self.flaskusr)
@@ -660,7 +662,7 @@ class ConnectionDocker(threading.Thread):
             self.ConnectionDB.connection_vnc=externPort-32768
             session.commit()
         except:
-            traceback.print_exc(file=errors)
+            logging.error("Can't commit connection in DB !", exc_info=True)
         logging.warning("Connection VNC port saved : "+str(self.ConnectionDB.connection_vnc)+" real : "+str(self.ConnectionDB.connection_vnc+32768))
 
         # Tunnel to Flask : Give access from vncconnection page to this container
@@ -758,8 +760,7 @@ class ConnectionDocker(threading.Thread):
                         filetar.close()
 
                     except ValueError as err:
-                        traceback.print_exc(file=errors)
-                        logging.error("ValueError with GET "+path_nodesjson+" : try again."+str(err))
+                        logging.error("ValueError with GET "+path_nodesjson+" : try again."+str(err), exc_info=True)
                         time.sleep(2)
                         # Get back nodes.json from connection docker ?
                         bits, stat = self.containerConnect.get_archive(path=path_nodesjson)
@@ -787,12 +788,10 @@ class ConnectionDocker(threading.Thread):
                             mytar.close()
                             filetar.close()
                         except Exception as err:
-                            traceback.print_exc(file=errors)
-                            logging.error("Error with GET "+path_nodesjson+" : stop trying. "+str(err))
+                            logging.error("Error with GET "+path_nodesjson+" : stop trying. "+str(err), exc_info=True)
 
                     except Exception as err:
-                        traceback.print_exc(file=errors)
-                        logging.error("Error with GET "+path_nodesjson+". tar error.")
+                        logging.error("Error with GET "+path_nodesjson+". tar error.", exc_info=True)
 
                         # Send again get via action launch_nodes_json
                         #raise ValueError                        
@@ -819,8 +818,7 @@ class ConnectionDocker(threading.Thread):
                         logging.warning("Action client receive OK from not-an-action message "+str(self.ActionConnect.get_OK(1)))
                         outHandler.flush()
                     except Exception as err:
-                        traceback.print_exc(file=errors)
-                        logging.error("Error with Action client "+str(self.ConnectionDB.id)+" : "+str(err))
+                        logging.error("Error with Action client "+str(self.ConnectionDB.id)+" : "+str(err), exc_info=True)
 
                     self.killTunnel()
                     logging.warning("Job started.")
@@ -837,7 +835,6 @@ class ConnectionDocker(threading.Thread):
                 if callfunc == "updateScripts":
                     self.updateScripts()
                 elif callfunc == "quitConnection":
-                    logging.error("Before quitConnection : ")
                     self.quitConnection()
                 elif callfunc == "killTunnel":
                     self.killTunnel()
@@ -958,28 +955,44 @@ class ConnectionDocker(threading.Thread):
         RET=self.ActionConnect.get_OK(1)
         logging.warning("Action for tileset %s. command %s return %d" % (self.tilesetId,actionlist,RET))
         if (re.sub(r',.*',r'',actionlist)=="0"):
-            time.sleep(2)
             path_nodesjson=os.path.join(self.home,"nodes.json")
-            try: 
-                # Get back nodes.json from connection docker ?
-                bits, stat = self.containerConnect.get_archive(path=path_nodesjson)
-                logging.warning("GET renew "+path_nodesjson+ " file from Connection Docker.")
-                logging.debug("Infos "+str(stat))
-                os.system('mv -f '+self.dir_out+'nodes.json '+self.dir_out+'nodes.json.'+datetime.datetime.now().isoformat())
-                # Write new nodes.json file in TVFile dir.
-                filetar = BytesIO()
-                for chunk in bits:
-                    filetar.write(chunk)
+
+            count_exist_new_nodes=0
+            not_loaded=True
+            while(not_loaded):
+                time.sleep(2)
+                try: 
+                    # Get back nodes.json from connection docker ?
+                    bits, stat = self.containerConnect.get_archive(path=path_nodesjson)
+                    logging.warning("GET renew "+path_nodesjson+ " file from Connection Docker.")
+                    logging.warning("Infos "+str(stat))
+                    
+                    # Write new nodes.json file in TVFile dir.
+                    filetar = BytesIO()
+                    for chunk in bits:
+                        filetar.write(chunk)
                     filetar.seek(0)
                                     
-                mytar=tarfile.TarFile(fileobj=filetar, mode='r')
-                mytar.extractall(self.dir_out)
-                mytar.close()
-                filetar.close()
-                #os.system('diff '+self.dir_out+'/nodes.json '+self.dir_out+'/tmp/nodes.json') 
-            except:
-                logging.error("Fail to renew "+path_nodesjson+ " from Connection Docker.")
-                pass
+                    # tf=tempfile.NamedTemporaryFile(mode="w+b",dir="/tmp",prefix="",suffix=".tar",delete=False)
+                    # tf.write(filetar.read())
+                    # filetar.seek(0)
+                    # tf.close()
+                    # logging.error("Temp tar file: %s" % (tf.name))
+                    
+                    mytar=tarfile.TarFile(fileobj=filetar, mode='r')
+                    mytar.extractall(self.dir_out)
+                    mytar.close()
+                    filetar.close()
+                    logging.warning("New nodes.json downloaded from %s to %s." % (path_nodesjson,self.dir_out))
+                    outHandler.flush()
+                    #os.system('diff '+self.dir_out+'/nodes.json '+self.dir_out+'/tmp/nodes.json') 
+                    not_loaded=False
+                except Exception as err:
+                    count_exist_new_nodes=count_exist_new_nodes+1
+                    NbIter=10
+                    if ( count_exist_new_nodes > NbIter):
+                        logging.error("Fail to renew "+path_nodesjson+ " from Connection Docker.", exc_info=True)
+                        return
 
     
     def isalive(self):

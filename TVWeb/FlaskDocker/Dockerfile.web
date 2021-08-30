@@ -5,7 +5,7 @@ FROM python
 # Update python3, install pip3, netstat, virtualenv
 ENV DEBIAN_FRONTEND teletype
 RUN apt-get update && apt-get install -y apt-utils
-RUN apt-get install -y python3-pip net-tools openssh-server nginx && pip3 install --upgrade virtualenv
+RUN apt-get install -y python3-pip net-tools openssh-server nginx socat  && pip3 install --upgrade virtualenv
 
 RUN pip3 install --upgrade pip
 

@@ -45,7 +45,34 @@
 	    integrity="sha384-cPwlPLvBTa3sKAgddT6krw0cJat7egBga3DJepJyrLl4Q9/5WLra3rrnMcyTyOnh"
 	    crossorigin="anonymous"></script>
     {% block additional_scripts_css %}{% endblock %}
-    
+
+  <script type="text/javascript">
+    autoadaptzoom = function(){
+	var P=window.devicePixelRatio;
+	var a = (1-0.45)/(1-0.1);
+	var c = 1 - a;
+	var r=a*P + c;
+	var Zscale=r/P;
+	var decal=(1-P)/(1-0.1)*40
+	$('.container').css('-webkit-transform','scale('+Zscale+') translateY('+decal+'%)')
+	    .css('-moz-transform','scale('+Zscale+') translateY('+decal+'%)')
+	    .css('transform','scale('+Zscale+') translateY('+decal+'%)');
+	//var a = (50-10)/(0.1-1);
+	//var c = 10 -a;
+	//var zfonts=a*P+c;
+	$("select").css("width","auto");
+	$("select").css("height","auto");
+	$("option").css("font-size","inherit");
+        $(".checkbox").children("label").children("input").css('-webkit-transform','scale('+Zscale+')').css('-moz-transform','scale('+1/Zscale+')');
+        $(".radio").children("label").children("input").css('-webkit-transform','scale('+Zscale+')').css('-moz-transform','scale('+1/Zscale+')');
+	var a = (20-12)/(0.1-1);
+	var c = 12 -a;
+	var zfonts=a*P+c;
+	$('.container').css("font-size",zfonts+"px");
+	$("select").css("font-size",zfonts+"px");
+        $('div[id^="search_"]').css("font-size",zfonts+"px");
+    }
+  </script>		  
   </head>
   {% block body %}{% endblock %}
 </html>

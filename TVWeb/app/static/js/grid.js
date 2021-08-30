@@ -53,6 +53,8 @@ $(document).ready( function(){
     };
     
     htmlPrimaryParent = $('#primaryparent'); // CSS in style.css
+    primaryparent=document.getElementById("primaryparent")
+    
     // Check presence of the config file
     try{
 	lang=json_config.language;
@@ -164,6 +166,7 @@ $(document).ready( function(){
     colorTagStickersTab = configColors.TagStickersTab; // 10 colors
     attributedTagsColorsArray = new Array();
     globalTagsList =[];
+    globalTagsColors ={};
     globalFloatingTags = {}; 
     currentSelectedTag = "";
     colorHBdefault = configColors.HBdefault;
@@ -437,7 +440,7 @@ $(document).ready( function(){
 	    $('#ChangeConfigYes').click()
 	}
     });
-     
+    
     //Launch the mesh
     mesh = new Mesh(mesh_cardinal,bool_fix_number_of_columns,maximal_number_of_columns);
     mesh.meshEventStart();

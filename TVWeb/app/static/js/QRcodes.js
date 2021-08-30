@@ -53,7 +53,7 @@ $(document).ready(    function (){
 		
 			});
 	    
-	    $('.qrcode').hide();
+	    $('#qrcode'+id).hide();
 
 	};
 

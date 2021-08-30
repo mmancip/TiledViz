@@ -40,6 +40,8 @@ COPY TVConnections/tileubuntu/TileClient.py /opt/TileClient.py
 
 COPY TVConnections/connect /usr/lib/python3/dist-packages/connect
 
+COPY TVConnections/get_ip.sh /usr/local/bin
+
 RUN mkdir /home/myuser/.tiledviz
 COPY tiledviz.conf /home/myuser/.tiledviz
 
