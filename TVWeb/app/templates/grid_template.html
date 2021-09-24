@@ -266,21 +266,23 @@
   <script type="text/javascript">
     function executeAtEnd() {
 	setTimeout(function() {
-	    console.log("Build nodes menus")
 	    if (typeof mesh == "undefined")
 		executeAtEnd();
 	    else {
 		var Nodes=mesh.getNodes();
+                console.log("Build nodes menus")
 		for (O in Nodes)
 		    Nodes[O].buildmenu();
 	    }
-	}, 200);	
-    }
+	}, 1000);	
+    };
     if (document.readyState == 'complete') {
 	executeAtEnd();
     } else {
+        console.log("Not already conplete : "+document.readyState)
         document.onreadystatechange = function () {
             if (document.readyState === "complete") {
+                console.log("Still not already conplete : "+document.readyState)
                 executeAtEnd();
             }
         }

@@ -829,6 +829,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	numOfLines = Math.floor(nodeCardinal / numOfColumns);
 	numOfLines = Math.min(numOfLines, nodeCardinal);
 
+	me.computeNumColumns();
 	for (var i=0;i<(numOfLines-1);i++)  { 
 	    //console.log(i, numOfLines);
 	    if (direction == "up")  { 
@@ -1080,6 +1081,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    }
 
 	    if(chargeAllContentOnStart==false)  { 
+		me.computeNumColumns();
 		for(O in nodesById){
 		    node = nodesById[O];
 		    if( node.getLoadedStatus() == false && mesh.locationProvider(node.getIdLocation()).getY()<window.innerHeight  )  { 
@@ -2713,7 +2715,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			// } else if ( W == "IdLocation") {
 			//     var mytext = "\""+W+"\""+" : "+"\""+nodesByLoc[0].getIdLocation().toString()+"\""+",\n {***}";
 		    } else {
-	    		var mytext = "\""+W+"\""+" : "+"\""+nodesByLoc[O].getJsonData()[W].toString().replace(/\"/g,"'")+"\""+",\n {***}";
+	    		var mytext = "\""+W+"\""+" : "+"\""+nodesByLoc[O].getJsonData()[W].toString().replace(/\"/g,"'").replace(/\n/g,"")+"\""+",\n {***}";
 		    }
 	    	    temp3=temp3.replace("{***}",mytext);
 	    	}
@@ -3160,7 +3162,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
                     tempBehaviour=tempBehaviour.replace("***","'spaceBetweenLines': "+gapBetweenLines+",\n ***");
 
 	            maxNumOfColumns=numOfColumns;
-		    mesh.globalLocationProvider(numOfColumns);
+		    mesh.globalLocationProvider();
 		    
 		    configBehaviour.alwaysShowInfo = $('input[name=showinfo-cb]').is(":checked");
 		    tempBehaviour=tempBehaviour.replace("***","'alwaysShowInfo': '"+configBehaviour.alwaysShowInfo+"',\n ***");
@@ -3331,7 +3333,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    gapBetweenLines = tempBehaviour.spaceBetweenLines
 	    
 	maxNumOfColumns=numOfColumns;
-	mesh.globalLocationProvider(numOfColumns);
+	mesh.globalLocationProvider();
 
 	if(tempBehaviour.hasOwnProperty('alwaysShowInfo'))
 	    configBehaviour.alwaysShowInfo = $.parseJSON(tempBehaviour.alwaysShowInfo);
@@ -3956,6 +3958,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 					    // Load the nodes provided by the search which are outside the screen and not yet loaded 
 					    // depends on "chargeAllContentOnStart" and "distance_from_the_bottom_for_loading")
 					    if(chargeAllContentOnStart==false)  { 
+						me.computeNumColumns();
 						for(O in nodesById ){
 						    node = nodesById[O];
 						    if( node.getLoadedStatus() == false && mesh.locationProvider(node.getIdLocation()).getY()<window.innerHeight  )  { 
@@ -5117,36 +5120,32 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
     //******location******//
 
-    /** This function provides a mlocation of the node
-	when you submit an idLocation*/
-
-    //--find  node mlocation
-    this.mlocationProvider = function(node_idLocation, newNumOfColumns){
-	var widthScreen = htmlPrimaryParent.width();
-		
+    var widthScreen = htmlPrimaryParent.width();
+    this.computeNumColumns = function(newNumOfColumns){
 	// Test if newNumOfColumns has been given as parameter
 	newNumOfColumns = newNumOfColumns || false;
 		
 	if (newNumOfColumns !=false)  { 
-	    newNumOfColumns = Math.min(newNumOfColumns, maxNumOfColumns)
-		//console.log("processing loc with newNum of colums", newNumOfColumns);
-		var nX =node_idLocation%newNumOfColumns ;
-	    var nY = Math.floor(node_idLocation/newNumOfColumns);
+	    numOfColumns = Math.min(newNumOfColumns, maxNumOfColumns);
 	} else { 	
+	    widthScreen = htmlPrimaryParent.width();
 	    //console.log("processing num of columns from spread and screen size");
-	    numOfColumns = Math.max(Math.floor((widthScreen-parseInt($(me.menu.getHtmlMenuSelector()).css("width")))/(spread.X+borderSize)),1);
-
-	    while(numOfColumns>maxNumOfColumns)  { 
-		//console.log("b"+numOfColumns);
-		numOfColumns--;
-	    }
-	    var nX =node_idLocation%numOfColumns ;
-	    var nY = Math.floor(node_idLocation/numOfColumns);
+	    numOfColumns =
+		Math.min(
+		    Math.max(
+			Math.floor((widthScreen-parseInt($(me.menu.getHtmlMenuSelector()).css("width")))/(spread.X+borderSize)),
+			1),
+		    maxNumOfColumns);
 	}
+    };
+	
+    /** This function provides a mlocation of the node
+	when you submit an idLocation*/
 
-
-
-
+    //--find  node mlocation
+    this.mlocationProvider = function(node_idLocation){		
+	var nX =node_idLocation%numOfColumns ;
+	var nY = Math.floor(node_idLocation/numOfColumns);
 	return (new MLocation(nX,nY));
     };
 
@@ -5155,35 +5154,24 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     */	
 
     //--find  node location
-    this.locationProvider = function(node_idLocation, newNumOfColumns){
+    this.locationProvider = function(node_idLocation){
 
-	// Test if newNumOfColumns has been given as parameter
-	newNumOfColumns = newNumOfColumns || false;
-
-	var widthScreen = htmlPrimaryParent.width();
-	var temp = me.mlocationProvider(node_idLocation, newNumOfColumns);
+	var temp = me.mlocationProvider(node_idLocation);
 	var nX =temp.getnX();
 	var nY =temp.getnY();
-	//var x = nX*Math.floor(((widthScreen-numOfColumns+1)/(numOfColumns)))+ (nX)*borderSize+primaryparent.offsetLeft;	
 	// var x = nX*(spread.X+gapBetweenColumns)+ (nX)*borderSize+htmlPrimaryParent.offset().left;
-	var x = nX*(spread.X+gapBetweenColumns)+ (nX)*borderSize+primaryparent.offsetLeft;
-	//var y = nY*Math.floor(((widthScreen-numOfColumns+1)/(numOfColumns)))+ (nY)*borderSize+primaryparent.offsetTop;
+	var x = nX*(spread.X + gapBetweenColumns + borderSize)+primaryparent.offsetLeft;
 	//var y = nY*(spread.Y+gapBetweenLines)+ (nY)*borderSize+htmlPrimaryParent.offset().top;
-	var y = nY*(spread.Y+gapBetweenLines)+ (nY)*borderSize+primaryparent.offsetTop;
+	var y = nY*(spread.Y + gapBetweenLines + borderSize)+primaryparent.offsetTop;
 	return (new Location(x,y));
     };
 
     //--find all node location
-    this.globalLocationProvider = function(newNumOfColumns){ // TO DO : add num of cols	
+    this.globalLocationProvider = function(){ 
 
-	// Test if newNumOfColumns has been given as parameter
-	newNumOfColumns = newNumOfColumns || false;
-	//if (!newNumOfColumns){
-	//newNumOfColumns = numOfColumns;
-	//}
 	for(O in nodesById)  { 	
 	    if(!$('#' + nodesById[O].getId()).hasClass("transparentNode")) { // Transparent nodes have sometimes to remain superposed
-		nodesById[O].setLocation(me.locationProvider(nodesById[O].getIdLocation(), newNumOfColumns),false);
+		nodesById[O].setLocation(me.locationProvider(nodesById[O].getIdLocation()),false);
 		setNodesByLoc(nodesById[O].getIdLocation(),nodesById[O]);
 	    } else {
 		$('#'+nodesById[O].getId()).css("z-index", 899);
@@ -5192,8 +5180,6 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			
 	}
 		
-	if (newNumOfColumns !=false)  
-	    numOfColumns = newNumOfColumns;
     };
 
 
@@ -5412,6 +5398,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 
     //******nodes******//
+    me.computeNumColumns();
 
     /**Here the table of nodes is filled*/
     nodesById = (    function(){
@@ -5491,10 +5478,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	// To be checked for new version .... 
 	ratio = spread.X/((parseInt($("body").prop("scrollWidth"))-(maxNumOfColumns-1)*gapBetweenColumns- X_)/maxNumOfColumns);
 	//mesh.updateSpread({X : spread.X/ratio , Y : spread.Y/ratio});
-
+	me.computeNumColumns();
     };
 
-    /** Manage menu size **/
+    /** Manage menu size TODO **/
     // Inspired by this.changeNodeSize, may need some adaptations
     /*this.changeMenuSize = function(){
       var X_ = (parseInt($('body').prop("scrollWidth")))/(maxNumOfColumns);
@@ -5638,6 +5625,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    $(".showInfoButtonIcon").removeClass('showInfoButtonIcon').addClass('closeShowInfoButtonIcon');
 	}
 
+	me.computeNumColumns();
 	for(O in mesh.getNodes()){
 
 	    var node = mesh.getNodes()[O];
@@ -6512,9 +6500,11 @@ dblclick: dblclickFunction*/
 		    mesh.changeNodeSize();
 		}
 		else if(ColumnStyle=="dynamic" && numOfColumns==maxNumOfColumns)  { 	
+		    me.computeNumColumns();
 		    mesh.globalLocationProvider();
 		    mesh.changeNodeSize();
 		} else { 
+		    me.computeNumColumns();
 		    mesh.globalLocationProvider();
 		}
 		    

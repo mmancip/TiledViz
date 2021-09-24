@@ -758,37 +758,32 @@ Tile = function(Mesh) {
     	});
 
 	var mymenu=$('#menu'+id);
-	mymenu.append("<div id=fake-tile-opacity-"+id+"></div>");
 	$(OpacityZone).append("<div id=tile-opacity-"+id+" class=tile-opacity-menu-zone></div>");
 	// tileOpacitySlider is placed after the transparentButtonIcon (in first place)
-	var tileOpacityLeft=parseInt($(mymenu[0].childNodes[1]).css("left"))+20;
-	var fake_tile_opacity=$('#fake-tile-opacity-'+id);
-	var fake_tile_opacityjs=document.getElementById("fake-tile-opacity-"+id)
-	fake_tile_opacity.css({
-    	    position : "relative",
-    	    visibility : "hidden",
-    	    top :0,
-    	    left : tileOpacityLeft,
-    	    //parseInt(mymenu.css("width")),
-    	    //backgroundColor : "red",
-    	    height : parseInt(mymenu.css("height")),
-    	    width : parseInt($('#'+id).css("width")) - tileOpacityLeft,
-    	    zIndex : 0
-	});
+	var tile_opacity = $('#tile-opacity-'+id);
+	var buttonOpacity=$(mymenu[0].childNodes[1]);
+	var hbuttonOpacity=buttonOpacity[0];
+	var tileOpacityLeft=parseInt(buttonOpacity.css("left"))+20;
 	var hmymenu=parseInt(mymenu.css("height"));
 	var wtile=parseInt($('#'+id).css("width"));
-	var tile_opacity = $('#tile-opacity-'+id);
+	var locationTop=parseInt(buttonOpacity.css("top"));
+	var locationLeft=tileOpacityLeft;
 	this.setOpacityLocation = function () {
-    	    tile_opacity.css({
-    	    position : "absolute",
-    	    top : fake_tile_opacityjs.offsetTop,
-    	    left : fake_tile_opacityjs.offsetLeft,
-    	    //parseInt(mymenu.css("width")),
-    	    //backgroundColor : "red",
-    	    height : hmymenu,
-    	    width : wtile - tileOpacityLeft,
-    	    zIndex : 130
-    	    });
+	    if (tile_opacity.css("visibility")=="visible") {
+		var rect = hbuttonOpacity.getBoundingClientRect();
+		var realposTop=rect.top;
+		var realposLeft=rect.left+20;
+		var absTop=realposTop+locationTop;
+		var absLeft=realposLeft+locationLeft;
+    		tile_opacity.css({
+    		    position : "absolute",
+    		    top : absTop,
+    		    left : absLeft,
+    		    height : hmymenu,
+    		    width : wtile - tileOpacityLeft,
+    		    zIndex : 130
+    		});
+	    }
 	}
 	this.setOpacityLocation();
 	tile_opacity.css("visibility","hidden")
@@ -1069,10 +1064,11 @@ Tile = function(Mesh) {
     this.isInViewport = function() {
 	if (my_inactive) {
 	    var hnode=this.getHtmlNode();
-	    var maxLeft=relativeLeft+hnode.position().left+parseInt(hnode.css("width"));
-	    var minRight=relativeLeft+hnode.position().left;
-	    var maxTop=hnode.position().top+parseInt(hnode.css("height"));
-	    var minDown=hnode.position().top;
+	    var pnode=hnode.position();
+	    var maxLeft=relativeLeft+pnode.left+parseInt(hnode.css("width"));
+	    var minRight=relativeLeft+pnode.left;
+	    var maxTop=pnode.top+parseInt(hnode.css("height"));
+	    var minDown=pnode.top;
 	    window_test=my_window["left"] < maxLeft &&
 		my_window["right"] > minRight && 
 		my_window["top"] < maxTop &&
@@ -1107,9 +1103,10 @@ Tile = function(Mesh) {
 	    }
 	}
     };
+    this.updateUrl();
     
     this.updateHtmlNodeFromLoc = function(loc){
-	var position = htmlNode.position();
+	var position = {};
 	position.left=loc.getX();
 	position.top=loc.getY();
 	// This line is the grid :
@@ -1120,6 +1117,8 @@ Tile = function(Mesh) {
 	//jsNode.top = position.top;
 	// Update URL if tile becomes visible
 	this.updateUrl();
+	location.setX(position.left);
+	location.setY(position.top);
     };
 
     this.updateHtmlNodeFromHW = function(newHeight,newWidth){

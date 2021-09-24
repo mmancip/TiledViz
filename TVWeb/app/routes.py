@@ -1065,10 +1065,10 @@ def copysession():
                 traceback.print_exc(file=sys.stderr)
             
                 message = '{"oldsessionname":"'+oldsessionname+'"}'
-                flash("Session with name {} creation problem.".format(myform.sessionname.data))
+                flash("Session with name {} creation problem.".format(newsession.name))
                 return render_template("main_login.html", title="Copy session TiledViz", form=myform, message=message)
         else:
-            flash("You must change session name {} for new session.".format(sessionname))
+            flash("You must change session name {} for new session.".format(newsession.data))
             return render_template("main_login.html", title="Copy Session TiledViz", form=myform)
 
         theaction=myform.tilesetaction.data
@@ -1092,7 +1092,8 @@ def copysession():
             message = '{"sessionname":"'+newsession.name+'"}'
             return redirect(url_for(".configsession",message=message))
         elif(theaction == "copy"):
-            message = '{"oldtilesetid":"'+str(oldtilesetid)+'"}'
+            tilesetid=int(myform.tilesetchoice.data)
+            message = '{"oldtilesetid":"'+str(tilesetid)+'"}'
             return redirect(url_for(".copytileset",message=message))
         elif (theaction == "search"):
             message = '{"oldsessionname":"'+newsession.name+'"}'
@@ -1753,9 +1754,12 @@ def edittileset():
         #     message=json.dumps(message) #.replace("'", '"')
         #     print("Relaunch whith file ",message)
         #     return redirect(url_for(".edittileset",message=message))
-        
-        nbr_of_tiles = len(jsonTileSet["nodes"])
-        logging.info("Number of tiles "+str(nbr_of_tiles))
+
+        try:
+            nbr_of_tiles = len(jsonTileSet["nodes"])
+            logging.info("Number of tiles "+str(nbr_of_tiles))
+        except Exception as e:
+            return redirect(url_for(".edittileset",message=message))
 
         # TODO:
         # openports_between_tiles = FieldList(IntegerField("port :",validators=[Optional()]),description="Open port in visualisation network",min_entries=2,max_entries=5) 
@@ -2390,7 +2394,12 @@ def jsoneditor():
     #     #print("type json_gziped :",type(json_gziped))
     #     TheJson=gzip.decompress(base64.b64decode(json_gziped)).decode('utf-8')
     #     callfunction=json.loads(request.args["callfunction"])
-    TheJson=jsontransfert[session["sessionname"]]["TheJson"]
+    try:
+        TheJson=jsontransfert[session["sessionname"]]["TheJson"]
+    except Exception as e:
+        message = '{"oldsessionname":"'+session["sessionname"]+'"}'
+        return redirect(url_for(".editsession",message=message))
+
     callfunction=json.loads(jsontransfert[session["sessionname"]]["callfunction"])
     
     logging.debug("jsoneditor : "+str(callfunction))
