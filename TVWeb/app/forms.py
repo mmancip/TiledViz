@@ -136,7 +136,38 @@ def BuildNewProjectForm(listprojects):
     NewProjectForm.submit = SubmitField("Next step")
     return NewProjectForm
 
+
+def BuildAdminForm(list_myprojects,list_myprojects_sessions,list_user_connections,list_all_users=None,list_all_projects=None,list_all_sessions=None):
+    #list_invite_sessions,
+    class AdminForm(FlaskForm):
+        pass
+
+    if (list_all_users is not None):
+        AdminForm.suprressfreetiles = SubmitField("Suppress all free tiles.")
+        AdminForm.suprressUnusedTilesets = SubmitField("Suppress all unused TileSets.")
+
+    if (list_all_users is not None):
+        AdminForm.all_users=myFixedSelectField(description='Choose one user.',choices=list_all_users,validators=[Optional()])
+        #AdminForm.editUser = SubmitField("Edit selected user.")    
+        
+    if (list_all_projects is not None):
+        AdminForm.all_projects=myFixedSelectField(description='Choose one project.',choices=list_all_projects,validators=[Optional()])
+
+    if (list_all_sessions is not None):
+        AdminForm.all_sessions=myFixedSelectField(description='Choose one project.',choices=list_all_sessions,validators=[Optional()])
+        
+    AdminForm.chosen_project=myFixedSelectField(description='Choose one of your own project.',choices=list_myprojects,validators=[Optional()])
+    AdminForm.chosen_project_session=myFixedSelectField(description='Choose one of your own project / sessions.',choices=list_myprojects_sessions,validators=[Optional()])
+    # AdminForm.chosen_session_invited=myFixedSelectField(description='OR choose one of your collaboration sessions.',choices=list_invite_sessions,validators=[Optional()])
+    AdminForm.chosen_user_connection=myFixedSelectField(description='OR one of your connections.',choices=list_user_connections,validators=[Optional()])
+
+    AdminForm.suppressSelected = SubmitField("Suppress selected element.")    
+    AdminForm.suprressAllMyConnections = SubmitField("Suppress all my old connections.")
+
+    AdminForm.submit = SubmitField("Next step")
+    return AdminForm
             
+
 def BuildAllProjectSessionForm(list_myprojects_sessions,list_invite_sessions):
     class AllProjectSessionForm(FlaskForm):
         pass

@@ -420,6 +420,36 @@
 	background-image: url(../images/icons/tagmenu/closeAlignTags.png);
 }
 
+[class~=alignOrderTagsMenuButtonIcon]
+{
+	background-image: url(../images/icons/tagmenu/alignOrderTags.png);
+}
+
+[class~=closeAlignOrderTagsMenuButtonIcon]
+{
+	background-image: url(../images/icons/tagmenu/closeAlignOrderTags.png);
+}
+
+[class~=increaseOrderTagsButtonIcon]
+{
+	background-image: url(../images/icons/tagmenu/order/increaseOrderTags.png);
+}
+
+[class~=closeIncreaseOrderTagsButtonIcon]
+{
+	background-image: url(../images/icons/tagmenu/order/closeIncreaseOrderTags.png);
+}
+
+[class~=decreaseOrderTagsButtonIcon]
+{
+	background-image: url(../images/icons/tagmenu/order/decreaseOrderTags.png);
+}
+
+[class~=closeDecreaseOrderTagsButtonIcon]
+{
+	background-image: url(../images/icons/tagmenu/order/closeDecreaseOrderTags.png);
+}
+
 [class~=hideTagsMenuButtonIcon]
 {
 	background-image: url(../images/icons/tagmenu/HideTag.png);

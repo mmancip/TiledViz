@@ -6,13 +6,14 @@ from flask import render_template, flash, Markup, redirect, session, request, js
 import sqlalchemy
 from sqlalchemy.orm.session import make_transient
 from sqlalchemy.orm.attributes import flag_modified
+
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func
 import requests
 
 from app import app, socketio, db
 
-from app.forms import RegisterForm, BuildLoginForm, BuildNewProjectForm, BuildAllProjectSessionForm, BuildOldProjectForm, BuildNewSessionForm, BuildTilesSetForm, BuildEditsessionform, BuildOldTileSetForm, BuildConfigSessionForm, BuildConnectionsForm, BuildRetreiveSessionForm
+from app.forms import RegisterForm, BuildLoginForm, BuildNewProjectForm, BuildAllProjectSessionForm, BuildOldProjectForm, BuildNewSessionForm, BuildTilesSetForm, BuildEditsessionform, BuildOldTileSetForm, BuildConfigSessionForm, BuildConnectionsForm, BuildRetreiveSessionForm, BuildAdminForm
 
 
 import app.models as models # DB management
@@ -41,16 +42,15 @@ tvdb.session=db.session
 
 timeAlive=5
 
+# Boolean for admin page :
+really_delete=False
+
 # Logging
 logFormatter = logging.Formatter("%(asctime)s - %(threadName)s - %(levelname)s: %(message)s ")
 outHandler = logging.StreamHandler(sys.stdout)
 outHandler.setLevel(logging.WARNING)
 # outHandler.setLevel(logging.DEBUG)
 outHandler.setFormatter(logFormatter)
-
-def myflush():
-    outHandler.flush()
-    sys.stdout.flush()
 
 # Shared variables for threads in server
 clients = [] # Array to store clients
@@ -63,7 +63,20 @@ tiles_data["nodes"]=[]
 
 jsontransfert={}
 
-# Global functions : creation and copy DB elements
+# For display in form list, specify length of elements
+sessionl=str(min(60,models.Session.name.type.length))
+tilesetl=str(min(80,models.TileSet.name.type.length))
+projectl=str(min(15,models.Project.name.type.length))
+connectionh=str(min(40,models.Connection.host_address.type.length))
+datel=str(19)
+descrl=str(min(62,models.Project.description.type.length))
+
+
+# Global functions : creation, copy and delete DB elements
+
+def myflush():
+    outHandler.flush()
+    sys.stdout.flush()
 
 # Test login user :
 def get_user_id(fun,username):
@@ -441,7 +454,59 @@ def save_session(oldsessionname, newsuffix, newdescription, alltiles):
     newsession.config = oldsession.config
     db.session.commit()
     return newsession
+
+def delelement(thistable, chosenElement, elementid):
+    thiselement=db.session.query(thistable).filter_by(id=elementid)
+    logging.warning("Delete this %s %d : %s" % (chosenElement,elementid,str(thiselement)))
+    if (really_delete):
+        thiselement.delete()
+
+def remove_this_session(sessionid):
+    thissession=db.session.query(models.Session).filter_by(id=sessionid).scalar()
+    # Suppress all link with any tileset
+    for ts in thissession.tile_sets:
+        thissession.tile_sets.remove(ts)
+    # Suppress all link with any user
+    for us in thissession.users:
+        thissession.users.remove(us)
+
+    delelement(models.Session, "session", sessionid)
+
     
+def remove_this_project(projectid):
+    thisproject=db.session.query(models.Project).filter_by(id=projectid).scalar()
+
+    # Suppress all session of this project
+    project_sessions=db.session.query(models.Session).filter_by(id_projects=projectid).all()
+    for thissession in project_sessions:
+        remove_this_session(thissession.id)
+
+    delelement(models.Project, "project", projectid)
+
+def remove_this_user(userid):
+    thisuser=db.session.query(models.User).filter_by(id=userid).one()
+
+    # Search connection wich have this user as owner
+    user_connections=db.session.query(models.Connection).filter_by(id_users=userid).all()
+    for thisconnection in user_connections:
+        # TODO : use remove_this_connection(oldtileset,idconnection,userid) to suppress tmp files in TVFiles
+        # Possible to recover TileSet from connection.id ?
+        flash("Suppress element connection number %d." % (thisconnection.id))
+        delelement(models.Connection, "connection", thisconnection.id)
+
+    # Search session where this user is present
+    user_session=db.session.query(models.Session).filter(models.Session.users.any(id=userid)).all()
+    for thissession in user_session:
+        thissession.users.remove(thisuser)
+        
+    # Search project wich have this user as owner
+    # TODO : give the possibility to change owner of the project ?
+    user_project=db.session.query(models.Project).filter_by(id_users=userid).all()
+    for thisproject in user_project:
+        remove_this_project(thisproject.id)
+
+    delelement(models.User, "user", userid)
+        
 def remove_this_connection(oldtileset,idconnection,user_id):
     oldconnection=oldtileset.connection
     oldtilesetid=oldtileset.id
@@ -477,14 +542,6 @@ def remove_this_connection(oldtileset,idconnection,user_id):
 
     session["connection"+str(idconnection)]=""
     del(session["connection"+str(idconnection)])
-
-# @app.route('/upload', methods=['GET', 'POST'])
-# async def upload(request):
-#     form = TestForm(request)
-#     if form.validate_on_submit():
-#         return response.text(form.upload.data.name)
-#     content = render_form(form)
-#     return response.html(content)
 
 
 # ====================================================================
@@ -762,13 +819,6 @@ def retreivesession():
     return render_template("main_login.html", title="Retreive saved session for TiledViz", form=myform)
 
 
-# For display in form list, specify length of elements
-sessionl=str(80)
-tilesetl=str(80)
-projectl=str(15)
-datel=str(19)
-descrl=str(62)    
-
 # Create new project
 @app.route('/project', methods=["GET", "POST"])
 def project():
@@ -847,6 +897,318 @@ def project():
             return redirect("/project")            
         
     return render_template("main_login.html", title="New project TiledViz", form=myform)
+
+# List all my old projects and after all sessions I am in
+@app.route('/admin', methods=["GET", "POST"])
+def admin():
+    if ("username" in session):
+        if (session["username"] == "Anonymous"):
+            return redirect("/login")
+        user_id=get_user_id("admin",session["username"])
+        logging.warning("Admin page with user {}".format(session["username"]))
+        if (really_delete):
+            flash("Admin page with user {}\nALERT : click any suppress buttons will remove elements in DB.".format(session["username"]))
+        else:
+            flash("Admin page with user {}".format(session["username"]))
+        logging.warning("User id {}".format(user_id))
+    elif (not 'is_client_active' in session):
+        flash("You are not connected. You must login before using this page.")
+        return redirect("/login")
+    else:
+        flash("Admin page : User must login !")
+        return redirect("/login")
+
+    # TODO : create roles for users
+    if (user_id == 1):
+        userAdmin=True
+    else:
+        userAdmin=False
+        
+    message='{"username": '+session["username"]+'}'
+    logging.info("in administration page.")
+
+    if (userAdmin):
+        allusers = db.session.query(models.User).all()
+        logging.debug("All users :"+str([ theuser.name for theuser in allusers]))
+
+        printstr="{0:\xa0<"+projectl+"."+projectl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"
+        listallusers=[]
+        listallusers.append(('NoChoice',printstr.format("User name","Date and Time","Description")))
+
+        for thisuser in allusers:
+            thedate=thisuser.creation_date.isoformat().replace("T"," ")
+            if (thisuser.mail):
+                mail=thisuser.mail
+            else:
+                mail=""
+            if (thisuser.compagny):
+                compagny=thisuser.compagny
+            else:
+                compagny=""
+            if (thisuser.manager):
+                manager=thisuser.manager
+            else:
+                manager=""
+            Desc=mail+"; "+compagny+"; "+manager
+            Desc=Desc[:int(descrl)]
+            listallusers.append(
+                (str(thisuser.id),printstr.
+                 format(str(thisuser.name),
+                        thedate,Desc)
+                )
+            )
+        
+        allprojects = db.session.query(models.Project).all()
+        logging.debug("All projects :"+str([ theproject.name for theproject in allprojects]))
+
+        printstr="{0:\xa0<"+projectl+"."+projectl+"}|\xa0{1:\xa0<"+projectl+"."+projectl+"}\xa0|\xa0{2:\xa0<"+datel+"."+datel+"}\xa0|\xa0{3:\xa0<"+descrl+"."+descrl+"}"
+        listallprojects=[]
+        listallprojects.append(('NoChoice',printstr.format("Project name","Owner","Date and Time","Description")))
+
+        for thisproject in allprojects:
+            thedate=thisproject.creation_date.isoformat().replace("T"," ")
+            Desc=thisproject.description
+            #Owner=db.session.query(models.User.name).filter_by(id=thisproject.id_users).one()
+            listallprojects.append(
+                (str(thisproject.id),printstr.
+                 format(str(thisproject.name),str(thisproject.user.name),
+                        thedate,Desc)
+                )
+            )
+
+
+        allsessions = db.session.query(models.Session).all()
+        logging.debug("All sessions :"+str([ thesession.name for thesession in allsessions]))
+
+        printstr="{0:\xa0<"+sessionl+"."+sessionl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"
+        listallsessions=[]
+        listallsessions.append(('NoChoice',printstr.format("Session name","Date and Time","Description")))
+
+        for thissession in allsessions:
+            thedate=thissession.creation_date.isoformat().replace("T"," ")
+            Desc=thissession.description
+            listallsessions.append(
+                (str(thissession.id),printstr.
+                 format(str(thissession.name),
+                        thedate,Desc)
+                )
+            )
+        
+    projects = db.session.query(models.Project).filter_by(id_users=user_id)
+    logging.debug("My projects :"+str([ theproject.name for theproject in projects]))
+
+    printstr="{0:\xa0<"+projectl+"."+projectl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"
+    listmyprojects=[]
+    listmyprojects.append(('NoChoice',printstr.format("Project name","Date and Time","Description")))
+
+    for thisproject in projects:
+        thedate=thisproject.creation_date.isoformat().replace("T"," ")
+        Desc=thisproject.description
+        listmyprojects.append(
+                (str(thisproject.id),printstr.
+                 format(str(thisproject.name),
+                        thedate,Desc)
+                )
+            )
+        
+    # All sessions own of those projects
+    mysessions=[]
+    try:
+        for theproject in projects:
+            ListsessionsTheproject=db.session.query(models.Session.name).filter_by(id_projects=theproject.id)
+            [ mysessions.append((theproject.name,ListsessionTheproject)) for ListsessionTheproject in ListsessionsTheproject ]
+    except:
+        pass
+    logging.debug("My sessions :"+str(mysessions))
+    
+    printstr="{1:\xa0<"+sessionl+"."+sessionl+"}|{0:\xa0<"+projectl+"."+projectl+"}|\xa0{2:\xa0<"+datel+"."+datel+"}\xa0|\xa0{3:\xa0<"+descrl+"."+descrl+"}"
+    listmyprojectssession=[]
+    listmyprojectssession.append(('NoChoice',printstr.format("Project name","Session name","Date and Time","Description")))
+    listmysession=[]
+    for thissessions in mysessions:
+            
+        for thissession in thissessions[1]:
+            listmysession.append(thissession)
+            thedate="1970-01-01"
+            try:
+                thedate=db.session.query(models.Session.creation_date).filter_by(name=str(thissession)).scalar().isoformat().replace("T"," ")
+            except:
+                pass
+            SessDesc=db.session.query(models.Session).filter_by(name=thissession).scalar().description
+            thissessionid=db.session.query(models.Session.id).filter_by(name=str(thissession)).one()
+            listmyprojectssession.append(
+                (str(thissessionid),printstr.
+                 format(str(thissessions[0]),
+                        str(thissession),
+                        thedate,SessDesc)
+                )
+            )
+            
+    
+    # # All sessions this user has been invited to
+    # listsessions=[]
+
+    # invite_sessions = db.session.query(models.Session.name).filter(models.Session.users.any(id=user_id)).all()
+    # printstr="{0:\xa0<"+sessionl+"."+sessionl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"        
+    # listsessions.append(('NoChoice',printstr.format("Session name","Date and Time","Description")))
+    # for thissession in invite_sessions:
+    #     logging.debug("Build listsessions for invite_session "+str(thissession.name))
+    #     if (thissession.name not in listmysession):
+    #         thedate="1970-01-01"
+    #         try:
+    #             thedate=db.session.query(models.Session.creation_date).filter_by(name=thissession.name).scalar().isoformat().replace("T"," ")
+    #         except:
+    #             pass
+    #         SessDesc=db.session.query(models.Session).filter_by(name=thissession.name).scalar().description
+    #         listsessions.append(
+    #             (str(thissession.name),printstr.
+    #              format(str(thissession.name),
+    #                     thedate, SessDesc)
+    #             )
+    #         )
+
+
+    # list all my Connections
+    connections = db.session.query(models.Connection).filter_by(id_users=user_id)
+    logging.debug("My connections :"+str([ theconnection.host_address for theconnection in connections]))
+    
+    printstr="{0:\xa0<"+connectionh+"."+connectionh+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0\xa0\xa0\xa0\xa0|\xa0{2:\xa0<"+datel+"."+datel+"}\xa0\xa0\xa0\xa0|\xa0{3:\xa0<"+datel+"."+datel+"}"
+    listmyconnections=[]
+    listmyconnections.append(('NoChoice',printstr.format("Host address","Date and Time","id","In session")))
+    for thisconnection in connections:
+        insession=False
+        if ("connection"+str(thisconnection.id) in session):
+            insession=True
+        listmyconnections.append(
+            (str(thisconnection.id),printstr.
+             format(str(thisconnection.host_address),
+                    str(thisconnection.creation_date),
+                    str(thisconnection.id),
+                    str(insession))
+            )
+        )
+        
+    logging.debug("My project sessions :"+str(listmyprojectssession))
+    # logging.debug("My invited sessions :"+str(listmysession))
+    if (userAdmin):
+        myform = BuildAdminForm(listmyprojects,listmyprojectssession,listmyconnections,
+                                list_all_users=listallusers,list_all_projects=listallprojects,list_all_sessions=listallsessions)()
+        #,listsessions
+    else:
+        myform = BuildAdminForm(listmyprojects,listmyprojectssession,listmyconnections)()
+        #,listsessions
+    if myform.validate_on_submit():
+        objects=[]
+        ids=[]
+
+        # TODO : GOT TO A NEW PAGE with the list of confirmations of deletations
+        
+        if (userAdmin):
+            if (myform.suprressfreetiles.data):
+                flash("All free tiles were suppressed.")
+                for freetile in db.session.query(models.t_freetiles).all():
+                    delelement(models.Tile, "tile", freetile[0])
+                
+            if (myform.suprressUnusedTilesets.data):
+                flash("All free tilesets were suppressed.\n You may suppress all free tiles now.")
+                for freetilesets in db.session.query(models.t_freetilesets).all():
+                    elementid=freetilesets[0]
+                    logging.warning("Delete this %s %d : %s" % ("tileset",elementid,str(freetilesets[1])))
+                    db.session.query(func.deltileset(freetilesets[0])).all()
+                    #delelement(models.TileSet, "tileset", freetilesets[0])
+
+        if ( myform.suppressSelected.data):            
+            if (userAdmin):
+                if (myform.all_users.data != "NoChoice"):
+                    chosenObject="user"
+                    elementid=int(myform.all_users.data)
+                    logging.warning("Admin suppress %s %d " % (chosenObject,elementid))
+                    flash("Admin suppress element %s number %s." % (chosenObject,elementid))
+                    objects.append(chosenObject)
+                    ids.append(elementid)
+
+                    remove_this_user(elementid)
+                
+                if (myform.all_projects.data != "NoChoice"):
+                    chosenObject="project"
+                    elementid=int(myform.all_projects.data)
+                    logging.warning("Admin suppress %s %d " % (chosenObject,elementid))
+                    flash("Admin suppress element %s number %s." % (chosenObject,elementid))
+                    objects.append(chosenObject)
+                    ids.append(elementid)
+                    
+                    remove_this_project(elementid)
+
+                if (myform.all_sessions.data != "NoChoice"):
+                    chosenObject="session"
+                    elementid=int(myform.all_sessions.data)
+                    logging.warning("Admin suppress %s %d " % (chosenObject,elementid))
+                    flash("Suppress element %s number %s." % (chosenObject,elementid))
+                    objects.append(chosenObject)
+                    ids.append(elementid)
+
+                    remove_this_session(elementid)
+
+
+
+            if (myform.chosen_project.data != "NoChoice"):
+                chosenObject="project"
+                elementid=int(re.sub(r'[(),]','',myform.chosen_project.data))
+                logging.warning("Chosen my %s %d " % (chosenObject,elementid))
+                flash("Suppress element %s number %d." % (chosenObject,elementid))
+                objects.append(chosenObject)
+                ids.append(elementid)
+            
+                delelement(models.Project, chosenObject, elementid)
+
+            if (myform.chosen_project_session.data != "NoChoice"):
+                chosenObject="mysession"
+                elementid=int(re.sub(r'[(),]','',myform.chosen_project_session.data))
+                logging.warning("Chosen my %s %d " % (chosenObject,elementid))
+                flash("Suppress element %s number %d." % (chosenObject,elementid))
+                objects.append(chosenObject)
+                ids.append(elementid)
+
+                thissession=db.session.query(models.Session).filter_by(id=elementid).scalar()
+                for ts in thissession:
+                    oldsession.tile_sets.remove(ts)
+                delelement(models.Session, chosenObject, elementid)
+
+            # if (myform.chosen_session_invited.data != "NoChoice"):
+            #     logging.warning("Chosen session invited "+str(myform.chosen_session_invited.data))
+            #     chosenObject="invitedsession"
+            #     elementid=myform.chosen_session_invited.data
+            #     flash("Suppress element %s number %s." % (chosenObject,elementid))
+            
+            if (myform.chosen_user_connection.data != "NoChoice"):
+                chosenObject="connection"
+                elementid=int(myform.chosen_user_connection.data)
+                logging.warning("Chosen my %s %d " % (chosenObject,elementid))
+                flash("Suppress element %s number %d." % (chosenObject,elementid))
+                objects.append(chosenObject)
+                ids.append(elementid)
+
+                #TODO : detect active connection and remove it with remove_this_connection
+                delelement(models.Connection, chosenObject, elementid)
+
+        
+        if (myform.suprressAllMyConnections.data):
+            flash("All my connections were suppressed {}".format(session["username"]))
+            # TODO : use remove_this_connection(oldtileset,idconnection,user_id) to suppress tmp files in TVFiles
+            # Possible to recover TileSet from connection.id ?
+            for thisconnection in connections:
+                chosenObject="connection"
+                objects.append(chosenObject)
+                ids.append(thisconnection.id)
+                delelement(models.Connection, chosenObject, thisconnection.id)
+
+
+        db.session.commit()
+
+        return redirect("/admin")
+            
+    return render_template("main_login.html", title="Admin for user.", form=myform, message=message)
+
 
 # List all my old projects and after all sessions I am in
 @app.route('/allsessions', methods=["GET", "POST"])
@@ -1202,7 +1564,7 @@ def searchtileset():
     listtilesets=[]
     listtilesets.append(('NoChoice',printstr.format("Tileset name","Date and Time","Data Path")))
     for thissession in querysessions:
-        #thissession=db.session.query(model.Session).filter_by(id=thissessionid[0])
+        #thissession=db.session.query(models.Session).filter_by(id=thissessionid[0])
         for tileset in thissession.tile_sets:
             if ( tileset.name not in listtilesets ):
                 thedate=db.session.query(models.TileSet.creation_date).filter_by(name=tileset.name).scalar().isoformat().replace("T"," ")
@@ -2505,6 +2867,10 @@ def show_grid():
         thistileset=ThisSession.tile_sets[ts]
         nbtiles=len(thistileset.tiles)
         nbr_of_tiles = nbr_of_tiles + nbtiles
+        if (nbtiles < 1):
+            flash("Before grid, ERROR IN SESSION '%s' with TileSet '%s' : no tiles." % (ThisSession.name,thistileset.name))
+            return redirect("/allsessions")
+             
         tiledata=tvdb.encode_tileset(thistileset)
         tiles_data["nodes"]=tiles_data["nodes"]+tiledata
         ts=ts+1

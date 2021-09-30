@@ -172,7 +172,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     var selectingTags = false;
     var tagToSelect = "";
     var alignTags = false;
-
+    var alignOrderTag=true; // true is increase, false is decrease
+    
     var hideNodesTag = false;
     var killNodesTag = false;
     var transparentNode = -1; // Default
@@ -992,6 +993,11 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     var tagMenuIconClassAttributesTab = new Array();
     var tagMenuShareEvent = new Array();
 
+    var tagAlignOrderTagsMenuTitleTab = new Array();
+    var tagAlignOrderTagsMenuEventTab = new Array();
+    var tagAlignOrderTagsMenuIconClassAttributesTab = new Array();
+    var tagAlignOrderTagsMenuShareEvent = new Array();
+
     var tagHideTagsMenuTitleTab = new Array();
     var tagHideTagsMenuEventTab = new Array();
     var tagHideTagsMenuIconClassAttributesTab = new Array();
@@ -1067,7 +1073,11 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    }
 	    if (hasFloatingT) {
 		var sfloatT = Array.from(floatT);
-		sfloatT.sort((a, b) => a[0] - b[0]);
+		if (alignOrderTag) {
+		    sfloatT.sort((a, b) => a[0] - b[0]);
+		} else {
+		    sfloatT.sort((a, b) => b[0] - a[0]);
+		}
 		for (var w=0; w<sfloatT.length;w++)  { 
 		    var O=sfloatT[w][1];
 		    mesh.switchLocation(nodesById[O], nodesByLoc[w], false, true);
@@ -1280,6 +1290,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    if(v==true)  { 
 		//console.log("grouping tags");
 		me.disableOtherTagFunction("AlignTags");
+		me.setAlignTags(true);
 		$('#'+id+'option'+optionNumber).removeClass('alignTagButtonIcon').addClass('closeAlignTagButtonIcon');
 	    } else { 
 		//console.log("end grouping tag");
@@ -1289,6 +1300,66 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	});
     tagMenuIconClassAttributesTab.push("alignTagButtonIcon");
     tagMenuShareEvent.push(true);
+
+    // Align/group similarly tagged nodes
+    tagMenuTitleTab.push("Order floatting tagged nodes")
+    tagMenuEventTab.push(    function(v, id, optionNumber){
+	    if(v==true)  { 
+		//console.log("align order tags");
+		$('#'+id+'option'+(optionNumber-1)).click();
+		menuAlignOrderTags
+		    .css("top",menuTags.position()["top"]+200)
+		    .css("left",$('.alignOrderTagsMenuButtonIcon').position()["left"]+menuTags.position()["left"])
+		    .css("visibility", "visible");
+		$('#'+id+'option'+optionNumber).removeClass('alignOrderTagsMenuButtonIcon').addClass('closeAlignOrderTagsMenuButtonIcon');
+	    } else { 
+		//console.log("end align order tag");
+		menuAlignOrderTags.css("visibility", "hidden");
+		$('#'+id+'option'+optionNumber).removeClass('closeAlignOrderTagsMenuButtonIcon').addClass('alignOrderTagsMenuButtonIcon');
+	    }
+	});
+    tagMenuIconClassAttributesTab.push("alignOrderTagsMenuButtonIcon");
+    tagMenuShareEvent.push(true);
+
+    tagAlignOrderTagsMenuTitleTab.push("Increasing sort")
+    tagAlignOrderTagsMenuEventTab.push(    function(v, id, optionNumber){
+	me.disableOtherTagFunction("AlignTags");
+	me.setAlignTags(true);
+    	    if(v==true)  { 
+		//console.log("Align order decrease");
+    		$('#'+id+'option'+optionNumber).removeClass('increaseOrderTagsButtonIcon').addClass('closeIncreaseOrderTagsButtonIcon');
+    		$('#'+id+'option'+(optionNumber+1)).removeClass('decreaseOrderTagsButtonIcon').addClass('closeDecreaseOrderTagsButtonIcon');
+		alignOrderTag=false
+	    } else { 	
+		//console.log("Align order increase");
+    		$('#'+id+'option'+optionNumber).removeClass('closeIncreaseOrderTagsButtonIcon').addClass('increaseOrderTagsButtonIcon');
+    		$('#'+id+'option'+(optionNumber+1)).removeClass('closeDecreaseOrderTagsButtonIcon').addClass('decreaseOrderTagsButtonIcon');
+		alignOrderTag=true
+	    }
+	});
+    tagAlignOrderTagsMenuIconClassAttributesTab.push('increaseOrderTagsButtonIcon')
+    tagAlignOrderTagsMenuShareEvent.push(true);
+
+    tagAlignOrderTagsMenuTitleTab.push("Decreasing sort")
+    tagAlignOrderTagsMenuEventTab.push(    function(v, id, optionNumber){
+	me.disableOtherTagFunction("AlignTags");
+	me.setAlignTags(true);
+    	    if(v==true)  { 
+		//console.log("Align order increase");
+    		$('#'+id+'option'+optionNumber).removeClass('decreaseOrderTagsButtonIcon').addClass('closeDecreaseOrderTagsButtonIcon');
+    		$('#'+id+'option'+(optionNumber-1)).removeClass('increaseOrderTagsButtonIcon').addClass('closeIncreaseOrderTagsButtonIcon');
+		alignOrderTag=false
+	    } else { 
+		//console.log("Align order decrease");
+    		$('#'+id+'option'+optionNumber).removeClass('closeDecreaseOrderTagsButtonIcon').addClass('decreaseOrderTagsButtonIcon');
+    		$('#'+id+'option'+(optionNumber-1)).removeClass('closeIncreaseOrderTagsButtonIcon').addClass('increaseOrderTagsButtonIcon');
+		alignOrderTag=true
+	    }
+	});
+    tagAlignOrderTagsMenuIconClassAttributesTab.push('decreaseOrderTagsButtonIcon')
+    tagAlignOrderTagsMenuShareEvent.push(true);
+
+
 
     // Hide/Show nodes with tags menu
     tagMenuTitleTab.push("Hide/Show nodes with tags menu")
@@ -4856,6 +4927,25 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 	});
     menuMS=$('#menuMS');	
+
+    this.tagAlignOrderTagsMenu = new Menu("AlignOrderTags", $('header'), tagAlignOrderTagsMenuTitleTab, tagAlignOrderTagsMenuEventTab, tagAlignOrderTagsMenuIconClassAttributesTab, tagAlignOrderTagsMenuShareEvent,{
+	    position : "fixed",
+	    top : 100,
+	    left : parseInt($(me.menu.getHtmlMenuSelector()).css('width')), //parseInt(window.innerWidth) - tagMenuEventTab.length*200,
+	    visible : 'hidden',
+	    classN : 'tagalignOrdertags',
+	    height : 200,
+	    width : 200,
+	    rightMargin :0,
+	    backgroundColor: "rgba(0, 0, 0, 0.5)",
+	    //borderStyle : "solid",
+	    //borderWidth : "5px", 
+	    //borderColor : "green",
+	    orientation : "V",
+	    zIndex : 150
+
+	});
+    menuAlignOrderTags=$('#menuAlignOrderTags');
 
     this.tagHideTagsMenu = new Menu("HideTags", $('header'), tagHideTagsMenuTitleTab, tagHideTagsMenuEventTab, tagHideTagsMenuIconClassAttributesTab, tagHideTagsMenuShareEvent,{
 	    position : "fixed",
