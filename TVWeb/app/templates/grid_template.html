@@ -202,6 +202,11 @@
   $('#helpSupport').append($('#helpframe'));
   </script>
   <script type="text/javascript">
+    $('#gGsubmit').on("click",function() {
+        new_room=$('#gGnewroom').val();
+        cdata ={"room":my_session, "NewRoom": new_room }
+        socket.emit("deploy_Session", cdata);
+    })
     $('.main-legend-zone').append("<div id=primarySliderLabel "+
 				  "style='background-image: none; color: white; background-color: black; font-size: 80px; padding: 20px; padding-top: 5px; padding-bottom: 5px;'>"+
                                   "Primary Zoom</div>");

@@ -1466,6 +1466,10 @@ def copysession():
 # Edit old session
 @app.route('/editsession', methods=["GET", "POST"])
 def editsession():
+    if (not 'is_client_active' in session):
+        flash("You are not connected. You must login before editing a session.")
+        return redirect("/login")
+        
     message=json.loads(request.args["message"])
     oldsessionname=message["oldsessionname"]
     oldsession = db.session.query(models.Session).filter_by(name=oldsessionname).scalar()    
@@ -2795,7 +2799,12 @@ def show_grid():
         logging.info("[!] Change session room to " + psession)
         session["sessionname"]=psession
         thesession = db.session.query(models.Session).filter_by(name=psession).scalar()
-        project = session["projectname"]=thesession.project.name
+        if (type(thesession) != type(None)):
+            project = session["projectname"]=thesession.project.name
+        else:
+            logging.warning("You must choose a valid session")
+            flash("You didn't select a valid session in grid.")
+            return redirect("/allsessions")
     else: # GET
         if (session["is_client_active"]):
             try:
@@ -2830,7 +2839,12 @@ def show_grid():
     
     # session["tilesetnames"]=[]
     # if (db.session.query(func.count(ThisSession.tile_sets)).scalar() > 0):
-    ListAllTileSet_ThisSession=ThisSession.tile_sets
+    if (type(ThisSession) != type(None)):
+            ListAllTileSet_ThisSession=ThisSession.tile_sets
+    else:
+        logging.warning("You must choose a valid session")
+        flash("You didn't select a valid session in grid.")
+        return redirect("/allsessions")
     session["tilesetnames"]=[ thistileset.name for thistileset in ListAllTileSet_ThisSession ]
     logging.warning("All TileSet for session "+str(session["sessionname"])+" : "+str(session["tilesetnames"]))
 

@@ -243,9 +243,9 @@ Tile = function(Mesh) {
 		if (configBehaviour.onlyOneTransparentTile && me.getTransparent()!=-1)  { 
 		    $('#menu'+me.getTransparent()+'>#option'+optionNumber).click();
 		}
-
 		me.setTransparent(nodeId, true);
-
+		nodeRef.setOpacityLocation();
+		
 		$("#menu"+nodeId+">#option"+optionNumber).addClass("closeTransparentButtonIcon").removeClass("transparentButtonIcon");
 	    } else { 
 		me.setTransparent(nodeId, false);
@@ -271,7 +271,7 @@ Tile = function(Mesh) {
 
 		    event.stopPropagation();
 		    $("#menu"+nodeId+">#option"+optionNumber).click();
-		    $("#"+nodeId);
+		    //$("#"+nodeId);
 		    $( window ).off("resize",hidePostIt);
 		    //$(".node").off("mousedown",hidePostIt);
 
@@ -785,9 +785,8 @@ Tile = function(Mesh) {
     		});
 	    }
 	}
-	this.setOpacityLocation();
+	//this.setOpacityLocation();
 	tile_opacity.css("visibility","hidden")
-	//this.setOpacityLocation = function () {};
 	
 	//tile_opacity.append("<input id=tileOpacitySlider"+id+" class=tile-opacity-slider type='range' name=tileOpacitySlider"+id+" min=0 max=100 value="+nodeOpacity*100+">");
     }
