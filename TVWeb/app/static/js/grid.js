@@ -46,9 +46,8 @@ $(document).ready( function(){
 	    var tmp_nbr = new_nbr - 1;
 	    new_text = "with " + new_nbr + " other participants";
 	}
-	console.log($('#join-clients').text());
 	$('#join-clients').text(new_text);	
-	console.log("updated to " + $('#join-clients').text());
+	console.log("Session participants: " + $('#join-clients').text());
 	
     };
     

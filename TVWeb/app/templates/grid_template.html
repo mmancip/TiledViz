@@ -184,6 +184,10 @@
     // "FR" or "EN"
     var configLanguage = json_config.language;
   </script>
+  <script type="text/javascript">
+    touchok=true;  //('ontouchstart' in window || navigator.maxTouchPoints);
+    document.body.setAttribute('style','overflow:hidden;');
+  </script>
   <script type="text/javascript" src="{{ url_for('static', filename='js/colorNameToHex.js')}}"></script>
   <script type="text/javascript" src="{{ url_for('static', filename='js/Location.js')}}"></script>
   <script type="text/javascript" src="{{ url_for('static', filename='js/Tile.js')}}"></script>
@@ -269,6 +273,21 @@
   </script>
   {% endif %}
   <script type="text/javascript">
+    buildAtEndComplete=false;
+    function buildAtEnd() {
+	setTimeout(function() {
+	    if (typeof mesh == "undefined")
+		buildAtEnd();
+	    else {
+		var Nodes=mesh.getNodes();
+                console.log("Init htmlNodes")
+                for (O in Nodes)
+                     Nodes[O].init_htmlNode();
+		buildAtEndComplete=true;
+	    }
+	}, 1000);	
+    };
+    executeAtEndComplete=false;
     function executeAtEnd() {
 	setTimeout(function() {
 	    if (typeof mesh == "undefined")
@@ -276,18 +295,25 @@
 	    else {
 		var Nodes=mesh.getNodes();
                 console.log("Build nodes menus")
-		for (O in Nodes)
-		    Nodes[O].buildmenu();
+                for (O in Nodes)
+                     Nodes[O].buildmenu();
+                console.log("Init zoom nodes")
+                for (O in Nodes)
+                    Nodes[O].init_zoomnode();
+		me.init_click_zoomNode();
+		executeAtEndComplete=true;
 	    }
 	}, 1000);	
     };
     if (document.readyState == 'complete') {
+	buildAtEnd();
 	executeAtEnd();
     } else {
         console.log("Not already conplete : "+document.readyState)
         document.onreadystatechange = function () {
             if (document.readyState === "complete") {
-                console.log("Still not already conplete : "+document.readyState)
+                console.log("Wait for conplete : "+document.readyState)
+                buildAtEnd();
                 executeAtEnd();
             }
         }

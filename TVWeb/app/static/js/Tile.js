@@ -6,7 +6,6 @@ $(document).ready(    function (){
 
 Tile = function(Mesh) {
 
-    var touchok=('ontouchstart' in document);
 
     //***************************************************private variable***************************************************//
 
@@ -63,42 +62,47 @@ Tile = function(Mesh) {
 	    $('#'+id).append('<div id=onoff'+id+' class=onoff>'+ id +'</div>');
 	    $('#onoff'+id).hide();
 	    $('#'+id).append('<div id=hitbox'+id+' class=hitbox></div>');
+	    $('#hitbox'+id).hide();
 
 	    var infoToDisplay = "";
+
+	    // Handle to drag
+	    $('#'+id).append('<div id=handle'+id+' class=handle></div>');
+	    $('#handle'+id).addClass("drag-handle-on");
+
 	    if (configJsonData.useTitle && jsonData.title != "")  { 
 			infoToDisplay = jsonData.title.replace(".png", "");
 	    } else { 
 			infoToDisplay = id;
 	    }
 	    $('#'+id).append('<div id=info'+id+' class=info>' + infoToDisplay +'</div>');
+	    $('#'+id).append('<div id=rotate'+id+' class=rotate></div>');
+	    $("#rotate"+id).hide();
+	    return $('#'+id);
+	}());
+
+    this.init_htmlNode=function() {
+	    $('#hitbox'+id).css('background-color', colorHBdefault);
+	    $('#hitbox'+id).show();
 	    $('#info'+id).css("font-family", configBehaviour.infoFonts[Math.min(configBehaviour.defaultFontIndex, configBehaviour.infoFonts.length)]);
 	    $('#info'+id).css("color", configBehaviour.infoTextColor);
 	    $('#info'+id).css("font-size", configBehaviour.defautInfoFontSize);
 	    if (configBehaviour.alwaysShowInfo)  { 
 		$('#info'+id).show();
 	    }
-	    $('#hitbox'+id).css('background-color', colorHBdefault);
-	    // Handle to drag
-	    $('#'+id).append('<div id=handle'+id+' class=handle></div>');
-	    $('#handle'+id).addClass("drag-handle-on");
 	    
-	    if (touchok) {
-		// Handle to rotate
-		$('#'+id).append('<div id=rotate'+id+' class=rotate></div>');
-		$("#rotate"+id).css({
-			left : (parseInt($('#'+id).css("width"))/2-70)+'px',
-			    top : (parseInt($('#'+id).css("height"))-15)+'px',
-			    padding: "40px",
-			    '-webkit-transform': "scale(0.5)",
-			    '-moz-transform': "scale(0.5)",
-			    '-transform': "scale(0.5)",
-			    });
-		$("#rotate"+id).hide();
-	    }
+	    // Handle to rotate
+	    $("#rotate"+id).css({
+	    	left : (parseInt($('#'+id).css("width"))/2-70)+'px',
+	    	    top : (parseInt($('#'+id).css("height"))-15)+'px',
+	    	    '-webkit-transform': "scale(0.5)",
+	    	    '-moz-transform': "scale(0.5)",
+	    	    '-transform': "scale(0.5)",
+	    	    });
 
-	    return $('#'+id);
-	}());
+    };
 
+    //this.init_htmlNode();
     var jsNode = document.getElementById(id);
     
     /** Tag management
@@ -837,8 +841,12 @@ Tile = function(Mesh) {
     //console.log("nodeTagList",nodeTagList)
 
     /** Zoom button on each node */
-    var thezoomnode = new zoomNodes(id);
-
+    var thezoomnode = ""
+    this.init_zoomnode=function() {
+	thezoomnode = new zoomNodes(id);
+    }
+    //this.init_zoomnode();
+    
     /** QRcodes to get URI of the node with a tablet 
      */
     var theqrcode = "";

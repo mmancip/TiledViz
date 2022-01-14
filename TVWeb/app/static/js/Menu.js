@@ -109,7 +109,6 @@ $(document).ready(    function (){
 	    if (typeof parameters.menubox != 'undefined') {
 		menubox_ = parameters.menubox;
 	    }
-	    var touchok=('ontouchstart' in document);
 	    var touchspeed = configBehaviour.touchSpeed; // speed of touch move;
 
 	    if (orientation_ == "V")  { 
@@ -184,17 +183,17 @@ $(document).ready(    function (){
 		    	tooltip.fadeIn('500');
 		    	tooltip.fadeTo('10',10);
 			}
-			if (touchok) {
-			    $('#'+this.id).css('-webkit-transform','scale(1.5)').css('-moz-transform','scale(1.5)');
-			}
+
+			$('#'+this.id).css('-webkit-transform','scale(1.5)').css('-moz-transform','scale(1.5)');
+			
 		    }).on('mouseout',function() {
 			if (configBehaviour.tooltip) {
 			$(this).attr("title",$(this).children('div#tooltip').text());
 		    	$(this).children('div#tooltip').remove();
 			}
-			if (touchok) {
-			    $('#'+this.id).css('-webkit-transform','scale(1)').css('-moz-transform','scale(1)');
-			}
+			
+			$('#'+this.id).css('-webkit-transform','scale(1)').css('-moz-transform','scale(1)');
+			
 		    })
 
 		    $('#'+id+'option'+optionNumber).on({
@@ -335,7 +334,7 @@ $(document).ready(    function (){
 
 				}
 			    }
-			    //ev.stopPropagation();
+			    ev.stopPropagation();
 			};
 
 			touchmoveMenuHandle = function (ev) {
@@ -345,15 +344,16 @@ $(document).ready(    function (){
 				var dragstate = draggingMenu.get(touch.identifier);
 				if  (targetid.replace("handleMenu", "") == id  && dragstate) {
 				    HandleMenu.removeClass("menu-handle-on").addClass("menu-handle-dragging");
-				    dragstate.left += touchspeed*(touch.pageX - dragstate.prevX);
-				    dragstate.top  += touchspeed*(touch.pageY - dragstate.prevY);
+				    dragstate.left = parseInt(dragstate.left)+touchspeed*(touch.pageX - dragstate.prevX);
+				    dragstate.top  = parseInt(dragstate.top)+touchspeed*(touch.pageY - dragstate.prevY);
 				    myMenu.css({left: dragstate.left+'px',
 						top: dragstate.top+'px'});
 				    dragstate.prevX = touch.pageX;
 				    dragstate.prevY = touch.pageY;
 				}
 			    }
-			    ev.preventDefault()
+			    //ev.preventDefault()
+			    ev.stopPropagation();
 			};
 
 			touchendMenuHandle = function (ev) {
@@ -374,40 +374,40 @@ $(document).ready(    function (){
 				touchend: touchendMenuHandle,
 			    });
 
-		    } else {
-			var HandleLeave = function(e){
-			    HandleMenu.removeClass("menu-handle-on").removeClass("menu-handle-dragging").addClass("menu-handle-off");
-			    //e.stopPropagation(); 
-			}
-			var HandleEnter = function(e){
-			    HandleMenu.removeClass("menu-handle-off").addClass("menu-handle-on");
-			    
-			    //e.stopPropagation(); 
-			}
-			
-			HandleMenu.on({
-			
-				mouseleave : HandleLeave,
-				
-				mouseenter : HandleEnter,
-				
-				click : function(e){
-				    if (HandleMenuDraggable) {
-					HandleMenuDraggable=false;
-					myMenu.draggable("destroy");
-					HandleMenu.on("mouseenter",HandleEnter);
-					HandleMenu.on("mouseleave",HandleLeave);
-				    } else {
-					HandleMenu.removeClass("menu-handle-on").addClass("menu-handle-dragging");
-					myMenu.draggable();
-					HandleMenu.off("mouseenter");
-					HandleMenu.off("mouseleave");
-					HandleMenuDraggable=true;
-				    }
-				}
-			    });
 		    }
 
+		    var HandleLeave = function(e){
+			HandleMenu.removeClass("menu-handle-on").removeClass("menu-handle-dragging").addClass("menu-handle-off");
+			e.stopPropagation(); 
+		    }
+		    var HandleEnter = function(e){
+			HandleMenu.removeClass("menu-handle-off").addClass("menu-handle-on");
+			
+			e.stopPropagation(); 
+		    }
+		    
+		    HandleMenu.on({
+			
+			mouseleave : HandleLeave,
+			
+			mouseenter : HandleEnter,
+			
+			click : function(e){
+			    if (HandleMenuDraggable) {
+				HandleMenuDraggable=false;
+				myMenu.draggable("destroy");
+				HandleMenu.on("mouseenter",HandleEnter);
+				HandleMenu.on("mouseleave",HandleLeave);
+			    } else {
+				HandleMenu.removeClass("menu-handle-on").addClass("menu-handle-dragging");
+				myMenu.draggable();
+				HandleMenu.off("mouseenter");
+				HandleMenu.off("mouseleave");
+				HandleMenuDraggable=true;
+			    }
+			}
+		    });
+		    
 		    MenuBox.append('<div id=dropdown ></div>');
 		    var DropDown=$('#MenuBox'+id+'>#dropdown');
 		    if (orientation_=='V') {

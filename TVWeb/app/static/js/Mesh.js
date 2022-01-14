@@ -126,7 +126,6 @@ $(document).ready(    function (){
 Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
     $('#legend').html("<h1>Working on "+my_session+"</h1> <h2>Number of nodes : "+cardinal.toString()+"</h2>");
-    var touchok=((!!('ontouchstart' in window) ? 1 : 0) == 1);
 
     // Bool to add initial position in tags of each tile
     var debugPos = false;
@@ -159,7 +158,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     // Rotation increment
     var RotInc=0.5;
     if (configBehaviour.smoothRotation) {
-	RotInc=configBehaviour.RotationSpeed; //for a smooth touchmove rotation
+	RotInc=parseFloat(configBehaviour.RotationSpeed); //for a smooth touchmove rotation
     } else {
 	// for a turn over with only touchstart / touchend (no touchmove) events
 	RotInc=180; 
@@ -3136,18 +3135,20 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		$('#options-zoom').append("<div id=options-masterslave-label class=label>Parallel interaction</div>");
 		$('#options-zoom').append("<br>Number of tiles showed:</br><input id=allMSShowMax name=allMSShowMax type='number' value=" +configBehaviour.allMSShowMax+ "></br>");
 
+		$('#options-zone').append("<div id=options-touch class=option-group></div>");
+		// Touch behaviour
+		$('#options-touch').append("<div id=options-touch-label class=label>Touchable device</div>");
 		if (touchok) {
-		    // Touch behaviour
-		    $('#options-zone').append("<div id=options-touch class=option-group></div>");
-		    $('#options-touch').append("<div id=options-touch-label class=label>Touchable device</div>");
 
 		    $('#options-touch').append("<br>Speed of touch:</br><input id=touchSpeed name=touchSpeed type='number' value=" +configBehaviour.touchSpeed+ "></br>");
+		    $('#options-touch').append("<input type='checkbox' id='touchon-window' name='touchon-window' value='no'>Touch on window gesture</input></br>");
+		    $('input[name=touchon-window]').attr("checked", configBehaviour.touchonWindow);
 			    
-		    $('#options-touch').append("<input type='checkbox' id='smooth-rotation' name='smooth-rotation' value='no'>Smooth rotation</input>");
-		    $('input[name=smooth-rotation]').attr("checked", configBehaviour.smoothRotation);
-			    
-		    $('#options-touch').append("<br>Speed of rotation:</br><input id=RotInc name=RotInc type='number' step='0.1' value=" +configBehaviour.RotationSpeed+ "></br>");
 		}
+		$('#options-touch').append("<input type='checkbox' id='smooth-rotation' name='smooth-rotation' value='no'>Smooth rotation</input>");
+		$('input[name=smooth-rotation]').attr("checked", configBehaviour.smoothRotation);
+		
+		$('#options-touch').append("<br>Speed of rotation:</br><input id=RotInc name=RotInc type='number' step='0.1' value=" +configBehaviour.RotationSpeed+ "></br>");
 
 		// Button to save and exit the options menu
 		$('#options').append("<div id=buttonApply title='Apply for this browser'></div>");
@@ -3273,17 +3274,25 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    if (touchok) {
 			configBehaviour.touchSpeed = $('#touchSpeed').val();
 			tempBehaviour=tempBehaviour.replace("***","'touchSpeed': "+configBehaviour.touchSpeed+",\n ***");
-			
-			configBehaviour.smoothRotation = $('input[name=smooth-rotation]').is(":checked");
-			tempBehaviour=tempBehaviour.replace("***","'smoothRotation': '"+configBehaviour.smoothRotation+"',\n ***");
-			if (configBehaviour.smoothRotation) {
-			    RotInc=configBehaviour.RotationSpeed; //for a smooth touchmove rotation
+
+			configBehaviour.touchonWindow = $('#touchon-window').val();
+			if (configBehaviour.touchonWindow) {
+			    document.body.setAttribute('style','overflow:auto;');			    
 			} else {
-			    // for a turn over with only touchstart / touchend (no touchmove) events
-			    RotInc=180; 
+			    document.body.setAttribute('style','overflow:hidden;');
 			}
+			tempBehaviour=tempBehaviour.replace("***","'touchonWindow': "+configBehaviour.touchonWindow+",\n ***");
+		    }
+
+		    configBehaviour.smoothRotation = $('input[name=smooth-rotation]').is(":checked");
+		    tempBehaviour=tempBehaviour.replace("***","'smoothRotation': '"+configBehaviour.smoothRotation+"',\n ***");
+		    if (configBehaviour.smoothRotation) {
+			configBehaviour.RotationSpeed=$('#RotInc').val();
+			tempBehaviour=tempBehaviour.replace("***","'RotationSpeed': '"+configBehaviour.smoothRotation+"',\n ***");
+			RotInc=parseFloat(configBehaviour.RotationSpeed); //for a smooth touchmove rotation
 		    } else {
-			configBehaviour.smoothRotation = false;
+			// for a turn over with only touchstart / touchend (no touchmove) events
+			RotInc=180; 
 		    }
 
 		    for (var theOption in thisIconTab) {
@@ -3440,19 +3449,21 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
             if(tempBehaviour.hasOwnProperty('touchSpeed'))
 		configBehaviour.touchSpeed = tempBehaviour.touchSpeed;
-			
+            if(tempBehaviour.hasOwnProperty('touchonWindow'))
+		configBehaviour.touchonWindow = tempBehaviour.touchonWindow;
+	}			
 
-            if(tempBehaviour.hasOwnProperty('smoothRotation'))
-		configBehaviour.smoothRotation = $.parseJSON(tempBehaviour.smoothRotation);
+	configBehaviour.smoothRotation = false;
+        if(tempBehaviour.hasOwnProperty('smoothRotation'))
+	    configBehaviour.smoothRotation = $.parseJSON(tempBehaviour.smoothRotation);
 
-	    if (configBehaviour.smoothRotation) {
-		RotInc=configBehaviour.RotationSpeed; //for a smooth touchmove rotation
-	    } else {
-		// for a turn over with only touchstart / touchend (no touchmove) events
-		RotInc=180; 
-	    }
+	if (configBehaviour.smoothRotation) {
+            if(tempBehaviour.hasOwnProperty('RotationSpeed'))
+		configBehaviour.RotationSpeed =  $.parseJSON(tempBehaviour.RotationSpeed);
+	    RotInc=parseFloat(configBehaviour.RotationSpeed); //for a smooth touchmove rotation
 	} else {
-	    configBehaviour.smoothRotation = false;
+	    // for a turn over with only touchstart / touchend (no touchmove) events
+	    RotInc=180; 
 	}
 				    
     }
@@ -4286,27 +4297,25 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     menuShareEvent.push(false);
 
     /** Show rotate button on each node */
-    if (touchok) {
-	menuTitleTab.push("Show rotate button")
-	menuEventTab.push( (    function(){
+    menuTitleTab.push("Show rotate button")
+    menuEventTab.push( (    function(){
 
-		    return function(v, id, optionNumber){
-			if (v==true)  { 
-			    $('.rotate').show();
-			    $('#'+id+'option'+optionNumber).removeClass('RotateButtonIcon').addClass('closeRotateButtonIcon');
-			} else { 
-			    $('.rotate').hide();
-			    $('#'+id+'option'+optionNumber).removeClass("closeRotateButtonIcon").addClass("RotateButtonIcon");
+    	    return function(v, id, optionNumber){
+    		if (v==true)  { 
+    		    $('.rotate').show();
+    		    $('#'+id+'option'+optionNumber).removeClass('RotateButtonIcon').addClass('closeRotateButtonIcon');
+    		} else { 
+    		    $('.rotate').hide();
+    		    $('#'+id+'option'+optionNumber).removeClass("closeRotateButtonIcon").addClass("RotateButtonIcon");
 
-			}
-		    };
+    		}
+    	    };
 
-		})());
+    	})());
 
-	menuIconClassAttributesTab.push("RotateButtonIcon");
-	menuShareEvent.push(false);
-    }
-
+    menuIconClassAttributesTab.push("RotateButtonIcon");
+    menuShareEvent.push(false);
+    
     
     /** Refresh button: 
 	designed to reset nodes when something goes wrong 
@@ -4532,11 +4541,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	if(v==true)  { 
 	    menuActionGlobal
 		.css("top", (function(){
-		    if (touchok) {
-			return TagHeight;
-		    } else {
-			return menuGlobal.position()["top"]+$('.actionGlobalMenuButtonIcon').position()["top"];
-		    }
+		    return menuGlobal.position()["top"]+$('.actionGlobalMenuButtonIcon').position()["top"];
 		})() )
 		.css("left",menuGlobal.position()["left"]+menuGlobal.width())
 		.css("visibility", "visible");
@@ -4566,11 +4571,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	if(v==true)  { 
 	    menuZoomGlobal
 		.css("top", (function(){
-		    if (touchok) {
-			return TagHeight;
-		    } else {
-			return menuGlobal.position()["top"]+$('.zoomGlobalMenuButtonIcon').position()["top"];
-		    }
+		    return menuGlobal.position()["top"]+$('.zoomGlobalMenuButtonIcon').position()["top"];
 		})() )
 		.css("left",menuGlobal.position()["left"]+menuGlobal.width())
 		.css("visibility", "visible");
@@ -4609,11 +4610,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	if(v==true)  { 
 	    menuStateGlobal
 		.css("top", (function(){
-		    if (touchok) {
-			return TagHeight;
-		    } else {
-			return menuGlobal.position()["top"]+$('.stateGlobalMenuButtonIcon').position()["top"];
-		    }
+		    return menuGlobal.position()["top"]+$('.stateGlobalMenuButtonIcon').position()["top"];
 		})() )
 		.css("left",menuGlobal.position()["left"]+menuGlobal.width())
 		.css("visibility", "visible");
@@ -4631,7 +4628,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     // Display/Hide the node menu
     menuTitleTab.push("Display/Hide the node menu")
     menuEventTab.push(    function(v,id,optionNumber){
-
+        if (executeAtEndComplete) {
 	    if(v==true)  { 	
 		if (!configBehaviour.moveOnNodeMenuOption)  { 
 		    $('.node').off();
@@ -4661,8 +4658,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		$(".nodemenu").css({visibility : "hidden"});
 		$('#'+id+'option'+optionNumber).attr('class',$('#'+id+'option'+optionNumber).attr('class').replace('closeNodeMenuButton','nodeMenuButton'));
 	    }
-
-	});
+	}
+    });
     menuIconClassAttributesTab.push("nodeMenuButtonIcon");
     menuShareEvent.push(true);
 
@@ -4673,11 +4670,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	if(v==true)  { 
 	    menuCancelGlobal
 		.css("top", (function(){
-		    if (touchok) {
-			return TagHeight;
-		    } else {
-			return menuGlobal.position()["top"]+$('.cancelGlobalMenuButtonIcon').position()["top"];
-		    }
+		    return menuGlobal.position()["top"]+$('.cancelGlobalMenuButtonIcon').position()["top"];
 		})() )
 		.css("left",menuGlobal.position()["left"]+menuGlobal.width())
 		.css("visibility", "visible");
@@ -4698,11 +4691,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	if(v==true)  { 
 	    menuUpdownGlobal
 		.css("top", (function(){
-		    if (touchok) {
-			return TagHeight;
-		    } else {
-			return menuGlobal.position()["top"]+$('.updownGlobalMenuButtonIcon').position()["top"];
-		    }
+		    return menuGlobal.position()["top"]+$('.updownGlobalMenuButtonIcon').position()["top"];
 		})() )
 		.css("left",menuGlobal.position()["left"]+menuGlobal.width())
 		.css("visibility", "visible");
@@ -5243,6 +5232,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
        ...
     */	
 
+    var ppol=primaryparent.offsetLeft;
+    var ppot=primaryparent.offsetTop;
     //--find  node location
     this.locationProvider = function(node_idLocation){
 
@@ -5250,9 +5241,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	var nX =temp.getnX();
 	var nY =temp.getnY();
 	// var x = nX*(spread.X+gapBetweenColumns)+ (nX)*borderSize+htmlPrimaryParent.offset().left;
-	var x = nX*(spread.X + gapBetweenColumns + borderSize)+primaryparent.offsetLeft;
+	var x = nX*(spread.X + gapBetweenColumns + borderSize)+ppol;
 	//var y = nY*(spread.Y+gapBetweenLines)+ (nY)*borderSize+htmlPrimaryParent.offset().top;
-	var y = nY*(spread.Y + gapBetweenLines + borderSize)+primaryparent.offsetTop;
+	var y = nY*(spread.Y + gapBetweenLines + borderSize)+ppot;
 	return (new Location(x,y));
     };
 
@@ -5789,10 +5780,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 	this.meshEventReStart = function(){
 	    $('.qrcode').off();
-	    if (!touchok) 
-		$('.handle').off();
-	    else
+	    if (touchok) 
 		htmlPrimaryParent.off();
+	    $('.handle').off();
+	    
 	    $('.hitbox').off(); 
 	    $('.onoff').off();
 	    $('.node').off(); 
@@ -5801,10 +5792,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 	    $('.onoff').on(OOFEvent);
 
-	    if (!touchok) 
-		$('.handle').on(handleEvent);
-	    else
+	    if (touchok) 
 		htmlPrimaryParent.on(touchhandleEvent);
+	    $('.handle').on(handleEvent);
+
 	    $('.hitbox').on(HBEvent);
 	    $('.node').on(NodeEvent);
 
@@ -6274,9 +6265,95 @@ dblclick: dblclickFunction*/
 	};
 	if (!touchok) {
 	    console.log("No Touch.");
-	    $('.handle').on(handleEvent);
 	};
+	$('.handle').on(handleEvent);
+
+	var mouseEnterRotate = function(e){
+	    if ($("#" + this.id).ontouchstart == undefined) {
+		var RotateBut=$("#" + this.id);
+		RotateBut.off("mousedown");
+		RotateBut.off("mouseup");
+		RotateBut.off("mousemove");
+		RotateBut.off("mouseleave");
+		RotateBut.off("mouseenter");
+		RotateBut.off("dblclick");
+
+		var id = this.id.replace("rotate", "");
+
+		var node = mesh.getNode(id);
+		var nodeToRotate=$('#' + id);
 		
+		var rotstate_angle = 0.;
+		var rotate_ok=false
+		
+		RotateBut.on("mousedown", function(e){
+		    rotate_ok=true
+		    RotateBut.css('-webkit-transform','scale(2)').css('-moz-transform','scale(2)');
+		});
+		
+		RotateBut.on("mousemove", function(e){
+		    if (rotate_ok) {
+			
+			rotstate_angle = node.getNodeAngle();
+			if (! configBehaviour.smoothRotation) {
+			    if ( rotstate_angle > 340 || rotstate_angle < 20) 
+				rotstate_angle=0;
+			    else if ( rotstate_angle > 70 && rotstate_angle < 110) 
+				rotstate_angle=90;
+			    else if ( rotstate_angle > 160 && rotstate_angle < 200) 
+				rotstate_angle=180;
+			    else if ( rotstate_angle > 250 && rotstate_angle < 290) 
+				rotstate_angle=270;
+			} else {
+			    rotstate_angle = rotstate_angle+RotInc;
+			    if (rotstate_angle > 360) 
+				rotstate_angle=RotInc;
+			}
+			node.setNodeAngle(rotstate_angle);
+			
+			nodeToRotate.css({ '-webkit-transform': 'rotate('+rotstate_angle+'deg)',
+					   '-moz-transform': 'rotate('+rotstate_angle+'deg)',
+					   '-o-transform': 'rotate('+rotstate_angle+'deg)',
+					   '-ms-transform': 'rotate('+rotstate_angle+'deg)',
+					   'transform': 'rotate('+rotstate_angle+'deg)'
+					 });
+			e.stopPropagation();
+		    };
+		}).on("mouseup", function(e){
+		    if (rotate_ok) {
+			rotate_ok=false
+			
+			RotateBut.off("mousemove");
+			RotateBut.off("mouseleave");
+			RotateBut.off("mouseup");
+			
+			RotateBut.on("mouseleave", function(e){
+
+			    RotateBut.css('-webkit-transform','scale(0.5)').css('-moz-transform','scale(0.5)');
+			    e.stopPropagation();
+			});		    
+			e.stopPropagation();
+			RotateBut.on("mouseenter",mouseEnterRotate)
+		    };
+		}).on("dblclick", function(e){
+		    node.setNodeAngle(0);
+			
+		    nodeToRotate.css({ '-webkit-transform': 'rotate('+0+'deg)',
+				       '-moz-transform': 'rotate('+0+'deg)',
+				       '-o-transform': 'rotate('+0+'deg)',
+				       '-ms-transform': 'rotate('+0+'deg)',
+				       'transform': 'rotate('+0+'deg)'
+				     });
+		    e.stopPropagation();
+		});
+	    };
+	};
+
+	var rotateEvent = {
+	    mouseenter: mouseEnterRotate,
+	};
+	$('.rotate').on(rotateEvent);
+	
 	// multi-touch support
 	if (touchok) {
 	    var dragging = new Map();	// maps touch IDs to drag state objects
@@ -6297,6 +6374,7 @@ dblclick: dblclickFunction*/
 		    var touch = ev.changedTouches[i];
 		    var targetid=touch.target.id;
 		    if  (targetid.indexOf('handle') >= 0 && _allowDragAndDrop ) {
+			$('.handle').off();
 			var id = targetid.replace("handle", "");
 			//var node = mesh.getNode(id);
 			var nodeToDrag=$('#' + id);
@@ -6331,13 +6409,16 @@ dblclick: dblclickFunction*/
 			var id = targetid.replace("rotate", "");
 			var nodeToDrag=$('#' + id);
 			var node = mesh.getNode(id);
+			var centerX = nodeToDrag[0].style.left.replace('px','')+(nodeToDrag[0].style.width.replace('px','')/2);
+			var centerY = nodeToDrag[0].style.top.replace('px','')+(nodeToDrag[0].style.height.replace('px','')/2);
 			rotating.set(touch.identifier, {
 				target: touch.target,
 				    angle: node.getNodeAngle(),
-				    centerX: nodeToDrag[0].style.left.replace('px','')+(nodeToDrag[0].style.width.replace('px','')/2),
-				    centerY: nodeToDrag[0].style.top.replace('px','')+(nodeToDrag[0].style.height.replace('px','')/2),
+				    centerX: centerX,
+				    centerY: centerY,
 				    });
-			console.log("centerX : "+rotating.get(touch.identifier).centerX+" centerY : "+rotating.get(touch.identifier).centerY);
+			//console.log("centerX : "+rotating.get(touch.identifier).centerX+" centerY : "+rotating.get(touch.identifier).centerY);
+			console.log("centerX : "+centerX+" centerY : "+centerY);
 			$('#'+targetid).css('-webkit-transform','scale(2)').css('-moz-transform','scale(2)');
 		    }
 		}
@@ -6362,8 +6443,8 @@ dblclick: dblclickFunction*/
 			var node = mesh.getNode(id);
 			var nodeToDrag=$('#' + id);
 			var thishandle=$('#'+touch.target.id);
-			dragstate.left += touchspeed*(touch.pageX - dragstate.prevX);
-			dragstate.top  += touchspeed*(touch.pageY - dragstate.prevY);
+			dragstate.left = parseInt(dragstate.left)+touchspeed*(touch.pageX - dragstate.prevX);
+			dragstate.top  = parseInt(dragstate.top)+touchspeed*(touch.pageY - dragstate.prevY);
 			nodeToDrag.css({left: dragstate.left+'px',
 				    top: dragstate.top+'px'});
 			//nodeToDrag[0].style.background='green';
@@ -6380,6 +6461,7 @@ dblclick: dblclickFunction*/
 			// 	    " screenY " + dragstate.prevY + " top "+dragstate.top );
 			// dragstate.prevX = dragstate.left;
 			// dragstate.prevY = dragstate.top;
+			ev.stopPropagation();
 		    }
 		    else if (targetid.indexOf('rotate') >= 0 && rotstate && configBehaviour.smoothRotation) {
 			var id = targetid.replace("rotate", "");
@@ -6387,10 +6469,11 @@ dblclick: dblclickFunction*/
 			var nodeToDrag=$('#' + id);
 			var thishandle=$('#'+touch.target.id);
 
-			rotstate.angle+=RotInc;
+			rotstate.angle = rotstate.angle+RotInc;
 			if (rotstate.angle > 360) 
 			    rotstate.angle=RotInc;
 
+			console.log(id+" move rotstate.angle : "+rotstate.angle);
 			node.setNodeAngle(rotstate.angle);
 
 			nodeToDrag.css({ '-webkit-transform': 'rotate('+rotstate.angle+'deg)',
@@ -6402,7 +6485,7 @@ dblclick: dblclickFunction*/
 			//transform-origin: 50% 50%, (ou center center)
 		    }
 		}
-		ev.preventDefault()
+		//ev.preventDefault()
 	    }
 
 		    
@@ -6447,7 +6530,7 @@ dblclick: dblclickFunction*/
 			var node = mesh.getNode(id);
 			var nodeToDrag=$('#' + id);
 
-			if (configBehaviour.smoothRotation) {
+			if (! configBehaviour.smoothRotation) {
 			    if ( rotstate.angle > 340 || rotstate.angle < 20) 
 				rotstate.angle=0;
 			    else if ( rotstate.angle > 70 && rotstate.angle < 110) 
@@ -6457,11 +6540,12 @@ dblclick: dblclickFunction*/
 			    else if ( rotstate.angle > 250 && rotstate.angle < 290) 
 				rotstate.angle=270;
 			} else {
-			    rotstate.angle+=RotInc;
+			    rotstate.angle = rotstate.angle+RotInc;
 			    if (rotstate.angle > 360) 
 				rotstate.angle=RotInc;
 			}
 
+			console.log(id+" end rotstate.angle : "+rotstate.angle);
 			node.setNodeAngle(rotstate.angle);
 
 			nodeToDrag.css({ '-webkit-transform': 'rotate('+rotstate.angle+'deg)',
@@ -6502,7 +6586,7 @@ dblclick: dblclickFunction*/
 	}
 
 	// zoomNodecodes : on click, Zoom 
-	clickzoomNode = function(){
+	this.clickzoomNode = function(){
 
 	    if ( configBehaviour.sharedZoomNodes && emit_click("zoomNodeButtonIcon",this.id))
 		return
@@ -6527,11 +6611,13 @@ dblclick: dblclickFunction*/
 	    if ( configBehaviour.sharedZoomNodes )
 		$('#buttonUnzoom').on('click',function(){ emit_click("unzoomButtonIcon","buttonUnZoom") } )
 	};
-	
-	$('.zoomNodeButtonIcon').on({
-		click : clickzoomNode
-		    });
 
+	this.init_click_zoomNode = function() {
+	    $('.zoomNodeButtonIcon').on({
+		click : me.clickzoomNode
+	    });
+	}
+	
 	// QRcodes : on click, Zoom 
 	clickQRcode = function(){
 	    //console.log("QRcode clicked", this.id);
