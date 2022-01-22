@@ -1,6 +1,7 @@
 psycopg2-binary
 flask-socketio
 eventlet
+WTForms==2.3.3
 flask-wtf
 flask-sqlalchemy
 flask-bootstrap
