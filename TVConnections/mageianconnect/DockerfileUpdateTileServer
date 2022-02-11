@@ -1,0 +1,6 @@
+# Docker file mageiaconnect
+FROM mageiaconnect:latest
+MAINTAINER  "Martial Mancip" <Martial.Mancip@MaisondelaSimulation.fr>
+
+
+COPY TVConnections/TileServer.py /TiledViz/TVConnections/

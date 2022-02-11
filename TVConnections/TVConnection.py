@@ -71,11 +71,15 @@ class ClientAction(threading.Thread):
     def run(self,connectionId,globals,locals):
         global tiles_actions
         tiles_actions["action0"]=["get_new_nodes","system_update_alt"]
-        
-        self.actionclient=sock.client(ActionPort)
-        self.actionclient.send_OK(1)
-        logging.warning("ClientAction : connect server connectiondock")
 
+        try:
+            self.actionclient=sock.client(ActionPort)
+            self.actionclient.send_OK(1)
+            logging.warning("ClientAction : connect server connectiondock")
+        except:
+            logging.error("ClientAction : can't connect to server connectiondock")
+            traceback.print_exc(file=sys.stderr)
+            
         self.iter=0
         # Wait for commands by TVSecure.py
         while True:

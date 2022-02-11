@@ -1,0 +1,4 @@
+#!/bin/bash -vx
+mv TVDatabase/postgresql $HOME/tmp
+docker build -t mageiaconnect -f TVConnections/mageianconnect/DockerfileUpdateTVConnection .
+mv $HOME/tmp/postgresql  TVDatabase

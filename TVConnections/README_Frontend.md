@@ -5,6 +5,10 @@ and a communication socket with the client browser through Flask server with act
 
 It launchs the script job.
 
+Launch TileServer by hand on Frontend with logging :
+ipython3 .tiledviz/TileServer.py --debug 2>&1 |tee -a /tmp/TileServer_$(mydate)
+One can switch DEBUG to increase verbosity and control message with clients.
+
 Generic functions for all cases :
 "tileNum" is the number of a tile in a TileSet and "tileId" is a string for its Id given by containerId(tileNum+1).
 

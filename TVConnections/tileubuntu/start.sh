@@ -1,4 +1,4 @@
-#!/bin/bash -vx
+#!/bin/bash
 
 RESOL=3840x2160
 
@@ -81,7 +81,7 @@ chown -R myuser:myuser ${HOME_user}
 
 echo "start X "
 
-local xvfbLockFilePath="/tmp/.X1-lock"
+xvfbLockFilePath="/tmp/.X1-lock"
 if [ -f "${xvfbLockFilePath}" ]
 then
     log_i "Removing xvfb lock file '${xvfbLockFilePath}'..."
@@ -97,9 +97,9 @@ echo "export HOSTNAME="${HOSTNAME} >> /etc/profile.d/env_variable.sh
 # Set defaults if the user did not specify envs.
 export DISPLAY=:1
 #${XVFB_DISPLAY:-:1}
-local screen=${XVFB_SCREEN:-0}
-local resolution=${XVFB_RESOLUTION:-1280x960x24}
-local timeout=${XVFB_TIMEOUT:-5}
+screen=${XVFB_SCREEN:-0}
+resolution=${XVFB_RESOLUTION:-1280x960x24}
+timeout=${XVFB_TIMEOUT:-5}
 
 # Create the xstartup file
 echo "#!/bin/sh 
@@ -108,7 +108,7 @@ sleep 1
 xterm -rv -geometry ${RESOL}-0-0 -e /opt/client_python ${DOCKERID} ${myPORT} ${myFront} &
 
 sleep 1
-icewm-light
+icewm
 xterm
 #unset SESSION_MANAGER
 #unset DBUS_SESSION_BUS_ADDRESS
@@ -124,7 +124,7 @@ echo export DOCKERID=$DOCKERID >> ${HOME_user}/.bashrc
 cd
 echo $( hostname )
 su - myuser -c " Xvfb ${DISPLAY} -screen ${screen} ${resolution} &"
-local loopCount=0
+loopCount=0
 until xdpyinfo -display ${DISPLAY} > /dev/null 2>&1
 do
     loopCount=$((loopCount+1))
@@ -135,5 +135,6 @@ do
         exit 1
     fi
 done
+su - myuser -c "${HOME_user}/xstartup "
 #xinit -- :0"
 su - myuser -c "x11vnc -forever -rfbport 5902 -noncache -cursor arrow -shared -nowf -display  ${DISPLAY} -rfbauth /home/myuser/.vnc/passwd -http > /tmp/out_x11vnc_$(date +%F_%H-%M) 2>&1"

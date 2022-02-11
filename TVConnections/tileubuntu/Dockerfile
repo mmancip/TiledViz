@@ -5,7 +5,7 @@ RUN cat /etc/resolv.conf  && echo "nameserver 8.8.8.8" >> /etc/resolv.conf \
 
 RUN apt-get update && \
     apt-get install -y --fix-missing xvfb xterm xinit wmctrl icewm \
-	python3-psycopg2 git rsync python3-pip iproute2 && \
+	python3-psycopg2 git rsync python3-pip iproute2 x11-xserver-utils && \
     pip3 install --upgrade pip wheel 
 
 RUN ln -s /usr/bin/python3 /usr/bin/python
@@ -27,6 +27,7 @@ RUN apt-get autoclean \
 
 COPY TVConnections/mageianvidia/ssh /home/myuser/.ssh/
 
+COPY TVConnections/mageianvidia/vnccommand /opt/vnccommand
 COPY TVConnections/tileubuntu/.bashrc /home/myuser/.bashrc
 COPY TVConnections/mageianvidia/tunnel_ssh /opt/tunnel_ssh
 COPY TVConnections/tileubuntu/start.sh /start.sh

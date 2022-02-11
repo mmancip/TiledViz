@@ -9,27 +9,43 @@ import subprocess as subp
 import shlex
 from operator import itemgetter
 
+import argparse
+
 import traceback
 
 sys.path.append(os.path.abspath('./connect'))
 from connect import sock
+IdTS=sock.PORTServer+1
 
 import logging
-#logging.basicConfig(level=logging.WARNING)
-serverLogger = logging.getLogger("Server")
-logFormatter = logging.Formatter("\n%(asctime)s - Server - %(threadName)s - %(levelname)s: %(message)s ")
-#serverLogger.setLevel(logging.ERROR)
-#serverLogger.setLevel(logging.WARNING)
-serverLogger.setLevel(logging.INFO)
-#serverLogger.setLevel(logging.DEBUG)
-outHandler = logging.StreamHandler(sys.stdout)
-outHandler.setFormatter(logFormatter)
-serverLogger.addHandler(outHandler)
 
 #import code
 #            code.interact(local=locals())
 
-IdTS=sock.PORTServer+1
+DEBUG=False
+TRACE=False
+
+MaxWaitExecute=120
+
+
+
+def parse_args(argv):
+    parser = argparse.ArgumentParser(
+        'TiledViz frontend server to dispatch orders on all tiles of each TileSets on its HPC machine.')
+    parser.add_argument('--debug', action='store_true',
+                        help='Debug TileServer messages.',default=DEBUG)
+    parser.add_argument('--trace', action='store_true',
+                        help='Debug TileServer with ipdb trace calls.',default=TRACE)
+    parser.add_argument('--idts', default=IdTS,
+                        help='WARNING: Do not change this value only if you know what you are doing !! \n'\
+                        'Default port for first TiledSet (default: localhost)')
+    parser.add_argument('--maxwaitexecute', default=MaxWaitExecute,
+                        help='Number max of seconds waiting for a response for TileServer messages.')
+    
+    args = parser.parse_args(argv[1:])
+    return args
+
+
 
 TSthreads={}
 
@@ -76,8 +92,10 @@ class TilesSet(threading.Thread):
         self.Nb=Nb
 
         self.ListClient=[]
+        self.ClientNotReady=True
         self.TileJson=[]
         self.TileSetPort=0
+        self.laststate=False
 
         TSthreads[TileSetName]=self.thread
         
@@ -135,23 +153,49 @@ class TilesSet(threading.Thread):
                 
             count=count+1
 
+        serverLogger.warning("All socket opened for "+self.TileSetName+" : "+str(len(self.ListClient)))
+ 
         # Sort clients by container IDs :
         if ( self.Nb > 2 ):
             self.ListClient=sorted(self.ListClient,key=itemgetter(4))
 
-        serverLogger.warning("All socket opened for "+self.TileSetName+" : "+str(len(self.ListClient)))
+        self.ClientNotReady=False
 
+        serverLogger.warning("All client sorted for %s : %d " % (self.TileSetName,len(self.ListClient)))
+        
     def execute_all(self,command):
         serverLogger.warning(self.TileSetName+" : Command on all tiles : "+command)
+        while(self.ClientNotReady):
+            serverLogger.warning("Wait for clients.")
+            time.sleep(1)
+            
         self.laststate=False
+        # if (len(self.ListClient) == 0):
+        #     self.TSconnect.send_OK(self.id,-1)
+        #     serverLogger.error("Error calling execute_all : no client yet.")
+        #     return False
+
+        if (TRACE):
+            import ipdb; ipdb.set_trace()
         for (client, TSserver, TSName, id, container, password) in self.ListClient:
             client.execute(command)
         self.laststate=True
-
+        
     def get_laststate_execute_all(self):
+        serverLogger.warning(self.TileSetName+" : Get state on all tiles.")
+        while(self.ClientNotReady):
+            serverLogger.warning("Wait for clients.")
+            time.sleep(1)
+
+        # if (len(self.ListClient) == 0):
+        #     self.TSconnect.send_OK(self.id,-1)
+        #     serverLogger.error("Error calling get_laststate_execute_all : no client yet.")
+        #     return False
+
         RET=0 
         if (self.laststate):
             for (client, TSserver, TSName, id, container, password) in self.ListClient:
+                count=0
                 while True:
                     laststate=client.get_laststate()
                     if (type(laststate) == int):
@@ -159,15 +203,31 @@ class TilesSet(threading.Thread):
                         break
                     else:
                         time.sleep(1)
+                        count=count+1
+                        serverLogger.debug(self.TileSetName+" : Wait for state on all tiles %d." % (count))
+                        if (count > MaxWaitExecute):
+                            serverLogger.error(self.TileSetName+" : No state on all tiles %d." % (count))
+                            RET=-1
+                            break
             serverLogger.info(self.TileSetName+" : State on all tiles : "+str(RET))
             return RET
         else:
             return False
-
+        
     def execute_list(self,tilesId,command):
         serverLogger.warning(self.TileSetName+" : Command on list "+str(tilesId)+" of tiles : "+command)
+        while(self.ClientNotReady):
+            serverLogger.warning("Wait for clients.")
+            time.sleep(1)
 
         self.laststate=False
+        # if (len(self.ListClient) == 0):
+        #     self.TSconnect.send_OK(self.id,-1)
+        #     serverLogger.error("Error calling execute_list : no client yet.")
+        #     return False
+
+        if (TRACE):
+            import ipdb; ipdb.set_trace()
         try:
             for tileId in tilesId:
                 AllTileId=list(filter(lambda x:tileId in x, self.ListClient))
@@ -177,13 +237,26 @@ class TilesSet(threading.Thread):
                     client.execute(command)
                 else:
                     serverLogger.error("Error with list "+str(tileId)+" of tiles : "+str(AllTileId))
-                    self.TSconnect.send_OK(self.id,-9)
+                    serverLogger.error("tileId %s AllTileId %s ListClient : %s " % (str(tileId),str(AllTileId),str(self.ListClient)))
             self.laststate=True
         except Exception as err:
+            self.TSconnect.send_OK(self.id,-9)
             serverLogger.error("Exception with list of tiles : "+str(err))
+            
 
     def get_laststate_execute_list(self,tilesId):
+        serverLogger.warning(self.TileSetName+" : Get state on list "+str(tilesId)+" of tiles.")
+        while(self.ClientNotReady):
+            serverLogger.warning("Wait for clients.")
+            time.sleep(1)
 
+        # if (len(self.ListClient) == 0):
+        #     self.TSconnect.send_OK(self.id,-1)
+        #     serverLogger.error("Error calling get_laststate_execute_list : no client yet.")
+        #     return False
+        
+        if (TRACE):
+            import ipdb; ipdb.set_trace()
         RET=0 
         if (self.laststate):
             for tileId in tilesId:
@@ -191,6 +264,7 @@ class TilesSet(threading.Thread):
                 serverLogger.debug(self.TileSetName+" : laststate on "+str(tileId)+" in client : "+str(AllTileId))
                 if (len(AllTileId) == 1):
                     (client, TSserv, TSName, id, container, password)=AllTileId[0]
+                    count=0
                     while True:
                         laststate=client.get_laststate()
                         if (type(laststate) == int):
@@ -198,6 +272,12 @@ class TilesSet(threading.Thread):
                             break
                         else:
                             time.sleep(1)
+                            count=count+1
+                            serverLogger.debug(self.TileSetName+" : Wait for state on list "+str(tilesId)+" of tiles %d." % (count))
+                            if (count > MaxWaitExecute):
+                                serverLogger.error(self.TileSetName+" : No state on list "+str(tilesId)+" of tiles %d." % (count))
+                                RET=-1
+                                break
                 else:
                     return False
             serverLogger.info(self.TileSetName+" : State on list "+str(tilesId)+" of tiles : "+str(RET))
@@ -247,6 +327,7 @@ class ClientConnect(threading.Thread):
 
                 RET=0
                 for TheTS in self.TileSets:
+                    count=0
                     while True:
                         laststate=TheTS.get_laststate_execute_all()
                         if (type(laststate) == int):
@@ -254,12 +335,22 @@ class ClientConnect(threading.Thread):
                             break
                         else:
                             time.sleep(1)
+                            count=count+1
+                            serverLogger.debug(str(TheTS)+" : Wait for state on list command "+CommandRecv+" %d." % (count))
+                            if (count > MaxWaitExecute):
+                                CommandTS=p.sub(r'\1',CommandRecv)
+                                serverLogger.error(str(TheTS)+" : No state on list command "+CommandRecv+"\n"+
+                                                   "command send "+CommandTS+" %d." % (count))
+                                RET=-1
+                                break
+                    serverLogger.debug(str(TheTS)+" : Get state on list command "+CommandRecv+" %d." % (RET))
+                serverLogger.debug(str(TheTS)+" : Get Send OK for command "+CommandRecv+" %d." % (RET))
                 self.Connect.send_OK(self.id,RET)
 
             elif (re.search(r'execute TS',CommandRecv)):
-                p=re.compile(r'execute TS=(\w*) (.*)')
-                TSName=p.sub(r'\1',CommandRecv)
-                CommandTS=p.sub(r'\2',CommandRecv)
+                p0=re.compile(r'execute TS=(\w*) (.*)')
+                TSName=p0.sub(r'\1',CommandRecv)
+                CommandTS=p0.sub(r'\2',CommandRecv)
                 p=re.compile(r"Tiles=[(\[]([0-9, ']*)[)\]] (.*)")
 
                 if (re.match(p,CommandTS)):
@@ -274,30 +365,53 @@ class ClientConnect(threading.Thread):
                 
                     serverLogger.debug('Get laststate on list '+str(ListTiles))
                     RET=0
+                    count=0
                     while True:
                         laststate=self.TileSets[TSName].get_laststate_execute_list(ListTiles)
+                        serverLogger.debug('laststate for '+TSName+' is '+str(laststate))
                         if (type(laststate) == int):
                             RET=RET+laststate
                             break
                         else:
                             time.sleep(1)
+                            count=count+1
+                            serverLogger.debug(TSName+" : Wait for state on list command "+CommandRecv+" %d." % (count))
+                            if (count > MaxWaitExecute):
+                                serverLogger.error(TSName+" : No state "+str(laststate)+" on list command "+CommandRecv+"\n"+
+                                                   "CommandTS "+CommandTS+"  StrTiles"+StrTiles+"\n"+
+                                                   " %d." % (count))
+                                RET=-1
+                                break
+                    serverLogger.debug(TSName+" : Get state on list command "+CommandRecv+" %d." % (RET))
                 else:
                     serverLogger.warning('Execute all command "'+CommandTS+'" on tileset '+TSName)
                     try:
                         self.TileSets[TSName].execute_all(CommandTS)
 
                         RET=0
+                        count=0
                         while True:
                             laststate=self.TileSets[TSName].get_laststate_execute_all()
+                            serverLogger.debug('laststate for '+TSName+' is '+str(laststate))
                             if (type(laststate) == int):
                                 RET=RET+laststate
                                 break
                             else:
                                 time.sleep(1)
+                                count=count+1
+                                serverLogger.debug(TSName+" : Wait for state on all command "+CommandRecv+" %d." % (count))
+                                if (count > MaxWaitExecute):
+                                    serverLogger.error(TSName+" : No state on all command "+CommandRecv+"\n"+
+                                                       "CommandTS "+CommandTS+"\n"+
+                                                       " %d." % (count))
+                                    RET=-1
+                                    break
+                        serverLogger.debug(TSName+" : Get state on all command "+CommandRecv+" %d." % (RET))
                     except KeyError as err:
-                        serverLogger.error("KeyError exception "+str(err)+"\n for "+TSName+" tileset and commande :\n"+CommandTS)
+                        serverLogger.error("KeyError exception "+str(err)+"\n for "+TSName+" tileset and command :\n"+CommandTS)
                         RET=255
                         continue
+                serverLogger.debug(TSName+" : Send OK for command "+CommandRecv+" %d." % (RET))
                 self.Connect.send_OK(self.id,RET)
 
             elif (re.search(r'launch TS',CommandRecv)):
@@ -366,6 +480,30 @@ class ClientConnect(threading.Thread):
 
 
 if __name__ == '__main__':
+    args = parse_args(sys.argv)
+
+    DEBUG=args.debug
+    if (DEBUG):
+        logging.warning("TileServer with debug mode on.")
+    TRACE=args.trace
+    if (TRACE):
+        logging.warning("TileServer with trace mode on.")
+    IdTS=args.idts
+    MaxWaitExecute=args.maxwaitexecute
+
+    #logging.basicConfig(level=logging.WARNING)
+    serverLogger = logging.getLogger("Server")
+    logFormatter = logging.Formatter("\n%(asctime)s - Server - %(threadName)s - %(levelname)s: %(message)s ")
+    #serverLogger.setLevel(logging.ERROR)
+    if (DEBUG):
+        serverLogger.setLevel(logging.DEBUG)
+    else:
+        serverLogger.setLevel(logging.WARNING)
+    #serverLogger.setLevel(logging.INFO)
+    outHandler = logging.StreamHandler(sys.stdout)
+    outHandler.setFormatter(logFormatter)
+    serverLogger.addHandler(outHandler)
+
     serverLogger.info ("Launch TiledViz server on "+os.getenv("HOSTNAME"))
 
     Connect=sock.server(sock.PORTServer)
