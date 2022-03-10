@@ -33,7 +33,23 @@ $(document).ready( function(){
 
     $("#notifications").html("Here is the grid. You can get help with '?' button.")
 
-
+    socket.on("disconnect", (reason) => {
+	if (reason === "io server disconnect") {
+	    // the disconnection was initiated by the server, you need to reconnect manually
+	    console.log("The server has forcefully disconnected the socket");
+	    socket.connect();
+	// else the socket will automatically try to reconnect
+	} else if (reason === "io client disconnect") {
+	    console.log("The socket was manually disconnected.");
+	} else if (reason === "ping timeout") {
+	    console.log("The server did not send a PING within the pingInterval + pingTimeout range.");
+	} else if (reason === "transport close") {
+	    console.log("The connection was closed.");
+	} else if (reason === "transport error") {
+    	    console.log("The connection has encountered an error.");
+	}
+    });
+    
     var update_client_number = function(new_nbr){
 	var new_text = "";
 	if (new_nbr == 0){ // 0: first client (socket not yet created), 1: refresh

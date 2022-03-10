@@ -21,8 +21,10 @@ RUN sed -e 's/#GatewayPorts .*/GatewayPorts yes/' -i /etc/ssh/sshd_config; \
                   export LANG=C.UTF-8 ; \
 		  pip3 install -r /TiledViz/TVWeb/requirements.txt ;"
 
+HEALTHCHECK CMD curl --fail http://localhost:4999/ || exit 1
+EXPOSE 4999
+
 EXPOSE 5000
-EXPOSE 22
 
 ENTRYPOINT ["/TiledViz/TVWeb/FlaskDocker/start_docker_web.sh"]
 

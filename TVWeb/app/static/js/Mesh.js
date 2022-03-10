@@ -534,7 +534,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    top:Math.max(450,TagHeight+240),
 			    left: -shiftcol-50,
 			    marginTop: "0",
-			    width: "105%",
+			    width: "102.5%",
 			    height: "98%",
 			    backgroundColor : "grey",
 			    opacity : "1.",
@@ -592,7 +592,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		// console.log("sticker clicked", this.id);
 		var splittedId = this.id.split("_");
 		var nodeId = splittedId.pop();
-		var node = me.getNodes()["node"+nodeId];
+		var node = me.getNode(nodeId);
 		var zoomed = $('#Zoomed'+nodeId);
 		zoomed.children(".stickers_zone").find('#'+this.id).remove();
 		var nodelev=$('#'+nodeId).css("z-index");
@@ -2182,6 +2182,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		// We repeat first node because its div will be used as master.
 		nodeMSTab=Array(nodeMSTab[0]).concat(nodeMSTab);
+		if (configBehaviour.onlyMasterMS)
+		    configBehaviour.allMSShowMax=0;
 		if (nodeMSTab.length > configBehaviour.allMSShowMax+1) {
 		    nodeMSTab_=nodeMSTab.slice(0, configBehaviour.allMSShowMax+1);
 		    me.magnifyingGlass(nodeMSTab_,ratio,initSpread);
@@ -3134,6 +3136,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		// master-slave behaviour
 		$('#options-zoom').append("<div id=options-masterslave-label class=label>Parallel interaction</div>");
 		$('#options-zoom').append("<br>Number of tiles showed:</br><input id=allMSShowMax name=allMSShowMax type='number' value=" +configBehaviour.allMSShowMax+ "></br>");
+		$('#options-zoom').append("<br>Only MASTER in MS mode:</br><input id=onlyMasterMS name=onlyMasterMS type='checkbox' value=" +configBehaviour.onlyMasterMS+ "></br>");
 
 		$('#options-zone').append("<div id=options-touch class=option-group></div>");
 		// Touch behaviour
@@ -3270,6 +3273,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    
 		    configBehaviour.allMSShowMax = $('#allMSShowMax').val();
                     tempBehaviour=tempBehaviour.replace("***","'allMSShowMax': "+configBehaviour.allMSShowMax+",\n ***");
+		    
+		    configBehaviour.onlyMasterMS = $('#onlyMasterMS').val();
+                    tempBehaviour=tempBehaviour.replace("***","'onlyMasterMS': "+configBehaviour.onlyMasterMS+",\n ***");
 		    
 		    if (touchok) {
 			configBehaviour.touchSpeed = $('#touchSpeed').val();
@@ -3444,6 +3450,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    
         if(tempBehaviour.hasOwnProperty('allMSShowMax'))
 	    configBehaviour.allMSShowMax = tempBehaviour.allMSShowMax;
+	
+        if(tempBehaviour.hasOwnProperty('onlyMasterMS'))
+	    configBehaviour.onlyMasterMS = tempBehaviour.onlyMasterMS;
 	
 	if (touchok) {
 
@@ -5709,7 +5718,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	me.computeNumColumns();
 	for(O in mesh.getNodes()){
 
-	    var node = mesh.getNodes()[O];
+	    var node = mesh.getNode(O.replace("node",""));
 	    var ratio = 1;
 
 	    if( node.getLoadedStatus() == false && 
@@ -6170,7 +6179,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    try {
 		var id = id_.replace("hitbox", ""); 
 		//console.log(this.id, id, HB); 
-		var node = me.getNodes()["node"+id];
+		var node = me.getNode(id);
 		nodeSelect(node,HB)
 	    } catch(e) {
 		console.log("Error in clickHBSelect.");
@@ -6188,7 +6197,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    var HB = $('#' + id_);
 	    if(currentSelectedTag != "")  { 
 		var id = id_.replace("hitbox", "");
-		var node = me.getNodes()["node"+id];
+		var node = me.getNode(id);
 		node.getStickers().addSticker(currentSelectedTag, attributedTagsColorsArray[currentSelectedTag],true);
 		addBorderBlink($("#iframe"+id),attributedTagsColorsArray[currentSelectedTag])
 		node.addElementToNodeTagList(currentSelectedTag);
@@ -6593,7 +6602,7 @@ dblclick: dblclickFunction*/
 	    //console.log("zoomNode clicked", this.id);
 	    var id = this.id.replace("zoomNode", "");
 
-	    var node = me.getNodes()["node"+id];
+	    var node = me.getNode("node"+id);
 
 	    // Variables for magnifyingGlass 
 	    var nodeZoomTab = new Array();

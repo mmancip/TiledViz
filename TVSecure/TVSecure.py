@@ -26,8 +26,6 @@ from TVDb import models
 sys.path.append(os.path.realpath('./TVConnections/'))
 from connect import sock
 
-import argparse
-
 import code
 
 import logging
@@ -181,7 +179,7 @@ class FlaskDocker(threading.Thread):
         # postgres service
         self.postgresHost={POSTGRES_HOST:POSTGRES_IP}
         # Flask external port
-        self.flaskPORT={'5000/tcp':('0.0.0.0',5000)}
+        self.flaskPORT={'4999/tcp':('0.0.0.0',4999),'5000/tcp':('0.0.0.0',5000)}
         for i in range(NbSecureConnection): 
             self.flaskPORT[str(ConnectionPort+i)+'/tcp']=('0.0.0.0',ConnectionPort+i)
 

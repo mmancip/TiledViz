@@ -62,3 +62,10 @@ parts of your script in the ipython prompt.
 You can either have python sources of your functions already loaded with this command
 print(inspect.getsource(myfun))
 on ipython prompt.
+
+8. Problems on some OS
+
+Some gvfs versions gives full memory with Connections docker and
+udisks2-volume-monitor service. You can deactivate this behaviour with 
+> systemctl --user stop gvfs-udisks2-volume-monitor.service
+> systemctl --user mask gvfs-udisks2-volume-monitor.service

@@ -9,6 +9,7 @@ if [ X$(docker ps -a| grep "mageiaconnect"|sed -e 's/\([0-9a-z]*\) .*/\1/' |wc -
     docker ps -a| grep "mageiaconnect" |sed -e 's/\([0-9a-z]*\) .*/\1/' |xargs docker rm -f
     rm -Rf /tmp/connectiondock*
 fi
+date +%F_%H-%M-%S
 
 pwd
 source ${PythonVENV}/bin/activate

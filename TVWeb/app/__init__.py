@@ -37,6 +37,7 @@ logging.getLogger('werkzeug').setLevel(logging.ERROR)
 #SQLALCHEMY_DATABASE_URI=os.environ("DATABASE_URL")
 app = Flask(__name__)
 app.config.from_object(Config) # There are given the secret key and other app settings
+app.config['SESSION_COOKIE_SAMESITE'] = "Strict"
 logging.debug("Flask App config for TiledViz : "+str(app.config))
 
 bootstrap = Bootstrap(app)

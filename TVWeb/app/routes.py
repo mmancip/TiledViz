@@ -11,6 +11,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func
 import requests
 
+
 from app import app, socketio, db
 
 from app.forms import RegisterForm, BuildLoginForm, BuildNewProjectForm, BuildAllProjectSessionForm, BuildOldProjectForm, BuildNewSessionForm, BuildTilesSetForm, BuildEditsessionform, BuildOldTileSetForm, BuildConfigSessionForm, BuildConnectionsForm, BuildRetreiveSessionForm, BuildAdminForm
@@ -18,6 +19,7 @@ from app.forms import RegisterForm, BuildLoginForm, BuildNewProjectForm, BuildAl
 
 import app.models as models # DB management
 import json, os, pprint
+#import shutil
 # import gzip,base64
 import socket
 
@@ -25,6 +27,8 @@ import logging
 import code
 
 from flask_socketio import emit, join_room, rooms
+from flask_cors import CORS
+from flask_cors import cross_origin
 
 #import werkzeug.exceptions
 from werkzeug.utils import secure_filename
@@ -43,7 +47,7 @@ tvdb.session=db.session
 timeAlive=5
 
 # Boolean for admin page :
-really_delete=False
+really_delete=True
 
 # Logging
 logFormatter = logging.Formatter("%(asctime)s - %(threadName)s - %(levelname)s: %(message)s ")
@@ -1955,7 +1959,7 @@ def edittileset():
     if myform.validate_on_submit():
         logging.info("in tileset editor")
         
-        if(connectionbool):
+        if(connectionbool and buildargs["editconnection"]):
             if (myform.editconnection.data):
                 message = '{"oldtilesetid":'+str(oldtileset.id)+',"oldsessionname":"'+session["sessionname"]+'"}'
                 return redirect(url_for(".editconnection",message=message))
@@ -2784,7 +2788,9 @@ def jsoneditor():
 
 # ====================================================================
 # Grid/main page
+#cors = CORS(app, resources={r"/grid/*": {"origins": "*"}})
 @app.route('/grid', methods=['GET', 'POST'])
+@cross_origin()
 def show_grid():
 
     #logging.debug("Enter in show_grid: with session "+str(session))
@@ -3136,6 +3142,7 @@ def ClickAction(cdata):
             logging.warning("action 0 : Save old nodes.json in %s" % (save_nodes_json))
             myflush()
             os.system("mv "+out_nodes_json+" "+save_nodes_json)
+            #shutil.copyfile(out_nodes_json,save_nodes_json)
             # selection must be all tileset
             command=str(actionid)+","+","
         logging.warning("action command %s" % (command))
@@ -3338,7 +3345,7 @@ def config_client(cdata):
 
 @socketio.on("disconnect")
 def disconnect_socket():
-    logging.warning("[<-] Socket disconnected")
+    logging.debug("[<-] Socket disconnected")
     tmp_sid = request.sid
     for key in room_dict:
         if tmp_sid in room_dict[key]:

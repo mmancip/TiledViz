@@ -57,9 +57,9 @@
 	    crossorigin="anonymous"></script>
 
     <!-- Canvas to Blob : save pictures -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/javascript-canvas-to-blob/3.28.0/js/canvas-to-blob.min.js"
-	    integrity="sha512-Q0RYciuNUJLzUgA9T0A0yj1A5wR+rM7MDr3hKBJuNBaSW5O2TqRyBMMLswe7Z/M9czXRnD/5mh1/xQpDpxFZaA=="
-	    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/javascript-canvas-to-blob/3.29.0/js/canvas-to-blob.min.js"
+            integrity="sha512-zkt2aBQ0jhSXjI6VhJegNqBN3Kqlbi7PxpxOpELGoKtRGSuPOVGvetuTixdhQSuRefsFKroRgWRwQDpRcMd3+A=="
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
     <!-- Waypoints : optimize non visible tiles -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/waypoints/4.0.1/noframework.waypoints.min.js"
@@ -293,6 +293,10 @@
 	    if (typeof mesh == "undefined")
 		executeAtEnd();
 	    else {
+		// if (not buildAtEndComplete) {
+		//     executeAtEnd();
+		//     return
+		// }
 		var Nodes=mesh.getNodes();
                 console.log("Build nodes menus")
                 for (O in Nodes)

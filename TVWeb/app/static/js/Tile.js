@@ -765,13 +765,27 @@ Tile = function(Mesh) {
 	$(OpacityZone).append("<div id=tile-opacity-"+id+" class=tile-opacity-menu-zone></div>");
 	// tileOpacitySlider is placed after the transparentButtonIcon (in first place)
 	var tile_opacity = $('#tile-opacity-'+id);
-	var buttonOpacity=$(mymenu[0].childNodes[1]);
-	var hbuttonOpacity=buttonOpacity[0];
-	var tileOpacityLeft=parseInt(buttonOpacity.css("left"))+20;
+	var buttonOpacity="";
+	var hbuttonOpacity="";
+	var tileOpacityLeft="";
 	var hmymenu=parseInt(mymenu.css("height"));
 	var wtile=parseInt($('#'+id).css("width"));
-	var locationTop=parseInt(buttonOpacity.css("top"));
-	var locationLeft=tileOpacityLeft;
+	var locationTop="";
+	var locationLeft="";
+	function delayedOpacity() {
+	    setTimeout(function() {
+		if (mymenu[0].childNodes.length < 1)
+		    delayedOpacity();
+		else {
+		    buttonOpacity=$(mymenu[0].childNodes[1]);
+		    hbuttonOpacity=buttonOpacity[0];
+		    tileOpacityLeft=parseInt(buttonOpacity.css("left"))+20;
+		    locationTop=parseInt(buttonOpacity.css("top"));
+		    locationLeft=tileOpacityLeft;
+		}
+	    }, 100);
+	};
+	delayedOpacity();
 	this.setOpacityLocation = function () {
 	    if (tile_opacity.css("visibility")=="visible") {
 		var rect = hbuttonOpacity.getBoundingClientRect();
