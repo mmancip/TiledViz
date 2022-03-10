@@ -21,8 +21,7 @@ RUN sed -e 's/#GatewayPorts .*/GatewayPorts yes/' -i /etc/ssh/sshd_config; \
                   export LANG=C.UTF-8 ; \
 		  pip3 install -r /TiledViz/TVWeb/requirements.txt ;"
 
-HEALTHCHECK CMD curl --fail http://localhost:4999/ || exit 1
-EXPOSE 4999
+HEALTHCHECK --interval=5m --timeout=10s --retries=1 CMD curl --fail http://localhost:5000/test || exit 1
 
 EXPOSE 5000
 

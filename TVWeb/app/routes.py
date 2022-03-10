@@ -732,6 +732,11 @@ def logout():
     session.pop('username', None)
     return redirect(url_for('index'))
 
+@app.route('/test')
+def testserver():
+    # only test TiledViz server.
+    return render_template("test.html")        
+
 @app.route('/savesession', methods=['GET', 'POST'])
 def savesession():
 
