@@ -228,7 +228,7 @@ $(document).ready(    function (){
 		    }
 		}
 		if (updateAll)
-		    this.updateStickers();
+		    this.updateStickers(true);
 	    }
 
 	    this.removeSticker = function(text_,updateAll)  { 

@@ -20,9 +20,11 @@ Tile = function(Mesh) {
     var jsonData = jsDataTab[id]; // The data related to the node, url which contains simulations, visualisations, metadata etc.
     //It is loaded from the js file : nodes.js
 
-    var loaded = false;
+    var loaded = false; /* state of url load */
 
-    var onoff = true;
+    var onoff = true; /* state of on/off toggle */
+
+    var nodeinviewport = false; /* This variable indicate if the node is visible in viewport */
 
     var qrcoded = false;
     
@@ -888,6 +890,7 @@ Tile = function(Mesh) {
 		nodeTagList[nodeTagList.findIndex(function(e) {return e=='On'})] = "Off";
 		stickers.removeSticker('On',false);
 		stickers.addSticker("Off",attributedTagsColorsArray["Off"],true);
+		this.setOnOffStatus(false)
 	    }
 	}
 	//console.log("nodeTagList setLoadedStatus",nodeTagList, bool)
@@ -902,6 +905,16 @@ Tile = function(Mesh) {
 
     this.setOnOffStatus = function (bool)  { 
 	onoff = bool;
+    }
+
+    //*****NodeInViewport******//
+
+    this.getNodeInViewportStatus = function()  { 
+	return nodeinviewport;
+    }
+    
+    this.setNodeInViewpotStatus = function ()  { 
+	this.isInViewport();
     }
 
     //*****QRcode******//
@@ -1008,7 +1021,7 @@ Tile = function(Mesh) {
 	    }
 
 	}
-	stickers.removeSticker(text_,false);
+	stickers.removeSticker(text_,true);
 	//console.log("after removing", nodeTagList);
     };
 
@@ -1095,9 +1108,12 @@ Tile = function(Mesh) {
 		my_window["top"] < maxTop &&
 		my_window["down"] > minDown
 	    //console.log("window test :",window_test)
+	    nodeinviewport = window_test
 	    return window_test;
-	} else
+	} else {
+	    nodeinviewport = true
 	    return true;
+	}
     };
 
     this.updateUrl = function() {
@@ -1106,7 +1122,7 @@ Tile = function(Mesh) {
 	if(this.getJsonData().url!='undefined' && this.getOnOffStatus())  { 
 	    if (iframe.css("display") != "inline") {
 		iframe.show();
-		//this.setLoadedStatus(true);
+		//this.setLoadedStatus(this.isInViewport());
 	    } else {
 		// loadfunction = function () {
 		if ( this.isInViewport() ) {
@@ -1124,7 +1140,7 @@ Tile = function(Mesh) {
 	    }
 	}
     };
-    this.updateUrl();
+    //this.updateUrl(); //already first call in next function updateHtmlNodeFromLoc
     
     this.updateHtmlNodeFromLoc = function(loc){
 	var position = {};

@@ -330,7 +330,8 @@ $(document).ready( function(){
 	if ($('#menu'+sdata.Menu+'>.'+sdata.optionButton).length > 0) {
 	    var thisoption=$('#menu'+sdata.Menu+'>.'+sdata.optionButton);
 	} else {
-	    var thisoption=$('#menu'+sdata.Menu+'>.close'+sdata.optionButton);
+	    var opt=sdata.optionButton;
+	    var thisoption=$('#menu'+sdata.Menu+'>.close'+opt[0].toUpperCase()+opt.substring(1));
 	}
 	//$('#'+sdata.Menu+'option'+sdata.optionNumber);
 	var listClass=thisoption.attr("class").split(" ");
