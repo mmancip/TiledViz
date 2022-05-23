@@ -39,3 +39,11 @@ requirements.txt # Packages listed to be installed through pip on the web server
 Socket.io communications:
 * Server-side: data received from the client will be named `cdata`, data sent to the client will be named `sdata`
 * Client-side: data received from the server will be named `sdata`, data sent to the server will be named `cdata`
+
+
+
+# Logging
+A FIFO is created in Flaskdock to modify TiledViz.log output level for clicks in web clients :
+LOGLEV=WARNING by default.
+To change that, connect to the container as flaskusr and give new level (ERROR, WARNING, INFO, DEBUG)
+> echo INFO > /tmp/logfifo 

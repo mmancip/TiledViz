@@ -1,0 +1,804 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="297mm"
+   height="210mm"
+   viewBox="0 0 297 210"
+   version="1.1"
+   id="svg3771"
+   inkscape:version="0.92.4 (5da689c313, 2019-01-14)"
+   sodipodi:docname="tiledviz_cases_HPC.svg"
+   inkscape:export-filename="/usr/local/home/mmancip_/Documents/TileViz/TiledViz/TVSecure/tiledviz_cases_HPC.svg.png"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   enable-background="new">
+  <defs
+     id="defs3765">
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="marker7188"
+       style="overflow:visible;"
+       inkscape:isstock="true">
+      <path
+         id="path7186"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.8) rotate(180) translate(12.5,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow2Mend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow2Mend"
+       style="overflow:visible;"
+       inkscape:isstock="true">
+      <path
+         id="path5203"
+         style="fill-rule:evenodd;stroke-width:0.625;stroke-linejoin:round;stroke:#000000;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         d="M 8.7185878,4.0337352 L -2.2072895,0.016013256 L 8.7185884,-4.0017078 C 6.9730900,-1.6296469 6.9831476,1.6157441 8.7185878,4.0337352 z "
+         transform="scale(0.6) rotate(180) translate(0,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Sstart"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Sstart"
+       style="overflow:visible"
+       inkscape:isstock="true">
+      <path
+         id="path5188"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.2) translate(6,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="marker7180"
+       style="overflow:visible;"
+       inkscape:isstock="true">
+      <path
+         id="path7178"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.8) rotate(180) translate(12.5,0)" />
+    </marker>
+    <inkscape:path-effect
+       effect="bspline"
+       id="path-effect7176"
+       is_visible="true"
+       weight="33.333333"
+       steps="2"
+       helper_size="0"
+       apply_no_weight="true"
+       apply_with_weight="true"
+       only_selected="false" />
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="marker6428"
+       style="overflow:visible;"
+       inkscape:isstock="true">
+      <path
+         id="path6426"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.8) rotate(180) translate(12.5,0)" />
+    </marker>
+    <inkscape:path-effect
+       effect="bspline"
+       id="path-effect6424"
+       is_visible="true"
+       weight="33.333333"
+       steps="2"
+       helper_size="0"
+       apply_no_weight="true"
+       apply_with_weight="true"
+       only_selected="false" />
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="marker6412"
+       style="overflow:visible;"
+       inkscape:isstock="true">
+      <path
+         id="path6410"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.8) rotate(180) translate(12.5,0)" />
+    </marker>
+    <inkscape:path-effect
+       effect="bspline"
+       id="path-effect6408"
+       is_visible="true"
+       weight="33.333333"
+       steps="2"
+       helper_size="0"
+       apply_no_weight="true"
+       apply_with_weight="true"
+       only_selected="false" />
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="marker5543"
+       style="overflow:visible;"
+       inkscape:isstock="true">
+      <path
+         id="path5541"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.8) rotate(180) translate(12.5,0)" />
+    </marker>
+    <inkscape:path-effect
+       effect="bspline"
+       id="path-effect5515"
+       is_visible="true"
+       weight="33.333333"
+       steps="2"
+       helper_size="0"
+       apply_no_weight="true"
+       apply_with_weight="true"
+       only_selected="false" />
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="marker5471"
+       style="overflow:visible;"
+       inkscape:isstock="true">
+      <path
+         id="path5469"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.8) rotate(180) translate(12.5,0)" />
+    </marker>
+    <inkscape:path-effect
+       effect="bspline"
+       id="path-effect5467"
+       is_visible="true"
+       weight="33.333333"
+       steps="2"
+       helper_size="0"
+       apply_no_weight="true"
+       apply_with_weight="true"
+       only_selected="false" />
+    <marker
+       inkscape:stockid="Arrow1Send"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Send"
+       style="overflow:visible;"
+       inkscape:isstock="true">
+      <path
+         id="path5191"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.2) rotate(180) translate(6,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Mend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="marker5461"
+       style="overflow:visible;"
+       inkscape:isstock="true">
+      <path
+         id="path5185"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.4) rotate(180) translate(10,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="marker5458"
+       style="overflow:visible;"
+       inkscape:isstock="true">
+      <path
+         id="path5456"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.8) rotate(180) translate(12.5,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="marker5454"
+       style="overflow:visible;"
+       inkscape:isstock="true">
+      <path
+         id="path5452"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.8) rotate(180) translate(12.5,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="marker5446"
+       style="overflow:visible;"
+       inkscape:isstock="true">
+      <path
+         id="path5444"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.8) rotate(180) translate(12.5,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Mstart"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Mstart"
+       style="overflow:visible"
+       inkscape:isstock="true">
+      <path
+         id="path5182"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.4) translate(10,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Lend"
+       style="overflow:visible;"
+       inkscape:isstock="true">
+      <path
+         id="path5179"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.8) rotate(180) translate(12.5,0)" />
+    </marker>
+    <inkscape:path-effect
+       effect="bspline"
+       id="path-effect5174"
+       is_visible="true"
+       weight="33.333333"
+       steps="2"
+       helper_size="0"
+       apply_no_weight="true"
+       apply_with_weight="true"
+       only_selected="false" />
+    <marker
+       inkscape:isstock="true"
+       style="overflow:visible;"
+       id="marker8881"
+       refX="0.0"
+       refY="0.0"
+       orient="auto"
+       inkscape:stockid="Arrow1Lend">
+      <path
+         transform="scale(0.8) rotate(180) translate(12.5,0)"
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         id="path8879" />
+    </marker>
+    <marker
+       inkscape:isstock="true"
+       style="overflow:visible"
+       id="marker8775"
+       refX="0.0"
+       refY="0.0"
+       orient="auto"
+       inkscape:stockid="Arrow1Lstart">
+      <path
+         transform="scale(0.8) translate(12.5,0)"
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         id="path8773" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Mend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="Arrow1Mend"
+       style="overflow:visible;"
+       inkscape:isstock="true">
+      <path
+         id="path8810"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.4) rotate(180) translate(10,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0.0"
+       refX="0.0"
+       id="marker14617"
+       style="overflow:visible;"
+       inkscape:isstock="true">
+      <path
+         id="path14615"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         transform="scale(0.8) rotate(180) translate(12.5,0)" />
+    </marker>
+    <marker
+       inkscape:isstock="true"
+       style="overflow:visible"
+       id="marker12669"
+       refX="0.0"
+       refY="0.0"
+       orient="auto"
+       inkscape:stockid="Arrow1Lstart">
+      <path
+         transform="scale(0.8) translate(12.5,0)"
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1;fill:#000000;fill-opacity:1"
+         d="M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z "
+         id="path12667" />
+    </marker>
+  </defs>
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="1"
+     inkscape:pageshadow="2"
+     inkscape:zoom="0.60848362"
+     inkscape:cx="398.5236"
+     inkscape:cy="446.33914"
+     inkscape:document-units="mm"
+     inkscape:current-layer="layer2"
+     showgrid="false"
+     inkscape:window-width="1920"
+     inkscape:window-height="1064"
+     inkscape:window-x="0"
+     inkscape:window-y="1"
+     inkscape:window-maximized="1"
+     inkscape:snap-bbox="true"
+     inkscape:snap-text-baseline="true"
+     inkscape:snap-global="false">
+    <inkscape:grid
+       type="xygrid"
+       id="grid3773" />
+  </sodipodi:namedview>
+  <metadata
+     id="metadata3768">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Calque 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,-87)"
+     style="display:inline">
+    <rect
+       style="fill:#ff55dd;stroke-width:0.28063306"
+       id="rect41"
+       width="142.875"
+       height="47.625023"
+       x="42.333336"
+       y="106.5"
+       ry="1.4746286"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:7.05555534px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
+       x="47.625"
+       y="122.37502"
+       id="text53"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96"><tspan
+         sodipodi:role="line"
+         id="tspan51"
+         x="47.625"
+         y="122.37502"
+         style="stroke-width:0.26458332">HPC Machine</tspan></text>
+    <rect
+       style="fill:#ffaaee;stroke-width:0.26458332"
+       id="rect55"
+       width="37.041668"
+       height="26.458332"
+       x="42.333321"
+       y="127.6667"
+       ry="1.3107803"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:5.29166651px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
+       x="47.625"
+       y="138.25002"
+       id="text59"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96"><tspan
+         sodipodi:role="line"
+         id="tspan57"
+         x="47.625"
+         y="138.25002"
+         style="stroke-width:0.26458332">Frontend</tspan></text>
+    <rect
+       style="fill:#ffd5f6;stroke-width:0.24749506"
+       id="rect61"
+       width="15.875"
+       height="37.041672"
+       x="100.54166"
+       y="-154.12503"
+       ry="1.1469328"
+       transform="scale(1,-1)"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96" />
+    <rect
+       style="fill:#ffd5f6;stroke-width:0.24749506"
+       id="rect61-3"
+       width="15.875"
+       height="37.041672"
+       x="121.70834"
+       y="-154.12503"
+       ry="1.1469328"
+       transform="scale(1,-1)"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96" />
+    <rect
+       style="fill:#ffd5f6;stroke-width:0.24749506"
+       id="rect61-6"
+       width="15.875"
+       height="37.041672"
+       x="142.875"
+       y="-154.12503"
+       ry="1.1469328"
+       transform="scale(1,-1)"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96" />
+    <rect
+       style="fill:#ffd5f6;stroke-width:0.24749506"
+       id="rect61-6-7"
+       width="15.875"
+       height="37.041672"
+       x="164.04169"
+       y="-154.12503"
+       ry="1.1469328"
+       transform="scale(1,-1)"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:5.29166651px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
+       x="127"
+       y="114.43751"
+       id="text122"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96"><tspan
+         sodipodi:role="line"
+         id="tspan120"
+         x="127"
+         y="114.43751"
+         style="stroke-width:0.26458332">Nodes</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:5.29166651px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
+       x="58.208332"
+       y="132.95833"
+       id="text154"
+       inkscape:export-xdpi="96"
+       inkscape:export-ydpi="96"><tspan
+         sodipodi:role="line"
+         id="tspan152"
+         x="58.208332"
+         y="137.64021"
+         style="stroke-width:0.26458332" /></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:5.64444447px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="44.979168"
+       y="151.47917"
+       id="text4792"><tspan
+         sodipodi:role="line"
+         id="tspan4790"
+         x="44.979168"
+         y="151.47917"
+         style="stroke-width:0.26458332px">TileServer.py</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.64444447px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="190.5"
+       y="101.20834"
+       id="text5485"><tspan
+         sodipodi:role="line"
+         id="tspan5483"
+         x="190.5"
+         y="101.20834"
+         style="stroke-width:0.26458332px">/home/user/.tiledviz/tiledviz.conf</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.64444447px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="116.41666"
+       y="101.20836"
+       id="text6420"><tspan
+         sodipodi:role="line"
+         id="tspan6430"
+         x="116.41666"
+         y="101.20836">ssh + TCP PORTServer</tspan></text>
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker6428)"
+       d="m 111.125,90.625 c -5.29157,17.63857 -10.58324,35.27746 -13.229119,44.97889 -2.645882,9.70143 -2.645882,11.46529 -4.409903,12.34736 -1.764021,0.88208 -5.291271,0.88208 -8.819312,0.88208"
+       id="path6422"
+       inkscape:connector-curvature="0"
+       inkscape:path-effect="#path-effect6424"
+       inkscape:original-d="m 111.125,90.625 c -5.2914,17.63862 -10.58307,35.27751 -15.875001,52.91667 2.64e-4,1.76365 2.64e-4,3.52751 0,5.29166 -3.528042,-2.6e-4 -7.055292,-2.6e-4 -10.583333,0" />
+  </g>
+  <g
+     inkscape:groupmode="layer"
+     id="layer2"
+     inkscape:label="Calque 2"
+     style="display:inline;opacity:0.61499999">
+    <rect
+       style="display:inline;opacity:1;fill:#c8b7b7;fill-opacity:1;stroke-width:0.280633"
+       id="rect4794"
+       width="119.06251"
+       height="42.333332"
+       x="100.54166"
+       y="88.291672"
+       ry="1.4746261" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;font-size:5.64444447px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="137.28821"
+       y="84.952812"
+       id="text4821"><tspan
+         sodipodi:role="line"
+         id="tspan4819"
+         x="137.28821"
+         y="84.952812"
+         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.3499999px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;writing-mode:lr-tb;text-anchor:start;stroke-width:0.26458332px">PCOCC network</tspan></text>
+    <rect
+       style="opacity:1;fill:#c8b7b7;fill-opacity:1;stroke-width:0.26458332"
+       id="rect4827"
+       width="29.104166"
+       height="18.520834"
+       x="105.83334"
+       y="101.52083"
+       ry="1.4746261" />
+    <rect
+       style="opacity:1;fill:#c8b7b7;fill-opacity:1;stroke-width:0.26458332"
+       id="rect4829"
+       width="31.75"
+       height="18.520828"
+       x="105.83334"
+       y="101.52084"
+       ry="2.8421709e-14" />
+    <rect
+       style="opacity:1;fill:#809bb7;fill-opacity:1;stroke-width:0.26458332"
+       id="rect4831"
+       width="31.75"
+       height="18.520834"
+       x="105.83334"
+       y="101.52083"
+       ry="2.8421808e-14" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.64444447px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="141.33766"
+       y="104.05338"
+       id="text4851"><tspan
+         sodipodi:role="line"
+         id="tspan5477"
+         x="141.33766"
+         y="104.05338">Docker X11 container n°i</tspan><tspan
+         sodipodi:role="line"
+         id="tspan5479"
+         x="141.33766"
+         y="111.10894">client_python (bash) </tspan><tspan
+         sodipodi:role="line"
+         id="tspan5481"
+         x="141.33766"
+         y="118.1645">=&gt; TileClient.py</tspan></text>
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker5471)"
+       d="M 66.145832,90.9375 C 38.805686,79.472277 11.465408,68.006999 1.7641057,58.305431 -7.9371963,48.603863 2.6475833e-4,40.666402 7.9374999,32.729167"
+       id="path5465"
+       inkscape:connector-curvature="0"
+       inkscape:path-effect="#path-effect5467"
+       inkscape:original-d="M 66.145832,90.9375 C 38.805821,79.471956 11.465542,68.006679 -15.875,56.541667 -7.9371975,48.603862 2.6458333e-4,40.666402 7.9374999,32.729167"
+       transform="matrix(1.1363639,0,0,0.77272692,33.313437,36.54266)" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:4.93888903px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="13.229159"
+       y="114.75002"
+       id="text5475"><tspan
+         sodipodi:role="line"
+         id="tspan5545"
+         x="13.229159"
+         y="114.75002">requête de détection bind(&quot;&quot;,0)</tspan><tspan
+         sodipodi:role="line"
+         id="tspan5547"
+         x="13.229159"
+         y="120.92364">ssh + VNC Port(i)</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.64444447px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="42.333324"
+       y="80.354195"
+       id="text5489"><tspan
+         sodipodi:role="line"
+         id="tspan5507"
+         x="42.333324"
+         y="80.354195">TileSetPort</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.64444447px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="113.77084"
+       y="109.45836"
+       id="text5493"><tspan
+         sodipodi:role="line"
+         id="tspan5491"
+         x="113.77084"
+         y="109.45836"
+         style="stroke-width:0.26458332px">6501</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.64444447px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="190.5"
+       y="24.791666"
+       id="text5501"><tspan
+         sodipodi:role="line"
+         id="tspan5499"
+         x="190.5"
+         y="24.791666"
+         style="stroke-width:0.26458332px">1 TileServer par user =</tspan><tspan
+         sodipodi:role="line"
+         x="190.5"
+         y="31.847221"
+         style="stroke-width:0.26458332px"
+         id="tspan5503">PORTServer </tspan><tspan
+         sodipodi:role="line"
+         x="190.5"
+         y="38.902779"
+         style="stroke-width:0.26458332px"
+         id="tspan5505">doit changer dans tiledviz.conf</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.64444447px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="113.77082"
+       y="117.39584"
+       id="text5511"><tspan
+         sodipodi:role="line"
+         id="tspan5509"
+         x="113.77082"
+         y="117.39584"
+         style="stroke-width:0.26458332px">5902</tspan></text>
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker5543)"
+       d="M 100.54167,104.16667 C 67.90992,97.111156 35.277974,90.055599 18.961904,82.117917 2.6458333,74.180236 2.6458333,65.360846 8.0258528,58.305345 13.405872,51.249845 24.165278,45.958334 34.925,40.666667"
+       id="path5513"
+       inkscape:connector-curvature="0"
+       inkscape:path-effect="#path-effect5515"
+       inkscape:original-d="M 100.54167,104.16667 C 67.909987,97.110845 35.278041,90.055289 2.6458333,83 c 2.646e-4,-8.819764 2.646e-4,-17.639154 0,-26.458333 C 13.405819,51.249736 34.925,40.666667 34.925,40.666667"
+       sodipodi:nodetypes="cccc"
+       transform="translate(7.9374921,10.583368)" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:4.93888903px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="5.2916718"
+       y="51.250031"
+       id="text5551"><tspan
+         sodipodi:role="line"
+         id="tspan5553"
+         x="5.2916718"
+         y="51.250031">sshVNC-Port_i</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.64444447px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="13.183319"
+       y="146.01601"
+       id="text5557"><tspan
+         sodipodi:role="line"
+         id="tspan5555"
+         x="13.183319"
+         y="146.01601"
+         style="stroke-width:0.26458332px">TileSetPort est donné par PORTServer + l'itérateur des TileSets par utilisateur.</tspan><tspan
+         sodipodi:role="line"
+         x="13.183319"
+         y="153.07156"
+         style="stroke-width:0.26458332px"
+         id="tspan5559" /><tspan
+         sodipodi:role="line"
+         x="13.183319"
+         y="160.12712"
+         style="stroke-width:0.26458332px"
+         id="tspan5561">La connection ssh + VNC est pour l'instant donnée par une détection de port libre, </tspan><tspan
+         sodipodi:role="line"
+         x="13.183319"
+         y="167.18268"
+         style="stroke-width:0.26458332px"
+         id="tspan5567">depuis le script client_python dans chaque conteneur de visualisation.</tspan><tspan
+         sodipodi:role="line"
+         x="13.183319"
+         y="174.23824"
+         style="stroke-width:0.26458332px"
+         id="tspan5563" /><tspan
+         sodipodi:role="line"
+         x="13.183319"
+         y="181.29378"
+         style="stroke-width:0.26458332px"
+         id="tspan5565">cf </tspan><tspan
+         sodipodi:role="line"
+         x="13.183319"
+         y="188.34933"
+         style="stroke-width:0.26458332px"
+         id="tspan5571">https://github.com/mmancip/TiledViz/blob/master/TVConnections/mageianvidia/client_python</tspan><tspan
+         sodipodi:role="line"
+         x="13.183319"
+         y="195.40489"
+         style="stroke-width:0.26458332px"
+         id="tspan5569">https://github.com/mmancip/TiledViz/blob/master/TVConnections/mageianvidia/tunnel_ssh</tspan><tspan
+         sodipodi:role="line"
+         x="13.183319"
+         y="202.46045"
+         style="stroke-width:0.26458332px"
+         id="tspan5573">https://github.com/mmancip/TiledViz/blob/master/TVConnections/TileServer.py</tspan></text>
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker6412)"
+       d="M 15.875,30.083334 C 12.347222,26.555555 8.8194441,23.027778 7.9376322,20.381812 7.0558202,17.735846 8.819709,15.971957 10.583333,14.208333"
+       id="path6406"
+       inkscape:connector-curvature="0"
+       inkscape:path-effect="#path-effect6408"
+       inkscape:original-d="M 15.875,30.083334 C 12.347487,26.55529 8.8197088,23.027513 5.2916666,19.5 7.0558201,17.735846 8.8197088,15.971957 10.583333,14.208333"
+       transform="matrix(1.6475447,0,0,1.6666666,-4.9880996,-4.1805267)" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.64444447px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="5.2916718"
+       y="19.500029"
+       id="text6416"><tspan
+         sodipodi:role="line"
+         id="tspan6414"
+         x="5.2916718"
+         y="19.500029"
+         style="stroke-width:0.26458332px">TVConnections</tspan></text>
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.26458332;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:0.26458332, 0.26458332000000001;stroke-dashoffset:0;stroke-opacity:1;marker-mid:url(#Arrow2Mend);marker-end:url(#marker7188)"
+       d="m 100.54166,67.125029 c 2.86634,6.171645 5.73273,12.343408 8.59918,18.515282"
+       id="path7174"
+       inkscape:connector-curvature="0"
+       inkscape:path-effect="#path-effect7176"
+       inkscape:original-d="m 100.54166,67.125029 c 2.86666,6.171496 5.73306,12.343257 8.59918,18.515282"
+       transform="matrix(1.3980344,0,0,1.1157223,-33.995929,-7.7906299)" />
+  </g>
+</svg>

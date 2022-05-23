@@ -15,7 +15,7 @@
    viewBox="0 0 297 210"
    version="1.1"
    id="svg3771"
-   inkscape:version="0.92.1 r15371"
+   inkscape:version="0.92.4 (5da689c313, 2019-01-14)"
    sodipodi:docname="tiledviz_secure.svg"
    inkscape:export-filename="/usr/local/home/mmancip_/Documents/TileViz/TiledViz/TVSecure/tiledviz_secure.svg.png"
    inkscape:export-xdpi="96"
@@ -236,15 +236,15 @@
      pagecolor="#ffffff"
      bordercolor="#666666"
      borderopacity="1.0"
-     inkscape:pageopacity="0.0"
+     inkscape:pageopacity="1"
      inkscape:pageshadow="2"
      inkscape:zoom="0.86052579"
-     inkscape:cx="561.25984"
+     inkscape:cx="305.60219"
      inkscape:cy="396.85039"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      showgrid="true"
-     inkscape:window-width="2560"
+     inkscape:window-width="1920"
      inkscape:window-height="1064"
      inkscape:window-x="0"
      inkscape:window-y="1"
@@ -262,7 +262,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -471,15 +471,15 @@
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:5.29166651px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332"
-       x="95.25"
-       y="254.66667"
+       x="100.78441"
+       y="258.66376"
        id="text122"
        inkscape:export-xdpi="96"
        inkscape:export-ydpi="96"><tspan
          sodipodi:role="line"
          id="tspan120"
-         x="95.25"
-         y="254.66667"
+         x="100.78441"
+         y="258.66376"
          style="stroke-width:0.26458332">Nodes</tspan></text>
     <g
        id="g3892"
@@ -565,7 +565,12 @@
          id="tspan7922"
          x="15.875"
          y="212.33333"
-         style="stroke-width:0.26458332">ssh -R ?</tspan></text>
+         style="stroke-width:0.26458332">TVConnection.py</tspan><tspan
+         sodipodi:role="line"
+         x="15.875"
+         y="218.94791"
+         style="stroke-width:0.26458332"
+         id="tspan6318">besoin de ssh -R ?</tspan></text>
     <path
        style="fill:none;stroke:#000000;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
        d="m 15.875,196.45833 c -15.875,10.58333 0,26.45834 0,26.45834 v 0 l 5.291667,5.29166"
@@ -607,7 +612,7 @@
          x="122.07865"
          y="234.44565"
          style="stroke-width:0.26458332"
-         id="tspan115">flux ssh+VNC+password</tspan></text>
+         id="tspan115">flux ssh+VNC+password unique, aléatoire</tspan></text>
     <path
        style="fill:none;stroke:#000000;stroke-width:0.58469772px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-start:url(#marker12771)"
        d="M 132.29167,180.58333 C 100.54166,148.83334 107.34524,162.49375 84.666672,144.40416"
@@ -617,8 +622,8 @@
        inkscape:export-xdpi="96"
        inkscape:export-ydpi="96" />
     <path
-       style="fill:none;stroke:#000000;stroke-width:0.39441752px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-start:url(#marker16355);marker-end:url(#marker16273)"
-       d="m 79.374999,117.08333 c 70.555561,-10.58333 82.314821,0 105.833331,0"
+       style="fill:none;stroke:#000000;stroke-width:0.47727683px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-start:url(#marker16355);marker-end:url(#marker16273)"
+       d="m 79.567844,116.38021 c 70.298456,-15.55379 82.014866,0 105.447676,0"
        id="path18777"
        inkscape:connector-curvature="0"
        inkscape:export-xdpi="96"
@@ -742,7 +747,7 @@
        inkscape:export-ydpi="96" />
     <g
        id="g128"
-       transform="translate(2.6458384,-2.6458232)">
+       transform="translate(2.6458384,-5.2916565)">
       <rect
          inkscape:export-ydpi="96"
          inkscape:export-xdpi="96"
@@ -797,5 +802,35 @@
        inkscape:connector-curvature="0"
        inkscape:export-xdpi="96"
        inkscape:export-ydpi="96" />
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.64444447px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="13.229166"
+       y="252.02084"
+       id="text6312"><tspan
+         sodipodi:role="line"
+         id="tspan6310"
+         x="13.229166"
+         y="252.02084"
+         style="stroke-width:0.26458332px">launch TileServer.py : PORT 2222 + génération de clé ssh temporaire</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:5.64444447px;line-height:125%;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-feature-settings:normal;text-align:start;letter-spacing:0px;word-spacing:0px;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.26458332px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       x="15.875"
+       y="212.33333"
+       id="text6316"><tspan
+         sodipodi:role="line"
+         id="tspan6314"
+         x="15.875"
+         y="217.32733"
+         style="stroke-width:0.26458332px" /></text>
+    <rect
+       style="opacity:0.228;fill:#809bb7;fill-opacity:1;stroke-width:0.26499999;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none"
+       id="rect6320"
+       width="148.16667"
+       height="68.791679"
+       x="132.29167"
+       y="143.54167"
+       ry="1.1469316" />
   </g>
 </svg>

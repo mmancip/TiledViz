@@ -58,11 +58,13 @@
 		"moveOnlyABorder" : true,
 		"moveOnGrid" : false,
 	        "touchSpeed" : 3,
+	        "touchonWindow" : false,
 		"smoothRotation" : false,
 		"RotationSpeed" : 1, 
 		"moveOnNodeMenuOption" : true, 
 		"moveOnMenuOption" : false, 
-		"allMSShowMax" : 8  
+	        "allMSShowMax" : 8,
+	        "onlyMasterMS" : false
 	},
 	"cssProperties":{
 		"button":{ 

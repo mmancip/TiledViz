@@ -363,7 +363,7 @@ $(document).ready( function(){
     });
     // emit function used to send shared clicks
     emit_click=function(action,id) {
-	if (! $('.'+action+'#'+id).hasClass("NotSharedAgain")) {			    
+	if (! $('.'+action+'#'+id).hasClass("NotSharedAgain") && my_user != "Anonymous" ) {			    
 		cdata={"room":my_session,"id":id,"action":action};
 		socket.emit("click", cdata, callback=function(sdata){
  		    console.log("socket send click ", cdata);				
@@ -384,7 +384,7 @@ $(document).ready( function(){
     });
     // emit function used to send shared clicks
     emit_click_val=function(action,id,val) {
-	if (! $('.'+action+'#'+id).hasClass("NotSharedAgain")) {			    
+	if (! $('.'+action+'#'+id).hasClass("NotSharedAgain") && my_user != "Anonymous" ) {
 	    cdata={"room":my_session,"id":id,"action":action,"val":val};
 	    socket.emit("click_val", cdata, callback=function(sdata){
  		console.log("socket send click_val ", cdata);				

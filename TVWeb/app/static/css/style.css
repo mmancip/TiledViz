@@ -166,7 +166,7 @@
 	background-image: url(../images/icons/globalmenu/zoommenu/zoomNode.png);
 }
 
-[class~=closezoomNodesButtonIcon]
+[class~=closeZoomNodesButtonIcon]
 {
 	background-image: url(../images/icons/globalmenu/zoommenu/closezoomNode.png);
 }

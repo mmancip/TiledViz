@@ -884,6 +884,7 @@ Tile = function(Mesh) {
 		stickers.removeSticker('Off',false);
 		stickers.addSticker("On",attributedTagsColorsArray["On"],true);
 		this.setQRcodeStatus()
+		this.setOnOffStatus(true)
 	    }
 	} else {
 	    if ( nodeTagList.some(function(e) {return e=='On'}) ) {
@@ -905,6 +906,11 @@ Tile = function(Mesh) {
 
     this.setOnOffStatus = function (bool)  { 
 	onoff = bool;
+	if (bool)
+	    if (this.getNodeInViewportStatus()) {
+		var iframe = $('#iframe'+id);
+		iframe.css("display","inline")
+	    }
     }
 
     //*****NodeInViewport******//
@@ -1119,19 +1125,29 @@ Tile = function(Mesh) {
     this.updateUrl = function() {
 	var id=this.getId();
 	var iframe = $('#iframe'+id);
-	if(this.getJsonData().url!='undefined' && this.getOnOffStatus())  { 
-	    if (iframe.css("display") != "inline") {
+	if(this.getJsonData().url!='undefined' && this.getOnOffStatus())  {
+	    ifrdisp=iframe.css("display")
+	    if (ifrdisp != "inline" && ifrdisp != "block") {
 		iframe.show();
 		//this.setLoadedStatus(this.isInViewport());
+		if (iframe.attr("src") == "") {
+		    iframe.attr("src",this.getJsonData().url);
+		    this.setLoadedStatus(true);
+		}
 	    } else {
 		// loadfunction = function () {
 		if ( this.isInViewport() ) {
 		    if (iframe.attr("src") == "") {
 			iframe.attr("src",this.getJsonData().url);
 			this.setLoadedStatus(true);
+			var ONst=iframe.css("display");
+			if (ONst == "none")
+			    iframe.css("display","inline")
 		    }
 		} else {
 		    iframe.attr("src","");
+		    //iframe.attr("src",this.getJsonData().url);
+		    iframe.css("display","none");
 		    this.setLoadedStatus(false);
 		}
 		// }

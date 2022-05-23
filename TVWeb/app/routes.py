@@ -56,6 +56,33 @@ outHandler.setLevel(logging.WARNING)
 # outHandler.setLevel(logging.DEBUG)
 outHandler.setFormatter(logFormatter)
 
+import errno,posix
+logFIFO="/tmp/logfifo"
+os.mkfifo(logFIFO)
+initLOGLEV="WARNING"
+logfifo=posix.open(logFIFO, posix.O_NONBLOCK)
+LOGLEV=initLOGLEV
+def logfun(mystring):
+    global LOGLEV
+    try:
+        nLOGLEV=re.sub(r'\n',r'',posix.read(logfifo,8).decode('utf-8'))
+    except Exception as e:
+        print("Erreur LOGLEV")
+        pass
+    if (len(nLOGLEV)>2):
+        LOGLEV=nLOGLEV
+    if (LOGLEV=="WARNING"):
+        logging.warning(mystring)
+    elif (LOGLEV=="INFO"):
+        logging.info(mystring)
+    elif (LOGLEV=="DEBUG"):
+        logging.debug(mystring)
+    elif (LOGLEV=="ERROR"):
+        logging.error(mystring)
+    else:
+        logging.warning(mystring)
+        print("LOGLEV "+LOGLEV)
+
 # Shared variables for threads in server
 clients = [] # Array to store clients
 room_dict = {} # Dict to store rooms (and sub-arrays for clients in each room)
@@ -711,7 +738,7 @@ def login():
                 elif (myform.choice_project.data == "modify"):
                     return redirect("/oldsessions")
                 else:
-                    logging.error("Before leave login page choice_project : " + myform.choice_project.data)
+                    logging.warning("After login page choice : " + myform.choice_project.data + " project.")
                     # Want to use a project now :
                     # 1. list (user/ ?) (own ?) projects/session for user
                     # 2. ask a invite links from another user ?
@@ -1581,7 +1608,7 @@ def searchtileset():
         for tileset in thissession.tile_sets:
             if ( tileset.name not in listtilesets ):
                 thedate=db.session.query(models.TileSet.creation_date).filter_by(name=tileset.name).scalar().isoformat().replace("T"," ")
-                logging.error("Compare thedate : %s %s" % (thedate, tileset.creation_date.isoformat().replace("T"," ")))
+                logging.warning("Compare thedate : %s %s" % (thedate, tileset.creation_date.isoformat().replace("T"," ")))
                 listtilesets.append((str(tileset.id),
                                      printstr.format(
                                          str(tileset.name),
@@ -2801,6 +2828,7 @@ def show_grid():
     #logging.debug("Enter in show_grid: with session "+str(session))
     if (not 'is_client_active' in session):
         flash("You are not connected. You must login before using a grid.")
+        logging.error("You are not connected. You must login before using a grid."+str(session))
         return redirect("/login")
         
     if request.method == 'POST' and "new room" in request.form :
@@ -3011,7 +3039,7 @@ def saveSession(cdata):
 def shareSelection(cdata):
     croom=cdata["room"]
     listSelectionIds=json.loads(cdata["Selection"]);
-    logging.warning("[->] shareSelection " + str(len(listSelectionIds)) + " nodes in room " + str(croom))
+    logfun("[->] shareSelection " + str(len(listSelectionIds)) + " nodes in room " + str(croom))
     sdata = {"Selection":cdata["Selection"]}
     socketio.emit('receive_deploy_Selection', sdata,room=croom)
 
@@ -3025,17 +3053,22 @@ def deploySession(cdata):
 
 @socketio.on("share_Config")
 def shareConfig(cdata):
-    croom=cdata["room"]
-    logging.warning("[->] shareConfig in room " + str(croom))
-    configJson=json.loads(cdata["Config"].replace("'", '"'));
-    sdata = {"Config":configJson};
-    socketio.emit('receive_deploy_Config', sdata,room=croom)
-    
+    try:
+        croom=cdata["room"]
+        logging.warning("[->] shareConfig in room " + str(croom))
+        configJson=json.loads(cdata["Config"].replace("'", '"'));
+        logging.info("Config: "+str(configJson))
+        sdata = {"Config":configJson};
+        socketio.emit('receive_deploy_Config', sdata,room=croom)
+    except Exception as e:
+        logging.error("err : "+str(e))
+        logging.error("cData : "+str(cdata))
+
 @socketio.on('move_tile')
 def handle_click_event(cdata):
     global tiles_data
     croom = cdata["room"]
-    logging.warning("[->] Click on tile " + str(cdata["id"]) + " in room " + str(croom))
+    logfun("[->] Click on tile " + str(cdata["id"]) + " in room " + str(croom))
     logging.info("[+] Position: (" + str(cdata["posX"]) + ", " + str(cdata["posY"])+ ")")
 
     session_id = request.sid
@@ -3060,7 +3093,7 @@ def handle_click_event(cdata):
 def MenuShare(cdata):
     croom=cdata["room"]
     logging.info("MenuShare :"+str(cdata))
-    logging.warning("[->] Click on menu " + str(cdata["Menu"]) + " option icon " + str(cdata["optionButton"]) + " in room " + str(croom))
+    logfun("[->] Click on menu " + str(cdata["Menu"]) + " option icon " + str(cdata["optionButton"]) + " in room " + str(croom))
 
     sdata = {"Menu":cdata["Menu"], "optionNumber":cdata["optionNumber"], "optionButton":cdata["optionButton"]}
     socketio.emit('receive_Menu_click', sdata,room=croom)
@@ -3070,7 +3103,7 @@ def ClickShare(cdata):
     croom=cdata["room"]
     action=cdata["action"]
     logging.info(action+"Share :"+str(cdata))
-    logging.warning("[->] Click on "+action+ " "+ str(cdata["id"]) + " in room " + str(croom))
+    logfun("[->] Click on "+action+ " "+ str(cdata["id"]) + " in room " + str(croom))
     sdata = {"action":action,"id":cdata["id"]}
     socketio.emit('receive_click', sdata,room=croom)
 
@@ -3079,7 +3112,7 @@ def ClickShareVal(cdata):
     croom=cdata["room"]
     action=cdata["action"]
     logging.info(action+"Share with val :"+str(cdata))
-    logging.warning("[->] Click on "+action+ " "+ str(cdata["id"]) + " with val " + str(cdata["val"]) + " in room " + str(croom))
+    logfun("[->] Click on "+action+ " "+ str(cdata["id"]) + " with val " + str(cdata["val"]) + " in room " + str(croom))
     sdata = {"action":action,"id":cdata["id"],"val":cdata["val"]}
     socketio.emit('receive_click_val', sdata,room=croom)
 
@@ -3087,7 +3120,7 @@ def ClickShareVal(cdata):
 def changeOpacityShare(cdata):
     croom=cdata["room"]
     logging.info("changeOpacityShare :"+str(cdata))
-    logging.warning("[->] Click on an opacity slider " + str(cdata["Id"]) + " in room " + str(croom))
+    logfun("[->] Click on an opacity slider " + str(cdata["Id"]) + " in room " + str(croom))
 
     sdata = {"Id":cdata["Id"],"Opacity":cdata["Opacity"]}
     socketio.emit('receive_Force_Opacity', sdata,room=croom)
@@ -3096,7 +3129,7 @@ def changeOpacityShare(cdata):
 def addNewTagShare(cdata):
     croom=cdata["room"]
     logging.info("addNewTagShare :"+str(cdata))
-    logging.warning("[->] Add a new tag " + str(cdata["NewTag"]) + " in room " + str(croom))
+    logfun("[->] Add a new tag " + str(cdata["NewTag"]) + " in room " + str(croom))
 
     sdata = {"NewTag":cdata["NewTag"]}
     socketio.emit('receive_Add_Tag', sdata,room=croom)
@@ -3105,7 +3138,7 @@ def addNewTagShare(cdata):
 def addNewTagShare(cdata):
     croom=cdata["room"]
     logging.info("changeColorTagShare :"+str(cdata))
-    logging.warning("[->] Change color for the tag " + str(cdata["OldTag"]) + " for " + str(cdata["TagColor"]) +" in room " + str(croom))
+    logfun("[->] Change color for the tag " + str(cdata["OldTag"]) + " for " + str(cdata["TagColor"]) +" in room " + str(croom))
 
     sdata = {"OldTag":cdata["OldTag"],"TagColor":cdata["TagColor"]}
     socketio.emit('receive_Color_Tag', sdata,room=croom)
@@ -3118,7 +3151,7 @@ def ClickAction(cdata):
         TS=cdata["TileSet"]
         selections=cdata["selections"]
         logging.info(action+" for TileSet "+TS)
-        logging.warning("[->] Click on action "+action+ " "+ str(cdata["id"]) + " in room " + str(croom) + " for selection "+ str(selections))
+        logfun("[->] Click on action "+action+ " "+ str(cdata["id"]) + " in room " + str(croom) + " for selection "+ str(selections))
 
         actionid=int(action.replace("action", ""))
         command=str(actionid)+","+selections
@@ -3136,7 +3169,7 @@ def ClickAction(cdata):
             myflush()
             return
         
-        logging.warning("actionid %d" % (actionid))
+        logfun("actionid %d" % (actionid))
         myflush()
         if (actionid == 0):
             ThisSession=db.session.query(models.Session).filter(models.Session.name == session["sessionname"]).first()
@@ -3150,7 +3183,7 @@ def ClickAction(cdata):
             #shutil.copyfile(out_nodes_json,save_nodes_json)
             # selection must be all tileset
             command=str(actionid)+","+","
-        logging.warning("action command %s" % (command))
+        logfun("action command %s" % (command))
         myflush()
 
         searchKillid=re.search(r'"killid":"\d+"',session["connection"+str(oldconnection.id)])
@@ -3281,7 +3314,7 @@ def drawBlobShare(cdata):
     sidDraw = request.sid
     croom=cdata["room"]
     logging.info("drawBlobShare :"+str(cdata))
-    logging.warning("[->] Share image from draws with blob " + str(cdata["nodeId"]) + " in room " + str(croom))
+    logfun("[->] Share image from draws with blob " + str(cdata["nodeId"]) + " in room " + str(croom))
     nbsend=cdata["nbsend"]
     # start send draw to all clients
     for csid in room_dict[croom]:
@@ -3303,7 +3336,7 @@ def ModifDraws(cdata):
     croom=cdata["room"]
     action=cdata["action"]
     logging.debug(action+" Share :"+str(cdata))
-    logging.warning("[->] Modification of draw from "+str(cdata["nodeId"])+ " with "+action + " in room " + str(croom))
+    logfun("[->] Modification of draw from "+str(cdata["nodeId"])+ " with "+action + " in room " + str(croom))
     sdata = {"nodeId":cdata["nodeId"]}
     socketio.emit('receive_'+action, sdata,room=croom)
     
@@ -3314,7 +3347,7 @@ def config_client(cdata):
     logging.info("[+] Project : " + str(cdata['project']))
     logging.info("[+] Session : " + str(cdata['session']))
 
-    logging.warning("Receive "+str(cdata["user"])+str(cdata["project"])+str(cdata["session"]))
+    logging.warning("Connect "+str(cdata["user"])+str(cdata["project"])+str(cdata["session"]))
     croom = cdata['session'] # c[lient]room
     session["projectname"]=cdata['project']
     session["sessionname"]=cdata['session']
@@ -3414,7 +3447,7 @@ def handle_join_with_invite_link(link):
         return
     
     session["sessionname"] = link.split("_"+new_client_type+"_")[0]
-    logging.warning("Find session :"+str(session["sessionname"]))
+    logging.warning("Find session :"+str(session["sessionname"])+" with active client "+str(session["is_client_active"]))
     if "passive" in link:
         auth = link.split("_"+new_client_type+"_")[1].split(".{")[0]
     else:
@@ -3432,14 +3465,19 @@ def handle_join_with_invite_link(link):
     #print("Session name :",session["sessionname"]," new_client_type :",str(new_client_type)," authent ",str(auth))
     ThisSession=db.session.query(models.Session).filter(models.Session.name == session["sessionname"]).first()
     #print("Session name :",session["sessionname"]," object :",str(ThisSession.name))
+    if (ThisSession==None):
+        flash_mess="Anonymous connection with unknown session : "+str(session["sessionname"])
+        logging.error(flash_mess)
+        flash(flash_mess+". Please check your command line")
+        return redirect(url_for(".index"))
+    
     try:
         session["projectname"]=ThisSession.project.name
     except:
-        flash("Error with session "+session["sessionname"]+" .")
+        flash("Error with project of session "+str(ThisSession))
+        logging.error("Error with project of session "+str(ThisSession))
         return redirect(url_for(".index"))
         
-    # TODO : test this comment ?
-    # session["is_client_active"]=is_client_active
     if "passive" in link:
         str_my_geom="{"+link.split("_"+new_client_type+"_")[1].split(".{")[1]
         my_geom=str_my_geom.replace('{','{"').replace(',',',"').replace('=','":')

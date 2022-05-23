@@ -4,9 +4,22 @@
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/main.css') }}">
 {% endblock %}
 
-
 {% block content %}
 <div class="container">
+  {% if message %}
+<div class="row text-center warning_user">
+	{{ message }}
+</div>
+  {% endif %}
+  {% with messagesF = get_flashed_messages() %}
+    {% if messagesF %}
+	<ul class=flashes>
+	{% for messageF in messagesF %}
+	<li style="color:#FF0000; font-size:40px">{{ messageF }}</li>
+	{% endfor %}
+	</ul>
+    {% endif %}
+  {% endwith %}
 <div class="row">
 	<h1> Welcome, {{ user.username }}!</h1>
 	<!-- <div> -->

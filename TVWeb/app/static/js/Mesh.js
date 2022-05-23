@@ -185,6 +185,11 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
     TagHeight=0; // tag-legend zone height
     
+    // Correct wrong default config
+    if (! configBehaviour.onlyMasterMS)
+	configBehaviour.onlyMasterMS=false
+    configBehaviour.touchonWindow=false
+    
     // Getter and setter for zoomSelection
     this.getZoomSelection = function(){
 	return zoomSelection;
@@ -356,7 +361,6 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    
 	    $('#tileOpacitySlider'+id).remove();
 
-	    //me.setLocation(nodesById['node'+id],me.locationProvider(id),false);
 	}
 
     };
@@ -448,7 +452,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     //--reset table
     this.resetNodesToZoom = function(){
 	nodesToZoom = new Array();
-	$('.hitbox').css({backgroundColor : colorHBdefault});
+	for (O in nodesByLoc)
+	    if (nodesByLoc[O].getNodeInViewportStatus())
+		$('#hitbox'+O).css({backgroundColor : colorHBdefault});
 
 	return nodesToZoom;
     };
@@ -515,10 +521,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 
 	    // unload nodes streams
-	    $('.node').children("iframe").hide(); //attr("src", "about:blank");
-	    for(O in nodesById)  {
-		nodesById[O].setLoadedStatus(false);
-	    }
+	    for (O in nodesByLoc)
+		if (nodesByLoc[O].getNodeInViewportStatus())
+		    $('#iframe'+O).hide();
+	    // for(O in nodesById)  {
+	    // 	nodesById[O].setLoadedStatus(false);
+	    // }
 
 	    // Additionnal space between columns
 	    shiftcol=105
@@ -809,16 +817,22 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	// unZoom function
 	$('#buttonUnzoom').on('click',function(){		
 
-		$("#superSail").remove();
-		$("#zoomSupport").hide();
-	        $('#zoomSupport').css("-moz-transform","scale(1)").css("-webkit-transform","scale(1)").css("transform-origin", "0 0 0");
-		$('#zoomSupport').children(".Zoomed").remove();
-		$("#buttonUnzoom").off();
-		$("#buttonUnzoom").remove();		
-		$('.hitbox').off();
-		$('.hitbox').on("click", clickHBSelect);
-		me.startLoading();			
-	    });				 
+	    $("#superSail").remove();
+	    $("#zoomSupport").hide();
+	    $('#zoomSupport').css("-moz-transform","scale(1)").css("-webkit-transform","scale(1)").css("transform-origin", "0 0 0");
+	    $('#zoomSupport').children(".Zoomed").remove();
+	    $("#buttonUnzoom").off();
+	    $("#buttonUnzoom").remove();
+
+	    // TODO : only on and visible
+	    for (O in nodesByLoc)
+		if (nodesByLoc[O].getNodeInViewportStatus()) {
+		    $('#hitbox'+O).off().on("click", clickHBSelect);
+		    $('#iframe'+O).show();
+		}
+	    //me.startLoading();
+	    
+	});
 
 	return Zscale;
     };
@@ -860,7 +874,14 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    me.switchLocation(firstLineTab[j],secondLineTab[j],configBehaviour.showAnimationsLineColSwap, true, tmpBoolBlockMove);
 		}
 	    }
-
+	    for (O in nodesByLoc)  { 
+		if (nodesByLoc[O].getOnOffStatus() &&
+		    nodesByLoc[O].getNodeInViewportStatus()) {
+		    SetOn(O);
+		} else {
+		    SetOff(O);
+		}
+	    }
 	}
     };
 
@@ -879,14 +900,24 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    for (O in nodesById) {
 		me.unsetDraggable(nodesById[O].getId(), false, false);
 	    }
-	    Onnodes = $('.On').parent().parent().children('iframe');
-	    for (node in Onnodes) {
-		if (node != "prevObject" && typeof Onnodes[node] == "object"
-		    && nodesByLoc[Onnodes[node].parentElement.id].getLoadedStatus()) {
-		    Onnodes[node].setAttribute("src","")
-		    Onnodes[node].setAttribute("src",nodesById["node"+Onnodes[node].parentElement.id].getJsonData().url);
+
+	    for (O in nodesByLoc)  { 
+		if (nodesByLoc[O].getNodeInViewportStatus()) {
+		    SetOn(O);
+		    // } else {
+		    //     SetOff(O);
 		}
+		//     nodesByLoc[O].getHtmlNode().children('iframe')[0].setAttribute("src","");
+		//     nodesByLoc[O].getHtmlNode().children('iframe')[0].setAttribute("src",nodesByLoc[O].getJsonData().url);
 	    }
+	    // Onnodes = $('.On').parent().parent().children('iframe');
+	    // for (node in Onnodes) {
+	    // 	if (node != "prevObject" && typeof Onnodes[node] == "object"
+	    // 	    && nodesByLoc[Onnodes[node].parentElement.id].getLoadedStatus()) {
+	    // 	    Onnodes[node].setAttribute("src","")
+	    // 	    Onnodes[node].setAttribute("src",nodesById["node"+Onnodes[node].parentElement.id].getJsonData().url);
+	    // 	}
+	    // }
 	    // for (node in Onnodes) {
 	    // 	if (node != "prevObject" && typeof Onnodes[node] == "object") {
 	    // 	    Onnodes[node].setAttribute("src",oldSrc[node]);
@@ -1082,6 +1113,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    mesh.switchLocation(nodesById[O], nodesByLoc[w], false, true);
 		}
 	    }
+	    for (O in nodesByLoc)
+		if (nodesByLoc[O].getNodeInViewportStatus())
+		    $('#iframe'+O).show();
+		    
 	    if (w==0){
 		$('#tag-notif').text("No matching tiles for tag " + thisTagToGroup + " found");
 	    } else {
@@ -1134,11 +1169,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    Id=nodesByLoc[O].getId();
 		    nodeCardinal--;
 		    node=$('#'+Id);
-		    var OOF = $('#onoff'+Id);
-		    OOF.css('background-color', "red");
-		    nodesByLoc[O].setOnOffStatus(false);
-		    node.children("iframe").hide();
-		    nodesByLoc[O].setLoadedStatus(false);
+		    SetOff(Id);
 		    nodesByLoc[O].removeElementFromNodeTagList(tagToKill);
 		    nodeEnd=nodesByLoc[nodeCardinal];
 		    mesh.switchLocationShiftColumnLine(nodesByLoc[O],nodeEnd,false,false);
@@ -1254,6 +1285,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	if ( my_user != "Anonymous" ) {
 	    TopPP=TagHeight;
 	    htmlPrimaryParent.css("marginTop",TopPP+"px");
+	    ppot=ppot+TopPP;
 	}
 	$('.tag').off("click").on({
 	    click : clickTagInLegend
@@ -1637,9 +1669,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    }
 		}
 		$('#tag-legend').children().remove();
-		$('.node').css({
-		    opacity : 1
-		});
+		for (O in nodesByLoc)
+		    if (nodesByLoc[O].getNodeInViewportStatus()) {
+			$('#node'+O).css({
+			    opacity : 1
+			});
+		    }
 		$('#validateDelTags').remove()
 		//console.log("end erasing tags");
 	    }})
@@ -2319,13 +2354,16 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
     /** Disable or enable other zoom functions
      */
+    var ListZoomFunctions=["zoomNodes","zoom","MS","draw"];
     this.disableOtherZoom = function (myzoomfunction) {
-	var ListZoomFunction=["zoomNodes","zoom","MS","draw"];
-	for (var otherZoom in ListZoomFunction) {
-	    var thisZoom=ListZoomFunction[otherZoom];
+	for (var otherZoom in ListZoomFunctions) {
+	    var thisZoom=ListZoomFunctions[otherZoom];
 	    if ( thisZoom != myzoomfunction )
+		var thiszoom=thisZoom[0].toUpperCase()+thisZoom.substring(1);
 		if ($(".close"+thisZoom+"ButtonIcon")[0]) {
 		    $(".close"+thisZoom+"ButtonIcon").click();
+		} else if ($(".close"+thiszoom+"ButtonIcon")[0]) {
+		    $(".close"+thiszoom+"ButtonIcon").click();
 		}
 	}
     };
@@ -2333,9 +2371,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     /** Enable or enable other zoom functions
      */
     this.enableOtherZoom = function (myzoomfunction) {
-	var ListZoomFunction=["zoomNodes","zoom","MS","draw"];
-	// for (var otherZoom in ListZoomFunction) {
-	//     var thisZoom=ListZoomFunction[otherZoom];
+	// for (var otherZoom in ListZoomFunctions) {
+	//     var thisZoom=ListZoomFunctions[otherZoom];
 	//     if ( thisZoom != myzoomfunction )
 	// 	$(".disable"+thisZoom+"ButtonIcon").removeClass("disable"+thisZoom+"ButtonIcon").addClass(thisZoom+"ButtonIcon");
 	// }
@@ -2379,7 +2416,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    }
 	});
     zoomMenuIconClassAttributesTab.push("expandZoomButtonIcon");
-    zoomMenuShareEvent.push(true);
+    zoomMenuShareEvent.push(false);
 
     zoomMenuTitleTab.push("Zoom explain area")    
     zoomMenuEventTab.push( function(v, id, optionNumber) {		
@@ -2417,10 +2454,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			me.disableOtherZoom("zoom")
 			BlockDragAndDrop();
 
-			$('.node').off();
-			$('.hitbox').off("click").on("click", clickHBSelect);
-			$('.hitbox').off("mouseenter");
-
+			for (O in nodesByLoc)
+			    if (nodesByLoc[O].getNodeInViewportStatus()) {
+				$('#node'+O).off();
+				$('#hitbox'+O).off("click").on("click", clickHBSelect);
+				$('#hitbox'+O).off("mouseenter");
+			    }
 			menuZoom.children('[class*=explain-zoom]')[0].innerText="Click on the left of the nodes to select them. Green nodes will be selected.";
 			menuZoom.children('[class*=explain-zoom]').css({
 				backgroundColor : "green",
@@ -2476,10 +2515,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			me.disableOtherZoom("MS")
 			BlockDragAndDrop();
 
-			$('.node').off();
-			$('.hitbox').off("click").on("click", clickHBSelect);
-			$('.hitbox').off("mouseenter");
-			
+			for (O in nodesByLoc)
+			    if (nodesByLoc[O].getNodeInViewportStatus()) {
+				$('#node'+O).off();
+				$('#hitbox'+O).off("click").on("click", clickHBSelect);
+				$('#hitbox'+O).off("mouseenter");
+			    }
 
 			menuMS.children('[class*=explain-MS]')[0].innerText="Click on the left of the nodes to select them. Click on left \"validate button\" or right \"ALL selected\" button.";
 			menuMS.children('[class*=explain-MS]').css({
@@ -2534,14 +2575,14 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			BlockDragAndDrop();
 
 			$('.zoomNodeButtonIcon').show();
-			$('#'+id+'option'+optionNumber).removeClass('zoomNodesButtonIcon').addClass('closezoomNodesButtonIcon');
+			$('#'+id+'option'+optionNumber).removeClass('zoomNodesButtonIcon').addClass('closeZoomNodesButtonIcon');
 		    } else { 
 			// Activate other magnify menus
 			me.enableOtherZoom("zoomNodes")
 			EnableDragAndDrop();
 
 			$('.zoomNodeButtonIcon').hide();
-			$('#'+id+'option'+optionNumber).removeClass("closezoomNodesButtonIcon").addClass("zoomNodesButtonIcon");
+			$('#'+id+'option'+optionNumber).removeClass("closeZoomNodesButtonIcon").addClass("zoomNodesButtonIcon");
 		    }
 		};
 
@@ -3020,10 +3061,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		$('#options-look').append("</form><br>");
 		$('input[name=color-theme-radio][value=' + configColors.colorTheme + ']').attr("checked", true);
 
-		// Help tooltip
-		$('#options-look').append("<div id=options-tooltip-label class=label>Tooltip</div>");
-		$('#options-look').append("<input type='checkbox' name=enable-tooltip value="+ configBehaviour.tooltip +">Enable Tooltip<br /><br />");
-		$('input[name=enable-tooltip]').attr("checked",configBehaviour.tooltip);
+		// Help tooltip => Option NOT USED in Menu.js because only defined at startup
+		// $('#options-look').append("<div id=options-tooltip-label class=label>Tooltip</div>");
+		// $('#options-look').append("<input type='checkbox' name=enable-tooltip value="+ configBehaviour.tooltip +">Enable Tooltip<br /><br />");
+		// $('input[name=enable-tooltip]').attr("checked",configBehaviour.tooltip);
 
 		// Opacity slider
 		$('#options-look').append("<div id=options-opacity-label class=label>Opacity</div>");
@@ -3144,7 +3185,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		if (touchok) {
 
 		    $('#options-touch').append("<br>Speed of touch:</br><input id=touchSpeed name=touchSpeed type='number' value=" +configBehaviour.touchSpeed+ "></br>");
-		    $('#options-touch').append("<input type='checkbox' id='touchon-window' name='touchon-window' value='no'>Touch on window gesture</input></br>");
+		    $('#options-touch').append("<input type='checkbox' id='touchon-window' name='touchon-window' value="+configBehaviour.touchonWindow+">Touch on window gesture</input></br>");
 		    $('input[name=touchon-window]').attr("checked", configBehaviour.touchonWindow);
 			    
 		}
@@ -3181,8 +3222,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    }
 		    tempColors=tempColors.replace("***","'colorTheme':'"+configColors.colorTheme+"'"+",\n ***");
 
-		    configBehaviour.tooltip = $('input[name=enable-tooltip]').is(":checked");
-		    tempBehaviour=tempBehaviour.replace("***","'tooltip': '"+configBehaviour.tooltip+"',\n ***");
+		    // Help tooltip => Option NOT USED in Menu.js because only defined at startup
+		    // configBehaviour.tooltip = $('input[name=enable-tooltip]').is(":checked");
+		    // tempBehaviour=tempBehaviour.replace("***","'tooltip': '"+configBehaviour.tooltip+"',\n ***");
 		    
 		    if(configBehaviour.opacity*100 != $('#opacitySlider').val())  { 
 			configBehaviour.opacity = Math.max($('#opacitySlider').val()/100, 0.1);
@@ -3391,8 +3433,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    setColorTheme(configColors.colorTheme);
 	}
 
-	if(tempBehaviour.hasOwnProperty('tooltip'))
-	    configBehaviour.tooltip = $.parseJSON(tempBehaviour.tooltip);
+	// Help tooltip => Option NOT USED in Menu.js because only defined at startup
+	// if(tempBehaviour.hasOwnProperty('tooltip'))
+	//     configBehaviour.tooltip = $.parseJSON(tempBehaviour.tooltip);
 
 	if(tempBehaviour.hasOwnProperty('opacity')) {
 	    configBehaviour.opacity = tempBehaviour.opacity;
@@ -4097,10 +4140,13 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 			    $('#blackboard').children().remove();
 					    
-			    $('.stickers_zone').css("visibility", "hidden");
-			    $('.node').css({
-				    opacity : 1
-					});
+			    for (O in nodesByLoc)
+				if (nodesByLoc[O].getNodeInViewportStatus()) {
+				    $('#stickers_'+O).css("visibility", "hidden");
+				    $('#node'+O).css({
+					opacity : 1
+				    });
+				}
 			}
 
 		    });	
@@ -4367,7 +4413,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	});
 
     menuIconClassAttributesTab.push("refreshButtonIcon");
-    menuShareEvent.push(false);
+    menuShareEvent.push(true);
     
     /** Tags: opens tag menu and let the user manipulate tags
      */
@@ -4375,11 +4421,15 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     menuTitleTab.push("Tag menu")
     menuEventTab.push(    function(v, id, optionNumber){
 	    if (v == true)  { 
-		$('.hitbox').off("click");
-		if (!configBehaviour.moveOnMenuOption)  { 
-		    $('.node').off();
+		for (O in nodesByLoc)  { 
+		    if (nodesByLoc[O].getNodeInViewportStatus()) { 
+			$('#hitbox'+O).off("click"); 
+			if (!configBehaviour.moveOnMenuOption)  { 
+			    $('#node'+O).off(); 
+			}
+			$('#hitbox'+O).on("click", clickHBTag);
+		    }
 		}
-		$('.hitbox').on("click", clickHBTag);	
 		menuTags.css("visibility", "visible");
 		// Legend :
 		var left_ = Math.max(parseInt($(me.menu.getHtmlMenuSelector()).css("width")), 
@@ -4494,12 +4544,15 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			    }
 
 			}
-			$(".node").children(".stickers_zone").show();
+			for (O in nodesByLoc)
+			    if (nodesByLoc[O].getNodeInViewportStatus())
+				$('#stickers_'+O).show();
 		    }
 		    TagHeight=($("#tag-legend").height());
 		    if ( my_user != "Anonymous" ) {
 			TopPP=TagHeight;
 			htmlPrimaryParent.css("marginTop",TopPP+"px");;
+			ppot=ppot+TopPP;
 		    }
 
 		    // for debugging : add tag with initial grid order
@@ -4582,9 +4635,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 	    BlockDragAndDrop();
 	    
-	    $('.node').off();
-	    $('.hitbox').off("click").on("click", clickHBSelect);
-	    $('.hitbox').off("mouseenter");
+	    for (O in nodesByLoc)
+		if (nodesByLoc[O].getNodeInViewportStatus()) {
+		    $('#node'+O).off();
+		    $('#hitbox'+O).off("click").on("click", clickHBSelect);
+		    $('#hitbox'+O).off("mouseenter");
+		}
 	    me.resetNodesToZoom();
 	    me.setZoomSelection(true);
 	    $('#'+id+'option'+optionNumber).removeClass('actionGlobalMenuButtonIcon').addClass('closeActionGlobalMenuButtonIcon');
@@ -4592,7 +4648,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    me.actionGlobalMenu.closeAllOptions();
 	    menuActionGlobal.css("visibility", "hidden");
 	    me.setZoomSelection(false);
-	    $('.hitbox').off("click").on("click",clickHB);
+	    for (O in nodesByLoc)
+		if (nodesByLoc[O].getNodeInViewportStatus()) 
+		    $('#hitbox'+O).off("click").on("click", clickHB);
 	    $('#'+id+'option'+optionNumber).removeClass('closeActionGlobalMenuButtonIcon').addClass('actionGlobalMenuButtonIcon');
 	}
     });
@@ -4665,8 +4723,11 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
         if (executeAtEndComplete) {
 	    if(v==true)  { 	
 		if (!configBehaviour.moveOnNodeMenuOption)  { 
-		    $('.node').off();
-		    $('.hitbox').off();
+		    for (O in nodesByLoc)
+			if (nodesByLoc[O].getNodeInViewportStatus()) {
+			    $('#node'+O).off();
+			    $('#hitbox'+O).off();
+			}
 		}
 
 		$(".nodemenu").css({visibility : "visible"});	
@@ -5124,7 +5185,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 			    {
 				//var marginleft = (parseInt($('#'+nodesById[O].getId()).css("width"))-widthTab[nodesById[O].getId()]*scale)/2;
-				me.setLocation(nodesById[O],nodesById[O].getIdLocation(),false);
+				var node=nodesById[O];
+				me.setLocation(node,node.getIdLocation(),false).done(updateNode(node));
 				//var margintop = (parseInt($('#'+nodesById[O].getId()).css("height"))-heightTab[nodesById[O].getId()]*scale)/2;
 
 				$('#iframe'+nodesById[O].getId()).css({marginTop : 0 , marginLeft : 0   });				
@@ -5132,7 +5194,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			else // "dynamic" ColumnStyle
 			    {
 				//var marginleft = (parseInt($('#'+nodesById[O].getId()).css("width"))-widthTab[nodesById[O].getId()]*scale)/2;
-				me.setLocation(nodesById[O],nodesById[O].getIdLocation(),false);
+				var node=nodesById[O];
+				me.setLocation(node,node.getIdLocation(),false).done(updateNode(node));
 				//var margintop = (parseInt($('#'+nodesById[O].getId()).css("height"))-heightTab[nodesById[O].getId()]*scale)/2;
 				$('#iframe'+nodesById[O].getId()).css({marginTop : 0,marginLeft : 0 });	
 			    }
@@ -5162,14 +5225,16 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		    if(ColumnStyle=="static")  { 
 			var marginleft = (parseInt($('#'+nodesById["node"+id].getId()).css("width"))-widthTab[nodesById["node"+id].getId()]*scale)/2;
-			me.setLocation(nodesById["node"+id],nodesById["node"+id].getIdLocation(),false);
+			var node=nodesById["node"+id];
+			me.setLocation(node,node.getIdLocation(),false).done(updateNode(node));
 			var margintop = (parseInt($('#'+nodesById["node"+id].getId()).css("height"))-heightTab[nodesById["node"+id].getId()]*scale)/2;
 
 			$('#iframe'+nodesById["node"+id].getId()).css({marginTop : 0 , smarginLeft : 0   });
 
 		    } else { 
 			var marginleft = (parseInt($('#'+nodesById["node"+id].getId()).css("width"))-widthTab[nodesById["node"+id].getId()]*scale)/2;
-			me.setLocation(nodesById["node"+id],nodesById["node"+id].getIdLocation(),false);
+			var node=nodesById["node"+id];
+			me.setLocation(node,node.getIdLocation(),false).done(updateNode(node));
 			var margintop = (parseInt($('#'+nodesById["node"+id].getId()).css("height"))-heightTab[nodesById["node"+id].getId()]*scale)/2;
 			$('#iframe'+nodesById["node"+id].getId()).css({marginTop : margintop,marginLeft : marginleft   });	
 		    }	
@@ -5304,8 +5369,16 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	animationSpeed = animationSpeed || configBehaviour.animationSpeed;
 	node.setLocation(me.locationProvider(IdLoc),boolAnimation,animationSpeed);
 	setNodesByLoc(node.getIdLocation(),node);
+	return $.Deferred().resolve();
     }
-
+    var updateNode = function(node) {
+	// Force wait end of animation to asynchronusly detect
+	if (node.getNodeInViewportStatus()) {
+	    node.setOnOffStatus(true);
+	    node.updateUrl();
+	}
+    }
+    
     //--Switch position between two nodes
 
     this.switchLocation = function(node1,node2,boolAnimation,boolSavePosition, boolBlockMove){
@@ -5637,7 +5710,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		var ratio = 1;
 		if ($("#"+nodeId).children("iframe").length == 0) {
 		    hnode.append('<iframe id=iframe'+node.getId()+' scrolling = "yes" src="" frameborder=0 height = "'+  
-				  hnode[0].clientHeight + 'px" width = "' + hnode[0].clientWidth + 'px"></iframe>');
+				  hnode[0].clientHeight + 'px" width = "' + hnode[0].clientWidth + 'px" style="display=none"></iframe>');
 		}
 		var widthtab = [];
 		var heighttab =[];
@@ -5710,7 +5783,6 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	var OOF = $('#onoff'+id);
 	var node2= nodesById["node"+id];
 	OOF.css('background-color', "red");
-	node2.setOnOffStatus(false);
 	node.children("iframe").hide();
 	node2.setLoadedStatus(false);
     }
@@ -5720,10 +5792,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	var OOF = $('#onoff'+id);
 	var node2= nodesById["node"+id];
 	OOF.css('background-color', "green");
-	node2.setOnOffStatus(true);
-	node.children("iframe").show();
-	mesh.loadContent(id);
 	node2.setLoadedStatus(true);
+	node.children("iframe").show();
+	node.updateUrl()
+	//mesh.loadContent(id);
     }
 
     
@@ -5743,16 +5815,16 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	me.computeNumColumns();
 	for(O in mesh.getNodes()){
 
-	    var node = mesh.getNode(O.replace("node",""));
+	    var id = O.replace("node","");
+	    var node = mesh.getNode(id);
 	    var ratio = 1;
 
 	    if( node.getLoadedStatus() == false && 
-		( mesh.mlocationProvider(node.getIdLocation()).getnY()== 1 || 
-		  mesh.locationProvider(node.getIdLocation()).getY()/ratio<window.innerHeight || chargeAllContentOnStart ) )  { 
+		node.getNodeInViewportStatus() )  { 
 			
 		ratio=mesh.loadContent(node.getId());
+		SetOn(id);
 		mesh.loadHitbox(node.getId());
-		node.setLoadedStatus(true);
 	    }
 	    else if(node.getLoadedStatus() == false)  { 
 			    
@@ -5838,7 +5910,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			$('#handle'+O).on(handleEvent);
 			$('#hitbox'+O).on(HBEvent);
 			$('#node'+O).on(NodeEvent);
-			
+			nodesByLoc[O].setLoadedStatus(true);			
 			
 			$('#qrcode'+O).on({
 			    click : clickQRcode
@@ -6035,7 +6107,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	// When the mouse leaves the node : no border anymore, only a change in color on the HB ! 
 	var mouseLeaveFunction  = function () {
 	    //console.log("mouseLeaveFunction");
-	    $('.node').off("mouseup");
+	    for (O in nodesByLoc)
+		if (nodesByLoc[O].getNodeInViewportStatus()) {
+		    $('#node'+O).off("mouseup");
+		}
 	    var node = mesh.getNode(this.id);
 	    var HBcolor = $('#hitbox'+node.getId()).css('background-color');
 	    if(HBcolor != colorHBselectedRGB && HBcolor != colorHBtoZoomRGB)  { // Keep the color only if the node has been selected or zoomed 	
@@ -6060,7 +6135,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    //console.log("click function");
 	    var node = mesh.getNode(this.id);
 	    if (node.getState() == 0) {
-		$('.node').on("mouseup");
+	    for (O in nodesByLoc)
+		if (nodesByLoc[O].getNodeInViewportStatus()) {
+		    $('#node'+O).off("mouseup");
+		}
 		node.updateHtmlNodeState(1);
 		//console.log($('.transparentNode').length);
 		if ($('.transparentNode').length==0)  { 
@@ -6084,7 +6162,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		////dragAndDrop(this);
 		//}
 	    } else { 
-		$('.node').off("mouseup");
+		for (O in nodesByLoc)
+		    if (nodesByLoc[O].getNodeInViewportStatus()) {
+			$('#node'+O).off("mouseup");
+		    }
 		node.updateHtmlNodeState(0);
 		putDown(node.getId());
 	    }
@@ -6263,7 +6344,10 @@ dblclick: dblclickFunction*/
 		$("#" + this.id).off("mouseup");
 		//console.log("enter", this.id);
 		if($('#' + this.id).hasClass("drag-handle-on")) {
-		    $('.node').off("mouseenter");
+		    for (O in nodesByLoc)
+			if (nodesByLoc[O].getNodeInViewportStatus()) {
+			    $('#node'+O).off("mouseenter");
+			}
 		    $('#'+this.id).css('-webkit-transform','scale(2)').css('-moz-transform','scale(2)');
 		    var nodeToDrag = this.id.replace("handle", "");
 		    if(_allowDragAndDrop && $('.node').filter('.ui-draggable').length == 0) {
@@ -6299,7 +6383,10 @@ dblclick: dblclickFunction*/
 		    });
 		}
 		if ($('.node').filter('.ui-draggable').length == 0)
-		    $('node').on("mousenter")
+		    for (O in nodesByLoc)
+			if (nodesByLoc[O].getNodeInViewportStatus()) {
+			    $('#node'+O).on("mousenter");
+			}
 	    }
 	    
 	};
@@ -6425,7 +6512,10 @@ dblclick: dblclickFunction*/
 			var thishandle=$('#'+touch.target.id);
 			thishandle.addClass("drag-handle-dragging");
 
-			$('.node').off("mouseenter");
+			for (O in nodesByLoc)
+			    if (nodesByLoc[O].getNodeInViewportStatus()) {
+				$('#node'+O).off("mouseenter");
+			    }
 			nodeToDrag.off("mouseleave");
 
 			var rect = {
@@ -6566,7 +6656,10 @@ dblclick: dblclickFunction*/
 
 			nodeToDrag.on("mouseleave");
 			if (dragging.size == 0)
-			    $('.node').on("mouseenter");
+			    for (O in nodesByLoc)
+				if (nodesByLoc[O].getNodeInViewportStatus()) {
+				    $('#node'+O).on("mouseenter");
+				}
 
 			$('#'+targetid).css('-webkit-transform','scale(1)').css('-moz-transform','scale(1)');
 		    } else if (targetid.indexOf('rotate') >= 0 && rotstate) {
@@ -6634,6 +6727,7 @@ dblclick: dblclickFunction*/
 
 	    if ( configBehaviour.sharedZoomNodes && emit_click("zoomNodeButtonIcon",this.id))
 		return
+
 	    //console.log("zoomNode clicked", this.id);
 	    var id = this.id.replace("zoomNode", "");
 
@@ -6645,15 +6739,17 @@ dblclick: dblclickFunction*/
 	    var ratio =spread.Y/spread.X;
 	    var initSpread = spread;
 
-	    $('.node').off();
-	    $('.hitbox').off("click");
-	    $('.hitbox').on("click", clickHBSelect);
-	    $('.hitbox').off("mouseenter");
+	    for (O in nodesByLoc)
+		if (nodesByLoc[O].getNodeInViewportStatus()) {
+		    $('#node'+O).off();
+		    $('#hitbox'+O).off("click").on("click", clickHBSelect);
+		    $('#hitbox'+O).off("mouseenter");
+		}
 	    _allowDragAndDrop = false;
  
 	    me.magnifyingGlass(nodeZoomTab,ratio,initSpread);
 	    if ( configBehaviour.sharedZoomNodes )
-		$('#buttonUnzoom').on('click',function(){ emit_click("unzoomButtonIcon","buttonUnZoom") } )
+		$('#buttonUnzoom').on('click',function(){ emit_click("unzoomButtonIcon","buttonUnzoom") } )
 	};
 
 	this.init_click_zoomNode = function() {
