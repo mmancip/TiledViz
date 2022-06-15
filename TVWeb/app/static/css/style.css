@@ -410,6 +410,16 @@
 	background-image: url(../images/icons/tagmenu/selection/closeSelectionToTag.png);
 }
 
+[class~=selectMultipleTagsButtonIcon]
+{
+	background-image: url(../images/icons/tagmenu/selection/MultipleTags.png);
+}
+
+[class~=closeSelectMultipleTagsButtonIcon]
+{
+	background-image: url(../images/icons/tagmenu/selection/closeMultipleTags.png);
+}
+
 [class~=alignTagButtonIcon]
 {
 	background-image: url(../images/icons/tagmenu/alignTags.png);

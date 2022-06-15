@@ -3129,13 +3129,23 @@ def changeOpacityShare(cdata):
 def addNewTagShare(cdata):
     croom=cdata["room"]
     logging.info("addNewTagShare :"+str(cdata))
-    logfun("[->] Add a new tag " + str(cdata["NewTag"]) + " in room " + str(croom))
+    logfun("[->] Add a new tag " + str(cdata["NewTag"]) + " in room " + str(croom) + " from button " + str(cdata["option"]))
 
-    sdata = {"NewTag":cdata["NewTag"]}
+    sdata = {"NewTag":cdata["NewTag"],"option":cdata["option"]}
     socketio.emit('receive_Add_Tag', sdata,room=croom)
 
+@socketio.on("switch_MultipleTag")
+def switchMultipleTagShare(cdata):
+    croom=cdata["room"]
+    logging.info("MultipleTagsSelection :"+str(cdata))
+    logfun("[->] Switch a multiple tags selection " + str(cdata["SelTags"]) + " in room " + str(croom) + " on/off " + str(cdata["bool"]))
+
+    sdata = {"SelTags":cdata["SelTags"],"bool":cdata["bool"]}
+    socketio.emit('receive_multiple_Tags', sdata,room=croom)
+
+
 @socketio.on("color_Tag")
-def addNewTagShare(cdata):
+def colorTagShare(cdata):
     croom=cdata["room"]
     logging.info("changeColorTagShare :"+str(cdata))
     logfun("[->] Change color for the tag " + str(cdata["OldTag"]) + " for " + str(cdata["TagColor"]) +" in room " + str(croom))

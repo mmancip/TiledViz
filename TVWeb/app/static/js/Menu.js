@@ -215,15 +215,14 @@ $(document).ready(    function (){
 		    
 		    
 				click : function(e){
-			
 				    var optionNumber = parseInt(this.id.replace(this.parentNode.id.replace("menu","")+'option',''));	
 				    var id = this.className.match(/optionfrom\w+/g)[0].replace('optionfrom','');
 
 			
-				if (menuShareEvent[optionNumber] && ! $('#'+id+'option'+optionNumber).hasClass("NotSharedAgain")) {
+				    if (menuShareEvent[optionNumber] && ! $('#'+id+'option'+optionNumber).hasClass("NotSharedAgain") && my_user != "Anonymous" ) {
 				    cdata={"room":my_session,"Menu":id,"optionNumber":optionNumber,"optionButton":menuIconClassAttributesTab_[optionNumber]};
 				    socket.emit("click_Menu", cdata, callback=function(sdata){
- 					console.log("socket send Menu ", cdata);				
+ 					console.log("socket send Menu ", cdata);
 				    });
 				    return;
 				}
@@ -262,7 +261,7 @@ $(document).ready(    function (){
 			    }
 			
 			
-			}); 
+		    }); 
 		
 		}
 		
@@ -505,11 +504,14 @@ $(document).ready(    function (){
 
 	    this.closeAllOptions = function(){		
 		var myMenu=$("#menu"+id);					
-		for(optionNumber=0;optionNumber<numOfEvents;optionNumber++)  { 		
-		    var tmp_class = $('#'+id+'option'+optionNumber).attr("class").match(/\w+ButtonIcon/g)[0];
+		for(optionNumber=0;optionNumber<numOfEvents;optionNumber++)  {
+		    var thisoption=$('#'+id+'option'+optionNumber);
+		    var tmp_class = thisoption.attr("class").match(/\w+ButtonIcon/g)[0];
 		    var isNotClosed = tmp_class.match("close"); 
-		    if (isNotClosed)  { 
-			$('#'+id+'option'+optionNumber).click();
+		    if (isNotClosed)  {
+			thisoption.addClass("NotSharedAgain");
+			thisoption.click();
+			thisoption.removeClass("NotSharedAgain");
 		    }
 		}
 	    };

@@ -83,6 +83,10 @@ Tile = function(Mesh) {
 	    return $('#'+id);
 	}());
 
+    this.sub=function(elt) {
+	return $("#"+elt+id);
+    }
+    
     this.init_htmlNode=function() {
 	    $('#hitbox'+id).css('background-color', colorHBdefault);
 	    $('#hitbox'+id).show();
@@ -919,7 +923,7 @@ Tile = function(Mesh) {
 	return nodeinviewport;
     }
     
-    this.setNodeInViewpotStatus = function ()  { 
+    this.setNodeInViewportStatus = function ()  { 
 	this.isInViewport();
     }
 
@@ -939,7 +943,7 @@ Tile = function(Mesh) {
     this.getId = function(){	
 	return id;
     };
-
+    
     //--getter 
     this.getIdLocation = function(){	
 	return idLocation;

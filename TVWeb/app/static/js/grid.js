@@ -382,6 +382,7 @@ $(document).ready( function(){
 	$('.'+sdata.action+'#'+sdata.id).click();
 	$('.'+sdata.action+'#'+sdata.id).removeClass("NotSharedAgain");
     });
+    
     // emit function used to send shared clicks
     emit_click_val=function(action,id,val) {
 	if (! $('.'+action+'#'+id).hasClass("NotSharedAgain") && my_user != "Anonymous" ) {
@@ -404,12 +405,30 @@ $(document).ready( function(){
 	$('#'+id).css("opacity", opacity);
     });
     
-    // Add new tag
+    // emit function used to create new ta
     receive_Add_Tag=false
+    emit_newTag=function(option,newTag) {
+	if (! $('#'+option).hasClass("NotSharedAgain") && my_user != "Anonymous" ) {
+	    receive_Add_Tag=false;
+	    cdata={"room":my_session,"option":option,"NewTag":newTag};
+	    socket.emit("add_Tag", cdata, callback=function(sdata){
+ 		console.log("Emit add new tags : ", cdata);
+	    });
+	    $('#'+option).addClass("NotSharedAgain")
+	    return true;
+	} else
+	    return false
+    }
+
+    // Add new tag
+    received_newtag="";
     socket.on('receive_Add_Tag', function(sdata){
      	console.log("receive_Add_Tag",sdata);
-	mesh.AddNewTag(sdata["NewTag"])
+	$('#'+sdata.option).addClass("NotSharedAgain");
+	received_newtag=sdata["NewTag"];
+	mesh.AddNewTag(received_newtag);
 	receive_Add_Tag=true;
+	$('#'+sdata.option).removeClass("NotSharedAgain");
     });
 
     // Add new color for a tag

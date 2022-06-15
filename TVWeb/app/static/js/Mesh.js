@@ -180,6 +180,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     var HideNodesTagFlag=false; // Flag indicated the use of HideTags menu to hide nodes with selected tag in tagMenu.
 
     var KillNodesTagFlag=false; // Flag indicated the use of KillTag menu to suppress nodes with selected tag in tagMenu.
+    var SelectionMultipleTagsFlag = false;     // Flag indicated the use of SelectMultipleTags for grouping tags in a new tag.
+    var seltags=""; // Name of the selection tag if SelectionMultipleTagsFlag = true
     var SelectionNodeToTagFlag=false; // Flag indicated the use of SelectionNodeToTag menu to add tag for nodes in selection.
     var PaletteNodeTagFlag=false; // Flag indicated the use of ChoosingColor menu to change tag color with selected tag in tagMenu.
 
@@ -229,6 +231,16 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     };
     this.setSelectionTag = function(bool){
 	SelectionNodeToTagFlag = bool;
+    };
+
+    this.getSelectMultipleTags = function()  { 
+	return SelectionMultipleTagsFlag;
+    };
+    this.setSelectMultipleTags = function(bool){
+	SelectionMultipleTagsFlag = bool;
+	if (! SelectionMultipleTagsFlag) {
+	    $('.closeSelectMultipleTagsButtonIcon').removeClass('closeSelectMultipleTagsButtonIcon').addClass('selectMultipleTagsButtonIcon');
+	}
     };
 
     
@@ -454,7 +466,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	nodesToZoom = new Array();
 	for (O in nodesByLoc)
 	    if (nodesByLoc[O].getNodeInViewportStatus())
-		$('#hitbox'+O).css({backgroundColor : colorHBdefault});
+		nodesByLoc[O].sub('hitbox').css({backgroundColor : colorHBdefault});
 
 	return nodesToZoom;
     };
@@ -523,7 +535,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    // unload nodes streams
 	    for (O in nodesByLoc)
 		if (nodesByLoc[O].getNodeInViewportStatus())
-		    $('#iframe'+O).hide();
+		    nodesByLoc[O].sub('iframe').hide();
 	    // for(O in nodesById)  {
 	    // 	nodesById[O].setLoadedStatus(false);
 	    // }
@@ -827,8 +839,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    // TODO : only on and visible
 	    for (O in nodesByLoc)
 		if (nodesByLoc[O].getNodeInViewportStatus()) {
-		    $('#hitbox'+O).off().on("click", clickHBSelect);
-		    $('#iframe'+O).show();
+		    nodesByLoc[O].sub('hitbox').off().on("click", clickHBSelect);
+		    nodesByLoc[O].sub('iframe').show();
 		}
 	    //me.startLoading();
 	    
@@ -874,17 +886,19 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    me.switchLocation(firstLineTab[j],secondLineTab[j],configBehaviour.showAnimationsLineColSwap, true, tmpBoolBlockMove);
 		}
 	    }
-	    for (O in nodesByLoc)  { 
-		if (nodesByLoc[O].getOnOffStatus() &&
-		    nodesByLoc[O].getNodeInViewportStatus()) {
-		    SetOn(O);
-		} else {
-		    SetOff(O);
-		}
+	}
+	for (O in nodesByLoc)  { 
+	    if (nodesByLoc[O].getOnOffStatus() &&
+		nodesByLoc[O].getNodeInViewportStatus()) {
+	    	SetOn(nodesByLoc[O].getId());
+	    } else {
+	    	SetOff(nodesByLoc[O].getId());
 	    }
 	}
+	// for (O in nodesByLoc)
+	//     console.log(O,nodesByLoc[O].getId(),nodesByLoc[O].getIdLocation(),nodesByLoc[O].getHtmlNode().children("iframe"))
     };
-
+    
     // Refresh nodes function
     
     var refreshNodes = function (node) {
@@ -903,9 +917,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 	    for (O in nodesByLoc)  { 
 		if (nodesByLoc[O].getNodeInViewportStatus()) {
-		    SetOn(O);
-		    // } else {
-		    //     SetOff(O);
+		    SetOn(nodesByLoc[O].getId());
+		} else {
+		    SetOff(nodesByLoc[O].getId());
 		}
 		//     nodesByLoc[O].getHtmlNode().children('iframe')[0].setAttribute("src","");
 		//     nodesByLoc[O].getHtmlNode().children('iframe')[0].setAttribute("src",nodesByLoc[O].getJsonData().url);
@@ -1113,9 +1127,6 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    mesh.switchLocation(nodesById[O], nodesByLoc[w], false, true);
 		}
 	    }
-	    for (O in nodesByLoc)
-		if (nodesByLoc[O].getNodeInViewportStatus())
-		    $('#iframe'+O).show();
 		    
 	    if (w==0){
 		$('#tag-notif').text("No matching tiles for tag " + thisTagToGroup + " found");
@@ -1133,6 +1144,14 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			ratio=mesh.loadContent(node.getId());
 			node.setLoadedStatus(true);
 		    }
+		}
+	    }
+	    for (O in nodesByLoc)  { 
+		if (nodesByLoc[O].getOnOffStatus() &&
+		    nodesByLoc[O].getNodeInViewportStatus()) {
+	    	    SetOn(nodesByLoc[O].getId());
+		} else {
+	    	    SetOff(nodesByLoc[O].getId());
 		}
 	    }
 	    EndOfGroupping=true;
@@ -1190,8 +1209,31 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		listSelectionTiles[O].getStickers().addSticker(currentSelectedTag, attributedTagsColorsArray[currentSelectedTag],true);
 		listSelectionTiles[O].addElementToNodeTagList(currentSelectedTag);
 	    }
+	    $('#tag-notif').text(" Add selected tiles to tag " + this.id);
 	    
 	    addBlink(this);
+	} else if (SelectionMultipleTagsFlag) {
+	    var thisTag = this.id;
+	    var thisDiv = this;
+	    var color = attributedTagsColorsArray[received_newtag];
+	    var newSelTagDiv = document.getElementById(received_newtag);
+	    var funSelTag = function() {
+		if (receive_Add_Tag) {
+		    clearInterval(checkEndaddSelTag);
+		    addBlink(thisDiv);
+		    addBlink(newSelTagDiv);
+
+		    for (O in nodesById)  { 
+			if (me.hasTag(nodesById[O], thisTag))  {
+			    nodesById[O].getStickers().addSticker(received_newtag,color);
+			    nodesById[O].addElementToNodeTagList(received_newtag);
+			}
+		    }
+		    $('#tag-notif').text(" Add tiles from tag " + thisTag + " to selection tag " + received_newtag);
+		}
+	    }
+	    var checkEndaddSelTag = setInterval(funSelTag, 100);
+	    
 	} else if (PaletteNodeTagFlag) {
 	    var tagToColor = this.id;
 	    var colorChoose;
@@ -1262,34 +1304,46 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    globalTagsList.push(tmpNewTag);
 	    var k = globalTagsList.length -1;
 	    var l = k;
+	    globalTagsColors[tmpNewTag]={"l":l};
 	} else {
 	    var k = globalTagsList.indexOf(tmpNewTag);
 	    var l = globalTagsColors[tmpNewTag]["l"];
 	}	    
 	$('#tag-legend').append('<div id =' + globalTagsList[k] + ' class=tag>' + globalTagsList[k] + '</div>');
-	if ($('#'+globalTagsList[k]).position().left==0) {
-	    $("#tag-legend").css({ height: $("#tag-legend").height()+$('#'+globalTagsList[k]).height() });
-	}
-	try  {
-	    $('#'+globalTagsList[k]).css('background-color',ColorSticker(l));
-	    attributedTagsColorsArray[globalTagsList[k]] =$('#'+globalTagsList[k]).css("background-color");
-	    $('#tag-notif').text("New tag added: " + tmpNewTag);
-	}
-	catch(err)  { 
-	    $('#tag-legend div:last').remove();
-	    console.log("Tag not valid", tmpNewTag);
-	    $('#tag-notif').text("Invalid tag: " + tmpNewTag + ", please try again.");
-	}
-	TagHeight=($("#tag-legend").height());
+	var thisNewTagFun=function() {
+	    try  {
+		var A=$('#'+globalTagsList[k]).position();
+		clearInterval(TagPosFun);
+
+		if ($('#'+globalTagsList[k]).position().left==0) {
+		    $("#tag-legend").css({ height: $("#tag-legend").height()+$('#'+globalTagsList[k]).height() });
+		}
+		try {
+		    $('#'+globalTagsList[k]).css('background-color',ColorSticker(l));
+		    attributedTagsColorsArray[globalTagsList[k]] =$('#'+globalTagsList[k]).css("background-color");
+		    $('#tag-notif').text("New tag added: " + tmpNewTag);
+		}
+		catch(err)  { 
+		    $('#tag-legend div:last').remove();
+		    console.log("Tag not valid", tmpNewTag);
+		    $('#tag-notif').text("Invalid tag: " + tmpNewTag + ", please try again.");
+		}
+
+		TagHeight=($("#tag-legend").height());
 	
-	if ( my_user != "Anonymous" ) {
-	    TopPP=TagHeight;
-	    htmlPrimaryParent.css("marginTop",TopPP+"px");
-	    ppot=ppot+TopPP;
-	}
-	$('.tag').off("click").on({
-	    click : clickTagInLegend
-	});
+		if ( my_user != "Anonymous" ) {
+		    TopPP=TagHeight;
+		    htmlPrimaryParent.css("marginTop",TopPP+"px");
+		    ppot=ppot+TopPP;
+		}
+		$('.tag').off("click").on({
+		    click : clickTagInLegend
+		});
+	    } catch(err)  {
+		//Not Yet
+	    }
+	};
+	var TagPosFun = setInterval( thisNewTagFun, 100);
     }
 
     // Color tag
@@ -1306,7 +1360,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     /** Disable or enable other tags functions
      */
     this.disableOtherTagFunction = function (mytagfunction) {
-	var ListTagFunction=["AlignTags","HideNodesTagFlag","KillNodesTagFlag","SelectTags","SelectionTag"];
+	var ListTagFunction=["AlignTags","HideNodesTagFlag","KillNodesTagFlag","SelectTags","SelectionTag","SelectMultipleTags"];
 	for (var otherTag in ListTagFunction) {
 	    var thisTag=ListTagFunction[otherTag];
 	    if ( thisTag != mytagfunction )
@@ -1356,18 +1410,18 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     tagAlignOrderTagsMenuEventTab.push(    function(v, id, optionNumber){
 	me.disableOtherTagFunction("AlignTags");
 	me.setAlignTags(true);
-    	    if(v==true)  { 
-		//console.log("Align order decrease");
-    		$('#'+id+'option'+optionNumber).removeClass('increaseOrderTagsButtonIcon').addClass('closeIncreaseOrderTagsButtonIcon');
-    		$('#'+id+'option'+(optionNumber+1)).removeClass('decreaseOrderTagsButtonIcon').addClass('closeDecreaseOrderTagsButtonIcon');
-		alignOrderTag=false
-	    } else { 	
-		//console.log("Align order increase");
-    		$('#'+id+'option'+optionNumber).removeClass('closeIncreaseOrderTagsButtonIcon').addClass('increaseOrderTagsButtonIcon');
-    		$('#'+id+'option'+(optionNumber+1)).removeClass('closeDecreaseOrderTagsButtonIcon').addClass('decreaseOrderTagsButtonIcon');
-		alignOrderTag=true
-	    }
-	});
+    	if(v==true)  { 
+	    //console.log("Align order decrease");
+    	    $('#'+id+'option'+optionNumber).removeClass('increaseOrderTagsButtonIcon').addClass('closeIncreaseOrderTagsButtonIcon');
+    	    $('#'+id+'option'+(optionNumber+1)).removeClass('decreaseOrderTagsButtonIcon').addClass('closeDecreaseOrderTagsButtonIcon');
+	    alignOrderTag=false
+	} else { 	
+	    //console.log("Align order increase");
+    	    $('#'+id+'option'+optionNumber).removeClass('closeIncreaseOrderTagsButtonIcon').addClass('increaseOrderTagsButtonIcon');
+    	    $('#'+id+'option'+(optionNumber+1)).removeClass('closeDecreaseOrderTagsButtonIcon').addClass('decreaseOrderTagsButtonIcon');
+	    alignOrderTag=true
+	}
+    });
     tagAlignOrderTagsMenuIconClassAttributesTab.push('increaseOrderTagsButtonIcon')
     tagAlignOrderTagsMenuShareEvent.push(true);
 
@@ -1375,18 +1429,18 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     tagAlignOrderTagsMenuEventTab.push(    function(v, id, optionNumber){
 	me.disableOtherTagFunction("AlignTags");
 	me.setAlignTags(true);
-    	    if(v==true)  { 
-		//console.log("Align order increase");
-    		$('#'+id+'option'+optionNumber).removeClass('decreaseOrderTagsButtonIcon').addClass('closeDecreaseOrderTagsButtonIcon');
-    		$('#'+id+'option'+(optionNumber-1)).removeClass('increaseOrderTagsButtonIcon').addClass('closeIncreaseOrderTagsButtonIcon');
-		alignOrderTag=false
-	    } else { 
-		//console.log("Align order decrease");
-    		$('#'+id+'option'+optionNumber).removeClass('closeDecreaseOrderTagsButtonIcon').addClass('decreaseOrderTagsButtonIcon');
-    		$('#'+id+'option'+(optionNumber-1)).removeClass('closeIncreaseOrderTagsButtonIcon').addClass('increaseOrderTagsButtonIcon');
-		alignOrderTag=true
-	    }
-	});
+    	if(v==true)  { 
+	    //console.log("Align order increase");
+    	    $('#'+id+'option'+optionNumber).removeClass('decreaseOrderTagsButtonIcon').addClass('closeDecreaseOrderTagsButtonIcon');
+    	    $('#'+id+'option'+(optionNumber-1)).removeClass('increaseOrderTagsButtonIcon').addClass('closeIncreaseOrderTagsButtonIcon');
+	    alignOrderTag=false
+	} else { 
+	    //console.log("Align order decrease");
+    	    $('#'+id+'option'+optionNumber).removeClass('closeDecreaseOrderTagsButtonIcon').addClass('decreaseOrderTagsButtonIcon');
+    	    $('#'+id+'option'+(optionNumber-1)).removeClass('closeIncreaseOrderTagsButtonIcon').addClass('increaseOrderTagsButtonIcon');
+	    alignOrderTag=true
+	}
+    });
     tagAlignOrderTagsMenuIconClassAttributesTab.push('decreaseOrderTagsButtonIcon')
     tagAlignOrderTagsMenuShareEvent.push(true);
 
@@ -1497,7 +1551,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     tagSelectionMenuIconClassAttributesTab.push("selectTagButtonIcon");
     tagSelectionMenuShareEvent.push(true);
 
-    // Add selected tag to all nodes in current selection 
+    // Add selected tag to all nodes in current selection
     tagSelectionMenuTitleTab.push("Add tag for nodes in selection")
     tagSelectionMenuEventTab.push(    function(v, id, optionNumber){
 	    if(v==true)  { 
@@ -1512,6 +1566,45 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     tagSelectionMenuIconClassAttributesTab.push("selectionToTagButtonIcon");
     tagSelectionMenuShareEvent.push(true);
 
+    // Select multiple tags for grouping tags in a new tag.
+    var SelTags=[]
+    tagSelectionMenuTitleTab.push("Select tiles with multiple tags.")
+    tagSelectionMenuEventTab.push(    function(v, id, optionNumber){
+	    if(v==true)  { 
+		//console.log("selecting multiple tags");
+		me.disableOtherTagFunction("SelectMultipleTags");
+		
+		seltags="Sel"+SelTags.length;
+		SelTags.push(seltags);
+ 		console.log("select multiple tags : New Tag ",seltags);
+		// Here we can't give option to block shareAgain because we have just click on it.
+		var upMenuTag=$('.closeSelectTagMenuButtonIcon')[0].id;
+		emit_newTag(upMenuTag,seltags);
+
+		$('#'+id+'option'+optionNumber).removeClass('selectMultipleTagsButtonIcon').addClass('closeSelectMultipleTagsButtonIcon');
+	    } else { 
+		//console.log("end selecting multiple tag");
+		me.setSelectMultipleTags(false);
+	    }
+	    cdata={"room":my_session,"SelTags":seltags,"bool":v};
+	    socket.emit("switch_MultipleTag", cdata, callback=function(sdata){
+ 		console.log("Emit switch multiple tags : ", cdata);
+	    });
+	});
+    tagSelectionMenuIconClassAttributesTab.push("selectMultipleTagsButtonIcon");
+    tagSelectionMenuShareEvent.push(false);
+
+    socket.on('receive_multiple_Tags', function(sdata){
+     	console.log("receive_multiple_Tags",sdata);
+	if (Boolean(sdata.bool)) {
+	    me.disableOtherTagFunction("SelectMultipleTags");
+	    seltags=sdata.SelTags;
+	    $('.selectMultipleTagsButtonIcon').removeClass('selectMultipleTagsButtonIcon').addClass('closeSelectMultipleTagsButtonIcon');
+	} else {
+	    me.setSelectMultipleTags(false);
+	    $('.closeSelectMultipleTagsButtonIcon').removeClass('closeSelectMultipleTagsButtonIcon').addClass('selectMultipleTagsButtonIcon');
+	}
+    });
 
     // Management sub-menu.
     tagMenuTitleTab.push("Management menu.")
@@ -1584,10 +1677,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 						var tmpNewTag = $('#new-tag').val().trim();// .trim() to avoid whitespace or encoding problems
 						tmpNewTag = newTag_conformance(tmpNewTag);
 						if ($.inArray(tmpNewTag, globalTagsList) == -1)  { // Check if the new tag is not already stored as tag
-						    cdata={"room":my_session,"NewTag":tmpNewTag};
-						    socket.emit("add_Tag", cdata, callback=function(sdata){
- 		    					console.log("socket add New Tag ", cdata);
-						    });
+ 		    				    console.log("add New Tag ", tmpNewTag);
+						    emit_newTag("add-tag",tmpNewTag);
+
 						} else { 
 						    console.log("Tag already exists!");
 						    $('#tag-notif').text("This tag already exists!");
@@ -2456,9 +2548,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 			for (O in nodesByLoc)
 			    if (nodesByLoc[O].getNodeInViewportStatus()) {
-				$('#node'+O).off();
-				$('#hitbox'+O).off("click").on("click", clickHBSelect);
-				$('#hitbox'+O).off("mouseenter");
+				nodesByLoc[O].sub('node').off();
+				nodesByLoc[O].sub('hitbox').off("click").on("click", clickHBSelect);
+				nodesByLoc[O].sub('hitbox').off("mouseenter");
 			    }
 			menuZoom.children('[class*=explain-zoom]')[0].innerText="Click on the left of the nodes to select them. Green nodes will be selected.";
 			menuZoom.children('[class*=explain-zoom]').css({
@@ -2517,9 +2609,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 			for (O in nodesByLoc)
 			    if (nodesByLoc[O].getNodeInViewportStatus()) {
-				$('#node'+O).off();
-				$('#hitbox'+O).off("click").on("click", clickHBSelect);
-				$('#hitbox'+O).off("mouseenter");
+				nodesByLoc[O].sub('node').off();
+				nodesByLoc[O].sub('hitbox').off("click").on("click", clickHBSelect);
+				nodesByLoc[O].sub('hitbox').off("mouseenter");
 			    }
 
 			menuMS.children('[class*=explain-MS]')[0].innerText="Click on the left of the nodes to select them. Click on left \"validate button\" or right \"ALL selected\" button.";
@@ -3880,11 +3972,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     // Move up all lines and place first line on last one
     updownGlobalMenuTitleTab.push("Move up all lines and place first line on last one")
     updownGlobalMenuEventTab.push(    function(v, id, optionNumber){
-	    if (v==true)  { 
 		moveMesh("up");
-	    } else { 
-		moveMesh("up");
-	    }
 	});
     updownGlobalMenuIconClassAttributesTab.push("upArrowButtonIcon");
     updownGlobalMenuShareEvent.push(true);
@@ -3892,11 +3980,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     // Move down all lines and place last line on first
     updownGlobalMenuTitleTab.push("Move down all lines and place last line on first")
     updownGlobalMenuEventTab.push(    function(v, id, optionNumber){
-	    if (v==true)  { 
 		moveMesh("down");
-	    } else { 
-		moveMesh("down");
-	    }
 	});
     updownGlobalMenuIconClassAttributesTab.push("downArrowButtonIcon");
     updownGlobalMenuShareEvent.push(true);
@@ -4142,8 +4226,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 					    
 			    for (O in nodesByLoc)
 				if (nodesByLoc[O].getNodeInViewportStatus()) {
-				    $('#stickers_'+O).css("visibility", "hidden");
-				    $('#node'+O).css({
+				    nodesByLoc[O].sub('stickers_').css("visibility", "hidden");
+				    nodesByLoc[O].sub('node').css({
 					opacity : 1
 				    });
 				}
@@ -4203,7 +4287,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     menuShareEvent.push(true);
 
     /** Show next tiles. */
-    nextList=[]
+    var nextList=[];
     var IntervalClearSelection=100;
     var IntervalCloseTagMenu=100;
     var IntervalCloseTagButton=100;
@@ -4306,11 +4390,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 							clearInterval(checkCloseSelectTag);
 							var newtag="Next"+nextList.length;
 							nextList.push(newtag);
-							receive_Add_Tag=false;
-							cdata={"room":my_session,"NewTag":newtag};
-							socket.emit("add_Tag", cdata, callback=function(sdata){
- 							    console.log("socket add New Tag ", cdata);
-							});
+ 							console.log("Next add New Tag ", newtag);
+							emit_newTag(id+'option'+optionNumber,newtag);
 							
 							var checkEndaddNextTag = setInterval(function() {
 							    if (receive_Add_Tag) {
@@ -4423,11 +4504,11 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    if (v == true)  { 
 		for (O in nodesByLoc)  { 
 		    if (nodesByLoc[O].getNodeInViewportStatus()) { 
-			$('#hitbox'+O).off("click"); 
+			nodesByLoc[O].sub('hitbox').off("click"); 
 			if (!configBehaviour.moveOnMenuOption)  { 
-			    $('#node'+O).off(); 
+			    nodesByLoc[O].sub('node').off(); 
 			}
-			$('#hitbox'+O).on("click", clickHBTag);
+			nodesByLoc[O].sub('hitbox').on("click", clickHBTag);
 		    }
 		}
 		menuTags.css("visibility", "visible");
@@ -4546,7 +4627,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			}
 			for (O in nodesByLoc)
 			    if (nodesByLoc[O].getNodeInViewportStatus())
-				$('#stickers_'+O).show();
+				nodesByLoc[O].sub('stickers_').show();
 		    }
 		    TagHeight=($("#tag-legend").height());
 		    if ( my_user != "Anonymous" ) {
@@ -4558,9 +4639,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    // for debugging : add tag with initial grid order
 		    if (debugPos) {
 			for(O in nodesByLoc)  { 
-		    	    me.AddNewTag("pos"+O);
-		    	    nodesByLoc[O].getStickers().addSticker("pos"+O, attributedTagsColorsArray["pos"+O],false);
-		    	    nodesByLoc[O].addElementToNodeTagList("pos"+O);
+		    	    me.AddNewTag("pos"+nodesByLoc[O].getId());
+		    	    nodesByLoc[O].getStickers().addSticker("pos"+nodesByLoc[O].getId(), attributedTagsColorsArray["pos"+nodesByLoc[O].getId()],false);
+		    	    nodesByLoc[O].addElementToNodeTagList("pos"+nodesByLoc[O].getId());
 			}
 		    }
 		    for(O in nodesByLoc)  { 
@@ -4637,9 +4718,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    
 	    for (O in nodesByLoc)
 		if (nodesByLoc[O].getNodeInViewportStatus()) {
-		    $('#node'+O).off();
-		    $('#hitbox'+O).off("click").on("click", clickHBSelect);
-		    $('#hitbox'+O).off("mouseenter");
+		    nodesByLoc[O].sub('node').off();
+		    nodesByLoc[O].sub('hitbox').off("click").on("click", clickHBSelect);
+		    nodesByLoc[O].sub('hitbox').off("mouseenter");
 		}
 	    me.resetNodesToZoom();
 	    me.setZoomSelection(true);
@@ -4650,7 +4731,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    me.setZoomSelection(false);
 	    for (O in nodesByLoc)
 		if (nodesByLoc[O].getNodeInViewportStatus()) 
-		    $('#hitbox'+O).off("click").on("click", clickHB);
+		    nodesByLoc[O].sub('hitbox').off("click").on("click", clickHB);
 	    $('#'+id+'option'+optionNumber).removeClass('closeActionGlobalMenuButtonIcon').addClass('actionGlobalMenuButtonIcon');
 	}
     });
@@ -4725,8 +4806,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		if (!configBehaviour.moveOnNodeMenuOption)  { 
 		    for (O in nodesByLoc)
 			if (nodesByLoc[O].getNodeInViewportStatus()) {
-			    $('#node'+O).off();
-			    $('#hitbox'+O).off();
+			    nodesByLoc[O].sub('node').off();
+			    nodesByLoc[O].sub('hitbox').off();
 			}
 		}
 
@@ -5400,6 +5481,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 	setNodesByLoc(node2.getIdLocation(),node2);
 	setNodesByLoc(node1.getIdLocation(),node1);
+	node1.setNodeInViewportStatus();
+	node2.setNodeInViewportStatus();
     }
 
     //--A node gets the position of another one
@@ -5793,9 +5876,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	var node2= nodesById["node"+id];
 	OOF.css('background-color', "green");
 	node2.setLoadedStatus(true);
+	mesh.loadContent(id);
 	node.children("iframe").show();
-	node.updateUrl()
-	//mesh.loadContent(id);
+	node2.updateUrl()
     }
 
     
@@ -5891,12 +5974,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		for (O in nodesByLoc)  { 
 		    if (nodesByLoc[O].getNodeInViewportStatus()) { 
-			$('#qrcode'+O).off();
-			$('#handle'+O).off();
+			nodesByLoc[O].sub('qrcode').off();
+			nodesByLoc[O].sub('handle').off();
 			
-			$('#hitbox'+O).off(); 
-			$('#onoff'+O).off();
-			$('#node'+O).off(); 
+			nodesByLoc[O].sub('hitbox').off(); 
+			nodesByLoc[O].sub('onoff').off();
+			nodesByLoc[O].sub('node').off(); 
 		    }
 		} 
 		_allowDragAndDrop = true;
@@ -5906,13 +5989,13 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		for (O in nodesByLoc)  { 
 		    if (nodesByLoc[O].getNodeInViewportStatus()) { 
-			$('#onoff'+O).on(OOFEvent);
-			$('#handle'+O).on(handleEvent);
-			$('#hitbox'+O).on(HBEvent);
-			$('#node'+O).on(NodeEvent);
+			nodesByLoc[O].sub('onoff').on(OOFEvent);
+			nodesByLoc[O].sub('handle').on(handleEvent);
+			nodesByLoc[O].sub('hitbox').on(HBEvent);
+			nodesByLoc[O].sub('node').on(NodeEvent);
 			nodesByLoc[O].setLoadedStatus(true);			
 			
-			$('#qrcode'+O).on({
+			nodesByLoc[O].sub('qrcode').on({
 			    click : clickQRcode
 			});
 		    }
@@ -6109,7 +6192,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    //console.log("mouseLeaveFunction");
 	    for (O in nodesByLoc)
 		if (nodesByLoc[O].getNodeInViewportStatus()) {
-		    $('#node'+O).off("mouseup");
+		    nodesByLoc[O].sub('node').off("mouseup");
 		}
 	    var node = mesh.getNode(this.id);
 	    var HBcolor = $('#hitbox'+node.getId()).css('background-color');
@@ -6137,7 +6220,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    if (node.getState() == 0) {
 	    for (O in nodesByLoc)
 		if (nodesByLoc[O].getNodeInViewportStatus()) {
-		    $('#node'+O).off("mouseup");
+		    nodesByLoc[O].sub('node').off("mouseup");
 		}
 		node.updateHtmlNodeState(1);
 		//console.log($('.transparentNode').length);
@@ -6164,7 +6247,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    } else { 
 		for (O in nodesByLoc)
 		    if (nodesByLoc[O].getNodeInViewportStatus()) {
-			$('#node'+O).off("mouseup");
+			nodesByLoc[O].sub('node').off("mouseup");
 		    }
 		node.updateHtmlNodeState(0);
 		putDown(node.getId());
@@ -6346,7 +6429,7 @@ dblclick: dblclickFunction*/
 		if($('#' + this.id).hasClass("drag-handle-on")) {
 		    for (O in nodesByLoc)
 			if (nodesByLoc[O].getNodeInViewportStatus()) {
-			    $('#node'+O).off("mouseenter");
+			    nodesByLoc[O].sub('node').off("mouseenter");
 			}
 		    $('#'+this.id).css('-webkit-transform','scale(2)').css('-moz-transform','scale(2)');
 		    var nodeToDrag = this.id.replace("handle", "");
@@ -6385,7 +6468,7 @@ dblclick: dblclickFunction*/
 		if ($('.node').filter('.ui-draggable').length == 0)
 		    for (O in nodesByLoc)
 			if (nodesByLoc[O].getNodeInViewportStatus()) {
-			    $('#node'+O).on("mousenter");
+			    nodesByLoc[O].sub('node').on("mousenter");
 			}
 	    }
 	    
@@ -6514,7 +6597,7 @@ dblclick: dblclickFunction*/
 
 			for (O in nodesByLoc)
 			    if (nodesByLoc[O].getNodeInViewportStatus()) {
-				$('#node'+O).off("mouseenter");
+				nodesByLoc[O].sub('node').off("mouseenter");
 			    }
 			nodeToDrag.off("mouseleave");
 
@@ -6658,7 +6741,7 @@ dblclick: dblclickFunction*/
 			if (dragging.size == 0)
 			    for (O in nodesByLoc)
 				if (nodesByLoc[O].getNodeInViewportStatus()) {
-				    $('#node'+O).on("mouseenter");
+				    nodesByLoc[O].sub('node').on("mouseenter");
 				}
 
 			$('#'+targetid).css('-webkit-transform','scale(1)').css('-moz-transform','scale(1)');
@@ -6741,9 +6824,9 @@ dblclick: dblclickFunction*/
 
 	    for (O in nodesByLoc)
 		if (nodesByLoc[O].getNodeInViewportStatus()) {
-		    $('#node'+O).off();
-		    $('#hitbox'+O).off("click").on("click", clickHBSelect);
-		    $('#hitbox'+O).off("mouseenter");
+		    nodesByLoc[O].sub('node').off();
+		    nodesByLoc[O].sub('hitbox').off("click").on("click", clickHBSelect);
+		    nodesByLoc[O].sub('hitbox').off("mouseenter");
 		}
 	    _allowDragAndDrop = false;
  
