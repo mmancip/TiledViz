@@ -3,10 +3,10 @@
 from flask_wtf import FlaskForm, recaptcha
 from flask_wtf.recaptcha import RecaptchaField
 import wtforms
-from wtforms import RadioField, SelectField, StringField, PasswordField, BooleanField, SubmitField, IntegerField, TextAreaField, SelectMultipleField, FieldList, FileField, MultipleFileField, widgets
+from wtforms import RadioField, SelectField, StringField, PasswordField, BooleanField, SubmitField, IntegerField, TextAreaField, SelectMultipleField, FieldList, FileField, MultipleFileField, widgets, HiddenField
 from wtforms.fields.html5 import SearchField
 from wtforms.widgets import core, html5
-from wtforms.validators import InputRequired, Email, Optional, EqualTo
+from wtforms.validators import InputRequired, Email, Optional, EqualTo, NumberRange
 
 import markupsafe
 
@@ -214,6 +214,19 @@ def BuildEditsessionform(oldsession=None,edit=True):
     editsessionform.sessionname = StringField("New session name", default=oldsession.name, validators=[InputRequired()])
     editsessionform.description = StringField("Description of this session", default=oldsession.description, validators=[InputRequired()])
     ListAllTileSet_ThisSession=[ (str(thistileset.id), thistileset.name) for thistileset in oldsession.tile_sets]
+
+     # - PCA - 
+    # Make the PCA by default
+    has_pca = "NO" 
+
+
+    # - PCA - 
+    # Add a field : number of wanted clusters
+    # initialize the json_tiles_nbClusters with :
+    #  |_ the old one (the saved one) if want to update the database table  or the json file
+    #  |_ the new one passed as argument
+    json_tiles_nbClusters = 2  
+
     if (len(ListAllTileSet_ThisSession) > 0):
         editsessionform.tilesetchoice = RadioField(label='listtilesets',
                                                    description='List all tilesets for this session',
@@ -247,6 +260,30 @@ def BuildEditsessionform(oldsession=None,edit=True):
                                           unbound_field=StringField("user", validators=[Optional()]),
                                           default=ListAllUsers_ThisSession,
                                           min_entries=5,max_entries=10)
+
+        # - PCA - 
+        # Add the number of cluster field
+        editsessionform.has_pca = RadioField(label='- Principal Component Analysis :',
+                                                description='Would you like to perform automatically Principal Component Analysis (PCA) on all your tilesets? <br/>\
+                                                            This option will perform clustering and thus add tags corresponding to groups.',
+                                                choices=[("YES","yes"),
+                                                         ("NO","no")
+                                                ],
+                                                default=has_pca,
+                                                validators=[Optional()])
+
+        """
+        editsessionform.json_tiles_nbClusters = IntegerField("Number of wanted clusters ", default=json_tiles_nbClusters,
+                                            validators = [NumberRange(min=2)])
+        
+        editsessionform.tilesetchoice = RadioField(label='listtilesetsforpca',
+                                                   description='List of tilesets for this session : check all the desired ones ',
+                                                   choices=ListAllTileSet_ThisSession,
+                                                   default=ListAllTileSet_ThisSession[0][0],
+                                                   validators=[Optional()])
+        """
+
+        
     else:
         if edit:
             editsessionform.tilesetaction = RadioField(label='tilesetaction',
@@ -260,6 +297,8 @@ def BuildEditsessionform(oldsession=None,edit=True):
                                           unbound_field=StringField("user", validators=[Optional()]),
                                           default=ListAllUsers_ThisSession,
                                           min_entries=5,max_entries=10)
+        editsessionform.has_pca=HiddenField("no PCA if no TileSet.",default=False)
+        
     editsessionform.Session_config = SubmitField("Edit configuration of the session")
     editsessionform.add_users = SubmitField('Add more users')
     editsessionform.submit = SubmitField("Next step")
@@ -285,6 +324,15 @@ def BuildConfigSessionForm(oldConfig,json_configs_text):
     ConfigForm.submit = SubmitField("Next step")
     return ConfigForm
 
+
+# - PCA - 
+#   |_ Add the parameter nbClusters corresponding to the optimal knee value (the optimal value of cluster 
+#       for the corresponding tileset)
+#       |_ OR calculate it directly with the tilset json_tiles_text
+#   |_ the json_tiles_text argument contains the json tileset (the nodes)
+#       |_ process here the anatreada script 
+#           |_ get the new tileset with the new tags "00_group" for example
+
 def BuildTilesSetForm(oldtileset=None,json_tiles_text=None,onlycopy=False,editconnection=False):
     class TilesSetForm(FlaskForm):
         pass
@@ -301,8 +349,13 @@ def BuildTilesSetForm(oldtileset=None,json_tiles_text=None,onlycopy=False,editco
         if (json_tiles_text==None):
             json_tiles_text=tvdb.decode_tileset(oldtileset)
         
+    # - PCA - 
+    # Make the PCA by default
+    has_pca = "NO" 
+    
     TilesSetForm.submit1 = SubmitField("Next step")
     TilesSetForm.name = StringField("Tiles Set name (required)", default=name, validators=[InputRequired()])
+
     if (not onlycopy):
         TilesSetForm.type_of_tiles = RadioField(label='Type of the tiles',
                                                 description='Connection with some pictures or web pages or remote VMs.',
@@ -333,6 +386,7 @@ def BuildTilesSetForm(oldtileset=None,json_tiles_text=None,onlycopy=False,editco
             validators=[Optional()])
 
         if (editconnection):
+            TilesSetForm.createconnection = SubmitField(label="createconnection",description="Create Connection")
             TilesSetForm.editconnection = SubmitField(label="editconnection",description="Edit Connection")
             TilesSetForm.shellconnection = SubmitField(label="shellconnection",description="Direct shell Connection")
             TilesSetForm.manage_connection= RadioField(label='Connections',
@@ -349,6 +403,17 @@ def BuildTilesSetForm(oldtileset=None,json_tiles_text=None,onlycopy=False,editco
             #TilesSetForm.editconnection = SubmitField("Manage connection for this tileset.")
 
         #TilesSetForm.openports_between_tiles = FieldList(IntegerField("port :",validators=[Optional()]),description="Open port in visualisation network",min_entries=2,max_entries=5) 
+        # - PCA - 
+        # Add the number of cluster field
+        TilesSetForm.has_pca = RadioField(label='- Principal Component Analysis :',
+                                                description='Would you like to perform automatically Principal Component Analysis (PCA) on your data? <br/>\
+                                                            This option will perform clustering and thus add tags corresponding to groups.',
+                                                choices=[("YES","yes"),
+                                                         ("NO","no")
+                                                ],
+                                                default=has_pca,
+                                                validators=[Optional()])
+        
         
     TilesSetForm.goback = SubmitField("Go back")
     TilesSetForm.submit = SubmitField("Next step")
@@ -379,29 +444,38 @@ def BuildConnectionsForm(oldconnection=None,json_tiles_text=None):
     # Connection files specific for associated TileSet
     ConnectionForm.configfiles = MultipleFileField(label="Connection configuration files (required for connection). ",
                                                    description="Configuration files placed in connection dir and upload in CASE dir on HPC frontend.",
-                                                   validators=[Optional()])
+                                                   validators=[Optional()],default=None)
 
     
     #### liste A REVOIR  (cf TVConnection.py)
-    ConnectionForm.auth_type = RadioField(label='Authentication type',
-                                          description='Connection to the machine :',
-                                          choices=[("ssh","Direct ssh connection"),
-                                                   ("rebound","ssh through a gateway"),
-                                                   ("persistent","define ssh connection an save it.")
-                                          ],
-                                          default=auth_type,
-                                          validators=[Optional()])
+    ConnectionForm.auth_type = HiddenField(default=auth_type)
+    # ConnectionForm.auth_type = RadioField(label='Authentication type',
+    #                                       description='Connection to the machine :',
+    #                                       choices=[("ssh","Direct ssh connection"),
+    #                                                ("rebound","ssh through a gateway"),
+    #                                                ("persistent","define ssh connection an save it.")
+    #                                       ],
+    #                                       default=auth_type,
+    #                                       widget=[HiddenInput()],
+    #                                       validators=[Optional()])
 
-    ConnectionForm.container = StringField("Type of backend use on the machine to launch containers", default=container, validators=[InputRequired()])
-    ConnectionForm.scheduler = RadioField(label='Type of scheduler on HPC machine',
-                                          description='How to launch containers job on the machine :',
-                                          choices=[("none","No schedule at all : you will have to give the list of machines."),
-                                                   ("slurm","Slurm scheduler."),
-                                                   ("loadleveler","Loadleveler scheduler.")
-                                          ],
-                                          default=scheduler,
-                                          validators=[Optional()])
-    ConnectionForm.scheduler_file = FileField("Script to launch CONTAINERs on remote machine (required for connection) : ",validators=[Optional()])
+    ConnectionForm.container = HiddenField(default=container)
+    # ConnectionForm.container = StringField("Type of backend use on the machine to launch containers", default=container, validators=[InputRequired()])
+    
+    ConnectionForm.scheduler = HiddenField(default=scheduler)
+    # ConnectionForm.scheduler = RadioField(label='Type of scheduler on HPC machine',
+    #                                       description='How to launch containers job on the machine :',
+    #                                       choices=[("none","No schedule at all : you will have to give the list of machines."),
+    #                                                ("slurm","Slurm scheduler."),
+    #                                                ("loadleveler","Loadleveler scheduler.")
+    #                                       ],
+    #                                       default=scheduler,
+    #                                       widget=[HiddenInput()],
+    #                                       validators=[Optional()])
+    ConnectionForm.scheduler_file = HiddenField(default=None)
+    # ConnectionForm.scheduler_file = FileField("Script to launch CONTAINERs on remote machine (required for connection) : ",
+    #                                           widget=HiddenInput(),
+    #                                           validators=[Optional()])
     # ConnectionForm.scheduler_text = TextAreaField("Edit here script to launch CONTAINERs on remote machine.",validators=[Optional()])
 
     ConnectionForm.submit = SubmitField("Next step")

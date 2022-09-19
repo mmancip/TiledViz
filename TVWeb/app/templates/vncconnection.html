@@ -33,7 +33,7 @@
   </br>
   <p> Click on the blue bar or in the grey border of the connection window to get hand inside it. </p>
   <script>
-    var VNCurl="http://"+flaskaddr+":5000/noVNC/vnc_auto.html?host="+flaskaddr+"&port="+connection_port+"&encrypt=0&password="+vncpassword+"&true_color=1"
+    var VNCurl="http://"+flaskaddr+":5000/noVNC/vnc.html?autoconnect=1&host="+flaskaddr+"&port="+connection_port+"&encrypt=0&password="+vncpassword+"&true_color=1"
     var vncifrm = document.createElement('iframe');
     vncifrm.setAttribute('width', 1410);
     vncifrm.setAttribute('height', 740);

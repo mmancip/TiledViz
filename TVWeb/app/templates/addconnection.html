@@ -1,0 +1,29 @@
+{% extends "main_login.html" %}
+
+{% block additional_scripts_css %}
+<script src="{{ url_for('static', filename='dist/js/jquery.countdown360.js') }}"></script>
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/forms.css') }}">
+{% endblock %}
+
+{% block extra %}
+<div id="countdown"></div>
+<script>
+  var jsonmessage = $.parseJSON($('.warning_user').html().replace(/'/g,"\""));
+  var TimeConnection=parseInt(jsonmessage["TimeConnection"]);
+  $("#countdown").hide();
+  var startcount=function() {
+      $("#countdown").show();
+      var countdown = $("#countdown").countdown360({
+	  radius: 80,
+	  seconds: TimeConnection,
+	  fontColor: '#FFFFFF',
+	  autostart: true,
+	  onComplete: function () { console.log('countdown done') }
+      });
+      countdown.start();
+      console.log('countdown360 ', countdown);
+  };
+  $("#submit").on('click',startcount);
+  $("#submit1").on('click',startcount);
+</script>
+{% endblock %}

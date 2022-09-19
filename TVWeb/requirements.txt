@@ -10,3 +10,7 @@ flask-sqlacodegen
 flask-cors
 requests
 email_validator
+metadata_parser
+scikit-learn
+pandas
+kneed

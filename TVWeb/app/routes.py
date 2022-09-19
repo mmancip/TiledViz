@@ -40,11 +40,24 @@ import random
 import tempfile, filecmp
 import tarfile
 
+import pandas as pd
+
 sys.path.append(os.path.abspath('../TVDatabase'))
 from TVDb import tvdb
 tvdb.session=db.session
 
+logging.debug("Flask Route start app config : "+str(app.config))
+
+# - PCA -
+# importing the module analysis-and-treatment-of-data
+sys.path.append(os.path.abspath('app'))
+from Anatreada import anatreada
+
+# Time sleep for waiting loops in seconds : 
 timeAlive=5
+
+# Time for create and start connections in seconds
+TimeConnection=30
 
 # Boolean for admin page :
 really_delete=True
@@ -58,7 +71,11 @@ outHandler.setFormatter(logFormatter)
 
 import errno,posix
 logFIFO="/tmp/logfifo"
-os.mkfifo(logFIFO)
+if (not os.path.exists(logFIFO)):
+    try:
+        os.mkfifo(logFIFO)
+    except:
+        pass
 initLOGLEV="WARNING"
 logfifo=posix.open(logFIFO, posix.O_NONBLOCK)
 LOGLEV=initLOGLEV
@@ -1206,9 +1223,7 @@ def admin():
                 ids.append(elementid)
 
                 thissession=db.session.query(models.Session).filter_by(id=elementid).scalar()
-                for ts in thissession:
-                    oldsession.tile_sets.remove(ts)
-                delelement(models.Session, chosenObject, elementid)
+                remove_this_session(elementid)
 
             # if (myform.chosen_session_invited.data != "NoChoice"):
             #     logging.warning("Chosen session invited "+str(myform.chosen_session_invited.data))
@@ -1393,6 +1408,9 @@ def oldsessions():
 # Create new session
 @app.route('/newsession', methods=["GET", "POST"])
 def newsession():
+    if ( not "sessionname" in session ):
+        return redirect("/allsessions")
+
     # New or session manager (copy, invite_link a list of connected users ?)
     myform = BuildNewSessionForm()() 
     if myform.validate_on_submit():
@@ -1435,6 +1453,9 @@ def newsession():
 # Copy an old session and edit tilesets
 @app.route('/copysession', methods=["GET", "POST"])
 def copysession():
+    if ( not "sessionname" in session ):
+        return redirect("/allsessions")
+
     message=json.loads(request.args["message"])
     oldsessionname=message["oldsessionname"]
     oldsession = db.session.query(models.Session).filter_by(name=oldsessionname).scalar()    
@@ -1512,6 +1533,72 @@ def editsession():
     myform = BuildEditsessionform(oldsession,edit=True)()
     if myform.validate_on_submit():
         logging.debug("editSessionForm : ")
+
+        # - PCA -
+        #   |_ my form contains the form the edition tileset
+        #   |_ process the anatreada script here ?? 
+        # logging.info("Calling pca_nodes_of_tilesets methode of anatread")
+        # logging.info("The user as selected the option : " + myform.has_pca.data)
+
+        # - PCA -
+        # if has_pca option is True -> make the PCA over all the tisets of the current session
+        if myform.has_pca.data == "YES" :
+
+            # logging.info("Contruction of nodes of tilesets to process the PCA ...")
+            
+            # - PCA -
+            #   |_ structure of dict_tiles_all_session :
+            #
+            #       {
+            #           "nodes": [
+            #               {
+            #                   "id": "xxxxxxxxxx",
+            #                   "title": "xxxxxxxxxx",
+            #                   "tags": [
+            #                        "{tagName,minValue,value,maxValue}",
+            #                        "{tagName2,minValue,value,maxValue}",
+            #                        "tagName3"
+            #                    ]
+            #                }
+            #           ]
+            #       }
+
+            dict_tiles_all_session = dict()
+            dict_tiles_all_session["nodes"] = []
+            # ici
+            for tileset in oldsession.tile_sets:
+                for tile in tileset.tiles:
+                    dict_tiles_all_session["nodes"].append( {
+                        "id" : tile.id,
+                        "title" : tile.title, 
+                        "tags" : tile.tags
+                        } )
+
+            # dict_pca_tiles_all_session  : contains a json of dict_tiles_all_session with the group for all the tiles
+            # groups_dict                 : contains a json of a dict as this format : {id_tile : group_name}
+            json_tiles_text=json.dumps(dict_tiles_all_session)
+            logging.error(json_tiles_text)
+            myflush()
+            dict_pca_tiles_all_session, groups_dict = anatreada.pca_on_multiple_nodes(json_tiles_text)
+            
+            dict_pca_tiles_all_session = json.loads(dict_pca_tiles_all_session)
+            groups_dict = json.loads(groups_dict)
+
+            # Update oldession with the new groups
+            for i in range(0, len(oldsession.tile_sets)):
+                tileset =  oldsession.tile_sets[i]
+                for j in range(0, len(tileset.tiles)):
+                    try :
+                        tile = tileset.tiles[j]
+                        tile.tags.append(groups_dict[str(tile.id)])
+                        
+                        flag_modified(tile,"tags")
+
+                    except :
+                        logging.error("An error occurred : can't find tile id in groups dict ...")
+                        
+            db.session.commit()
+
         if myform.add_users.data:
             myform.users.append_entry()
             message = '{"oldsessionname":"'+oldsessionname+'"}'
@@ -1520,7 +1607,7 @@ def editsession():
             return render_template("main_login.html", title="Edit session TiledViz", form=myform)
 
         if (myform.sessionname.data != oldsessionname):
-            message = '{"oldsessionname":"'+session["sessionname"]+'"}'
+            message = '{"oldsessionname":"'+oldsessionname+'"}'
             flash("You must NOT change session name to edit session {}".format(oldsessionname))
             return render_template("main_login.html", title="Edit session TiledViz", form=myform, message=message)
 
@@ -1636,6 +1723,9 @@ def searchtileset():
 # Config Session : give the json (depend of static/js/config_default.json)
 @app.route('/configsession', methods=["GET", "POST"])
 def configsession():
+    if ( not "sessionname" in session ):
+        return redirect("/allsessions")
+
     message=json.loads(request.args["message"])
 
     sessionname=message["sessionname"]
@@ -1708,6 +1798,9 @@ def configsession():
 # New TileSet : always create tile even if another (title/comment) exists
 @app.route('/addtileset', methods=["GET", "POST"])
 def addtileset():
+    if ( not "sessionname" in session ):
+        return redirect("/allsessions")
+
     myform = BuildTilesSetForm()()
     #print('message=',str(request.args["message"]))
     message=json.loads(request.args["message"])
@@ -1847,6 +1940,9 @@ def addtileset():
 # Only copy old tiles in DB
 @app.route('/copytileset', methods=["GET", "POST"])
 def copytileset():
+    if ( not "sessionname" in session ):
+        return redirect("/allsessions")
+
     message=json.loads(request.args["message"])
     logging.warning("copytileset : "+str(message))
     oldtilesetid=message["oldtilesetid"]
@@ -1916,6 +2012,9 @@ def copytileset():
 # Edit old new TileSet
 @app.route('/edittileset', methods=["GET", "POST"])
 def edittileset():
+    if ( not "sessionname" in session ):
+        return redirect("/allsessions")
+
     try:
         message=json.loads(request.args["message"])
     except json.decoder.JSONDecodeError as e:
@@ -1934,6 +2033,10 @@ def edittileset():
     # Detect how the data of tileset has been inserted :
     buildargs={}
     buildargs["oldtileset"]=oldtileset
+
+    # - PCA -
+    #   |_ buildargs used to pass arguments to BuildTilesSetForm
+    #   |_ there is the json_tiles_text in corresponding to the json of the tileset
 
     if ( session["sessionname"] in  jsontransfert):
         if ( "TheJson" in  jsontransfert[session["sessionname"]]):
@@ -2004,14 +2107,35 @@ def edittileset():
             message = '{"oldsessionname":"'+session["sessionname"]+'"}'
             return redirect(url_for(".editsession",message=message))
 
+        # - PCA -
+        #   |_ process the anatreada script
+        logging.info("Calling pca_nodes methode of anatread")
+        logging.info("The user as selected the option : " + myform.has_pca.data)
+
         # Detect how the data of tiles has been inserted :
         if (myform.json_tiles_file.data) :
             json_tiles_file = myform.json_tiles_file.data
             logging.warning("Read json_tiles_file :"+myform.json_tiles_file.data.filename)
-            json_tiles = json_tiles_file.read()
+
+            # - PCA -
+            # if has_pca option is True -> make the PCA over the file
+            if myform.has_pca.data == "YES" :
+                json_tiles_text=json_tiles_file.read()
+                json_pca_tiles_text = anatreada.pca_on_one_node(json_tiles_text)
+                json_tiles = json_pca_tiles_text
+            else:
+                json_tiles = json_tiles_file.read()
         else:
             # if json structure is inserted with text area
-            json_tiles = myform.json_tiles_text.data
+
+            # - PCA -
+            # if has_pca option is True -> make the PCA over the text area
+            if myform.has_pca.data == "YES" :
+                json_pca_tiles_text = anatreada.pca_on_one_node(myform.json_tiles_text.data)
+                json_tiles = json_pca_tiles_text
+                logging.info("edittileset -> myform.has_pca.data = YES -> json_tiles")
+            else:  
+                json_tiles = myform.json_tiles_text.data
 
         try:    
             if myform.editjson.data:
@@ -2024,7 +2148,7 @@ def edittileset():
             traceback.print_exc(file=sys.stderr)
             logging.error("Error editjson %s : %s" % ( str(myform.editjson), err ))
 
-        if(oldtileset.type_of_tiles == "CONNECTION" and myform.manage_connection.data != "reNew"):
+        if(oldtileset.type_of_tiles == "CONNECTION" and myform.manage_connection.data != "reNew" and not myform.createconnection.data):
             user_id=get_user_id("edittileset",session["username"])
             if ( not "connection"+str(oldConnection_id) in session):
                 flash("You don't have connection information in your personal cookie for this connection.")
@@ -2116,7 +2240,7 @@ def edittileset():
                 strrm="rm -f "+newfilename
                 os.system(strrm)
         
-        elif(oldtileset.type_of_tiles == "CONNECTION" and myform.manage_connection.data == "reNew"):
+        elif(oldtileset.type_of_tiles == "CONNECTION" and (myform.manage_connection.data == "reNew" or myform.createconnection.data)):
             launch_file=myform.script_launch_file.data
             if (not launch_file):
                 flash("TileSet with connection must have at least a script to launch your tiles.\n You must add launch_file script.")    
@@ -2157,6 +2281,10 @@ def edittileset():
         #     print("Relaunch whith file ",message)
         #     return redirect(url_for(".edittileset",message=message))
 
+
+        # - PCA -
+        # use this variable as the knee number
+        # intialize this varibale with knee number previously calculated  if there is an oldtileset
         try:
             nbr_of_tiles = len(jsonTileSet["nodes"])
             logging.info("Number of tiles "+str(nbr_of_tiles))
@@ -2277,7 +2405,7 @@ def edittileset():
         if (connectionbool and myform.manage_connection.data):
             message = '{"oldtilesetid":'+str(oldtileset.id)+',"oldsessionname":"'+session["sessionname"]+'"}'
 
-            if (myform.manage_connection.data == "reNew"):
+            if (myform.manage_connection.data == "reNew" or myform.createconnection.data):
                 return redirect(url_for(".addconnection",message=message))
             # elif (myform.manage_connection.data == "Edit"):
             #     return redirect(url_for(".editconnection",message=message))
@@ -2353,9 +2481,6 @@ def vncconnection():
             message=request.args["message"]
             return redirect(url_for(".edittileset",message=message))
 
-    # TODO : wait for connection PORT instead of 3s ?
-    time.sleep(3)
-
     # Wait from TVSecure for connection PORT in DB
     db.session.refresh(oldconnection)
     connection_vnc=oldconnection.connection_vnc
@@ -2418,10 +2543,13 @@ def vncconnection():
     
 @app.route('/addconnection', methods=["GET", "POST"])
 def addconnection():
+    global TimeConnection
     
     myform = BuildConnectionsForm()()
     print('message=',str(request.args["message"]))
     message=json.loads(request.args["message"])
+    message["TimeConnection"]=TimeConnection
+    
     logging.debug("ConnectionForm built."+str(message))
     
     if myform.validate_on_submit():
@@ -2502,8 +2630,10 @@ def addconnection():
             jsontransfert.pop(TStmpName)
 
         # Write config files for connection
-        if (myform.configfiles.data):
+        if ( myform.configfiles.data and str(myform.configfiles.data) != str([""]) ):
+            logging.info("Config files : %s " % (str(myform.configfiles.data)))
             for FileS in myform.configfiles.data:
+                logging.warning("Config files File : %s " % (str(FileS)))
                 tf = tempfile.NamedTemporaryFile(mode="w+b",dir=connectionpath,prefix="",delete=False)
                 tf.write(FileS.read())
                 # TODO : Add dir (in JOBPath on HPC machine) info for files ? 
@@ -2563,6 +2693,7 @@ def addconnection():
         #  Wait NbTimeAlive for TVSecure to get VNC view to put connection datas.
         NbTimeAlive = 40
         count=0
+        countTimeConnection=time.time()
         while(True):
             if (count > NbTimeAlive):
                 strerror="Connection has never been reach. Go back to TileSet."
@@ -2579,6 +2710,9 @@ def addconnection():
             #os.system("ls -la "+passpath)
             #sys.stdout.flush()
             if (os.path.isfile(passpath)):
+                countTimeConnection=int(time.time()-countTimeConnection)
+                if (TimeConnection!=countTimeConnection):
+                    TimeConnection=countTimeConnection
                 with open(passpath,'r') as f:
                     vncpassword=re.sub(r'\n',r'',f.read())
                 f.close()
@@ -2588,11 +2722,12 @@ def addconnection():
                 session["connection"+str(newConnection.id)]=' {"callfunction":"edittileset",'+'"args":{"oldsessionname":"'+str(session["sessionname"])+'","oldtilesetid":"'+str(newtileset.id)+'"}, "vncpassword":"'+vncpassword+'"}'
 
                 logging.warning("addconnection in session : "+str(session["connection"+str(newConnection.id)]))
+                logging.warning("Go to vncconnection : "+str(url_for(".vncconnection",message=message)))
                 #TODO logging.debug
                 myflush()
                 return redirect(url_for(".vncconnection",message=message))
         
-    return render_template("main_login.html", title="Add new Connection TiledViz", form=myform, message=message)
+    return render_template("addconnection.html", title="Add new Connection TiledViz", form=myform, message=message)
 
 # Edit old Connection related to a tileset
 @app.route('/editconnection', methods=["GET", "POST"])
@@ -2825,6 +2960,7 @@ def jsoneditor():
 @cross_origin()
 def show_grid():
 
+    logging.warning("session in grid : "+str(session))
     #logging.debug("Enter in show_grid: with session "+str(session))
     if (not 'is_client_active' in session):
         flash("You are not connected. You must login before using a grid.")
@@ -2934,6 +3070,69 @@ def show_grid():
     
     config["nbr_of_tiles"] = nbr_of_tiles
 
+    # Global tags search 
+    Tags={}
+    Tags["globalTags"]=[]
+    Tags["FloatingTags"]={}
+
+    # df_nodes_normalized : DataFrame()
+    # df_nodes_normalized contains the DataFrame of tiles_data["nodes"]
+    df_nodes_normalized = pd.json_normalize(tiles_data["nodes"])
+
+    # df_column_tag_normalized : DataFrame()
+    # df_column_tag_normalized contains the DataFrame of tags column of df_nodes_normalized DataFrame
+    df_column_tag_normalized = df_nodes_normalized["tags"]
+    print(df_column_tag_normalized)
+    # tags_normalized : DataFrame()
+    # tags_normalized contains the DataFrame of node/tile tags
+    df_tags_normalized = pd.DataFrame()
+
+    # tag_lines : list(dict())
+    # tag_lines contains tags information in a dictionary format
+    tag_lines = []
+    floating_tag={}
+    
+    #i : int
+    for i in range(0, len(df_column_tag_normalized)):
+        # dict_line : dict()
+        dict_line = dict()
+        tags_node = []
+        
+        # j : int
+        for j in range(0, len(df_column_tag_normalized[i])):
+
+            newline = df_column_tag_normalized[i][j]
+            newline = newline.replace("{", "")
+            newline = newline.replace("}", "")
+
+            # list_line : []
+            # list_line contains the list of elements of le string line
+            list_line = newline.split(',')
+
+            # tag_name : str
+            tag_name = list_line[0]
+            tags_node.append(tag_name)
+            
+            # if it's a variable tag
+            if len(list_line) > 1:
+                value_min =     list_line[1]
+                value =         list_line[2]
+                value_max =     list_line[3]
+                dict_line[tag_name] = float(value)
+                floating_tag[tag_name]={'m':value_min,'M':value_max}
+                    
+            # if the tag is the last of the node/tile
+            if j == len(df_column_tag_normalized[i]) -1 :
+                tag_lines.append(dict_line)
+                dict_line = {}
+
+        for tag in tags_node:
+            if (not tag in Tags["globalTags"]):
+                Tags["globalTags"].append(tag)
+                if (tag in floating_tag):
+                    Tags["FloatingTags"][tag]=floating_tag[tag]
+                    
+    
     tiles_data["config"] = config
     psgeom={}
     if (not session["is_client_active"]):
@@ -3026,6 +3225,7 @@ def show_grid():
                            json_data=tiles_data,
                            json_actions=tiles_actions,
                            json_config=TheConfig,
+                           json_Tags=Tags,
                            helpPath = help_path)
 
 @socketio.on("save_Session")
@@ -3495,6 +3695,7 @@ def handle_join_with_invite_link(link):
         session["geometry"]=my_geom
     else:
         session["geometry"]='{}'
+    logging.warning("session after join before grid : "+str(session))
     return redirect('/grid')
     #return(redirect("/grid", project=room))
     #return ("pouet")

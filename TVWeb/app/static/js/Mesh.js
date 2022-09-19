@@ -2317,10 +2317,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		} else {
 		    me.magnifyingGlass(nodeMSTab,ratio,initSpread);
 		}			
-		iHandled=0;
 			
 		// We begin with first selected as Master
-		handleMaster=$("#Zoomed"+iHandled);
+		handleMaster=$("#Zoomed"+0);
 			
 		// We create the listened div
 		$("#zoomSupport").append('<div id=Handled class=handled></div>');
@@ -2329,8 +2328,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		handleMaster.children(".info").html("MASTER Tile");
 		handleMaster.children(".stickers_zone").remove()
 		
-		urlMaster=nodeMSTab[iHandled].getJsonData().url;
-		urlMasterPath=urlMaster.slice(0,urlMaster.search("vnc_auto.html"));
+		urlMaster=nodeMSTab[0].getJsonData().url;
+		urlMasterPath=urlMaster.slice(0,urlMaster.search("vnc.html"));
 
 		// We set the property of the iframe
 		var HandledJQ=$("#Handled");
@@ -2357,11 +2356,11 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		function initMSList() {
 		    // This function will work only for VNC connections
 		    try {
-			MSPath=urlMasterPath+"vnc_multi.html?NbRFB="+nodeMSTab.length+"&";
-			for(i=0;i<nodeMSTab.length;i++) {
+			str_autoconnect="?autoconnect=1&"
+			MSPath=urlMasterPath+"vnc_multi.html"+str_autoconnect+"NbRFB="+(nodeMSTab.length-1)+"&";
+			for(i=1;i<nodeMSTab.length;i++) {
 			    var urlNode=nodeMSTab[i].getJsonData().url;
-			    //urlNodePath=urlNode.slice(0,urlNode.search("vnc_auto.html"));
-			    urlNodeParam=urlNode.slice(urlNode.search("vnc_auto.html")+14);
+			    urlNodeParam=urlNode.slice(urlNode.search("vnc.html")+"vnc.html".length+str_autoconnect.length);
 			    NodeParams=urlNodeParam.split('&');
 			    for (P in NodeParams) {
 				thisparam=NodeParams[P].slice(0,NodeParams[P].search("="));
@@ -2372,7 +2371,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 				case("path"):
 				case("token"):
 				case("encrypt"):
-				    NodeParams[P]=NodeParams[P].replace("=",i+"=");
+				    NodeParams[P]=NodeParams[P].replace("=",(i-1)+"=");
+				case("autoconnect"):
+				case("true_color"):
+				    // suppress param
 				}
 			    }
 			    MSPath=MSPath+NodeParams.join('&')+'&';
@@ -5684,6 +5686,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		nodes_["node"+node.getId()]=node;
 		nodesByLoc[node.getIdLocation()]=node;
 	    }
+	    globalTagsList.sort();
 
 	    return nodes_;
 	}());

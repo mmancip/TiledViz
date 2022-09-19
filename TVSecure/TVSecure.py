@@ -183,7 +183,7 @@ class FlaskDocker(threading.Thread):
         for i in range(NbSecureConnection): 
             self.flaskPORT[str(ConnectionPort+i)+'/tcp']=('0.0.0.0',ConnectionPort+i)
 
-        healthcheckN=docker.types.Healthcheck(interval=50000000) #test=['NONE'])
+        # healthcheckN=docker.types.Healthcheck(interval=50000000) #test=['NONE'])
 
         if (debug_Flask):
             ENVFlask=["debug_Flask=true"]
@@ -201,8 +201,8 @@ class FlaskDocker(threading.Thread):
                 command=self.commandFlask,
                 ports=self.flaskPORT,
                 environment=ENVFlask,
-                healthcheck=healthcheckN,
                 detach=True) #auto_remove=True,
+#                healthcheck=healthcheckN,
             
         except docker.errors.ContainerError:
             logging.error("The container exits with a non-zero exit code and detach is False.", exc_info=True)
@@ -288,8 +288,8 @@ class FlaskDocker(threading.Thread):
                 # actions
                 action_oldconnect=False
 
-            if (DEBUG_ANALYSE):
-                logging.error("Before create_newconnect :"+str(create_newconnect))
+            #if (DEBUG_ANALYSE):
+            #    logging.error("Before create_newconnect :"+str(create_newconnect))
 
             find_connect=True
             if (create_newconnect):
@@ -532,7 +532,7 @@ class ConnectionDocker(threading.Thread):
 
         outHandler.flush()
 
-        healthcheckN=docker.types.Healthcheck(interval=50000000) #test=['NONE'])
+        #healthcheckN=docker.types.Healthcheck(interval=50000000) #test=['NONE'])
             
         # Detect or create flask container :
         try:
@@ -543,8 +543,8 @@ class ConnectionDocker(threading.Thread):
                 extra_hosts=self.postgresHost,
                 command=self.commandConnect,
                 devices=list_gpu_dev,
-                healthcheck=healthcheckN,
                 auto_remove=self.cont_auto_remove, detach=True)
+#                healthcheck=healthcheckN,
 
         except docker.errors.ContainerError:
             logging.error("The container exits with a non-zero exit code and detach is False.", exc_info=True)
@@ -633,12 +633,7 @@ class ConnectionDocker(threading.Thread):
         # self.LogBuildSsh=self.containerFlask.exec_run(cmd=commandBuildSsh,user=self.flaskusr)
         # logging.debug("List .ssh/authorized_key in Flask docker :\n"+re.sub(r'\*n',r'\\n',str(self.LogBuildSsh.output,'utf-8')))
 
-        # Add password for temporary connection
-        commandBuildVNC="awk 'BEGIN {print \""+self.password+"\" >>\""+flaskhome+"/vncpassword\"}' /dev/null"
-        self.LogBuildVNC=container_exec_out(self.containerFlask, commandBuildVNC,user=self.flaskusr)
-        logging.debug("Add VNC password to Flask docker :\n"+re.sub(r'\*n',r'\\n',self.LogBuildVNC))
-
-        #  Test connection type dans launch a script (in the start xterm full-screen ?) 
+        #  Test connection type and launch a script (in the start xterm full-screen ?) 
         # in python in container to manage the expect or get ssh private for HPC connection
         internPort=ConnectionPort+self.ConnectNum
         externPort=internPort
@@ -655,14 +650,6 @@ class ConnectionDocker(threading.Thread):
         session.refresh(self.TileSetDB)
         self.updateScripts()
 
-        # Write connection PORT in DB for vncconnection.html
-        try:
-            self.ConnectionDB.connection_vnc=externPort-32768
-            session.commit()
-        except:
-            logging.error("Can't commit connection in DB !", exc_info=True)
-        logging.warning("Connection VNC port saved : "+str(self.ConnectionDB.connection_vnc)+" real : "+str(self.ConnectionDB.connection_vnc+32768))
-
         # Tunnel to Flask : Give access from vncconnection page to this container
         vnc_command="if [ X\\\"\\$( pgrep -fla x11vnc )\\\" == X\\\"\\\" ]; then /opt/vnccommand; fi &"
         self.tunnel_script=os.path.join(self.home,".vnc","tunnel_flask")
@@ -676,7 +663,9 @@ class ConnectionDocker(threading.Thread):
         
         self.kill_tunnel_script=os.path.join(self.home,".vnc","kill_tunnel_flask")
         out_kill_tunnel=os.path.join(self.home,".vnc","out_killtunnel")
-        killTunnel='Tunnel=$(pgrep -fla \\"ssh.*@'+self.IPFlask+'\\" |grep -v -- \\"-c\\" | sed -e \\"s@\\\\([0-^]*\\\\) .*@\\\\1@\\");\\nif [ X\\"$Tunnel\\" != X\\"\\" ]; then \\n  echo $Tunnel > '+out_kill_tunnel+';\\n  kill -9 $Tunnel 2>&1 >> '+out_kill_tunnel+';\\n fi'
+        killTunnel='Tunnel=$(pgrep -fla \\"ssh.*@'+self.IPFlask+'\\" |grep -v -- \\"-c\\" |'+\
+            ' sed -e \\"s@\\\\([0-^]*\\\\) .*@\\\\1@\\");\\nif [ X\\"$Tunnel\\" != X\\"\\" ]; '+\
+            'then \\n  echo $Tunnel > '+out_kill_tunnel+';\\n  kill -9 $Tunnel 2>&1 >> '+out_kill_tunnel+';\\n fi'
 
         scriptTunnel="awk 'BEGIN {print \""+killTunnel+"\" >>\""+self.kill_tunnel_script+"\"}' > "+out_kill_tunnel
 
@@ -688,7 +677,21 @@ class ConnectionDocker(threading.Thread):
         logging.warning("tunnel script built.")
         
         self.connect()
+        
+        # Add password for temporary connection
+        commandBuildVNC="awk 'BEGIN {print \""+self.password+"\" >>\""+flaskhome+"/vncpassword\"}' /dev/null"
+        self.LogBuildVNC=container_exec_out(self.containerFlask, commandBuildVNC,user=self.flaskusr)
+        logging.debug("Add VNC password to Flask docker :\n"+re.sub(r'\*n',r'\\n',self.LogBuildVNC))
 
+        # Write connection PORT in DB for vncconnection.html
+        try:
+            self.ConnectionDB.connection_vnc=externPort-32768
+            session.commit()
+        except:
+            logging.error("Can't commit connection in DB !", exc_info=True)
+        logging.debug("Connection VNC port saved : "+str(self.ConnectionDB.connection_vnc)+" real : "+str(self.ConnectionDB.connection_vnc+32768))
+
+        
         # Connect to TVConnection in connectionDocker to send actions commands.
         actionPort=ActionPort+self.ConnectNum
         search_docker0_ip="ip -4 addr show docker0 | grep -Po 'inet \K[\d.]+'"

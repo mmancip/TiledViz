@@ -26,10 +26,11 @@ echo "==== Get noVNC ===="
 pushd TVWeb
 git clone https://github.com/novnc/noVNC.git noVNC
 cd noVNC
-git checkout 33e1462
 cd ..
 cp vnc_multi.html noVNC
-patch -p0 < patch_devices_noVNC 
+cp ui_multi.js noVNC/app
+cp rfb_multi.js noVNC/core
+#patch -p0 < patch_devices_noVNC 
 popd
 
 # Launch postgresql docker
