@@ -30,6 +30,7 @@
   </h4>
   <div id="management" name="buttons">
     <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <button class="btn btn-large btn-info" id="submit" name="submit" value="Submit">Go Home</button>
     </form>
     <!-- <div id="editsession" style="position: relative; top: -35px; left: 150px"> -->

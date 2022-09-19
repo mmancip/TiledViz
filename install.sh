@@ -33,6 +33,11 @@ cp rfb_multi.js noVNC/core
 #patch -p0 < patch_devices_noVNC 
 popd
 
+echo "==== Get noVNC ===="
+pushd TVConnections
+git clone https://github.com/novnc/websockify
+popd
+
 # Launch postgresql docker
 echo "==== Launch postgresql docker ===="
 if ( $installX11 ); then
@@ -82,3 +87,33 @@ echo "====== End build dockers ======"
 
 echo "==== Start PostgreSQL ===="
 ./start_postgres
+
+echo "=== Add SSL certificates ==="
+if ( $installX11 ); then
+    myweb=$(python3 -c "import zenipy; myweb=zenipy.zenipy.password(title='SSL web server.domain name',text='Please give a SERVER.DOMAIN for your SSL web server.', width=450, height=120, timeout=None); print(str(myweb))")
+else
+    echo "Please give a SERVER.DOMAIN for your SSL web server"
+    read -s myweb;
+fi
+IFS='.' read -r -a webline <<<$myweb
+
+# Array slice
+serv="${webline[@]: 0:$((${#webline[*]}-2))}"
+SERVER_NAME=$(echo $serv |sed -e "s/ /./g")
+DOMAIN=${webline[${#webline[*]}-2]}.${webline[${#webline[*]}-1]}
+
+sed -e "s&_SERVER_NAME_&$SERVER_NAME&"  -e "s&_DOMAIN_&$DOMAIN&" -i TVWeb/FlaskDocker/Dockerfile.web
+sed -e "s&DNSservername&$SERVER_NAME.$DOMAIN&"  -e "s&/DOMAIN/&/$DOMAIN/&" -i TVWeb/nginx/nginx.conf
+
+sed -e "s&DNSservername&$SERVER_NAME&"  -e "s&_DOMAIN_&$DOMAIN&"  -i $HOME/.cache/envTiledViz
+
+# TODO : letsencrypt SSL certificate validation and
+#        usability for users in docker in
+#        /etc/letsencrypt/archive//$DOMAIN/fullchain1.pem and privatekey1.pem (cf TVSecure.py)
+# idée : on ouvre le répertoire en tant que root, on lance la commande et on referme le répertoire pour ne plus donner l'accès.
+# idée 2 : vérifier l'intégritée de TiledViz pour les accès root avec un git diff et bloquer les lancements si il y a eu des modifs ?
+
+
+# TODO : git clone Countdown 360:
+#cd TVWeb/apps/static/dist/js
+#git clone https://github.com/johnschult/jquery.countdown360.git

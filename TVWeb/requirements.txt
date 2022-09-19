@@ -1,6 +1,7 @@
 psycopg2-binary
 flask-socketio
-eventlet
+gevent
+gevent-websocket
 WTForms==2.3.3
 flask-wtf
 flask-sqlalchemy
@@ -10,6 +11,9 @@ flask-sqlacodegen
 flask-cors
 requests
 email_validator
+Flask-Session
+gunicorn
+numpy
 metadata_parser
 scikit-learn
 pandas

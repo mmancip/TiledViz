@@ -15,7 +15,7 @@ $(document).ready( function(){
 		     e.preventDefault();
 		 });
 
-    socket = io.connect('http://' + document.domain + ':' + location.port);
+    socket = io.connect('https://' + document.domain); // + ':' + location.port);
     // //debug socket.io :
     // localStorage.debug = '*';
     console.log("my session is :",  my_session);

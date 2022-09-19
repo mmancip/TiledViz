@@ -22,5 +22,6 @@ export FLASK_APP=TVWeb.py
 #export FLASK_ENV=development
 
 echo $LC_ALL $LANG $FLASK_APP
-flask run --debugger --host=0.0.0.0
+
+gunicorn -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker --config gunicorn.conf.py --certfile=/etc/letsencrypt/archive/$DOMAIN/fullchain1.pem --keyfile=/etc/letsencrypt/archive/$DOMAIN/privkey1.pem TVWeb:app
 

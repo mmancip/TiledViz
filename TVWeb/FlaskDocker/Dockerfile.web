@@ -7,9 +7,9 @@ ENV DEBIAN_FRONTEND teletype
 RUN apt-get update && apt-get install -y apt-utils
 RUN apt-get install -y python3-pip net-tools openssh-server nginx socat  && pip3 install --upgrade virtualenv
 
-RUN pip3 install --upgrade pip
-
 COPY ./ /TiledViz
+
+RUN pip3 install --upgrade pip && pip install --upgrade pip 
 
 RUN rm -rf /TiledViz/TVFiles/* /TiledViz/envDB
 
@@ -21,9 +21,11 @@ RUN sed -e 's/#GatewayPorts .*/GatewayPorts yes/' -i /etc/ssh/sshd_config; \
                   export LANG=C.UTF-8 ; \
 		  pip3 install -r /TiledViz/TVWeb/requirements.txt ;"
 
-HEALTHCHECK --interval=5m --timeout=10s --retries=1 CMD curl --fail http://localhost:5000/test || exit 1
+ENV SERVER_NAME desktop
+ENV DOMAIN mdls.fr
+HEALTHCHECK --interval=5m --timeout=10s --retries=1 CMD curl --fail https://$SERVER_NAME.$DOMAIN/test || exit 1
 
-EXPOSE 5000
+#EXPOSE 5000
 
 ENTRYPOINT ["/TiledViz/TVWeb/FlaskDocker/start_docker_web.sh"]
 
