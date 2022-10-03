@@ -102,17 +102,21 @@ serv="${webline[@]: 0:$((${#webline[*]}-2))}"
 SERVER_NAME=$(echo $serv |sed -e "s/ /./g")
 DOMAIN=${webline[${#webline[*]}-2]}.${webline[${#webline[*]}-1]}
 
-sed -e "s&_SERVER_NAME_&$SERVER_NAME&"  -e "s&_DOMAIN_&$DOMAIN&" -i TVWeb/FlaskDocker/Dockerfile.web
-sed -e "s&DNSservername&$SERVER_NAME.$DOMAIN&"  -e "s&/DOMAIN/&/$DOMAIN/&" -i TVWeb/nginx/nginx.conf
 
-sed -e "s&DNSservername&$SERVER_NAME&"  -e "s&_DOMAIN_&$DOMAIN&"  -i $HOME/.cache/envTiledViz
+if ( $installX11 ); then
+    SSLpublic=$(python3 -c "import zenipy; myssl=zenipy.zenipy.password(title='SSL PUBLIC key path',text='Please give the PUBLIC SSL key PATH.', width=450, height=120, timeout=None); print(str(myssl))")
+    SSLprivate=$(python3 -c "import zenipy; myssl=zenipy.zenipy.password(title='SSL PRIVATE key path',text='Please give the PRIVATE SSL key PATH.', width=450, height=120, timeout=None); print(str(myssl))")
+else
+    echo "Please give the PUBLIC SSL key PATH."
+    read -s SSLpublic;
+    echo "Please give the PRIVATE SSL key PATH."
+    read -s SSLprivate;
+fi
 
-# TODO : letsencrypt SSL certificate validation and
-#        usability for users in docker in
-#        /etc/letsencrypt/archive//$DOMAIN/fullchain1.pem and privatekey1.pem (cf TVSecure.py)
-# idée : on ouvre le répertoire en tant que root, on lance la commande et on referme le répertoire pour ne plus donner l'accès.
-# idée 2 : vérifier l'intégritée de TiledViz pour les accès root avec un git diff et bloquer les lancements si il y a eu des modifs ?
 
+sed -e "s&_SERVER_NAME_&$SERVER_NAME&"  -e "s&_DOMAIN_&$DOMAIN&" -e "s&_SSLpublic_&$SSLpublic&" -e "s&_SSLprivate_&$SSLprivate&" -i TVWeb/FlaskDocker/Dockerfile.web
+
+sed -e "s&DNSservername&$SERVER_NAME&"  -e "s&_DOMAIN_&$DOMAIN&" -e "s&_SSLpublic_&$SSLpublic&" -e "s&_SSLprivate_&$SSLprivate&" -i $HOME/.cache/envTiledViz
 
 # TODO : git clone Countdown 360:
 #cd TVWeb/apps/static/dist/js

@@ -23,5 +23,5 @@ export FLASK_APP=TVWeb.py
 
 echo $LC_ALL $LANG $FLASK_APP
 
-gunicorn -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker --config gunicorn.conf.py --certfile=/etc/letsencrypt/archive/$DOMAIN/fullchain1.pem --keyfile=/etc/letsencrypt/archive/$DOMAIN/privkey1.pem TVWeb:app
+gunicorn -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker --config gunicorn.conf.py --certfile=$SSLpublic --keyfile=$SSLprivate TVWeb:app
 

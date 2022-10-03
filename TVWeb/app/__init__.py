@@ -51,14 +51,12 @@ app.config.from_object(Config) # There are given the secret key and other app se
 logging.debug("Flask App config for TiledViz : "+str(app.config))
 
 bootstrap = Bootstrap(app)
-DOMAIN=os.getenv("DOMAIN")
+
 #import ssl
 #ssl.PROTOCOL_SSLv23 = ssl.PROTOCOL_TLSv1
 
-#WSGIServer(('127.0.0.1', 5000), app).serve_forever()
 async_mode = "gevent"
-socketio = SocketIO(app,async_mode=async_mode,ssl_context=('/etc/letsencrypt/archive/'+DOMAIN+'/fullchain1.pem','/etc/letsencrypt/archive/'+DOMAIN+'/privkey1.pem'))
-#socketio = SocketIO(app) # Replaces app.run()
+socketio = SocketIO(app,async_mode=async_mode,ssl_context=(os.getenv('SSLpublic'),os.getenv('SSLprivate')))
 #socketio = io.connect({transports: ['websocket']});
 #,ping_interval=100000
 #cors_allowed_origins ? List of origins that are allowed to connect to this server. All origins are allowed by default.

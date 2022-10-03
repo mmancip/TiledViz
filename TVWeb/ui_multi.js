@@ -1055,7 +1055,7 @@ const UI = {
         for(var i=0; i<UI.NbRFB; i++) {
             let url;
 
-            url = UI.getSetting('encrypt'+i) ? 'wss' : 'ws';
+            url = WebUtil.getConfigVar('encrypt'+i) ? 'wss' : 'ws';
 
             url += '://' + host[i];
             if (port[i]) {

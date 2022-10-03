@@ -106,6 +106,7 @@ def parse_args(argv):
     return args
 
 TVvolume=docker.types.Mount(target='/TiledViz',source=os.getenv('PWD'),type='bind',read_only=False)
+# TODO : suppress this mount
 TVssl=docker.types.Mount(target='/etc/letsencrypt',source="/etc/letsencrypt",type='bind',read_only=False)
 
 threads={}
@@ -692,25 +693,26 @@ class ConnectionDocker(threading.Thread):
         
         # Call websockify server for this connection
         commandLaunchWebsockify="bash -c 'cd /TiledViz/TVConnections/websockify/; source /flask_venv/bin/activate; "+\
-            "./websockify.py --web /TiledViz/TVWeb/noVNC --cert /etc/letsencrypt/archive/"+os.getenv('DOMAIN')+"/fullchain1.pem "+\
-            "--key /etc/letsencrypt/archive/"+os.getenv('DOMAIN')+"/privkey1.pem "+str(externPort)+" 0.0.0.0:"+str(internPort)+\
+            "./websockify.py --web /TiledViz/TVWeb/noVNC --cert "+os.getenv('SSLpublic')+" "+\
+            "--key "+os.getenv('SSLprivate')+" "+str(externPort)+" 0.0.0.0:"+str(internPort)+\
             " 2>&1 > /tmp/websockify_$(date +%F_%H-%M-%S).log &'"
         logging.warning("commandLaunchWebsockify : "+commandLaunchWebsockify)
         self.LogLaunchWebsockify=self.containerFlask.exec_run(cmd=commandLaunchWebsockify,user=self.flaskusr,detach=True)
-        # TODO : same cert/key in launch_flask => variable for strings ?
-        # --certfile=/etc/letsencrypt/archive/$DOMAIN/fullchain1.pem --keyfile=/etc/letsencrypt/archive/$DOMAIN/privkey1.pem
-        time.sleep(0.2)
-
         # Get websockify PID :
         commandWebsockifyPID="bash -c 'echo $(pgrep -f \"^python3 .*"+str(internPort)+"\" |sort |head -1)'"
-        self.LogWebsockifyPID=container_exec_out(self.containerFlask, commandWebsockifyPID,user=self.flaskusr)
-        try:
-            self.websockifyPID=int(self.LogWebsockifyPID)
-        except:
-            logging.error("Error self.LogWebsockifyPID " + str(self.LogWebsockifyPID))
-            self.websockifyPID=0
+        while True:
+            time.sleep(1)
+            self.LogWebsockifyPID=container_exec_out(self.containerFlask, commandWebsockifyPID,user=self.flaskusr)
+            if ( str(self.LogWebsockifyPID) != '' ):
+                try:
+                    self.websockifyPID=int(self.LogWebsockifyPID)
+                except:
+                    logging.error("Wait for websockify PID " + str(self.LogWebsockifyPID))
+                else:
+                    break
+        
         logging.warning("PID for websockify for user "+self.flaskusr+" on Flask container. "+str(self.websockifyPID))
-
+        
         
         # Add password for temporary connection
         commandBuildVNC="awk 'BEGIN {print \""+self.password+"\" >>\""+flaskhome+"/vncpassword\"}' /dev/null"
@@ -974,8 +976,11 @@ class ConnectionDocker(threading.Thread):
         usedConnections[self.ConnectNum]=False
         logging.warning("Connection table :"+str(usedConnections))
         outHandler.flush()
-
-        self.thread.join()
+        try:
+            self.thread.join()
+        except:
+            pass
+            
         
     def connect(self):
         logging.debug("Tunnel command in "+self.tunnel_script+" : "+self.tunnel_command)
