@@ -28,11 +28,11 @@ jquery.postitall.js
 <link rel="stylesheet" href="https://github.com/txusko/PostItAll/raw/master/dist/jquery.postitall.css">
 <script src="https://github.com/txusko/PostItAll/raw/master/dist/jquery.postitall.js"></script>
 
-<link rel="stylesheet" href="https://combinatronics.com/txusko/PostItAll/master/dist/jquery.postitall.css">
+<link rel="stylesheet" href="https://cdn.statically.io/gh/txusko/PostItAll/master/dist/jquery.postitall.css">
 
 <script
    type="text/javascript"
-      src="https://combinatronics.com/txusko/PostItAll/master/dist/jquery.postitall.js"
+      src="https://cdn.statically.io/gh/txusko/PostItAll/master/dist/jquery.postitall.js"
       ></script>
 
 FileSaver.js

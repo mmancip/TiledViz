@@ -14,7 +14,7 @@ import requests
 
 from app import app, socketio, db
 
-from app.forms import RegisterForm, BuildLoginForm, BuildNewProjectForm, BuildAllProjectSessionForm, BuildOldProjectForm, BuildNewSessionForm, BuildTilesSetForm, BuildEditsessionform, BuildOldTileSetForm, BuildConfigSessionForm, BuildConnectionsForm, BuildRetreiveSessionForm, BuildAdminForm
+from app.forms import BuildRegisterForm, BuildLoginForm, BuildNewProjectForm, BuildAllProjectSessionForm, BuildOldProjectForm, BuildNewSessionForm, BuildTilesSetForm, BuildEditsessionform, BuildOldTileSetForm, BuildConfigSessionForm, BuildConnectionsForm, BuildRetreiveSessionForm, BuildAdminForm
 
 
 import app.models as models # DB management
@@ -112,6 +112,7 @@ tiles_data["nodes"]=[]
 jsontransfert={}
 
 # For display in form list, specify length of elements
+usernamel=str(min(20,models.User.name.type.length))
 sessionl=str(min(60,models.Session.name.type.length))
 tilesetl=str(min(80,models.TileSet.name.type.length))
 projectl=str(min(15,models.Project.name.type.length))
@@ -286,8 +287,8 @@ def copy_connection(oldtileset,newtileset,newsessionname):
     #TODO : vncpassword from/to right user for connection
     if  (user_id != oldconnection.id_users) :
         flash("You can not access to this connection. You are not its owner.")
-        owner=db.session.query(models.User).filter_by(id=oldconnection.id_users).name
-        you=db.session.query(models.User).filter_by(id=user_id).name
+        owner=db.session.query(models.User).filter_by(id=oldconnection.id_users).one().name
+        you=db.session.query(models.User).filter_by(id=user_id).one().name
         logging.error("You (user "+you+") can not access to this connection owned by user "+owner)
         return redirect(url_for(".edittileset",message=message))
 
@@ -626,7 +627,11 @@ def index():
         session["sessionname"]=psession
         session["is_client_active"]=False
 
-    return render_template("main_template.html", title="TiledViz home", user=user, project=project, session=psession)
+    if ("Admin" in session):
+        return render_template("main_template.html", title="TiledViz home", user=user, project=project, session=psession, admin=session["Admin"])
+    else:
+        return render_template("main_template.html", title="TiledViz home", user=user, project=project, session=psession)
+
 
 # ====================================================================
 # Register
@@ -635,16 +640,29 @@ def register():
     showlogin=False
     showexist=False
     showknown=False
-    myform = RegisterForm()
+
+    if ("username" in session):
+        if (session["username"] == "Anonymous"):
+            myform = BuildRegisterForm()()
+        else:
+            User=db.session.query(models.User).filter_by(name=session["username"]).one()
+            myform = BuildRegisterForm(Username=User.name,
+                                       Useremail=User.mail,
+                                       Usercomp=User.compagny,
+                                       Usermanager=User.manager
+                                       )()
+    else:
+        myform = BuildRegisterForm()()
+
     if myform.validate_on_submit():
-        logging.info("Register new user.")
-        session["username"] = myform.username.data
+        logging.warning("Register new user.")
+        myusername = myform.username.data
         # if (showlogin):
         #     flash("Login requested for user {} in project {}, remember_me={}".format(myform.username.data, myform.projectname.data, myform.remember_me.data))
         #     showlogin=False
         #     return render_template("main_login.html", title="TiledViz register", form=myform)
         try:
-            exists = db.session.query(models.User.id).filter_by(name=session["username"]).scalar() is not None
+            exists = db.session.query(models.User.id).filter_by(name=myusername).scalar() is not None
         except Exception:
             exists=False
         if exists:
@@ -653,34 +671,67 @@ def register():
                 showexist=False
                 return render_template("main_login.html", title="TiledViz register", form=myform)
             logging.warning("username already exists.")
-            hashPassword,hashSalt=db.session.query(models.User.password,models.User.salt).filter_by(name=session["username"]).scalar()
-            testP=tvdb.testpassprotected(models.User,session["username"],myform.password.data,hashPassword,hashSalt)
-            if (testP):
-                logging.info("Correct password !")
-                if (showknown):
-                    flash(Markup("Correct Login for user {} remember_me={}".format(myform.username.data, myform.remember_me.data)))
-                    showknown=False
-                    return render_template("main_login.html", title="TiledViz register", form=myform)
-                user = {"username" : session["username"] }
-                session["is_client_active"]=True
+
+            if (myform.newpassword.data):
+                if ("username" in session):
+                    if (session["username"] == "Anonymous"):
+                        flash("You can't change password if you are connected as Anonymous.")
+                        logging.warning("You can't change password if you are connected as Anonymous.")
+                        return redirect("/login")
+                else:
+                    flash("You can't change password if you are not connected : User must login !")
+                    logging.warning("You can't change password if you are not connected : User must login !")
+                    return redirect("/login")
+
+                logging.warning("Renew password for user {}.".format(myusername))
+                User=db.session.query(models.User).filter_by(name=myusername).one()
+                hashpass, salt=tvdb.passprotected(myform.password.data)
+                creation_date=datetime.datetime.now()
+                User.creation_date=str(creation_date)
+                User.salt=salt
+                User.password=hashpass
+                User.dateverified=str(creation_date)
+                db.session.commit()
+                user_id=User.id
+                # TODO : create roles for users
+                if (user_id == 1):
+                    session["Admin"]=True
+                else:
+                    session["Admin"]=False
             else:
-                if (showknown):
-                    flash("You have entered an already existing username, but wrong password for user {}".format(myform.username.data))
-                    showknown=False
-                    return render_template("main_login.html", title="TiledViz register", form=myform)
-                # TODO :
-                # We have entered an already existing username, but wrong password
-                # 1. we try again with password (and all the form ?)
-                # -> 2. we are redirected to login only ?
-                flash("This username {} already exists and passwd is incorrect : ".format(session["username"]))
-                return render_template("main_login.html", 
-                    title="TiledViz register", 
-                    form=myform)
+                hashPassword,hashSalt=db.session.query(models.User.password,models.User.salt).filter_by(name=myusername).scalar()
+                testP=tvdb.testpassprotected(models.User,myusername,myform.password.data,hashPassword,hashSalt)
+                if (testP):
+                    logging.info("Correct password !")
+                    session["username"] = myusername
+                    session["is_client_active"]=True
+                    user_id=get_user_id("login",session["username"])
+                    # TODO : create roles for users
+                    if (user_id == 1):
+                        session["Admin"]=True
+                    else:
+                        session["Admin"]=False
+                    if (showknown):
+                        flash(Markup("Correct Login for user {} remember_me={}".format(myform.username.data, myform.remember_me.data)))
+                        showknown=False
+                        return render_template("main_login.html", title="TiledViz register", form=myform)
+                    user = {"username" : session["username"] }
+                    session["is_client_active"]=True
+                else:
+                    if (showknown):
+                        flash("You have entered an already existing username, but wrong password for user {}".format(myform.username.data))
+                        showknown=False
+                        return render_template("main_login.html", title="TiledViz register", form=myform)
+
+                    flash("This username {} already exists and passwd is incorrect : ".format(session["username"]))
+                    return render_template("main_login.html", 
+                                           title="TiledViz register", 
+                                           form=myform)
         else:
             hashpass, salt=tvdb.passprotected(myform.password.data)
             
             creation_date=datetime.datetime.now()
-            user = models.User(name=str(session["username"]),
+            user = models.User(name=str(myusername),
                                creation_date=str(creation_date),
                                mail=str(myform.email.data),
                                compagny=str(myform.compagny.data),
@@ -691,8 +742,16 @@ def register():
             db.session.add(user)
             db.session.commit()
             logging.info("Commit new user.")
+            session["username"] = myusername
             session["is_client_active"]=True
 
+        user_id=get_user_id("register",session["username"])
+        # TODO : create roles for users
+        if (user_id == 1):
+            session["Admin"]=True
+        else:
+            session["Admin"]=False
+            
         cookie_persistence = myform.remember_me.data
         logging.warning("[!] Cookie persistence set to %s"+str(cookie_persistence))
 
@@ -728,27 +787,35 @@ def login():
         myform = BuildLoginForm(session)()
         
     if myform.validate_on_submit():
-        logging.debug("Login : session = "+str(session))
+        logging.warning("Login : session = "+str(session))
         # flash(Markup("Login requested for user {} remember_me={}".
         #              format(myform.username.data, myform.remember_me.data)))
-        if ( myform.newuser.data ):
-            # Ask for new user finally
-            return redirect("/register")
+
         try:
-            User=db.session.query(models.User).filter_by(name=myform.username.data).one()
-            session["username"] = myform.username.data
+            myusername = myform.username.data
+            User=db.session.query(models.User).filter_by(name=myusername).one()
         except:
-            flash("Login rejected : '{}' for username does not exist.".format(session["username"]))
+            flash("Login rejected : '{}' for username does not exist.".format(myform.username.data))
             return redirect("/login")
         exists = User.id is not None
         
         if exists:
             hashPassword=User.password
             hashSalt=User.salt
-            testP=tvdb.testpassprotected(models.User,session["username"],myform.password.data,hashPassword,hashSalt)
+            testP=tvdb.testpassprotected(models.User,myusername,myform.password.data,hashPassword,hashSalt)
             if (testP):
                 logging.warning('Correct password.')
+                session["username"] = myusername
                 session["is_client_active"]=True
+                user_id=get_user_id("login",session["username"])
+                # TODO : create roles for users
+                if (user_id == 1):
+                    session["Admin"]=True
+                else:
+                    session["Admin"]=False
+                if ( myform.newuser.data ):
+                    # Ask for new user finally
+                    return redirect("/register")
                 if(myform.choice_project.data == "create"):
                     # Go to project page now
                     return redirect("/project")
@@ -772,8 +839,16 @@ def login():
 
 @app.route('/logout')
 def logout():
+    if ("username" in session):
+        if (session["username"] == "Anonymous"):
+            return redirect("/")
+    else:
+        flash("User is already not connected !")
+        return redirect("/")
     # remove the username from the session if it is there
     session.pop('username', None)
+    session.pop("is_client_active")
+    session.pop("Admin")
     return redirect(url_for('index'))
 
 @app.route('/test')
@@ -875,13 +950,18 @@ def retreivesession():
 # Create new project
 @app.route('/project', methods=["GET", "POST"])
 def project():
-    flash("Create new or use an old project for user {}".format(session["username"]))
-    user_id=get_user_id("Project",session["username"])
+    if ("username" in session):
+        if (session["username"] == "Anonymous"):
+            return redirect("/login")
+        user_id=get_user_id("Project",session["username"])
+        flash("Create new or use an old project for user {}".format(session["username"]))
+    else:
+        return redirect("/login")
 
     # All projects own by user
     printstr="{0:\xa0<"+projectl+"."+projectl+"}|\xa0{2:\xa0<"+datel+"."+datel+"}\xa0|\xa0{1:\xa0<"+descrl+"."+descrl+"}|\xa0{3:\xa0<"+descrl+"}"
     
-    projects = db.session.query(models.Project).filter_by(id_users=user_id)
+    projects = db.session.query(models.Project).filter_by(id_users=user_id).all()
     myprojects=[]
     myprojects.append(('NoChoice',printstr.format("Project name","Description","Date and Time","All sessions")))
 
@@ -964,15 +1044,12 @@ def admin():
         else:
             flash("Admin page with user {}".format(session["username"]))
         logging.warning("User id {}".format(user_id))
-    elif (not 'is_client_active' in session):
-        flash("You are not connected. You must login before using this page.")
-        return redirect("/login")
     else:
         flash("Admin page : User must login !")
         return redirect("/login")
 
     # TODO : create roles for users
-    if (user_id == 1):
+    if (session["Admin"]):
         userAdmin=True
     else:
         userAdmin=False
@@ -984,7 +1061,7 @@ def admin():
         allusers = db.session.query(models.User).all()
         logging.debug("All users :"+str([ theuser.name for theuser in allusers]))
 
-        printstr="{0:\xa0<"+projectl+"."+projectl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"
+        printstr="{0:\xa0<"+usernamel+"."+usernamel+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"
         listallusers=[]
         listallusers.append(('NoChoice',printstr.format("User name","Date and Time","Description")))
 
@@ -1014,7 +1091,7 @@ def admin():
         allprojects = db.session.query(models.Project).all()
         logging.debug("All projects :"+str([ theproject.name for theproject in allprojects]))
 
-        printstr="{0:\xa0<"+projectl+"."+projectl+"}|\xa0{1:\xa0<"+projectl+"."+projectl+"}\xa0|\xa0{2:\xa0<"+datel+"."+datel+"}\xa0|\xa0{3:\xa0<"+descrl+"."+descrl+"}"
+        printstr="{0:\xa0<"+projectl+"."+projectl+"}|\xa0{1:\xa0<"+usernamel+"."+usernamel+"}\xa0|\xa0{2:\xa0<"+datel+"."+datel+"}\xa0|\xa0{3:\xa0<"+descrl+"."+descrl+"}"
         listallprojects=[]
         listallprojects.append(('NoChoice',printstr.format("Project name","Owner","Date and Time","Description")))
 
@@ -1047,7 +1124,7 @@ def admin():
                 )
             )
         
-    projects = db.session.query(models.Project).filter_by(id_users=user_id)
+    projects = db.session.query(models.Project).filter_by(id_users=user_id).all()
     logging.debug("My projects :"+str([ theproject.name for theproject in projects]))
 
     printstr="{0:\xa0<"+projectl+"."+projectl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"
@@ -1068,7 +1145,7 @@ def admin():
     mysessions=[]
     try:
         for theproject in projects:
-            ListsessionsTheproject=db.session.query(models.Session.name).filter_by(id_projects=theproject.id)
+            ListsessionsTheproject=db.session.query(models.Session.name).filter_by(id_projects=theproject.id).all()
             [ mysessions.append((theproject.name,ListsessionTheproject)) for ListsessionTheproject in ListsessionsTheproject ]
     except:
         pass
@@ -1141,12 +1218,38 @@ def admin():
             )
         )
         
+    if (userAdmin):
+        listallconnections=[]
+        # list all Connections
+        allconnections = db.session.query(models.Connection)
+        logging.debug("All connections :"+str([ theconnection.host_address for theconnection in allconnections]))
+    
+        printstr="{0:\xa0<"+usernamel+"."+usernamel+"}|\xa0"+\
+            "{1:\xa0<"+connectionh+"."+connectionh+"}|\xa0"+\
+            "{2:\xa0<"+datel+"."+datel+"}\xa0\xa0\xa0\xa0\xa0|\xa0"+\
+            "{3:\xa0<"+datel+"."+datel+"}\xa0\xa0\xa0\xa0|\xa0"+\
+            "{4:\xa0<"+datel+"."+datel+"}"
+        listallconnections.append(('NoChoice',printstr.format("Username","Host address","Date and Time","id","In session")))
+        for thisconnection in allconnections:
+            insession=False
+            if ("connection"+str(thisconnection.id) in session):
+                insession=True
+            theuser=db.session.query(models.User).filter_by(id=thisconnection.id_users).one().name
+            listallconnections.append(
+                (str(thisconnection.id),printstr.
+                 format(str(theuser),
+                        str(thisconnection.host_address),
+                        str(thisconnection.creation_date),
+                        str(thisconnection.id),
+                        str(insession))
+                 )
+            )
+        
     logging.debug("My project sessions :"+str(listmyprojectssession))
     # logging.debug("My invited sessions :"+str(listmysession))
     if (userAdmin):
         myform = BuildAdminForm(listmyprojects,listmyprojectssession,listmyconnections,
-                                list_all_users=listallusers,list_all_projects=listallprojects,list_all_sessions=listallsessions)()
-        #,listsessions
+                                list_all_users=listallusers,list_all_projects=listallprojects,list_all_sessions=listallsessions,list_all_connections=listallconnections)()
     else:
         myform = BuildAdminForm(listmyprojects,listmyprojectssession,listmyconnections)()
         #,listsessions
@@ -1239,19 +1342,74 @@ def admin():
                 objects.append(chosenObject)
                 ids.append(elementid)
 
-                #TODO : detect active connection and remove it with remove_this_connection
-                delelement(models.Connection, chosenObject, elementid)
-
+                try:
+                    thisConnection=db.session.query(models.Connection).filter_by(id=elementid).one()
+                    user_id=thisConnection.id_users
+                    oldtileset=db.session.query(models.TileSet).filter_by(id_connections=elementid).one()
+                    if (oldtileset.connection.id==elementid):
+                        remove_this_connection(oldtileset,elementid,user_id)
+                    else:
+                        delelement(models.Connection, chosenObject, elementid)
+                except:
+                    delelement(models.Connection, chosenObject, elementid)
         
-        if (myform.suprressAllMyConnections.data):
+        if (myform.suppressAllMyConnections.data):
             flash("All my connections were suppressed {}".format(session["username"]))
-            # TODO : use remove_this_connection(oldtileset,idconnection,user_id) to suppress tmp files in TVFiles
-            # Possible to recover TileSet from connection.id ?
+
             for thisconnection in connections:
                 chosenObject="connection"
                 objects.append(chosenObject)
                 ids.append(thisconnection.id)
-                delelement(models.Connection, chosenObject, thisconnection.id)
+                try:
+                    user_id=thisconnection.id_users
+                    oldtileset=db.session.query(models.TileSet).filter_by(id_connections=thisconnection.id).one()
+                    if (oldtileset.connection.id==thisconnection.id):
+                        remove_this_connection(oldtileset,thisconnection.id,user_id)
+                    else:
+                        delelement(models.Connection, chosenObject, thisconnection.id)
+                except:
+                    delelement(models.Connection, chosenObject, thisconnection.id)
+
+
+        if (userAdmin):
+            
+            if (myform.chosen_connections.data != "NoChoice"):
+                chosenObject="connection"
+                elementid=int(myform.chosen_connections.data)
+                logging.warning("Chosen my %s %d " % (chosenObject,elementid))
+                flash("Suppress element %s number %d." % (chosenObject,elementid))
+                objects.append(chosenObject)
+                ids.append(elementid)
+
+                try:
+                    thisConnection=db.session.query(models.Connection).filter_by(id=elementid).one()
+                    user_id=thisConnection.id_users
+                    oldtileset=db.session.query(models.TileSet).filter_by(id_connections=elementid).one()
+                    if (oldtileset.connection.id==elementid):
+                        remove_this_connection(oldtileset,elementid,user_id)
+                    else:
+                        delelement(models.Connection, chosenObject, elementid)
+                except:
+                    delelement(models.Connection, chosenObject, elementid)
+
+        
+            if (myform.suppressAllConnections.data):
+                flash("All connections for all users were suppressed.")
+                # TODO : use remove_this_connection(oldtileset,idconnection,user_id) to suppress tmp files in TVFiles
+                # Possible to recover TileSet from connection.id ?
+                for thisconnection in allconnections:
+                    chosenObject="connection"
+                    objects.append(chosenObject)
+                    ids.append(thisconnection.id)
+                    try:
+                        user_id=thisconnection.id_users
+                        oldtileset=db.session.query(models.TileSet).filter_by(id_connections=thisconnection.id).one()
+                        if (oldtileset.connection.id==thisconnection.id):
+                            remove_this_connection(oldtileset,thisconnection.id,user_id)
+                        else:
+                            delelement(models.Connection, chosenObject, thisconnection.id)
+                    except:
+                        delelement(models.Connection, chosenObject, thisconnection.id)
 
 
         db.session.commit()
@@ -1272,13 +1430,9 @@ def allmysessions():
         logging.warning("All projects and sessions for user {}".format(session["username"]))
         user_id=get_user_id("allsavessions",session["username"])
         logging.warning("User id {}".format(user_id))
-    elif (not 'is_client_active' in session):
-        flash("You are not connected. You must login before using a grid.")
-        return redirect("/login")
     else:
         flash("All projects and sessions : User must login !")
         return redirect("/login")
-
 
     message='{"username": '+session["username"]+'}'
     logging.info("in allsessions")
@@ -1374,6 +1528,12 @@ def allmysessions():
 # List all old sessions for the projectname I am in
 @app.route('/oldsessions', methods=["GET", "POST"])
 def oldsessions():
+    if ("username" in session):
+        if (session["username"] == "Anonymous"):
+            return redirect("/login")
+    else:
+        flash("Old sessions : User must login !")
+        return redirect("/login")
 # Old Session page
     Project = db.session.query(models.Project).filter_by(name=session["projectname"]).scalar()
     project_id=Project.id
@@ -1408,6 +1568,13 @@ def oldsessions():
 # Create new session
 @app.route('/newsession', methods=["GET", "POST"])
 def newsession():
+    if ("username" in session):
+        if (session["username"] == "Anonymous"):
+            return redirect("/login")
+    else:
+        flash("Create new sessions : User must login !")
+        return redirect("/login")
+
     if ( not "sessionname" in session ):
         return redirect("/allsessions")
 
@@ -1453,6 +1620,13 @@ def newsession():
 # Copy an old session and edit tilesets
 @app.route('/copysession', methods=["GET", "POST"])
 def copysession():
+    if ("username" in session):
+        if (session["username"] == "Anonymous"):
+            return redirect("/login")
+    else:
+        flash("Copy session : User must login !")
+        return redirect("/login")
+    
     if ( not "sessionname" in session ):
         return redirect("/allsessions")
 
@@ -1523,8 +1697,11 @@ def copysession():
 # Edit old session
 @app.route('/editsession', methods=["GET", "POST"])
 def editsession():
-    if (not 'is_client_active' in session):
-        flash("You are not connected. You must login before editing a session.")
+    if ("username" in session):
+        if (session["username"] == "Anonymous"):
+            return redirect("/login")
+    else:
+        flash("Edit session : User must login !")
         return redirect("/login")
         
     message=json.loads(request.args["message"])
@@ -1673,6 +1850,12 @@ def editsession():
 @app.route('/searchtileset', methods=["GET", "POST"])
 def searchtileset():
 # Old Tileset page
+    if ("username" in session):
+        if (session["username"] == "Anonymous"):
+            return redirect("/login")
+    else:
+        flash("Search TileSet : User must login !")
+        return redirect("/login")
     try:
         message=json.loads(request.args["message"])
     except json.decoder.JSONDecodeError as e:
@@ -1723,6 +1906,12 @@ def searchtileset():
 # Config Session : give the json (depend of static/js/config_default.json)
 @app.route('/configsession', methods=["GET", "POST"])
 def configsession():
+    if ("username" in session):
+        if (session["username"] == "Anonymous"):
+            return redirect("/login")
+    else:
+        flash("Config session : User must login !")
+        return redirect("/login")
     if ( not "sessionname" in session ):
         return redirect("/allsessions")
 
@@ -1798,6 +1987,12 @@ def configsession():
 # New TileSet : always create tile even if another (title/comment) exists
 @app.route('/addtileset', methods=["GET", "POST"])
 def addtileset():
+    if ("username" in session):
+        if (session["username"] == "Anonymous"):
+            return redirect("/login")
+    else:
+        flash("Add TileSet : User must login !")
+        return redirect("/login")
     if ( not "sessionname" in session ):
         return redirect("/allsessions")
 
@@ -1940,6 +2135,12 @@ def addtileset():
 # Only copy old tiles in DB
 @app.route('/copytileset', methods=["GET", "POST"])
 def copytileset():
+    if ("username" in session):
+        if (session["username"] == "Anonymous"):
+            return redirect("/login")
+    else:
+        flash("Copy TileSet : User must login !")
+        return redirect("/login")
     if ( not "sessionname" in session ):
         return redirect("/allsessions")
 
@@ -2012,6 +2213,12 @@ def copytileset():
 # Edit old new TileSet
 @app.route('/edittileset', methods=["GET", "POST"])
 def edittileset():
+    if ("username" in session):
+        if (session["username"] == "Anonymous"):
+            return redirect("/login")
+    else:
+        flash("Edit TileSet : User must login !")
+        return redirect("/login")
     if ( not "sessionname" in session ):
         return redirect("/allsessions")
 
@@ -2433,6 +2640,12 @@ def edittileset():
 # Then kill connection link
 @app.route('/vncconnection', methods=['GET', 'POST'])
 def vncconnection():
+    if ("username" in session):
+        if (session["username"] == "Anonymous"):
+            return redirect("/login")
+    else:
+        flash("VNC connection : User must login !")
+        return redirect("/login")
     logging.warning("Enter in connection.")
     myflush()
     
@@ -2475,8 +2688,8 @@ def vncconnection():
     if (oldconnection):
         if  (user_id != oldconnection.id_users) :
             flash("You can not access to this connection. You are not its owner.")
-            owner=db.session.query(models.User).filter_by(id=oldconnection.id_users).name
-            you=db.session.query(models.User).filter_by(id=user_id).name
+            owner=db.session.query(models.User).filter_by(id=oldconnection.id_users).one().name
+            you=db.session.query(models.User).filter_by(id=user_id).one().name
             logging.error("You (user "+you+") can not access to this connection owned by user "+owner)
             message=request.args["message"]
             return redirect(url_for(".edittileset",message=message))
@@ -2545,6 +2758,13 @@ def vncconnection():
 def addconnection():
     global TimeConnection
     
+    if ("username" in session):
+        if (session["username"] == "Anonymous"):
+            return redirect("/login")
+    else:
+        flash("Add connection : User must login !")
+        return redirect("/login")
+
     myform = BuildConnectionsForm()()
     print('message=',str(request.args["message"]))
     message=json.loads(request.args["message"])
@@ -2734,6 +2954,13 @@ def addconnection():
 def editconnection():
     logging.warning('editconnection message='+str(request.args["message"]))
     
+    if ("username" in session):
+        if (session["username"] == "Anonymous"):
+            return redirect("/login")
+    else:
+        flash("Edit connection : User must login !")
+        return redirect("/login")
+
     try:
         message=json.loads(request.args["message"])
     except json.decoder.JSONDecodeError as e:
@@ -2888,6 +3115,13 @@ def editconnection():
 def removeconnection():
     logging.warning('removeconnection message='+str(request.args["message"]))
     
+    if ("username" in session):
+        if (session["username"] == "Anonymous"):
+            return redirect("/login")
+    else:
+        flash("Remove connection : User must login !")
+        return redirect("/login")
+
     try:
         message=json.loads(request.args["message"])
     except json.decoder.JSONDecodeError as e:

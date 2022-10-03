@@ -934,8 +934,11 @@ class ConnectionDocker(threading.Thread):
         usedConnections[self.ConnectNum]=False
         logging.warning("Connection table :"+str(usedConnections))
         outHandler.flush()
-
-        self.thread.join()
+        try:
+            self.thread.join()
+        except:
+            pass
+            
         
     def connect(self):
         logging.debug("Tunnel command in "+self.tunnel_script+" : "+self.tunnel_command)

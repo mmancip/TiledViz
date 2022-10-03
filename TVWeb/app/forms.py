@@ -92,30 +92,33 @@ class myFixedSelectField(SelectField):
     widget = mySelect(multiple=False)
 
 
-class RegisterForm(FlaskForm):
-    username = StringField("Username", validators=[InputRequired()])
-    email = StringField("E-mail adress", validators=[InputRequired(), Email()])
-    compagny = StringField("Compagny name", validators=[InputRequired()])
-    manager = StringField("Manager name", validators=[InputRequired()])
-    password = PasswordField("Password", validators=[
+def BuildRegisterForm(Username=None,Useremail=None,Usercomp=None,Usermanager=None):
+    class RegisterForm(FlaskForm):
+        pass
+    RegisterForm.username = StringField("Username", default=Username, validators=[InputRequired()])
+    RegisterForm.email = StringField("E-mail adress", default=Useremail, validators=[InputRequired(), Email()])
+    RegisterForm.compagny = StringField("Compagny name", default=Usercomp, validators=[InputRequired()])
+    RegisterForm.manager = StringField("Manager name", default=Usermanager, validators=[InputRequired()])
+    RegisterForm.password = PasswordField("Password", validators=[
         InputRequired(),
         EqualTo('confirm', message='Passwords must match')])
-    confirm = PasswordField("Confirm password", validators=[InputRequired()])
-    remember_me = BooleanField("Remember me")
-    choice_project = RadioField("About the project :",choices=[("create","Create a new one ?"),
+    RegisterForm.confirm = PasswordField("Confirm password", validators=[InputRequired()])
+    RegisterForm.remember_me = BooleanField("Remember me")
+    RegisterForm.newpassword = BooleanField("Change password (must be logged in) ",default=Username is not None)
+    RegisterForm.choice_project = RadioField("About the project :",choices=[("create","Create a new one ?"),
                                                                ("connect","Connect to an existing one ?")],
                                 default="connect")
-    submit = SubmitField("Sign In")
-
+    RegisterForm.submit = SubmitField("Sign In")
+    return RegisterForm
 
 def BuildLoginForm(session):
     class LoginForm(FlaskForm):
         # recaptcha = RecaptchaField()
         pass
-    LoginForm.newuser = BooleanField("Register new user ?")
     LoginForm.username = StringField("Username", default=session["username"],validators=[InputRequired()])
     LoginForm.password = PasswordField("Password", validators=[InputRequired()])
     LoginForm.remember_me = BooleanField("Remember me")
+    LoginForm.newuser = BooleanField("Change password ?")
     LoginForm.choice_project = RadioField(description="Action with the project :",choices=[("create","Create a new one ?"),
                                                                ("connect","Connect to an existing one ?")],
                                 default="connect")
@@ -137,14 +140,17 @@ def BuildNewProjectForm(listprojects):
     return NewProjectForm
 
 
-def BuildAdminForm(list_myprojects,list_myprojects_sessions,list_user_connections,list_all_users=None,list_all_projects=None,list_all_sessions=None):
+def BuildAdminForm(list_myprojects,list_myprojects_sessions,list_user_connections,list_all_users=None,list_all_projects=None,list_all_sessions=None,list_all_connections=None):
     #list_invite_sessions,
     class AdminForm(FlaskForm):
         pass
 
-    if (list_all_users is not None):
-        AdminForm.suprressfreetiles = SubmitField("Suppress all free tiles.")
-        AdminForm.suprressUnusedTilesets = SubmitField("Suppress all unused TileSets.")
+    AdminForm.chosen_project=myFixedSelectField(description='Choose one of your own project.',choices=list_myprojects,validators=[Optional()])
+    AdminForm.chosen_project_session=myFixedSelectField(description='Choose one of your own project / sessions.',choices=list_myprojects_sessions,validators=[Optional()])
+    # AdminForm.chosen_session_invited=myFixedSelectField(description='OR choose one of your collaboration sessions.',choices=list_invite_sessions,validators=[Optional()])
+    AdminForm.chosen_user_connection=myFixedSelectField(description='OR one of your connections.',choices=list_user_connections,validators=[Optional()])
+    if (list_all_connections is not None):
+        AdminForm.chosen_connections=myFixedSelectField(description='OR one of all other connections.',choices=list_all_connections,validators=[Optional()])
 
     if (list_all_users is not None):
         AdminForm.all_users=myFixedSelectField(description='Choose one user.',choices=list_all_users,validators=[Optional()])
@@ -156,15 +162,19 @@ def BuildAdminForm(list_myprojects,list_myprojects_sessions,list_user_connection
     if (list_all_sessions is not None):
         AdminForm.all_sessions=myFixedSelectField(description='Choose one project.',choices=list_all_sessions,validators=[Optional()])
         
-    AdminForm.chosen_project=myFixedSelectField(description='Choose one of your own project.',choices=list_myprojects,validators=[Optional()])
-    AdminForm.chosen_project_session=myFixedSelectField(description='Choose one of your own project / sessions.',choices=list_myprojects_sessions,validators=[Optional()])
-    # AdminForm.chosen_session_invited=myFixedSelectField(description='OR choose one of your collaboration sessions.',choices=list_invite_sessions,validators=[Optional()])
-    AdminForm.chosen_user_connection=myFixedSelectField(description='OR one of your connections.',choices=list_user_connections,validators=[Optional()])
+    if (list_all_connections is not None):
+        AdminForm.all_connections=myFixedSelectField(description='Choose one connection.',choices=list_all_connections,validators=[Optional()])
+    
+    AdminForm.suppressSelected = SubmitField("Delete SELECTIONS.")    
+    AdminForm.suppressAllMyConnections = SubmitField("Delete all MY CONNECTIONS.")
+    
+    if (list_all_users is not None):
+        AdminForm.suprressfreetiles = SubmitField("Delete all FREE TILES.")
+        AdminForm.suprressUnusedTilesets = SubmitField("Delete all UNUSED TILESETS.")
 
-    AdminForm.suppressSelected = SubmitField("Suppress selected element.")    
-    AdminForm.suprressAllMyConnections = SubmitField("Suppress all my old connections.")
-
-    AdminForm.submit = SubmitField("Next step")
+    if (list_all_connections is not None):
+        AdminForm.suppressAllConnections = SubmitField("Delete ALL CONNECTIONS.")
+    AdminForm.submit = SubmitField("Help")
     return AdminForm
             
 
