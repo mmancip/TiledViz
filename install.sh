@@ -26,6 +26,7 @@ echo "==== Get noVNC ===="
 pushd TVWeb
 git clone https://github.com/novnc/noVNC.git noVNC
 cd noVNC
+patch -p0 < ../patch_ui
 cd ..
 cp vnc_multi.html noVNC
 cp ui_multi.js noVNC/app
