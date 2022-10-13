@@ -1,0 +1,29 @@
+--- app/ui.js
++++ app/ui.js
+@@ -556,7 +556,7 @@ const UI = {
+         UI.closeAllPanels();
+         document.getElementById('noVNC_control_bar')
+             .classList.remove("noVNC_open");
+-        UI.rfb.focus();
++        //UI.rfb.focus();
+     },
+ 
+     toggleControlbar() {
+@@ -1104,7 +1104,7 @@ const UI = {
+         UI.updateVisualState('connected');
+ 
+         // Do this last because it can only be used on rendered elements
+-        UI.rfb.focus();
++        //UI.rfb.focus();
+     },
+ 
+     disconnectFinished(e) {
+@@ -1653,7 +1653,7 @@ const UI = {
+             .classList.contains("noVNC_selected")) {
+             document.getElementById('noVNC_keyboardinput').focus();
+         } else {
+-            UI.rfb.focus();
++            //UI.rfb.focus();
+         }
+         // fade out the controlbar to highlight that
+         // the focus has been moved to the screen

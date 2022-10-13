@@ -365,7 +365,6 @@ Tile = function(Mesh) {
 		}
 
 
-		if (! touchok) {
 		    // Variables needed to draw on the iframe
 		    // This tutorial  http://www.williammalone.com/articles/create-html5-canvas-javascript-drawing-app/ can be helpful to understand the following code
 		    var clickX = new Array();
@@ -374,7 +373,7 @@ Tile = function(Mesh) {
 		    var paint = false;
 		    var p=0; // number of paths
 
-		    context = document.getElementById("drawCanvas"+nodeId).getContext("2d");
+		    var context = document.getElementById("drawCanvas"+nodeId).getContext("2d");
 		    function addClick(x, y, dragging)  { 
 			clickX.push(x);
 			clickY.push(y);
@@ -444,7 +443,6 @@ Tile = function(Mesh) {
 			}
 		    }
 			
-		} else {
 		    var drawing = new Map();	// maps touch IDs to drag state objects
 		    var p=0; // number of paths
 
@@ -539,7 +537,6 @@ Tile = function(Mesh) {
 				touchmove: touchmoveDraw,
 				touchend: touchendDraw
 				});
-		}
 	    };
 	})()
 

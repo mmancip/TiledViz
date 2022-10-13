@@ -564,7 +564,7 @@ const UI = {
         UI.closeAllPanels();
         document.getElementById('noVNC_control_bar')
             .classList.remove("noVNC_open");
-        for(var i=0; i<UI.NbRFB; i++) {UI.rfb[i].focus()};
+        //for(var i=0; i<UI.NbRFB; i++) {UI.rfb[i].focus()};
     },
 
     toggleControlbar() {
@@ -1055,7 +1055,7 @@ const UI = {
         for(var i=0; i<UI.NbRFB; i++) {
             let url;
 
-            url = UI.getSetting('encrypt'+i) ? 'wss' : 'ws';
+            url = WebUtil.getConfigVar('encrypt'+i) ? 'wss' : 'ws';
 
             url += '://' + host[i];
             if (port[i]) {
@@ -1145,7 +1145,7 @@ const UI = {
         UI.updateVisualState('connected');
 
         // Do this last because it can only be used on rendered elements
-        for(var i=0; i<UI.NbRFB; i++) {UI.rfb[i].focus()};
+        //for(var i=0; i<UI.NbRFB; i++) {UI.rfb[i].focus()};
     },
 
     disconnectFinished(e) {
