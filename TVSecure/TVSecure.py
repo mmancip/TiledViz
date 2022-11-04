@@ -156,7 +156,8 @@ class FlaskDocker(threading.Thread):
 
         self.oldtime=time.time()
 
-        flaskaddr=socket.gethostbyname(socket.gethostname())
+        flaskaddr=os.getenv('SERVER_NAME')+"."+os.getenv('DOMAIN')
+        #socket.gethostbyname(socket.gethostname())
         self.commandFlask=[POSTGRES_HOST,POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, flaskaddr, str(os.getuid()),str(os.getgid()), secretKey]
         
         # Si on passe secretKey et password comme secret (seulement comme services dans un swarm!), on doit modifier TVWeb/FlaskDocker/launch_flask
@@ -263,30 +264,37 @@ class FlaskDocker(threading.Thread):
 
             NewLog=NewStringFinder(oldLogs, Logs)
             if (DEBUG_ANALYSE):
-                logging.error("Get new log "+NewLog)
+                if (len(NewLog) > 0):
+                    logging.error("Get new log "+NewLog)
+
+            # newconnection
+            create_newconnect=False
+            # editconnection
+            edit_oldconnect=False
+            # delconnection
+            quit_oldconnect=False
+            # killconnection
+            kill_oldconnect=False
+            # actions
+            action_oldconnect=False
             if (len(NewLog) > 0):
                 # newconnection
                 create_newconnect=create_newconnection.search(NewLog)
+                if (not create_newconnect): create_newconnect=False 
                 # editconnection
                 edit_oldconnect=edit_oldconnection.search(NewLog)
+                if (not edit_oldconnect): edit_oldconnect=False
                 # delconnection
                 quit_oldconnect=quit_oldconnection.search(NewLog)
+                if (not quit_oldconnect): quit_oldconnect=False                
                 # kill tunnel connection
                 kill_oldconnect=kill_oldconnection.search(NewLog)
+                if (not kill_oldconnect): kill_oldconnect=False
                 # saveconnection
                 # restartconnection
                 # actions
                 action_oldconnect=action_oldconnection.search(NewLog)
-            else:
-                create_newconnect=False
-                # editconnection
-                edit_oldconnect=False
-                # delconnection
-                quit_oldconnect=False
-                # killconnection
-                kill_oldconnect=False
-                # actions
-                action_oldconnect=False
+                if (not action_oldconnect): action_oldconnect=False
 
             #if (DEBUG_ANALYSE):
             #    logging.error("Before create_newconnect :"+str(create_newconnect))
@@ -411,6 +419,17 @@ class FlaskDocker(threading.Thread):
                             quit_oldconnect.group("idCon") == theConnection["connectionid"] ):
                             logging.warning("Quit connection "+str(theConnection["connectionid"]))                            
                             theConnection["ThisConnection"].callfunction("quitConnection")
+                            try:
+                                ConnectNum=theConnection["ThisConnection"].ConnectNum
+                                ConnectName=theConnection["ThisConnection"].name
+                                logging.warning("Before Connection %s suppression : %d" % (ConnectName,ConnectNum))
+                                Connections[ConnectNum]=sqltConnections
+                                usedConnections[ConnectNum]=False
+                                logging.warning("Connection table :"+str(usedConnections))
+                                outHandler.flush()
+                            except Exception as err:
+                                logging.error("Error while stoping Connection with id "+str(quit_oldconnect.group("idCon"))+" : "+str(err), exc_info=True)
+                                
                 else:
                     logging.error("No connection found with parameters :"+quit_oldconnect.group("username")+" "+str(quit_oldconnect.group("idCon")))
                     #logging.error("connections : "+str( [ theConnection["username"]+" "+theConnection["hostname"]+" "+str(theConnection["connectionid"]) for theConnection in Connections] )) 
@@ -480,9 +499,10 @@ class ConnectionDocker(threading.Thread):
         threading.Thread.__init__(self)
         self.thread = threading.Thread(target=self.run,args=(containerFlask,debug, ConnectNum,
                                                              POSTGRES_HOST, POSTGRES_IP, POSTGRES_PORT,
-                                                             POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD,)).start()
-        
-        time.sleep(10)
+                                                             POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD,))
+        self.thread.start()
+        time.sleep(5)
+        logging.warning("Thread Connection creation :"+str(self.thread))
         threads[self.name]=self.thread
         #threading.Thread.__init__(self, target=self.run_forever)
 
@@ -663,9 +683,9 @@ class ConnectionDocker(threading.Thread):
         
         self.kill_tunnel_script=os.path.join(self.home,".vnc","kill_tunnel_flask")
         out_kill_tunnel=os.path.join(self.home,".vnc","out_killtunnel")
-        killTunnel='Tunnel=$(pgrep -fla \\"ssh.*@'+self.IPFlask+'\\" |grep -v -- \\"-c\\" |'+\
-            ' sed -e \\"s@\\\\([0-^]*\\\\) .*@\\\\1@\\");\\nif [ X\\"$Tunnel\\" != X\\"\\" ]; '+\
-            'then \\n  echo $Tunnel > '+out_kill_tunnel+';\\n  kill -9 $Tunnel 2>&1 >> '+out_kill_tunnel+';\\n fi'
+        killTunnel='Tunnel=$(pgrep -f \\"ssh.*@'+self.IPFlask+'\\" );\\nif [ X\\"$Tunnel\\" != X\\"\\" ]; '+\
+            'then \\n  pgrep -fla \\"ssh.*@'+self.IPFlask+'\\" > '+out_kill_tunnel+';\\n'+\
+            '  kill -9 $Tunnel 2>&1 >> '+out_kill_tunnel+';\\n fi'
 
         scriptTunnel="awk 'BEGIN {print \""+killTunnel+"\" >>\""+self.kill_tunnel_script+"\"}' > "+out_kill_tunnel
 
@@ -683,6 +703,7 @@ class ConnectionDocker(threading.Thread):
         self.LogBuildVNC=container_exec_out(self.containerFlask, commandBuildVNC,user=self.flaskusr)
         logging.debug("Add VNC password to Flask docker :\n"+re.sub(r'\*n',r'\\n',self.LogBuildVNC))
 
+        
         # Write connection PORT in DB for vncconnection.html
         try:
             self.ConnectionDB.connection_vnc=externPort-32768
@@ -693,15 +714,15 @@ class ConnectionDocker(threading.Thread):
 
         
         # Connect to TVConnection in connectionDocker to send actions commands.
-        actionPort=ActionPort+self.ConnectNum
+        self.actionPort=ActionPort+self.ConnectNum
         search_docker0_ip="ip -4 addr show docker0 | grep -Po 'inet \K[\d.]+'"
         p=subprocess.Popen(search_docker0_ip, shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)        
         output, errs = p.communicate()
         ipdocker0=output.decode('utf-8').replace('\n','')
-        logging.warning("ConnectionDocker : connection for actions with port %d and ip for docker0 %s" % (actionPort,ipdocker0))
+        logging.warning("ConnectionDocker : connection for actions with port %d and ip for docker0 %s" % (self.actionPort,ipdocker0))
 
         self.action_script=os.path.join(self.home,".vnc","tunnel_action")
-        action_command="socat TCP-LISTEN:"+str(ActionPort)+",fork,reuseaddr TCP:"+ipdocker0+":"+str(actionPort)+" &"
+        action_command="socat TCP-LISTEN:"+str(ActionPort)+",fork,reuseaddr TCP:"+ipdocker0+":"+str(self.actionPort)+" &"
         scriptAction="awk 'BEGIN {print \""+action_command+"\" >>\""+self.action_script+"\"}' 2>&1 /dev/null"
         logging.debug("awk command to build action script : "+scriptAction)
 
@@ -715,17 +736,34 @@ class ConnectionDocker(threading.Thread):
         outHandler.flush()
         time.sleep(0.5)
         
+        # suppress Action tunnel
+        self.kill_action_script=os.path.join(self.home,".vnc","kill_action_"+str(self.actionPort))
+        out_kill_action=os.path.join(self.home,".vnc","out_killaction_"+str(self.actionPort))
+        killAction='Tunnel=$(pgrep -f \\"socat.*'+str(self.actionPort)+'.*\\");\\n'+\
+            'if [ X\\"$Tunnel\\" != X\\"\\" ]; then \\n pgrep -fla \\"socat.*'+str(self.actionPort)+'.*\\" > '+out_kill_action+';\\n'+\
+            'kill -9 $Tunnel 2>&1 >> '+out_kill_action+';\\n fi'
+
+        scriptAction="awk 'BEGIN {print \""+killAction+"\" >>\""+self.kill_action_script+"\"}' > "+out_kill_action
+
+        logging.debug("awk command to build kill action script : "+scriptAction)
+
+        self.LogScrAction=self.containerConnect.exec_run(cmd=scriptAction,user=self.user,detach=True)
+        time.sleep(0.1)
+        self.LogModAction=self.containerConnect.exec_run(cmd="chmod u+x "+self.kill_action_script,user=self.user,detach=True)
+        logging.warning("action script built.")
+        
         search_action = re.compile(r''+"action=")
 
         path_nodesjson=os.path.join(self.home,"nodes.json")
         self.dir_out="TVFiles/"+str(self.ConnectionDB.id_users)+"/"+str(self.ConnectionDB.id)
         time.sleep(timeAliveConn)
 
-        nodes_ok=False
+        self.nodes_ok=False
+        self.action_OK=False
         while True:
             #logging.debug("Container "+self.name+" wake up.")
             
-            if (not nodes_ok):
+            if (not self.nodes_ok):
                 try: 
                     # Get back nodes.json from connection docker ?
                     bits, stat = self.containerConnect.get_archive(path=path_nodesjson)
@@ -797,34 +835,17 @@ class ConnectionDocker(threading.Thread):
                         # Send again get via action launch_nodes_json
                         #raise ValueError                        
                         
-                    nodes_ok=True
+                    self.nodes_ok=True
                     outHandler.flush()
 
-                    # Server in TVSecure wait for connection from TVConnection in connectionDocker to send actions commands.
-                    self.ActionConnect=sock.server(actionPort)
-                    try:
-                        logging.warning("Action server launched on "+str(actionPort)+".")
-                        outHandler.flush()
-                        self.ActionConnect.new_connect(1)
-                        # Send Not an action message after Hello
-                        HelloMsg=self.ActionConnect.recv(1)
-                        logging.warning("Action client hello message : "+HelloMsg)
-                        outHandler.flush()
-
-                        self.ActionConnect.send_client(1,"Hello connection"+str(self.ConnectionDB.id))
-                        logging.warning("Action client receive OK "+str(self.ActionConnect.get_OK(1)))
-                        outHandler.flush()
-                        
-                        self.ActionConnect.send_client(1,"Not an action first.")
-                        logging.warning("Action client receive OK from not-an-action message "+str(self.ActionConnect.get_OK(1)))
-                        outHandler.flush()
-                    except Exception as err:
-                        logging.error("Error with Action client "+str(self.ConnectionDB.id)+" : "+str(err), exc_info=True)
+                    logging.warning("Lauch start action connection.")
+                    self.startActionConnection()
 
                     self.killTunnel()
                     logging.warning("Job started.")
                     outHandler.flush()
                 except:
+                    #logging.debug("Job not correctly started", exc_info=True)
                     outHandler.flush()
                     pass
 
@@ -843,6 +864,8 @@ class ConnectionDocker(threading.Thread):
                     self.connect();
                 elif (search_action.search(callfunc)):
                     logging.warning("Action detected "+str(callfunc))
+                    if (not self.action_OK):
+                        self.startActionConnection()
                     self.action(callfunc)
                 else:
                     logging.error("Error with calling function "+callfunc+ " for Connection "+self.name+" .")
@@ -910,34 +933,55 @@ class ConnectionDocker(threading.Thread):
         logging.warning("Kill tunnel end to Flask docker")
         # logging.warning("Kill tunnel to Flask docker :\n"+re.sub(r'\*n',r'\\n',self.LogTunnel))
 
+    def startActionConnection(self):
+        # Server in TVSecure wait for connection from TVConnection in connectionDocker to send actions commands.
+        try:
+            self.ActionConnect=sock.server(self.actionPort)
+            logging.warning("Action server launched on "+str(self.actionPort)+".")
+            outHandler.flush()
+            self.ActionConnect.new_connect(1)
+            # Send Not an action message after Hello
+            HelloMsg=self.ActionConnect.recv(1)
+            logging.warning("Action client hello message : "+HelloMsg)
+            outHandler.flush()
+            
+            self.ActionConnect.send_client(1,"Hello connection"+str(self.ConnectionDB.id))
+            logging.warning("Action client receive OK "+str(self.ActionConnect.get_OK(1)))
+            outHandler.flush()
+            
+            self.ActionConnect.send_client(1,"Not an action first.")
+            logging.warning("Action client receive OK from not-an-action message "+str(self.ActionConnect.get_OK(1)))
+            outHandler.flush()
+
+            self.action_OK=True
+        except Exception as err:
+            logging.error("Error with Action server "+str(self.ConnectionDB.id)+" : "+str(err), exc_info=True)
+        
     def quitConnection(self):
         # Erase login on flask
         commandRmuser="bash -c 'userdel -r -f "+self.flaskusr+"'"
         self.LogRmUser=container_exec_out(self.containerFlask, commandRmuser)
         logging.warning("Rm user "+self.flaskusr+" on Flask container."+re.sub(r'\*n',r'\\n',self.LogRmUser))
 
-        # TODO : End action connection ?
-        # suppress Action tunnel
-        # killAction="sh -c \'Tunnel=$(pgrep -fla \"socat.*"+str(actionPort)+".*\" |grep -v -- \"-c\" | sed -e \"s@\\([0-^]*\\) .*@\\1@\"); echo $Tunnel; if [ X\"$Tunnel\" != X\"\" ]; then kill -9 $Tunnel; fi\' &"
-        # self.LogKillAction=container_exec_out(self.containerConnect, killAction,user=self.user,detach=True)
-        # logging.warning("Kill Action connection in conncetion docker :\n"+re.sub(r'\*n',r'\\n',self.LogKillAction))
+        # End action connection:
+        try:
+            self.ActionConnect.close_all()
+
+            self.LogKillAction=self.containerConnect.exec_run(cmd="sh -c "+self.kill_action_script,user=self.user,detach=True)
+            logging.warning("Kill Action connection in Connection docker.")
+        except Exception as err:
+            logging.error("Error while stoping Action server "+str(self.ConnectionDB.id)+" : "+str(err), exc_info=True)
 
         # suppress connection docker
         try:
             self.containerConnect.stop()
             if ( not self.cont_auto_remove ):
                 self.containerConnect.remove(v=True,force=True)
-        except:
-            pass
-        logging.warning("After remove "+self.name+", containers list :"+str(client.containers.list()))
-        Connections[self.ConnectNum]=sqltConnections
-        usedConnections[self.ConnectNum]=False
-        logging.warning("Connection table :"+str(usedConnections))
-        outHandler.flush()
-        try:
-            self.thread.join()
-        except:
-            pass
+        except Exception as err:
+            logging.error("Error while stoping Connection docker "+str(self.ConnectionDB.id)+" : "+str(err), exc_info=True)
+
+        logging.warning("End of quitConnection for "+self.name+", containers list :"+str(client.containers.list()))
+        raise ValueError                        
             
         
     def connect(self):
@@ -1054,6 +1098,12 @@ if __name__ == '__main__':
                            secretKey=args.secretKey)
     time.sleep(4)
     #FlaskDock.getLog(35)
+
+    # try:
+    #     from IPython import embed
+    #     embed()
+    # except:
+    #     code.interact(banner="Hand to Flask :",local=dict(globals(), **locals()))
 
     while (FlaskDock.isalive()):
         time.sleep(30)

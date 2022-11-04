@@ -166,7 +166,7 @@ class TilesSet(threading.Thread):
     def execute_all(self,command):
         serverLogger.warning(self.TileSetName+" : Command on all tiles : "+command)
         while(self.ClientNotReady):
-            serverLogger.warning("Wait for clients.")
+            serverLogger.debug("Wait for clients.")
             time.sleep(1)
             
         self.laststate=False
