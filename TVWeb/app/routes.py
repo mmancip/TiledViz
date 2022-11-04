@@ -391,7 +391,7 @@ def launch_connection(theTS, theConnect, myhost_address, myauth_type, mycontaine
                 with open(passpath,'r') as f:
                     vncpassword=re.sub(r'\n',r'',f.read())
                 f.close()
-                logging.warning("and password : "+vncpassword)
+                logging.debug("and password : "+vncpassword)
             else:
                 logging.error("File not found in connection container "+passpath)
                 vncpassword=""
@@ -518,6 +518,7 @@ def remove_this_session(sessionid):
     # Suppress all link with any user
     for us in thissession.users:
         thissession.users.remove(us)
+    db.session.commit()
 
     delelement(models.Session, "session", sessionid)
 
@@ -1497,6 +1498,10 @@ def allmysessions():
         
     logging.debug("My project sessions :"+str(listmyprojectssession))
     logging.debug("My invited sessions :"+str(listsessions))
+    if (len(listmyprojectssession) == 0 and len(listmysession) == 0 and len(invite_sessions) == 0):
+        flash("You are not in any project or session now. Please create your first one or ask somebody to invite you.")
+        return redirect(url_for(".index"))
+
     myform = BuildAllProjectSessionForm(listmyprojectssession,listsessions)()
     if myform.validate_on_submit():
         if (myform.chosen_project_session.data != "NoChoice"):
@@ -1846,6 +1851,76 @@ def editsession():
             return redirect(url_for(".editsession",message=message))
     return render_template("main_login.html", title="Edit session TiledViz", form=myform, message=message)
 
+# Use json editor for session nodes.json
+@app.route('/editnodes', methods=["GET", "POST"])
+def editnodes():
+    if ("username" in session):
+        if (session["username"] == "Anonymous"):
+            return redirect("/login")
+    else:
+        flash("Edit nodes : User must login !")
+        return redirect("/login")
+
+    message=json.loads(request.args["message"])
+    oldsessionname=message["oldsessionname"]
+    ThisSession = db.session.query(models.Session).filter_by(name=oldsessionname).scalar()    
+
+    if (type(ThisSession) != type(None)):
+            ListAllTileSet_ThisSession=ThisSession.tile_sets
+    else:
+        logging.warning("You must choose a valid session for editnodes")
+        flash("You didn't select a valid session in editnodes.")
+        return redirect("/editsession")
+
+    session["tilesetnames"]=[ thistileset.name for thistileset in ListAllTileSet_ThisSession ]
+    logging.debug("All TileSet for session "+str(session["sessionname"])+" : "+str(session["tilesetnames"]))
+    # Main loop to build the grid :
+    nbr_of_tiles=0
+
+    # build all tiles data vector
+    global tiles_data
+    tiles_data={}
+    tiles_data["nodes"]=[]
+    ts=0
+    lts=len(ThisSession.tile_sets)
+    while (ts < lts):
+        thistileset=ThisSession.tile_sets[ts]
+        nbtiles=len(thistileset.tiles)
+        nbr_of_tiles = nbr_of_tiles + nbtiles
+
+        if (thistileset.type_of_tiles == "CONNECTION"):
+            oldconnection=thistileset.connection
+            out_nodes_json = os.path.join("/TiledViz/TVFiles", str(oldconnection.id_users), str(oldconnection.id),"nodes.json")
+            tiledata=[]
+            if ( os.path.exists( out_nodes_json ) ):
+                try:
+                    with open(out_nodes_json) as json_tiles_file:
+                        tsjson=json.loads(json_tiles_file.read())
+
+                    logging.warning("nodes.json read and OK "+out_nodes_json)
+                    tiledata=tsjson["nodes"]
+                    for O in tsjson:
+                        if ( O != "nodes" ):
+                            if ( O in tiles_data ):
+                                tiles_data[O]=tiles_data[O]+tsjson[O]
+                            else:
+                                tiles_data[O]=tsjson[O]
+                except Exception as err:
+                    traceback.print_exc(file=sys.stderr)
+                    strerror="Error from json "+out_nodes_json+" file from connection : "+str(err)
+                    logging.error(strerror)
+                    
+        else:
+            tiledata=tvdb.encode_tileset(thistileset)
+
+        tiles_data["nodes"]=tiles_data["nodes"]+tiledata
+        ts=ts+1
+    jsontransfert[session["sessionname"]]={"callfunction": '{"function":"show_grid",'+'"args":{"sessionname":"'+oldsessionname+'"}}'}
+    jsontransfert[session["sessionname"]]["TheJson"]=tiles_data
+
+    return redirect(url_for(".jsoneditor"))
+
+    
 # List all old tilesets I am in
 @app.route('/searchtileset', methods=["GET", "POST"])
 def searchtileset():
@@ -3745,7 +3820,7 @@ def ClickAction(cdata):
                 
                 # emit receive_deploy_nodes
                 sdata = {"id":cdata["id"], "modtiles_data":modtiles_data}
-                logging.warning("receive_deploy_nodes data : "+str(sdata))
+                logging.debug("receive_deploy_nodes data : "+str(sdata))
                 myflush()
 
                 socketio.emit('receive_deploy_nodes', sdata,room=croom)
@@ -3939,9 +4014,34 @@ def handle_join_with_invite_link(link):
 
 # ====================================================================
 # Error management
+@app.route('/400')
+def bad_request():
+    flash("Your cookie has expired. Please go back and update page.")
+    logging.error("Bad request or cookie expired for user "+str(session["username"]))
+    return redirect(url_for(".index"))
+
+@app.route('/502')
+def bad_req():
+    flash("Your cookie has expired. Please go back and update page.")
+    logging.error("Cookie expired for user "+str(session["username"]))
+    return redirect(url_for(".index"))
+
+@app.route('/504')
+def bad_connect():
+    flash("An error has occured with TiledViz. We are really sorry about this.\n Your connection has never reached the connection machine. Please try again with a new connection.")
+    logging.error("Error of TVSecure for user "+str(session["username"]))
+    return redirect(url_for(".index"))
+
+
 @app.route('/404')
 def not_found():
     return "Unknown page. Please modify your address."
+
+@app.route('/500')
+def TVerror():
+    flash("An error has occured with TiledViz. We are really sorry about this.\n Please try to keep your history of actions and send them to TiledViz developpers.")
+    logging.error("Error with TiledViz for user "+str(session["username"]))
+    return redirect(url_for(".index"))
 
 # # Proxy VNC
 # # Thank's to https://stackoverflow.com/posts/36601467/revisions

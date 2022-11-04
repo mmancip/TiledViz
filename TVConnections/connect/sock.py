@@ -6,7 +6,7 @@ import logging
 import platform
 import configparser
 
-import datetime
+import time,datetime
 
 from .transfer import hashfile,readblock
 

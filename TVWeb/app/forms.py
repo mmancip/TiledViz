@@ -153,7 +153,7 @@ def BuildAdminForm(list_myprojects,list_myprojects_sessions,list_user_connection
         AdminForm.chosen_connections=myFixedSelectField(description='OR one of all other connections.',choices=list_all_connections,validators=[Optional()])
 
     if (list_all_users is not None):
-        AdminForm.all_users=myFixedSelectField(description='Choose one user.',choices=list_all_users,validators=[Optional()])
+        AdminForm.all_users=myFixedSelectField(description='Choose one user. !! This will remove all projects/sessions of this user !!',choices=list_all_users,validators=[Optional()])
         #AdminForm.editUser = SubmitField("Edit selected user.")    
         
     if (list_all_projects is not None):

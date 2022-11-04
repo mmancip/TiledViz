@@ -112,6 +112,9 @@
 	<div id="editsession">
 	  <a class="btn btn-large btn-info" href="/editsession?message=%7B&quot;oldsessionname&quot;%3A&quot;{{ session }}&quot;%7D" style="font-size: 40px">Editsession</a>
 	</div>
+	<div id="editnodes">
+	  <a class="btn btn-large btn-info" href="/editnodes?message=%7B&quot;oldsessionname&quot;%3A&quot;{{ session }}&quot;%7D" style="font-size: 40px">Editnodes</a>
+	</div>
 	<div class="join-zone" id="join">
 		<span id="join-clients" style="font-size: 30px"></span><!--participants (ie, their number) will be inserted
 		through JS events and websocket to adapt with new clients-->
@@ -317,7 +320,7 @@
 	buildAtEnd();
 	executeAtEnd();
     } else {
-        console.log("Not already conplete : "+document.readyState)
+        console.log("Not already complete : "+document.readyState)
         document.onreadystatechange = function () {
             if (document.readyState === "complete") {
                 console.log("Wait for conplete : "+document.readyState)

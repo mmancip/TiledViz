@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# usage : ./update_SSL /keypath/publickey.pem /keypath/privkey.pem
+
+sed -e "s&ENV SSLpublic .*&ENV SSLpublic $1&" -e "s&ENV SSLprivate .*&ENV SSLprivate $2&" -i TVWeb/FlaskDocker/Dockerfile_add 
+
+sed -e "s&export SSLpublic=.*&export SSLpublic=$1&" -e "s&export SSLprivate=.*&export SSLprivate=$2&" -i $HOME/.cache/envTiledViz
+
+#./build_FlaskDock_add

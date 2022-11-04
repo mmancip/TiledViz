@@ -76,5 +76,7 @@ You have to change default server name in TVWeb/FlaskDocker/Dockerfile.web :
 ENV DOMAIN mdls.fr
 ENV SERVER_NAME desktop
 
+You may update SSL keys with update_SSL script.
+
 10. Log Level :
 docker exec -u flaskusr -it flaskdock bash -c 'echo DEBUG > /tmp/logfifo'

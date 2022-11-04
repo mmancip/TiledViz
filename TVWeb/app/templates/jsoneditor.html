@@ -46,6 +46,26 @@
     var OutJson = editor.get();
     document.getElementById('submit').value=JSON.stringify(OutJson); //, null, 2
   };
+
+  stra=JSON.stringify(editor.get());
+  prefix="tiledviz_editor";
+  var sessionDate = new Date();
+  var strDate=sessionDate.toLocaleDateString({day: "2-digit", month: "2-digit"}).replace(/\//g, "-") + "_" + sessionDate.toLocaleTimeString("fr-FR").replace(/:/g, "-");
+  var fileName = prefix + "_" + strDate + ".json";
+  //var file = new File([stra], fileName, {type: "text/plain;charset=utf-8"},{ autoBom: false });
+  //saveAs(file);
+
+  var a = document.createElement("a");
+  var file = new Blob([stra], {type: "text/plain;charset=utf-8"});
+  a.href = URL.createObjectURL(file);
+  a.download = fileName;
+  var button = document.createElement('button');
+  button.setAttribute('class',"btn btn-primary btn-lg");
+  button.innerText="Save";
+  button.onclick=function(){ a.click(); URL.revokeObjectURL(a.href) };
+  a.appendChild(button);
+  document.body.appendChild(a);
+
 </script>
 </body>
 </html>

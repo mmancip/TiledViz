@@ -1,11 +1,12 @@
 #!/bin/bash
 
-# $1 SSL web server DOMAIN
-# $2 externPort
-# $3 internPort
-# $4 noVNC PATH
+# $1 SSL web server public key
+# $2 SSL web server private key
+# $3 externPort
+# $4 internPort
+# $5 noVNC PATH
 cd websockify
-./websockify.py --web $4/noVNC --cert /etc/letsencrypt/archive/$1/fullchain1.pem \
-            --key /etc/letsencrypt/archive/$1/privkey1.pem $2 0.0.0.0:$3 \
+./websockify.py --web $5/noVNC --cert $1 \
+            --key $2 $3 0.0.0.0:$4 \
             2>&1 > /dev/null &
 #/tmp/websockify_$(date +%F_%H-%M-%S).log &

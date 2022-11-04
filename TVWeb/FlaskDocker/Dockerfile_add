@@ -1,0 +1,12 @@
+FROM flaskimage
+
+COPY ./ /TiledViz
+
+ENV SSLpublic erzhgb,dsbpdfbl,dflpbd
+ENV SSLprivate dqsvlksdnvùkndsfvklfnv
+
+#RUN /bin/bash -c "source /flask_venv/bin/activate ; \
+#                  export LC_ALL=C.UTF-8 ; \
+#                  export LANG=C.UTF-8 ; \
+#		  pip3 install -r /TiledViz/TVWeb/requirements.txt ;"
+
