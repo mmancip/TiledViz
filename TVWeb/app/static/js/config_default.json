@@ -16,14 +16,14 @@
 	},
 	"tagBehaviour":{
 		"showAll" : true, 
-		
 		"numOfTagsToShow" : 5, 
 		"selectionMethod" : "frequency" 
 	},
 	"behaviour":{
+	        "sharedSliderZoom":false,
+	        "sharedZoomNodes":false,
 		"loadAllContentOnStart" : false,
 		"meshCardinal" : "jsDataTab.length", 
-		
 		"fixColumnNumber" : false,
 		"maxColumnNumber" : 9, 
 		"spaceBetweenColumns" : 130, 
@@ -32,9 +32,9 @@
 	        "primaryZoomSlider" : false,
 		"onlyOneOption" : false, 
 		"draw":{ 
-			"style" : "round",
-			"width" : 10,
-			"defaultColor" : "grey"
+		    "style" : "round",
+		    "width" : 10,
+		    "defaultColor":"black"
 		},
 		"minHeight" : 150, 
 		"minWidth" : 150, 
@@ -58,7 +58,6 @@
 		"moveOnlyABorder" : true,
 		"moveOnGrid" : false,
 	        "touchSpeed" : 3,
-	        "touchonWindow" : false,
 		"smoothRotation" : false,
 		"RotationSpeed" : 1, 
 		"moveOnNodeMenuOption" : true, 

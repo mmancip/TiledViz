@@ -69,3 +69,15 @@ Some gvfs versions gives full memory with Connections docker and
 udisks2-volume-monitor service. You can deactivate this behaviour with 
 > systemctl --user stop gvfs-udisks2-volume-monitor.service
 > systemctl --user mask gvfs-udisks2-volume-monitor.service
+
+9. SSL and server deployment
+
+You must use SSL branch to have web secure layer parameters.
+
+10. Logger
+
+Change level (from WARNING to DEBUG) interactively :
+> docker exec -u flaskusr -it flaskdock bash -c 'echo DEBUG > /tmp/logfifo'
+
+Size of server log:
+> docker inspect --format='{{.LogPath}}' flaskdock | xargs sudo du -sh

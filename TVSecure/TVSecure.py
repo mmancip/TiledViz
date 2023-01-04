@@ -107,6 +107,8 @@ def parse_args(argv):
 
 TVvolume=docker.types.Mount(target='/TiledViz',source=os.getenv('PWD'),type='bind',read_only=False)
 
+TVlogs=docker.types.LogConfig(type=docker.types.LogConfig.types.JSON, config={"max-size": "500k", "max-file": "3"})
+
 threads={}
 
 sqltConnections={"username":"none","connectionid":-1}
@@ -202,6 +204,7 @@ class FlaskDocker(threading.Thread):
                 command=self.commandFlask,
                 ports=self.flaskPORT,
                 environment=ENVFlask,
+                log_config=TVlogs,
                 detach=True) #auto_remove=True,
 #                healthcheck=healthcheckN,
             
@@ -470,7 +473,10 @@ class FlaskDocker(threading.Thread):
             # logging.debug("Log loop")
             
             oldLogs=Logs
-            Logs=str(self.containerFlask.logs(timestamps=True,since=int(self.oldtime),tail=nbLinesLogs))
+            try:
+                Logs=str(self.containerFlask.logs(timestamps=True,since=int(self.oldtime),tail=nbLinesLogs))
+            except:
+                pass
             self.oldtime=time.time()            
 
     def isalive(self):
@@ -554,6 +560,10 @@ class ConnectionDocker(threading.Thread):
 
         #healthcheckN=docker.types.Healthcheck(interval=50000000) #test=['NONE'])
             
+        # Wake up docker server ?
+        #client = docker.from_env()
+        logging.warning("Before start "+self.name+", containers list :"+str(client.containers.list()))
+        
         # Detect or create flask container :
         try:
 

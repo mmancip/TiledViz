@@ -119,31 +119,59 @@ $(document).ready( function(){
     
     // Split geometry for Anonymous user
     console.log("my_geometry =",my_geometry);
-    if ( my_geometry["DISPLAYWIDTH"] === undefined) {
-	var grid_width = parseInt($('#main-grid').css("width"));
-	//var grid_height = parseInt($('#main-grid').css("height"));
-	var grid_height = window.innerHeight; // TODO: Find a better solution, suitable to various displays
-	my_window={"left":0,
-		   "right":window.innerWidth,
-		   "top":0,
-		   "down":window.innerHeight}
-    } else {
-	displaywidth=parseInt(my_geometry["DISPLAYWIDTH"]);
-	displayheight=parseInt(my_geometry["DISPLAYHEIGHT"]);
-	shiftleft=parseInt(my_geometry["SHIFTLEFT"]);
-	shifttop=parseInt(my_geometry["SHIFTTOP"]);
-	var grid_width = parseInt(my_geometry["WALLWIDTH"]);
-	var grid_height = parseInt(my_geometry["WALLHEIGHT"])
+    get_newwindowRatio = function() {
+	if ( my_geometry["DISPLAYWIDTH"] === undefined) {
+	    var grid_width = parseInt($('#main-grid').css("width"));
+	    //var grid_height = parseInt($('#main-grid').css("height"));
+	    var grid_height = window.innerHeight; // TODO: Find a better solution, suitable to various displays
+	    my_window={"left":0,
+		       "right":window.innerWidth,
+		       "top":0,
+		       "down":window.innerHeight}
+	} else {
+	    displaywidth=parseInt(my_geometry["DISPLAYWIDTH"]);
+	    displayheight=parseInt(my_geometry["DISPLAYHEIGHT"]);
+	    shiftleft=parseInt(my_geometry["SHIFTLEFT"]);
+	    shifttop=parseInt(my_geometry["SHIFTTOP"]);
+	    var grid_width = parseInt(my_geometry["WALLWIDTH"]);
+	    var grid_height = parseInt(my_geometry["WALLHEIGHT"])
 	
-	// padding = 20%
-	padding_left=displaywidth/5;
-	padding_top=displayheight/5;
-	my_window={"left":-shiftleft-padding_left,
-		   "right":-shiftleft+displaywidth+padding_left,
-		   "top":-shifttop-padding_top,
-		   "down":-shifttop+displayheight+padding_top}
+	    // padding = 20%
+	    padding_left=displaywidth/5;
+	    padding_top=displayheight/5;
+	    my_window={"left":-shiftleft-padding_left,
+		       "right":-shiftleft+displaywidth+padding_left,
+		       "top":-shifttop-padding_top,
+		       "down":-shifttop+displayheight+padding_top}
+	}
+	console.log("Window computed with my_geometry : ",my_window)
+	try{
+	    // Use to compute exact positions of tiles in the window for hiding some out of the real viewport.
+	    relativeLeft=parseInt(htmlPrimaryParent.css('width'))/2;
+	    //htmlPrimaryParent.cssClip()
+	    if ( me.getSpread().X > 3840 )
+		relativeLeft=parseInt(relativeLeft/2);
+	} catch(e) {
+	    relativeLeft=0
+	    console.log("Error : init relativeLeft "+e.toString())
+	}
     }
-    console.log("Window computed with my_geometry : ",my_window)
+
+    let removePixelRatio = null;
+
+    const updatePixelRatio = () => {
+	if(removePixelRatio != null) {
+	    removePixelRatio();
+	}
+	let PixelRatioReq = `(resolution: ${window.devicePixelRatio}dppx)`;
+	let media = matchMedia(PixelRatioReq);
+	media.addListener(updatePixelRatio);
+
+	get_newwindowRatio();
+	console.log("detect new PixelRatio: " + window.devicePixelRatio);
+	removePixelRatio = function() {media.removeListener(updatePixelRatio)};
+    }
+    updatePixelRatio();
 
     /* LIST OF USEFUL PARAMETERS 
        Use a research (Ctrl + F) to find related variable on the code
@@ -505,6 +533,9 @@ $(document).ready( function(){
     // } else {
     // 	TopPP = 0;
     // }
+
+    get_newwindowRatio();
+
 });
 
 } catch(err){
