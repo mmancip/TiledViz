@@ -110,6 +110,8 @@ TVvolume=docker.types.Mount(target='/TiledViz',source=os.getenv('PWD'),type='bin
 SSLpath=os.path.dirname(os.getenv('SSLpublic'))
 TVssl=docker.types.Mount(target=SSLpath,source=SSLpath,type='bind',read_only=False)
 
+TVlogs=docker.types.LogConfig(type=docker.types.LogConfig.types.JSON, config={"max-size": "500k", "max-file": "3"})
+
 threads={}
 
 sqltConnections={"username":"none","connectionid":-1}
@@ -205,6 +207,7 @@ class FlaskDocker(threading.Thread):
                 command=self.commandFlask,
                 ports=self.flaskPORT,
                 environment=ENVFlask,
+                log_config=TVlogs,
                 detach=True) #auto_remove=True,
 #                healthcheck=healthcheckN,
             
@@ -473,7 +476,10 @@ class FlaskDocker(threading.Thread):
             # logging.debug("Log loop")
             
             oldLogs=Logs
-            Logs=str(self.containerFlask.logs(timestamps=True,since=int(self.oldtime),tail=nbLinesLogs))
+            try:
+                Logs=str(self.containerFlask.logs(timestamps=True,since=int(self.oldtime),tail=nbLinesLogs))
+            except:
+                pass
             self.oldtime=time.time()            
 
     def isalive(self):
@@ -557,6 +563,10 @@ class ConnectionDocker(threading.Thread):
 
         #healthcheckN=docker.types.Healthcheck(interval=50000000) #test=['NONE'])
             
+        # Wake up docker server ?
+        #client = docker.from_env()
+        logging.warning("Before start "+self.name+", containers list :"+str(client.containers.list()))
+        
         # Detect or create flask container :
         try:
 
@@ -714,6 +724,7 @@ class ConnectionDocker(threading.Thread):
         self.LogLaunchWebsockify=self.containerFlask.exec_run(cmd=commandLaunchWebsockify,user=self.flaskusr,detach=True)
         # Get websockify PID :
         commandWebsockifyPID="bash -c 'echo $(pgrep -f \"^python3 .*"+str(internPort)+"\" |sort |head -1)'"
+        tries=0
         while True:
             time.sleep(1)
             self.LogWebsockifyPID=container_exec_out(self.containerFlask, commandWebsockifyPID,user=self.flaskusr)
@@ -722,9 +733,12 @@ class ConnectionDocker(threading.Thread):
                     self.websockifyPID=int(self.LogWebsockifyPID)
                 except:
                     logging.error("Wait for websockify PID " + str(self.LogWebsockifyPID))
+                    tries=tries+1
                 else:
                     break
-        
+            if (tries > 50):
+                self.websockifyPID=-1
+                break
         logging.warning("PID for websockify for user "+self.flaskusr+" on Flask container. "+str(self.websockifyPID))
         
         

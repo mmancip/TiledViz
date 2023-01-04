@@ -2051,6 +2051,7 @@ def configsession():
         # json_file = open(json_file_name).read()
 
         thesession.config=jsonConfigs
+        flag_modified(thesession,"config")        
         db.session.commit()
 
         message = '{"oldsessionname":"'+sessionname+'"}'
@@ -2298,12 +2299,11 @@ def edittileset():
         return redirect("/allsessions")
 
     try:
-        message=json.loads(request.args["message"])
+        message=json.loads(request.args["message"].replace("'", '"'))
     except json.decoder.JSONDecodeError as e:
         logging.error("message error ! "+str(e))
         logging.error("message : "+str(request.args["message"]))
         traceback.print_exc(file=sys.stderr)
-        message=json.loads(request.args["message"].replace("'", '"'))
         
     logging.warning("edittileset : "+str(message))
 
@@ -3570,11 +3570,22 @@ def shareConfig(cdata):
         logging.warning("[->] shareConfig in room " + str(croom))
         configJson=json.loads(cdata["Config"].replace("'", '"'));
         logging.info("Config: "+str(configJson))
+        oldsessionname=session["sessionname"]
+        ThisSession = db.session.query(models.Session).filter_by(name=oldsessionname).scalar()    
+        oldconfig=ThisSession.config
+        # Update modified config
+        for section in configJson:
+            thisConfigSection=configJson[section]
+            for key in thisConfigSection:
+                ThisSession.config[section][key]=thisConfigSection[key]
+        flag_modified(ThisSession,"config")
+        db.session.commit()
         sdata = {"Config":configJson};
         socketio.emit('receive_deploy_Config', sdata,room=croom)
     except Exception as e:
         logging.error("err : "+str(e))
         logging.error("cData : "+str(cdata))
+        traceback.print_exc(file=sys.stderr)
 
 @socketio.on('move_tile')
 def handle_click_event(cdata):

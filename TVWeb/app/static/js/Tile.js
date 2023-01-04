@@ -47,8 +47,16 @@ Tile = function(Mesh) {
     var nodeHeight=mesh.me.getSpread().Y; // Height of a node, depends of the mesh parameters SPREAD
     var nodeWidth=mesh.me.getSpread().X; // Width of a node, depends of the mesh parameters SPREAD
 
+    var init_tile = true; // save init state
 
     var state = 0; // This variable is similar to the focus, just a way to know if the node is selected by users
+    //States :
+    //     0 = not clicked
+    //	   1 = hovered
+    //	   2 = clicked
+    //	   3 = drag and drop achieved
+    //	   4 = transparent
+
     var isSelected=false; /* This variable is another way to specify if the node is selected 
 			     (we need a second variable to check selection because they are many options 
 			     which need a selection so we need many way to know if the node is selected) */
@@ -93,9 +101,6 @@ Tile = function(Mesh) {
 	    $('#info'+id).css("font-family", configBehaviour.infoFonts[Math.min(configBehaviour.defaultFontIndex, configBehaviour.infoFonts.length)]);
 	    $('#info'+id).css("color", configBehaviour.infoTextColor);
 	    $('#info'+id).css("font-size", configBehaviour.defautInfoFontSize);
-	    if (configBehaviour.alwaysShowInfo)  { 
-		$('#info'+id).show();
-	    }
 	    
 	    // Handle to rotate
 	    $("#rotate"+id).css({
@@ -740,6 +745,13 @@ Tile = function(Mesh) {
     this.setOpacityLocation = function () {};
     
     this.buildmenu=function() {
+
+	// Don't build menu if not visible in start or if it already exists.
+	if ((init_tile && ! this.isInViewport()) || nodeMenu) {
+	    init_tile=false
+	    return
+	}
+
 	/** Here is created the menu of the node*/
 	nodeMenu = new Menu(id,htmlNode,menuTitleTab,menuEventTab,menuIconClassAttributesTab,MenuShareEvent,{
 
@@ -810,6 +822,11 @@ Tile = function(Mesh) {
 	tile_opacity.css("visibility","hidden")
 	
 	//tile_opacity.append("<input id=tileOpacitySlider"+id+" class=tile-opacity-slider type='range' name=tileOpacitySlider"+id+" min=0 max=100 value="+nodeOpacity*100+">");
+	if ( this.isInViewport()) {
+	  if (configBehaviour.alwaysShowInfo)  { 
+		$('#info'+id).show();
+	  }
+	}
     }
     
     /** Stickers to tag the node 
@@ -911,6 +928,8 @@ Tile = function(Mesh) {
 	    if (this.getNodeInViewportStatus()) {
 		var iframe = $('#iframe'+id);
 		iframe.css("display","inline")
+	    } else {
+		this.isInViewport();
 	    }
     }
 
@@ -1097,30 +1116,21 @@ Tile = function(Mesh) {
 	You don't have to use directly these functions, they are just tools to others functions which manage 
 	node position
     */	
-    // Use to compute exact positions of tiles in the window for hiding some out of the real viewport.
-    var relativeLeft=parseInt(htmlPrimaryParent.css('width'))/2;
-    if ( mesh.me.getSpread().X > 3840 )
-	relativeLeft=parseInt(relativeLeft/2);
 
     this.isInViewport = function() {
-	if (my_inactive) {
-	    var hnode=this.getHtmlNode();
-	    var pnode=hnode.position();
-	    var maxLeft=relativeLeft+pnode.left+parseInt(hnode.css("width"));
-	    var minRight=relativeLeft+pnode.left;
-	    var maxTop=pnode.top+parseInt(hnode.css("height"));
-	    var minDown=pnode.top;
-	    window_test=my_window["left"] < maxLeft &&
-		my_window["right"] > minRight && 
-		my_window["top"] < maxTop &&
-		my_window["down"] > minDown
-	    //console.log("window test :",window_test)
-	    nodeinviewport = window_test
-	    return window_test;
-	} else {
-	    nodeinviewport = true
-	    return true;
-	}
+	var hnode=this.getHtmlNode();
+	var pnode=hnode.position();
+	var maxLeft=relativeLeft+pnode.left+parseInt(hnode.css("width"));
+	var minRight=relativeLeft+pnode.left;
+	var maxTop=pnode.top+parseInt(hnode.css("height"));
+	var minDown=pnode.top;
+	var window_test=my_window["left"] < maxLeft &&
+	    my_window["right"] > minRight && 
+	    my_window["top"] < maxTop &&
+	    my_window["down"] > minDown
+	//console.log("window test :",window_test)
+	nodeinviewport = window_test
+	return window_test;
     };
 
     this.updateUrl = function() {
@@ -1327,32 +1337,29 @@ Tile = function(Mesh) {
 
 	    var hnode=this;
 	    var u=0;
+	    var realmove = function() {
+		hnode.updateLocFromHtmlNode();
+		currentLoc = hnode.getLocation();
+		u++;
+		
+		var slocx=loc.getX()-currentLoc.getX();
+		var slocy=loc.getY()-currentLoc.getY();
+		var distLoc=Math.sqrt(slocx*slocx+slocy*slocy);
+		if(distLoc>speed+1 && u<50)  { 
+		    // Do we really need that callback ?
+		    move();
+		    hnode.setOpacityLocation();
+		} else { 
+		    hnode.setLocation(me.locationProvider(hnode.getIdLocation()) );
+		    //return 0;
+		}	
+	    }
 	    var move = function(){
+		$('#'+hnode.getId()).animate({ "left" : "+="+speed*sx/distInit, "top" : "+="+speed*sy/distInit}, 10, "linear",realmove)
 
-
-		$('#'+hnode.getId()).animate({ "left" : "+="+speed*sx/distInit, "top" : "+="+speed*sy/distInit}, 10, "linear",
-
-					     function() {
-						 hnode.updateLocFromHtmlNode();
-						 currentLoc = hnode.getLocation();
-						 u++;
-
-						 var slocx=loc.getX()-currentLoc.getX();
-						 var slocy=loc.getY()-currentLoc.getY();
-						 var distLoc=Math.sqrt(slocx*slocx+slocy*slocy);
-						 if(distLoc>speed+1 && u<50)  { 
-						     move();
-						     hnode.setOpacityLocation();
-						 } else { 
-						     hnode.setLocation(me.locationProvider(hnode.getIdLocation()) );
-						     //return 0;
-						 }	
-
-					     }
-					     );													
 		return 0;				
 	    };		
-
+	    
 	    move();
 	} else { 	
 	    location = loc;
@@ -1360,6 +1367,15 @@ Tile = function(Mesh) {
 	}
 	this.setIsMoving(false);
 	this.setOpacityLocation();
+
+	if (!init_tile && !nodeMenu)
+	    this.buildmenu();
+	if ( this.getNodeInViewportStatus() ) {
+	    if (configBehaviour.alwaysShowInfo)  { 
+		$('#info'+id).show();
+	    }
+	}
+	    
     }
 
 

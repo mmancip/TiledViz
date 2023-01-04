@@ -78,5 +78,10 @@ ENV SERVER_NAME desktop
 
 You may update SSL keys with update_SSL script.
 
-10. Log Level :
-docker exec -u flaskusr -it flaskdock bash -c 'echo DEBUG > /tmp/logfifo'
+10. Logger
+
+Change level (from WARNING to DEBUG) interactively :
+> docker exec -u flaskusr -it flaskdock bash -c 'echo DEBUG > /tmp/logfifo'
+
+Size of server log:
+> docker inspect --format='{{.LogPath}}' flaskdock | xargs sudo du -sh

@@ -901,7 +901,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     
     // Refresh nodes function
     
-    var refreshNodes = function (node) {
+    refreshNodes = function (node) {
 
 	// check if optionnal argument node is present (node can be "0" == false in javascript)
 	var hasNoNode=false
@@ -911,12 +911,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	//console.log("test refresh");
 
 	if (hasNoNode) {// ie no node specified -> refresh all nodes
-	    for (O in nodesById) {
-		me.unsetDraggable(nodesById[O].getId(), false, false);
-	    }
-
 	    for (O in nodesByLoc)  { 
+		nodesByLoc[O].setNodeInViewportStatus()
 		if (nodesByLoc[O].getNodeInViewportStatus()) {
+		    me.loadContent(O);
 		    SetOn(nodesByLoc[O].getId());
 		} else {
 		    SetOff(nodesByLoc[O].getId());
@@ -924,6 +922,11 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		//     nodesByLoc[O].getHtmlNode().children('iframe')[0].setAttribute("src","");
 		//     nodesByLoc[O].getHtmlNode().children('iframe')[0].setAttribute("src",nodesByLoc[O].getJsonData().url);
 	    }
+
+	    for (O in nodesById) {
+		me.unsetDraggable(nodesById[O].getId(), false, false);
+	    }
+
 	    // Onnodes = $('.On').parent().parent().children('iframe');
 	    // for (node in Onnodes) {
 	    // 	if (node != "prevObject" && typeof Onnodes[node] == "object"
@@ -938,8 +941,10 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    // 	}
 	    // }
 	} else {
+	    nodesByLoc[node].setNodeInViewportStatus()
 	    me.unsetDraggable(node); 
 	} 
+	me.meshEventReStart();
 
 	EnableDragAndDrop();
     };
@@ -1143,7 +1148,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    if( node.getLoadedStatus() == false && mesh.locationProvider(node.getIdLocation()).getY()<window.innerHeight  )  { 
 			//console.log(node.getmLocation().getnX());
 			ratio=mesh.loadContent(node.getId());
-			node.setLoadedStatus(true);
+			//node.setLoadedStatus(true);
 		    }
 		}
 	    }
@@ -2705,10 +2710,14 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		return function(v, id, optionNumber){
 		    if (v==true)  { 
-			$('.onoff').show();
+			for (O in nodesByLoc)
+			    if (nodesByLoc[O].getNodeInViewportStatus())
+				nodesByLoc[O].getHtmlNode().children(".onoff").css({display : "inline"});
 			$('#'+id+'option'+optionNumber).removeClass('OnOffButtonIcon').addClass('closeOnOffButtonIcon');
 		    } else { 
-			$('.onoff').hide();
+			for (O in nodesByLoc)
+			    if (nodesByLoc[O].getNodeInViewportStatus())
+				nodesByLoc[O].getHtmlNode().children(".onoff").css({display : "none"});
 			$('#'+id+'option'+optionNumber).removeClass("closeOnOffButtonIcon").addClass("OnOffButtonIcon");
 
 		    }
@@ -2745,11 +2754,15 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		return function(v, id, optionNumber){
 		    if (v==true)  { 
-			$('.info').show();
+			for (O in nodesByLoc)
+			    if (nodesByLoc[O].getNodeInViewportStatus())
+				nodesByLoc[O].getHtmlNode().children(".info").css({visibility : "visible", display : "inline" });
 			$('#'+id+'option'+optionNumber).removeClass('showInfoButtonIcon').addClass('closeShowInfoButtonIcon');
 		    } else { 
 			if(! configBehaviour.alwaysShowInfo)  { 
-			    $('.info').hide();
+			    for (O in nodesByLoc)
+				if (nodesByLoc[O].getNodeInViewportStatus())
+				    nodesByLoc[O].getHtmlNode().children(".info").css({visibility : "hidden"});
 			}
 			$('#'+id+'option'+optionNumber).removeClass("closeShowInfoButtonIcon").addClass("showInfoButtonIcon");
 
@@ -2901,7 +2914,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    	id=nodesByLoc[O].getId();
 	    	//console.log(id);
 		
-	    	var temp3 ="\n{{***}}";
+	    	var temp3 ="{{***}}";
 
 	    	for(W in nodesByLoc[O].getJsonData())  {
  		    if (W == "tags" ) {
@@ -2913,21 +2926,21 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			    else {
 				ListTags.push("'"+currentValue + "'") }
 			})
-			var mytext = "\""+W+"\""+" : "+"["+ListTags.toString().replace(/\'/g,'\"')+"],\n {***}"
+			var mytext = "\""+W+"\""+" : "+"["+ListTags.toString().replace(/\'/g,'\"')+"], {***}"
 		    } else if ( W == "comment") {
 			// Don't save old comment because user may have modified it in postit. 
 			var mytext = "{***}";
 		    } else if ( W == "userNotes") {
 			comment=nodesByLoc[O].getJsonData()["userNotes"].toString().replace(/\"/g,"'")
-			var mytext = "\"comment\""+" : "+"\""+comment+"\""+",\n {***}"
+			var mytext = "\"comment\""+" : "+"\""+comment+"\""+", {***}"
 			// } else if ( W == "IdLocation") {
 			//     var mytext = "\""+W+"\""+" : "+"\""+nodesByLoc[0].getIdLocation().toString()+"\""+",\n {***}";
 		    } else {
-	    		var mytext = "\""+W+"\""+" : "+"\""+nodesByLoc[O].getJsonData()[W].toString().replace(/\"/g,"'").replace(/\n/g,"")+"\""+",\n {***}";
+	    		var mytext = "\""+W+"\""+" : "+"\""+nodesByLoc[O].getJsonData()[W].toString().replace(/\"/g,"'").replace(/\n/g,"")+"\""+", {***}";
 		    }
 	    	    temp3=temp3.replace("{***}",mytext);
 	    	}
-	    	temp3=temp3.replace(",\n {***}","");
+	    	temp3=temp3.replace(", {***}","");
 	    	temp=temp.replace("XXX",temp3+",XXX");
 	    }
 	}
@@ -3185,6 +3198,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		$('#options-look').append("<input type='checkbox' name=enable-primaryZoom value="+ configBehaviour.primaryZoomSlider +">Enable primary Zoom Slider<br />");
 		$('input[name=enable-primaryZoom]').attr("checked",configBehaviour.primaryZoomSlider);
 		
+		// Primary Zoom Slider
+		$('#options-look').append("<div id=options-globalVerticalSlider-label class=label>Global Vertical Slider</div>");
+		var gVS=false;
+		$('#options-look').append("<input type='checkbox' name=enable-globalVertical value="+gVS+">Enable browser vertical slider<br />");
+		$('input[name=enable-globalVertical]').attr("checked",gVS);
+		
 		// Spread
 		$('#options-zone').append("<div id=options-spread class=option-group></div>");
 		$('#options-spread').append("<div id=options-spread-label class=label>Tile size</div>");
@@ -3194,8 +3213,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		$('#options-spread').append("X: <input id=spreadX name=spreadX type='number' value=" +spread.X +">px   ");
 		$('#options-spread').append("Y: <input id=spreadY name=spreadY type='number' value=" +spread.Y +">px <br />");
 		$('#options-spread').append("Number of columns:</br><input id=colNumber name=colNumber type='number' value=" +numOfColumns+ "><br />");
-		$('#options-spread').append("Space Between </br>Columns:<input id=spaceBetweenColumns name=spaceBetweenColumns type='number' value=" +configBehaviour.spaceBetweenColumns+ "><br />");
-		$('#options-spread').append("Lines:<input id=spaceBetweenLines name=spaceBetweenLines type='number' value=" +configBehaviour.spaceBetweenLines+ "><br />");
+		$('#options-spread').append("Space Between </br>Columns:<input id=spaceBetweenColumns name=spaceBetweenColumns type='number' value=" +gapBetweenColumns+ "><br />");
+		$('#options-spread').append("Lines:<input id=spaceBetweenLines name=spaceBetweenLines type='number' value=" +gapBetweenLines+ "><br />");
 
 		var clickKR = function(){
 		    if ($('input[name=spread-keepratio]').is(":checked"))  { 
@@ -3315,11 +3334,11 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			configColors.colorTheme = $('input[name=color-theme-radio]').filter(':checked').val();
 			setColorTheme(configColors.colorTheme);
 		    }
-		    tempColors=tempColors.replace("***","'colorTheme':'"+configColors.colorTheme+"'"+",\n ***");
+		    tempColors=tempColors.replace("***","'colorTheme':'"+configColors.colorTheme+"'"+", ***");
 
 		    // Help tooltip => Option NOT USED in Menu.js because only defined at startup
 		    // configBehaviour.tooltip = $('input[name=enable-tooltip]').is(":checked");
-		    // tempBehaviour=tempBehaviour.replace("***","'tooltip': '"+configBehaviour.tooltip+"',\n ***");
+		    // tempBehaviour=tempBehaviour.replace("***","'tooltip': '"+configBehaviour.tooltip+"', ***");
 		    
 		    if(configBehaviour.opacity*100 != $('#opacitySlider').val())  { 
 			configBehaviour.opacity = Math.max($('#opacitySlider').val()/100, 0.1);
@@ -3327,7 +3346,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			    nodesById[O].setNodeOpacity(configBehaviour.opacity);
 			}
 		    }
-		    tempBehaviour=tempBehaviour.replace("***","'opacity':"+configBehaviour.opacity+",\n ***");
+		    tempBehaviour=tempBehaviour.replace("***","'opacity':"+configBehaviour.opacity+", ***");
 
 		    configBehaviour.primaryZoomSlider = $('input[name=enable-primaryZoom]').is(":checked");
 		    if ( configBehaviour.primaryZoomSlider ) {
@@ -3341,6 +3360,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			$('#primaryparent').css("transform-origin","")
 		    }
 		    
+		    var gVS = $('input[name=enable-globalVertical]').is(":checked");
+		    if (gVS)
+			document.body.setAttribute('style','overflow:hidden auto;');
+		    else
+			document.body.setAttribute('style','overflow:hidden;');
+			
 		    var hasSpreadChanged = false;
 		    if(spread.X != $('input[name=spreadX]').val())  { 
 			//console.log("change X, new", $('input[name=spreadX]').val());
@@ -3359,64 +3384,64 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			};
 			me.updateSpread(newSpread);
 			
-			temp3="'spread': {\n 'X':"+newSpread.X+", \n 'Y':"+newSpread.Y+"\n}";
-			tempBehaviour=tempBehaviour.replace("***",temp3+",\n ***");
+			temp3="'spread': { 'X':"+newSpread.X+",  'Y':"+newSpread.Y+"}";
+			tempBehaviour=tempBehaviour.replace("***",temp3+", ***");
 		    }
 
 		    //console.log(parseInt($('input[name=colNumber]').val()));
 		    numOfColumns = parseInt($('input[name=colNumber]').val());
-                    tempBehaviour=tempBehaviour.replace("***","'maxNumOfColumns': "+numOfColumns+",\n ***");
+                    tempBehaviour=tempBehaviour.replace("***","'maxNumOfColumns': "+numOfColumns+", ***");
 
 		    gapBetweenColumns = parseInt($('input[name=spaceBetweenColumns]').val());
-                    tempBehaviour=tempBehaviour.replace("***","'spaceBetweenColumns': "+gapBetweenColumns+",\n ***");
+                    tempBehaviour=tempBehaviour.replace("***","'spaceBetweenColumns': "+gapBetweenColumns+", ***");
 
 		    gapBetweenLines = parseInt($('input[name=spaceBetweenLines]').val());
-                    tempBehaviour=tempBehaviour.replace("***","'spaceBetweenLines': "+gapBetweenLines+",\n ***");
+                    tempBehaviour=tempBehaviour.replace("***","'spaceBetweenLines': "+gapBetweenLines+", ***");
 
 	            maxNumOfColumns=numOfColumns;
 		    mesh.globalLocationProvider();
 		    
 		    configBehaviour.alwaysShowInfo = $('input[name=showinfo-cb]').is(":checked");
-		    tempBehaviour=tempBehaviour.replace("***","'alwaysShowInfo': '"+configBehaviour.alwaysShowInfo+"',\n ***");
+		    tempBehaviour=tempBehaviour.replace("***","'alwaysShowInfo': '"+configBehaviour.alwaysShowInfo+"', ***");
 
 		    if(parseInt($('.info').css("font-size"))!=$('#infoSize').val())  { 
 			$('.info').css("font-size",  Math.min($('#infoSize').val(), configBehaviour.maxInfoFontSize) + "px");
 			configBehaviour.defaultInfoFontSize = $('.info').css("font-size");
 
-			tempBehaviour=tempBehaviour.replace("***","'defaultInfoFontSize': '"+configBehaviour.defaultInfoFontSize+"',\n ***");
+			tempBehaviour=tempBehaviour.replace("***","'defaultInfoFontSize': '"+configBehaviour.defaultInfoFontSize+"', ***");
 		    }
 		    configBehaviour.defaultFontIndex = $('#options-info-font-select').val();
 		    $('.info').css("font-family", configBehaviour.infoFonts[configBehaviour.defaultFontIndex]);
 
-		    tempBehaviour=tempBehaviour.replace("***","'defaultFontIndex': "+configBehaviour.defaultFontIndex+",\n ***");
+		    tempBehaviour=tempBehaviour.replace("***","'defaultFontIndex': "+configBehaviour.defaultFontIndex+", ***");
 
 		    configBehaviour.moveOnlyABorder = $('input[name=show-only-border-cb]').is(":checked");
-		    tempBehaviour=tempBehaviour.replace("***","'moveOnlyABorder': '"+configBehaviour.moveOnlyABorder+"',\n ***");
+		    tempBehaviour=tempBehaviour.replace("***","'moveOnlyABorder': '"+configBehaviour.moveOnlyABorder+"', ***");
 		    configBehaviour.moveOnMenuOption = $('input[name=move-on-menu-item-cb]').is(":checked");
-                    tempBehaviour=tempBehaviour.replace("***","'moveOnMenuOption': '"+configBehaviour.moveOnMenuOption+"',\n ***");
+                    tempBehaviour=tempBehaviour.replace("***","'moveOnMenuOption': '"+configBehaviour.moveOnMenuOption+"', ***");
 		    configBehaviour.moveOnGrid = $('input[name=move-on-grid-cb]').is(":checked");
-                    tempBehaviour=tempBehaviour.replace("***","'moveOnGrid': '"+configBehaviour.moveOnGrid+"',\n ***");
+                    tempBehaviour=tempBehaviour.replace("***","'moveOnGrid': '"+configBehaviour.moveOnGrid+"', ***");
 		    configBehaviour.showAnimationsLineColSwap = $('input[name=showAnimationsLineColSwap]').is(":checked");
-                    tempBehaviour=tempBehaviour.replace("***","'showAnimationsLineColSwap': '"+configBehaviour.showAnimationsLineColSwap+"',\n ***");
+                    tempBehaviour=tempBehaviour.replace("***","'showAnimationsLineColSwap': '"+configBehaviour.showAnimationsLineColSwap+"', ***");
 		    
 		    configBehaviour.animationSpeed = $('#AnimationSpeed').val();
-                    tempBehaviour=tempBehaviour.replace("***","'animationSpeed': "+configBehaviour.animationSpeed+",\n ***");
+                    tempBehaviour=tempBehaviour.replace("***","'animationSpeed': "+configBehaviour.animationSpeed+", ***");
 
 		    configBehaviour.sharedZoomNodes = $('input[name=enable-sharedzoomnodes]').is(":checked");
-		    tempBehaviour=tempBehaviour.replace("***","'sharedZoomNodes': '"+configBehaviour.sharedZoomNodes+"',\n ***");
+		    tempBehaviour=tempBehaviour.replace("***","'sharedZoomNodes': '"+configBehaviour.sharedZoomNodes+"', ***");
 		    
 		    configBehaviour.sharedSliderZoom = $('input[name=enable-sharedSliderzoom]').is(":checked");
-		    tempBehaviour=tempBehaviour.replace("***","'sharedSliderZoom': '"+configBehaviour.sharedSliderZoom+"',\n ***");
+		    tempBehaviour=tempBehaviour.replace("***","'sharedSliderZoom': '"+configBehaviour.sharedSliderZoom+"', ***");
 		    
 		    configBehaviour.allMSShowMax = $('#allMSShowMax').val();
-                    tempBehaviour=tempBehaviour.replace("***","'allMSShowMax': "+configBehaviour.allMSShowMax+",\n ***");
+                    tempBehaviour=tempBehaviour.replace("***","'allMSShowMax': "+configBehaviour.allMSShowMax+", ***");
 		    
 		    configBehaviour.onlyMasterMS = $('#onlyMasterMS').val();
-                    tempBehaviour=tempBehaviour.replace("***","'onlyMasterMS': "+configBehaviour.onlyMasterMS+",\n ***");
+                    tempBehaviour=tempBehaviour.replace("***","'onlyMasterMS': "+configBehaviour.onlyMasterMS+", ***");
 		    
 		    if (touchok) {
 			configBehaviour.touchSpeed = $('#touchSpeed').val();
-			tempBehaviour=tempBehaviour.replace("***","'touchSpeed': "+configBehaviour.touchSpeed+",\n ***");
+			tempBehaviour=tempBehaviour.replace("***","'touchSpeed': "+configBehaviour.touchSpeed+", ***");
 
 			configBehaviour.touchonWindow = $('#touchon-window').val();
 			if (configBehaviour.touchonWindow) {
@@ -3424,43 +3449,51 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			} else {
 			    document.body.setAttribute('style','overflow:hidden;');
 			}
-			tempBehaviour=tempBehaviour.replace("***","'touchonWindow': "+configBehaviour.touchonWindow+",\n ***");
+			tempBehaviour=tempBehaviour.replace("***","'touchonWindow': "+configBehaviour.touchonWindow+", ***");
 		    }
 
 		    configBehaviour.smoothRotation = $('input[name=smooth-rotation]').is(":checked");
-		    tempBehaviour=tempBehaviour.replace("***","'smoothRotation': '"+configBehaviour.smoothRotation+"',\n ***");
+		    tempBehaviour=tempBehaviour.replace("***","'smoothRotation': '"+configBehaviour.smoothRotation+"', ***");
 		    if (configBehaviour.smoothRotation) {
 			configBehaviour.RotationSpeed=$('#RotInc').val();
-			tempBehaviour=tempBehaviour.replace("***","'RotationSpeed': '"+configBehaviour.smoothRotation+"',\n ***");
+			tempBehaviour=tempBehaviour.replace("***","'RotationSpeed': '"+configBehaviour.smoothRotation+"', ***");
 			RotInc=parseFloat(configBehaviour.RotationSpeed); //for a smooth touchmove rotation
 		    } else {
 			// for a turn over with only touchstart / touchend (no touchmove) events
 			RotInc=180; 
 		    }
 
+		    temp3="'shareMenu': { ";
+		    tempBehaviour=tempBehaviour.replace("***",temp3+" ***");
+		    
 		    for (var theOption in thisIconTab) {
-			me.menu.setMenuShareEvent(theOption, $('input[name=shareMenu_'+thisIconTab[theOption]+']').is(":checked"));
-			tempBehaviour=tempBehaviour.replace("***","'shareMenu_"+thisIconTab[theOption]+"': 'true',\n ***");
+			ThisMenuShared=$('input[name=shareMenu_'+thisIconTab[theOption]+']').is(":checked");
+			me.menu.setMenuShareEvent(theOption, ThisMenuShared);
+			tempBehaviour=tempBehaviour.replace("***","'"+thisIconTab[theOption]+"': '"+ThisMenuShared+"', ***");
 		    }
 		    for (var locMenu in LocalMenus) {
 			var menuname=LocalMenus[locMenu].replace("GlobalMenuButtonIcon","Global")
 			var thismenu=subMenusGlobal.filter(menu=>menu.getId()==menuname)[0];
 			var thisiconTab=thismenu.getMenuIconClassAttributesTab();
 			for (var theOption in thisiconTab) {
-			    thismenu.setMenuShareEvent(theOption, $('input[name=shareMenu_'+thisiconTab[theOption]+']').is(":checked"));
-			    tempBehaviour=tempBehaviour.replace("***","'shareMenu_"+thisiconTab[theOption]+"': 'true',\n ***");
+			    ThisMenuShared=$('input[name=shareMenu_'+thisiconTab[theOption]+']').is(":checked");
+			    thismenu.setMenuShareEvent(theOption, ThisMenuShared);
+			    tempBehaviour=tempBehaviour.replace("***","'"+thisiconTab[theOption]+"': '"+ThisMenuShared+"', ***");
 			}
 		    }
 		    
-		    var tempConfigJson="{\n"
-			+ tempColors.replace(",\n ***","").replace("***","")+",\n"
+		    temp3="}";
+		    tempBehaviour=tempBehaviour.replace(", ***",temp3+", ***");
+		    
+		    var tempConfigJson="{"
+			+ tempColors.replace(", ***","").replace("***","")+","
 			// + tempJsonData.replace(",\n ***","").replace("***","")+",\n"
-			+ tempBehaviour.replace(",\n ***","").replace("***","")+"\n"
+			+ tempBehaviour.replace(", ***","").replace("***","")
 			// + tempTagBehaviour.replace(",\n ***","").replace("***","")+",\n"
 			// + tempCSSProperties.replace(",\n ***","").replace("***","")+"\n"
 			+ "}";
 
-		    return tempConfigJson;
+		    return tempConfigJson.replaceAll("'",'"');
 		}
 
 		
@@ -3495,7 +3528,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			click : function(){				
 			    ConfigJson = ApplyParameters();
 			    
-			    cdata ={"room":my_session, "Config": ConfigJson }
+			    cdata ={"room":my_session, "Config": ConfigJson.replaceAll("'",'"') }
 			    console.log("Share config : "+ConfigJson);
 			    // used to deploy config but not on the user that have emited the signal.
 			    myOwnConfig=true;
@@ -4814,27 +4847,29 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			}
 		}
 
-		$(".nodemenu").css({visibility : "visible"});	
+		for (O in nodesByLoc)
+		    if (nodesByLoc[O].getNodeInViewportStatus())
+			nodesByLoc[O].getHtmlNode().children(".nodemenu").css({visibility : "visible"});
 
 		$('#'+id+'option'+optionNumber).attr('class',$('#'+id+'option'+optionNumber).attr('class').replace('nodeMenuButton','closeNodeMenuButton'));
 	    } else { 	
 		var nodeId =0;
 
-		for(nodeId = 0 ; nodeId < nodeCardinal; nodeId++)  { 
-
-		    var p =0 ;
-
-		    for(p=0;p<nodesById["node"+nodeId].getNodeMenu().getEventSelectedTab().length;p++)  { 
-			if(nodesById["node"+nodeId].getNodeMenu().getEventSelectedTab()[p]==true)  { 
-			    $("#menu"+nodeId+">#option"+p).click();
-			    //console.log("obscure if condition in NodeMenu");
+		for (O in nodesByLoc)
+		    if (nodesByLoc[O].getNodeInViewportStatus()) {
+			var p =0 ;
+			var mymenu=nodesByLoc[O].getNodeMenu();
+			for(p=0;p<mymenu.getEventSelectedTab().length;p++)  { 
+			    if(mymenu.getEventSelectedTab()[p]==true)  { 
+				$("#menu"+mymenu.getId()+">#option"+p).click();
+				//console.log("obscure if condition in NodeMenu");
+			    }
 			}
+			$("#menu"+mymenu.getId()).css({visibility : "hidden"});
 		    }
 
-		}
 
 		me.meshEventReStart();
-		$(".nodemenu").css({visibility : "hidden"});
 		$('#'+id+'option'+optionNumber).attr('class',$('#'+id+'option'+optionNumber).attr('class').replace('closeNodeMenuButton','nodeMenuButton'));
 	    }
 	}
@@ -5896,7 +5931,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	var ratio = 1;
 
 	if(configBehaviour.showInfoAtLoading)  { 
-	    $('.info').show();
+	    for (O in nodesByLoc)
+		if (nodesByLoc[O].getNodeInViewportStatus())
+		    nodesByLoc[O].getHtmlNode().children(".info").css({visibility : "visible"});	
 	    $(".showInfoButtonIcon").removeClass('showInfoButtonIcon').addClass('closeShowInfoButtonIcon');
 	}
 
@@ -6070,7 +6107,6 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    //$('#hitbox' + targetNode_).css("background-color", "black");
 	    $('#handle'+targetNode_).removeClass("drag-handle-dragging");
 
-	    me.meshEventReStart();
 	    //console.log(me.getSelectedNodes());
 
 	};
