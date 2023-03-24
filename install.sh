@@ -34,6 +34,11 @@ cp rfb_multi.js noVNC/core
 #patch -p0 < patch_devices_noVNC 
 popd
 
+echo "==== Get noVNC ===="
+pushd TVConnections
+git clone https://github.com/novnc/websockify
+popd
+
 # Launch postgresql docker
 echo "==== Launch postgresql docker ===="
 if ( $installX11 ); then
@@ -83,3 +88,40 @@ echo "====== End build dockers ======"
 
 echo "==== Start PostgreSQL ===="
 ./start_postgres
+
+echo "=== Add SSL certificates ==="
+if ( $installX11 ); then
+    myweb=$(python3 -c "import zenipy; myweb=zenipy.zenipy.password(title='SSL web server.domain name',text='Please give a SERVER.DOMAIN for your SSL web server.', width=450, height=120, timeout=None); print(str(myweb))")
+else
+    echo "Please give a SERVER.DOMAIN for your SSL web server"
+    read -s myweb;
+fi
+IFS='.' read -r -a webline <<<$myweb
+
+# Array slice
+serv="${webline[@]: 0:$((${#webline[*]}-2))}"
+SERVER_NAME=$(echo $serv |sed -e "s/ /./g")
+DOMAIN=${webline[${#webline[*]}-2]}.${webline[${#webline[*]}-1]}
+
+
+if ( $installX11 ); then
+    SSLpublic=$(python3 -c "import zenipy; myssl=zenipy.zenipy.password(title='SSL PUBLIC key path',text='Please give the PUBLIC SSL key PATH.', width=450, height=120, timeout=None); print(str(myssl))")
+    SSLprivate=$(python3 -c "import zenipy; myssl=zenipy.zenipy.password(title='SSL PRIVATE key path',text='Please give the PRIVATE SSL key PATH.', width=450, height=120, timeout=None); print(str(myssl))")
+else
+    echo "Please give the PUBLIC SSL key PATH."
+    read -s SSLpublic;
+    echo "Please give the PRIVATE SSL key PATH."
+    read -s SSLprivate;
+fi
+
+
+sed -e "s&_SERVER_NAME_&$SERVER_NAME&"  -e "s&_DOMAIN_&$DOMAIN&" -e "s&_SSLpublic_&$SSLpublic&" -e "s&_SSLprivate_&$SSLprivate&" -i TVWeb/FlaskDocker/Dockerfile.web
+
+sed -e "s&DNSservername&$SERVER_NAME&"  -e "s&_DOMAIN_&$DOMAIN&" -e "s&_SSLpublic_&$SSLpublic&" -e "s&_SSLprivate_&$SSLprivate&" -i TVWeb/nginx/nginx.conf
+
+sed -e "s&DNSservername&$SERVER_NAME&"  -e "s&_DOMAIN_&$DOMAIN&" -e "s&_SSLpublic_&$SSLpublic&" -e "s&_SSLprivate_&$SSLprivate&" -i $HOME/.cache/envTiledViz
+
+
+# TODO : git clone Countdown 360:
+#cd TVWeb/apps/static/dist/js
+#git clone https://github.com/johnschult/jquery.countdown360.git

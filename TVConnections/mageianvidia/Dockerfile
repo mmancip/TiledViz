@@ -70,7 +70,7 @@ RUN touch /home/myuser/.Xauthority
 COPY TVConnections/mageianvidia/movewindows /opt/movewindows
 
 COPY TVConnections/mageianvidia/client_python /opt/client_python
-COPY TVConnections/mageianvidia/TileClient.py /opt/TileClient.py
+COPY TVConnections/TileClient.py /opt/TileClient.py
 
 COPY TVConnections/connect /usr/lib64/python2.7/site-packages/connect
 

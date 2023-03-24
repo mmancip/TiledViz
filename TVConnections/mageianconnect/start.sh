@@ -112,9 +112,6 @@ chown -R myuser:myuser ${HOME_user}
 
 echo export DOCKERID=$DOCKERID >> ${HOME_user}/.bashrc
 
-# Build database model
-sqlacodegen postgresql://${POSTGRES_USER}:"${POSTGRES_PASSWORD}"@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB} --outfile=/TiledViz/TVDatabase/TVDb/models.py
-
 # Run the vncserver
 cd
 echo $( hostname )

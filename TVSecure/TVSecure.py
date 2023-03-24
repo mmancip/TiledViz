@@ -107,6 +107,9 @@ def parse_args(argv):
 
 TVvolume=docker.types.Mount(target='/TiledViz',source=os.getenv('PWD'),type='bind',read_only=False)
 
+SSLpath=os.path.dirname(os.getenv('SSLpublic'))
+TVssl=docker.types.Mount(target=SSLpath,source=SSLpath,type='bind',read_only=False)
+
 TVlogs=docker.types.LogConfig(type=docker.types.LogConfig.types.JSON, config={"max-size": "500k", "max-file": "3"})
 
 threads={}
@@ -182,7 +185,7 @@ class FlaskDocker(threading.Thread):
         # postgres service
         self.postgresHost={POSTGRES_HOST:POSTGRES_IP}
         # Flask external port
-        self.flaskPORT={'5000/tcp':('0.0.0.0',5000)}
+        self.flaskPORT={'443/tcp':('0.0.0.0',443),'80/tcp':('0.0.0.0',80),'5000/tcp':('0.0.0.0',5000)}
         for i in range(NbSecureConnection): 
             self.flaskPORT[str(ConnectionPort+i)+'/tcp']=('0.0.0.0',ConnectionPort+i)
 
@@ -200,7 +203,7 @@ class FlaskDocker(threading.Thread):
         try:
             self.containerFlask=client.containers.create(
                 name="flaskdock", image="flaskimage",
-                mounts=[TVvolume], extra_hosts=self.postgresHost,
+                mounts=[TVvolume,TVssl], extra_hosts=self.postgresHost,
                 command=self.commandFlask,
                 ports=self.flaskPORT,
                 environment=ENVFlask,
@@ -665,14 +668,15 @@ class ConnectionDocker(threading.Thread):
 
         #  Test connection type and launch a script (in the start xterm full-screen ?) 
         # in python in container to manage the expect or get ssh private for HPC connection
-        internPort=ConnectionPort+self.ConnectNum
-        externPort=internPort
-        #externPort=internPort+random.randint(100,400)
-        #socatCMD="socat TCP-LISTEN:"+str(externPort)+",fork,reuseaddr TCP:127.0.0.1:"+str(internPort)
-        #1 externPort = internPort avec GatewayPorts=yes
-        #2 socat avec port extern sur un plage aléatoire ?
-        # self.LogSocat=container_exec_out(self.containerFlask, socatCMD)
-        # logging.debug("Socat "+str(internPort)+" to "+str(externPort)" :\n"+re.sub(r'\*n',r'\\n',self.LogSocat))
+
+        # Test free port in Flaskdock for ssh
+        commandTestFreePort="bash -c 'echo \"PORT=\"$(python -c \"import socket; s=socket.socket(); s.bind((\\\"\\\", 0)); print(s.getsockname()[1]); s.close()\" )'"
+        self.LogTestFreePort=container_exec_out(self.containerFlask, commandTestFreePort,user=self.flaskusr)
+        internPort=int(re.sub(r'PORT=([0-9]*)',r'\1',self.LogTestFreePort))
+        logging.warning("Free port for ssh/websockify for user "+self.flaskusr+" on Flask container. "+str(internPort))
+
+        # Port for websockify
+        externPort=ConnectionPort+self.ConnectNum
         
         # Get connection and tileset informations :
         self.ConnectionDB=session.query(models.Connection).filter(models.Connection.id == int(self.connectionId)).one()
@@ -683,7 +687,7 @@ class ConnectionDocker(threading.Thread):
         # Tunnel to Flask : Give access from vncconnection page to this container
         vnc_command="if [ X\\\"\\$( pgrep -fla x11vnc )\\\" == X\\\"\\\" ]; then /opt/vnccommand; fi &"
         self.tunnel_script=os.path.join(self.home,".vnc","tunnel_flask")
-        self.tunnel_command="ssh -4 -T -N -nf -R 0.0.0.0:"+str(externPort)+":localhost:5902 "+self.flaskusr+"@"+self.IPFlask+" &"
+        self.tunnel_command="ssh -4 -T -N -nf -R 0.0.0.0:"+str(internPort)+":localhost:5902 "+self.flaskusr+"@"+self.IPFlask+" &"
         scriptTunnel="awk 'BEGIN {print \""+vnc_command+" \\n "+self.tunnel_command+"\" >>\""+self.tunnel_script+"\"}' > /dev/null &"
         logging.debug("awk command to build tunnel script : "+scriptTunnel)
         
@@ -705,8 +709,38 @@ class ConnectionDocker(threading.Thread):
         time.sleep(0.5)
         self.LogModTunnel=self.containerConnect.exec_run(cmd="chmod u+x "+self.kill_tunnel_script,user=self.user,detach=True)
         logging.warning("tunnel script built.")
-        
+
         self.connect()
+        
+        # SSL encrypt : use websockify and SSL public/secret keys.
+        
+        # Call websockify server for this connection
+        commandLaunchWebsockify="bash -c 'cd /TiledViz/TVConnections/; source /flask_venv/bin/activate; "+\
+            "./wss_websockify "+os.getenv('SSLpublic')+" "+os.getenv('SSLprivate')+ \
+            " "+str(externPort)+" "+str(internPort)+" /TiledViz/TVWeb"+ \
+            " 2>&1 > /tmp/websockify_$(date +%F_%H-%M-%S).log &'"
+        logging.debug("commandLaunchWebsockify : "+commandLaunchWebsockify)
+        logging.warning("commandLaunchWebsockify.")
+        self.LogLaunchWebsockify=self.containerFlask.exec_run(cmd=commandLaunchWebsockify,user=self.flaskusr,detach=True)
+        # Get websockify PID :
+        commandWebsockifyPID="bash -c 'echo $(pgrep -f \"^python3 .*"+str(internPort)+"\" |sort |head -1)'"
+        tries=0
+        while True:
+            time.sleep(1)
+            self.LogWebsockifyPID=container_exec_out(self.containerFlask, commandWebsockifyPID,user=self.flaskusr)
+            if ( str(self.LogWebsockifyPID) != '' ):
+                try:
+                    self.websockifyPID=int(self.LogWebsockifyPID)
+                except:
+                    logging.error("Wait for websockify PID " + str(self.LogWebsockifyPID))
+                    tries=tries+1
+                else:
+                    break
+            if (tries > 50):
+                self.websockifyPID=-1
+                break
+        logging.warning("PID for websockify for user "+self.flaskusr+" on Flask container. "+str(self.websockifyPID))
+        
         
         # Add password for temporary connection
         commandBuildVNC="awk 'BEGIN {print \""+self.password+"\" >>\""+flaskhome+"/vncpassword\"}' /dev/null"
@@ -968,6 +1002,11 @@ class ConnectionDocker(threading.Thread):
             logging.error("Error with Action server "+str(self.ConnectionDB.id)+" : "+str(err), exc_info=True)
         
     def quitConnection(self):
+        # Quit Websockify for user
+        commandKillWebsockify="bash -c 'kill "+str(self.websockifyPID)+"'"
+        self.LogKillWebsockify=container_exec_out(self.containerFlask,commandKillWebsockify,user=self.flaskusr)
+        logging.warning("Kill websokify for "+self.flaskusr+" on Flask container. "+re.sub(r'\*n',r'\\n',self.LogKillWebsockify))
+
         # Erase login on flask
         commandRmuser="bash -c 'userdel -r -f "+self.flaskusr+"'"
         self.LogRmUser=container_exec_out(self.containerFlask, commandRmuser)

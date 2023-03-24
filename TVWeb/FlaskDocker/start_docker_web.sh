@@ -33,12 +33,17 @@ sed -e 's&    {% for item in field -%}&      <p class="label-block">{{field.labe
 ln -s /TiledViz/TVWeb/noVNC /var/www/html/
 #sed -e 's&error_log /var/log/nginx/error.log;&error_log /var/log/nginx/error.log debug;&' -i /etc/nginx/nginx.conf
 # Prevent nginx error at startup if IPV6 is disabled on master host
-sed -e 's&listen \[\:\:\]\:80 default_server;&#listen [::]:80 default_server;&' -i /etc/nginx/sites-available/default
+#sed -e 's&listen \[\:\:\]\:80 default_server;&#listen [::]:80 default_server;&' -i /etc/nginx/sites-available/default
+rm /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+cp -f /TiledViz/TVWeb/nginx/nginx.conf /etc/nginx/
+sed -e "s&DNSservername&$SERVER_NAME.$DOMAIN&"  -e "s&/DOMAIN/&/$DOMAIN/&" -e "s&_SSLpublic_&$SSLpublic&" -e "s&_SSLprivate_&$SSLprivate&" -i /etc/nginx/nginx.conf
+chown root:root  /etc/nginx/nginx.conf
+echo nginx -g "daemon off;"
 nginx -g "daemon off;" &
 
 if ($debug_Flask); then
-    su flaskusr -c "/bin/bash -vx -c \"/TiledViz/TVWeb/FlaskDocker/launch_flask $POSTGRES_HOST $POSTGRES_PORT $POSTGRES_DB $POSTGRES_USER '$POSTGRES_PASSWORD' $flaskhost '$SECRET_KEY'\""
+    su flaskusr -w DOMAIN,SERVER_NAME,SSLpublic,SSLprivate -c "/bin/bash -vx -c \"cd /TiledViz/TVWeb; FlaskDocker/launch_flask $POSTGRES_HOST $POSTGRES_PORT $POSTGRES_DB $POSTGRES_USER '$POSTGRES_PASSWORD' $flaskhost '$SECRET_KEY'\""
     while true; do sleep 10; done
 else
-    su - flaskusr -c "/bin/bash -c \"/TiledViz/TVWeb/FlaskDocker/launch_flask $POSTGRES_HOST $POSTGRES_PORT $POSTGRES_DB $POSTGRES_USER '$POSTGRES_PASSWORD' $flaskhost '$SECRET_KEY'\""
+    su - flaskusr -w DOMAIN,SERVER_NAME,SSLpublic,SSLprivate -c "/bin/bash -c \"cd /TiledViz/TVWeb; FlaskDocker/launch_flask $POSTGRES_HOST $POSTGRES_PORT $POSTGRES_DB $POSTGRES_USER '$POSTGRES_PASSWORD' $flaskhost '$SECRET_KEY'\""
 fi

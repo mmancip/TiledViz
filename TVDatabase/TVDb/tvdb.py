@@ -25,9 +25,9 @@ from sqlalchemy.exc import IntegrityError
 def SQLconnector(args):
     global metadata,conn,engine,pool,session
     engine = create_engine(make_url("postgresql://"+args.login+":"+os.getenv("passwordDB")+"@"+args.host+":"+args.port+"/"+args.databasename),
-                           convert_unicode= True,
                            poolclass= QueuePool
                            )
+    #convert_unicode= True,
     # def status(self):
     #     return "Pool size: %d  Connections in pool: %d "\
     #         "Current Overflow: %d Current Checked out "\

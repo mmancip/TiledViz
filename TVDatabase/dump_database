@@ -2,4 +2,4 @@
 
 source $HOME/.cache/envTiledViz
 
-pg_dump -h ${POSTGRES_IP} -U ${POSTGRES_USER} -d ${POSTGRES_DB}  > /tmp/TiledViz.dump
+pg_dump -h ${POSTGRES_IP} -U ${POSTGRES_USER} -d ${POSTGRES_DB} -p ${POSTGRES_PORT}  > /tmp/TiledViz.dump

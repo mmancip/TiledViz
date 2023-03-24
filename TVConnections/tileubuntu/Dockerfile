@@ -37,7 +37,7 @@ ENTRYPOINT ["/start.sh"]
 RUN touch /home/myuser/.Xauthority
 
 COPY TVConnections/tileubuntu/client_python /opt/client_python
-COPY TVConnections/tileubuntu/TileClient.py /opt/TileClient.py
+COPY TVConnections/TileClient.py /opt/TileClient.py
 
 COPY TVConnections/connect /usr/lib/python3/dist-packages/connect
 

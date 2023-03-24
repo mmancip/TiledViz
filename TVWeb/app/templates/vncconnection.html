@@ -33,7 +33,8 @@
   </br>
   <p> Click on the blue bar or in the grey border of the connection window to get hand inside it. </p>
   <script>
-    var VNCurl="http://"+flaskaddr+":5000/noVNC/vnc.html?autoconnect=1&host="+flaskaddr+"&port="+connection_port+"&encrypt=0&password="+vncpassword+"&true_color=1"
+    var VNCurl="https://"+flaskaddr+"/noVNC/vnc.html?autoconnect=1&host="+flaskaddr+"&port="+connection_port+"&encrypt=1&path=/TiledViz/TVConnections/websockify&password="+vncpassword+"&true_color=1"
+    //logging=debug&
     var vncifrm = document.createElement('iframe');
     vncifrm.setAttribute('width', 1410);
     vncifrm.setAttribute('height', 740);
@@ -42,6 +43,7 @@
   </script>
   <div id="management" name="buttons">
     <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
       <button class="btn btn-large btn-info" id="submit" name="submit" value="Submit">Register tileset</button>
     </form>
     <div id="editsession" style="position: relative; top: -35px; left: 150px">

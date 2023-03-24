@@ -10,6 +10,11 @@ export POSTGRES_IP=${POSTGRES_HOST}
 export POSTGRES_PASSWORD="your_postgres_password"
 export passwordDB="$POSTGRES_PASSWORD"
 
+export SERVER_NAME=DNSservername
+export DOMAIN=_DOMAIN_
+export SSLpublic=_SSLpublic_
+export SSLprivate=_SSLprivate_
+
 # Install with X11
 export installX11=true
 # Virtualenv DATE

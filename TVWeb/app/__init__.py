@@ -5,6 +5,14 @@ from flask import Flask
 from flask_socketio import SocketIO
 from flask_sqlalchemy import SQLAlchemy
 from flask_bootstrap import Bootstrap
+from flask_wtf.csrf import CSRFProtect
+
+from gevent import monkey
+
+from gevent.pywsgi import WSGIServer
+
+import os
+
 from config import Config
 #from app import config
 
@@ -34,19 +42,28 @@ logging.getLogger('engineio').setLevel(logging.ERROR)
 # logging.getLogger('requests').setLevel(logging.CRITICAL)
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
+monkey.patch_all()
+
 #SQLALCHEMY_DATABASE_URI=os.environ("DATABASE_URL")
 app = Flask(__name__)
 app.config.from_object(Config) # There are given the secret key and other app settings
-app.config['SESSION_COOKIE_SAMESITE'] = "Strict"
+
 logging.debug("Flask App config for TiledViz : "+str(app.config))
 
 bootstrap = Bootstrap(app)
-socketio = SocketIO(app) # Replaces app.run()
+
+#import ssl
+#ssl.PROTOCOL_SSLv23 = ssl.PROTOCOL_TLSv1
+
+async_mode = "gevent"
+socketio = SocketIO(app,async_mode=async_mode,ssl_context=(os.getenv('SSLpublic'),os.getenv('SSLprivate')))
 #socketio = io.connect({transports: ['websocket']});
 #,ping_interval=100000
 #cors_allowed_origins ? List of origins that are allowed to connect to this server. All origins are allowed by default.
+csrf = CSRFProtect(app)
 
 db = SQLAlchemy(app)
+
 logging.warning("Flask-SocketIO server for TiledViz up and running")
 
 from app import routes

@@ -99,6 +99,7 @@
 	<div class="notif-zone" id="notifications" style="font-size: 40px">Test notifications
 	</div>
 	<form id="gotoGrid" action="/grid" method="post">
+	  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
 	  <input type="text" id="gGnewroom" name="new room" value="{{ session }}">
 	  <input type="submit" id="gGsubmit" value='Submit'>
 	</form>

@@ -32,6 +32,10 @@ $(document).ready(    function (){
 	setTimeout(myButtonUnBlink,2000,myButton);
     };
 
+    // add a short blink on legend if a notification is printed.
+    var notif_observer = new MutationObserver(function(e) {addBlink($(".main-legend-zone"))});
+    notif_observer.observe($('#notifications').get(0), {childList: true, subtree: true});
+
     // Get style.css StyleSheet Rules
     var stylesheets = document.styleSheets;
     var sstyleRuleBorderBlink="";
@@ -2904,97 +2908,114 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		nodesByLoc[O].getJsonData().tags = nodesByLoc[O].getNodeTagList();
 	    }
 	}
-	// Reconstruct another nodes.js with the same structure
-	var temp = "{\"nodes\": [XXX] }";
-	var id=0;
 
-	for(O in nodesByLoc)  { 
-
-	    if (nodesByLoc[O].getOnOffStatus()) {
-	    	id=nodesByLoc[O].getId();
-	    	//console.log(id);
-		
-	    	var temp3 ="{{***}}";
-
-	    	for(W in nodesByLoc[O].getJsonData())  {
- 		    if (W == "tags" ) {
-			var ListTags=new Array();
-			nodesByLoc[O].getNodeTagList().forEach(function(currentValue) {
-			    if (currentValue in globalFloatingTags) {
-				var ft=nodesByLoc[O].getFloatingTag()
-				ListTags.push("'{"+currentValue+","+ft[currentValue]["m"]+","+ft[currentValue]["val"]+","+ft[currentValue]["M"] + "}'") }
-			    else {
-				ListTags.push("'"+currentValue + "'") }
-			})
-			var mytext = "\""+W+"\""+" : "+"["+ListTags.toString().replace(/\'/g,'\"')+"], {***}"
-		    } else if ( W == "comment") {
-			// Don't save old comment because user may have modified it in postit. 
-			var mytext = "{***}";
-		    } else if ( W == "userNotes") {
-			comment=nodesByLoc[O].getJsonData()["userNotes"].toString().replace(/\"/g,"'")
-			var mytext = "\"comment\""+" : "+"\""+comment+"\""+", {***}"
-			// } else if ( W == "IdLocation") {
-			//     var mytext = "\""+W+"\""+" : "+"\""+nodesByLoc[0].getIdLocation().toString()+"\""+",\n {***}";
-		    } else {
-	    		var mytext = "\""+W+"\""+" : "+"\""+nodesByLoc[O].getJsonData()[W].toString().replace(/\"/g,"'").replace(/\n/g,"")+"\""+", {***}";
-		    }
-	    	    temp3=temp3.replace("{***}",mytext);
-	    	}
-	    	temp3=temp3.replace(", {***}","");
-	    	temp=temp.replace("XXX",temp3+",XXX");
+	// Ask for save all tiles or just visibles ones (default)
+	$('#notifications').html('<div id=saveTiles height="10%" width="50%"></div>');
+	$('#saveTiles').append('<form style="font-size: 45px"> Save all tiles or just visible ones (default) ? &nbsp;&nbsp;'
+				  + '<input type="checkbox" id="allTiles" value="no" ></input>&nbsp;&nbsp;'
+				  + '<button id="submitTiles" name="submitTiles" class="btn btn-info" style="font-size: 40px"> Submit</button>&nbsp;&nbsp;'
+			       + '</form>');
+	var saveAllTiles=false;
+	$('#allTiles').off("change").on({
+   	    change : function() {
+		saveAllTiles=$('input[name=allTiles]').attr("checked");
 	    }
-	}
-	// Save the file with a clear name (date and time, name of the project) 
-	temp=temp.replace(",XXX","");
-	// tempFile = "var text_ = \n     "+temp+";\nvar jsDataTab = text_.nodes;";
-	tempFile=temp;
-	
-	var sessionDate = new Date();
-	var strDate=sessionDate.toLocaleDateString({day: "2-digit", month: "2-digit"}).replace(/\//g, "-") + "_" + sessionDate.toLocaleTimeString("fr-FR").replace(/:/g, "-")
-	//var fileName = my_session + "_" + "tiles_" + strDate + ".js"; 
-	//var file = new File([tempFile], fileName, {type: "text/plain;charset=utf-8"},{ autoBom: false });
-	var fileName = my_session + "_" + "tiles_" + strDate + ".json"; 
-	
-	// socket save new session ??
-	$('#notifications').html('<div id=saveValidate height="10%" width="50%"></div>');
-	// TODO method POST with
-	//<form method="POST">
-	$('#saveValidate').append('<form style="font-size: 45px"> New suffix for save '+my_session+'&nbsp;&nbsp;'
-				  + '<input type=text id="newSuffix" value="'+strDate+'" style="width:20%"></input>&nbsp;&nbsp;'
-				  + 'Change description : <input type=text id="newDescr" value="'+my_description+'" style="width:50%"></input>&nbsp;&nbsp;'
-			+'<button id="submitSave" name="submitSave" class="btn btn-info" style="font-size: 40px"> Submit</button>&nbsp;&nbsp;'
-			+'<button id="submitCancel" name="submitCancel" class="btn btn-info" style="font-size: 40px"> Cancel</button></form>');
-	$('#submitSave').off("click").on("click",function() {
-	    //saveAs(file);
-	    download([tempFile], fileName,"text/plain;charset=utf-8")
-
-	    new_suffix=$('#newSuffix').val();
-	    new_description=$('#newDescr').val();
-	    new_room=my_session+'_'+new_suffix;
-	    cdata ={"room":my_session, "NewSuffix": new_suffix,"NewDescription": new_description,"Session": temp }
-	    console.log("Save session : "+new_room);
-	    socket.emit("save_Session", cdata);
-	    $('#saveValidate').remove();
-
-	    $('#notifications').html('<div id=gotoNewRoom height="10%" width="50%" style="font-size:75"></div>');
-	    $('#gotoNewRoom').append('Goto new room ?<br>'		                     
-				     + '<input type="text" id="gNRnew_room" name="new room" value="'+ new_room +'" style="width:40%"></input>&nbsp;&nbsp;'
-			+'<button id="ChangeRoomYes" name="ChangeRoomYes" class="btn btn-info" style="font-size: 40px">Yes</button>&nbsp;'
-			+'<button id="ChangeRoomNo" name="ChangeRoomNo" class="btn btn-info" style="font-size: 40px">No</button>');
-
-	    $('#ChangeRoomYes').off("click").on("click",function() {
-		new_room=$('#gNRnew_room').val();
-		cdata ={"room":my_session, "NewRoom": new_room }
-		$('#gGnewroom').val(new_room);
-		socket.emit("deploy_Session", cdata);
-	    });
-	    
-	    $('#ChangeRoomNo').off("click").on("click",function() {
-		$('#gotoNewRoom').remove();
-	    });
 	});
-	$('#submitCancel').off("click").on("click",function() {
-	    $('#saveValidate').remove();
+	$('#submitTiles').off("click").on("click",function() {
+	    $('#saveTiles').remove();
+	    
+	    // Reconstruct another nodes.js with the same structure
+	    var temp = "{\"nodes\": [XXX] }";
+	    var id=0;
+
+	    for(O in nodesByLoc)  { 
+
+		if (saveAllTiles || nodesByLoc[O].getOnOffStatus()) {
+	    	    id=nodesByLoc[O].getId();
+	    	    //console.log(id);
+		    
+	    	    var temp3 ="{{***}}";
+
+	    	    for(W in nodesByLoc[O].getJsonData())  {
+ 			if (W == "tags" ) {
+			    var ListTags=new Array();
+			    nodesByLoc[O].getNodeTagList().forEach(function(currentValue) {
+				if (currentValue in globalFloatingTags) {
+				    var ft=nodesByLoc[O].getFloatingTag()
+				    ListTags.push("'{"+currentValue+","+ft[currentValue]["m"]+","+ft[currentValue]["val"]+","+ft[currentValue]["M"] + "}'") }
+				else {
+				    ListTags.push("'"+currentValue + "'") }
+			    })
+			    var mytext = "\""+W+"\""+" : "+"["+ListTags.toString().replace(/\'/g,'\"')+"], {***}"
+			} else if ( W == "comment") {
+			    // Don't save old comment because user may have modified it in postit. 
+			    var mytext = "{***}";
+			} else if ( W == "userNotes") {
+			    comment=nodesByLoc[O].getJsonData()["userNotes"].toString().replace(/\"/g,"'")
+			    var mytext = "\"comment\""+" : "+"\""+comment+"\""+", {***}"
+			    // } else if ( W == "IdLocation") {
+			    //     var mytext = "\""+W+"\""+" : "+"\""+nodesByLoc[0].getIdLocation().toString()+"\""+",\n {***}";
+			} else {
+	    		    var mytext = "\""+W+"\""+" : "+"\""+nodesByLoc[O].getJsonData()[W].toString().replace(/\"/g,"'").replace(/\n/g,"")+"\""+", {***}";
+			}
+	    		temp3=temp3.replace("{***}",mytext);
+	    	    }
+	    	    temp3=temp3.replace(", {***}","");
+	    	    temp=temp.replace("XXX",temp3+",XXX");
+		}
+	    }
+	    // Save the file with a clear name (date and time, name of the project) 
+	    temp=temp.replace(",XXX","");
+	    // tempFile = "var text_ = \n     "+temp+";\nvar jsDataTab = text_.nodes;";
+	    tempFile=temp;
+	    
+	    var sessionDate = new Date();
+	    var strDate=sessionDate.toLocaleDateString({day: "2-digit", month: "2-digit"}).replace(/\//g, "-") + "_" + sessionDate.toLocaleTimeString("fr-FR").replace(/:/g, "-")
+	    //var fileName = my_session + "_" + "tiles_" + strDate + ".js"; 
+	    //var file = new File([tempFile], fileName, {type: "text/plain;charset=utf-8"},{ autoBom: false });
+	    var fileName = my_session + "_" + "tiles_" + strDate + ".json"; 
+	    
+	    // socket save new session ??
+	    $('#notifications').html('<div id=saveValidate height="10%" width="50%"></div>');
+	    // TODO method POST with
+	    //<form method="POST">
+	    $('#saveValidate').append('<form style="font-size: 45px"> New suffix for save '+my_session+'&nbsp;&nbsp;'
+				      + '<input type=text id="newSuffix" value="'+strDate+'" style="width:20%"></input>&nbsp;&nbsp;'
+				      + 'Change description : <input type=text id="newDescr" value="'+my_description+'" style="width:50%"></input>&nbsp;&nbsp;'
+				      +'<button id="submitSave" name="submitSave" class="btn btn-info" style="font-size: 40px"> Submit</button>&nbsp;&nbsp;'
+				      +'<button id="submitCancel" name="submitCancel" class="btn btn-info" style="font-size: 40px"> Cancel</button></form>');
+	    $('#submitSave').off("click").on("click",function() {
+		//saveAs(file);
+		download([tempFile], fileName,"text/plain;charset=utf-8")
+
+		new_suffix=$('#newSuffix').val();
+		new_description=$('#newDescr').val();
+		new_room=my_session+'_'+new_suffix;
+		cdata ={"room":my_session, "NewSuffix": new_suffix,"NewDescription": new_description,"Session": temp }
+		console.log("Save session : "+new_room);
+		socket.emit("save_Session", cdata);
+		$('#saveValidate').remove();
+
+		$('#notifications').html('<div id=gotoNewRoom height="10%" width="50%" style="font-size:75"></div>');
+		$('#gotoNewRoom').append('Goto new room ?<br>'		                     
+					 + '<input type="text" id="gNRnew_room" name="new room" value="'+ new_room +'" style="width:40%"></input>&nbsp;&nbsp;'
+					 +'<button id="ChangeRoomYes" name="ChangeRoomYes" class="btn btn-info" style="font-size: 40px">Yes</button>&nbsp;'
+					 +'<button id="ChangeRoomNo" name="ChangeRoomNo" class="btn btn-info" style="font-size: 40px">No</button>');
+
+		$('#ChangeRoomYes').off("click").on("click",function() {
+		    new_room=$('#gNRnew_room').val();
+		    cdata ={"room":my_session, "NewRoom": new_room }
+		    $('#gGnewroom').val(new_room);
+		    socket.emit("deploy_Session", cdata);
+		});
+		
+		$('#ChangeRoomNo').off("click").on("click",function() {
+		    $('#gotoNewRoom').remove();
+		});
+	    });
+	    $('#submitCancel').off("click").on("click",function() {
+		$('#saveValidate').remove();
+	    });
 	});
     });
     managementGlobalMenuIconClassAttributesTab.push("saveButtonIcon");
@@ -3221,6 +3242,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			//console.log("KR checked");
 			$('input[name=spreadX]').off("change").on({
 				change : function(){
+				    $('input[name=spreadX]').val($('input[name=spreadX]').val().replace(/[^0-9.]/g, ''))
 				    //console.log("changeX");
 				    var ratioX = $('input[name=spreadX]').val()/spread.X;
 				    //console.log(ratioX);
@@ -3229,6 +3251,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			    });
 			$('input[name=spreadY]').off("change").on({
 				change : function(){
+				    $('input[name=spreadY]').val($('input[name=spreadY]').val().replace(/[^0-9.]/g, ''))
 				    //console.log("changeY");
 				    var ratioY = $('input[name=spreadY]').val()/spread.Y;
 				    //console.log(ratioY);
@@ -3368,15 +3391,21 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			
 		    var hasSpreadChanged = false;
 		    if(spread.X != $('input[name=spreadX]').val())  { 
+			if ( $('input[name=spreadX]').val() == "")
+			    $('input[name=spreadX]').val(spread.X)
 			//console.log("change X, new", $('input[name=spreadX]').val());
 			hasSpreadChanged = true;
 		    }
 		    if(spread.Y != $('input[name=spreadY]').val())  { 
+			if ( $('input[name=spreadY]').val() == "")
+			    $('input[name=spreadY]').val(spread.Y)
 			//console.log("change Y, new", $('input[name=spreadY]').val());
 			hasSpreadChanged = true;
 		    }
 
 		    if(hasSpreadChanged)  { 
+			$('input[name=spreadX]').val($('input[name=spreadX]').val().replace(/[^0-9.]/g, ''))
+			$('input[name=spreadY]').val($('input[name=spreadY]').val().replace(/[^0-9.]/g, ''))
 			var newSpread = {
 			    X : parseInt($('input[name=spreadX]').val()),
 			    Y : parseInt($('input[name=spreadY]').val())
@@ -5295,6 +5324,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    $('iframe').height(spread.Y).width(spread.X);
 		    // $('iframe').css( '-webkit-transform', "scale("+scaleX+","+ scaleY +")");
 		    // $('iframe').css( '-moz-transform', "scale("+scaleX+","+ scaleY +")");
+		    // OnOff with just spread.Y ?
 		    $('.onoff').css("height",parseInt(spread.Y*0.1)).css("width",parseInt(spread.Y*0.1)).css("left",-parseInt(spread.Y*0.1)).css("z-index", 161);
 		    $('.hitbox').css("height", parseInt(spread.Y*0.9)).css("top",parseInt(spread.Y*0.1));
 		    $('.info').css("font-size", Math.min(configBehaviour.maxInfoFontSize,parseInt(configBehaviour.defaultInfoFontSize*scale)));

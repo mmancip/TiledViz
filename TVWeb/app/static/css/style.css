@@ -8,118 +8,118 @@
 
 [class~=updownGlobalMenuButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/updown/up_arrow.png);
+	background-image: url(/static/images/icons/globalmenu/updown/up_arrow.png);
 }
 
 [class~=closeUpdownGlobalMenuButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/updown/down_arrow.png);
+	background-image: url(/static/images/icons/globalmenu/updown/down_arrow.png);
 }
 
 [class~=upArrowButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/updown/up_arrow.png);
+	background-image: url(/static/images/icons/globalmenu/updown/up_arrow.png);
 }
 
 [class~=actionGlobalMenuButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/Action.png);
+	background-image: url(/static/images/icons/globalmenu/Action.png);
 }
 
 [class~=closeActionGlobalMenuButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/closeAction.png);
+	background-image: url(/static/images/icons/globalmenu/closeAction.png);
 }
 
 [class~=nodeMenuButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/openNodeMenu.png);
+	background-image: url(/static/images/icons/globalmenu/openNodeMenu.png);
 }
 
 [class~=closeNodeMenuButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/closeNodeMenu.png);
+	background-image: url(/static/images/icons/globalmenu/closeNodeMenu.png);
 }
 
 [class~=searchButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/search.png);
+	background-image: url(/static/images/icons/globalmenu/search.png);
 }
 
 [class~=closeSearchButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/closeSearch.png);
+	background-image: url(/static/images/icons/globalmenu/closeSearch.png);
 }
 
 [class~=tagsGlobalMenuButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/tags.png);
+	background-image: url(/static/images/icons/globalmenu/tags.png);
 }
 
 [class~=closeTagsGlobalMenuButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/closeTags.png);
+	background-image: url(/static/images/icons/globalmenu/closeTags.png);
 }
 
 [class~=selectionButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/selection.png);
+	background-image: url(/static/images/icons/globalmenu/selection.png);
 }
 
 [class~=closeSelectionButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/closeSelection.png);
+	background-image: url(/static/images/icons/globalmenu/closeSelection.png);
 }
 
 [class~=clearSelectionButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/clearSelection.png);
+	background-image: url(/static/images/icons/globalmenu/clearSelection.png);
 }
 
 [class~=closeClearSelectionButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/closeClearSelection.png);
+	background-image: url(/static/images/icons/globalmenu/closeClearSelection.png);
 }
 
 [class~=nextTilesButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/nextTiles.png);
+	background-image: url(/static/images/icons/globalmenu/nextTiles.png);
 }
 
 [class~=closeNextTilesButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/closeNextTiles.png);
+	background-image: url(/static/images/icons/globalmenu/closeNextTiles.png);
 }
 
 [class~=zoomGlobalMenuButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/zoommenu/zoom.png);
+	background-image: url(/static/images/icons/globalmenu/zoommenu/zoom.png);
 }
 
 [class~=closeZoomGlobalMenuButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/zoommenu/closeZoom.png);
+	background-image: url(/static/images/icons/globalmenu/zoommenu/closeZoom.png);
 }
 
 [class~=zoomButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/zoommenu/zoom.png);
+	background-image: url(/static/images/icons/globalmenu/zoommenu/zoom.png);
 }
 
 [class~=closezoomButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/zoommenu/closeZoom.png);
+	background-image: url(/static/images/icons/globalmenu/zoommenu/closeZoom.png);
 }
 
 [class~=disablezoomButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/zoommenu/disableZoom.png);
+	background-image: url(/static/images/icons/globalmenu/zoommenu/disableZoom.png);
 }
 
 
 [class~=expandZoomButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/zoommenu/validateZoomSelection.png);
+	background-image: url(/static/images/icons/globalmenu/zoommenu/validateZoomSelection.png);
 }
 
 [class~=explain-zoom]
@@ -129,7 +129,7 @@
 
 [class~=unzoomButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/zoommenu/closeZoomButton.png);
+	background-image: url(/static/images/icons/globalmenu/zoommenu/closeZoomButton.png);
 }
 
 [class~=explain-MS]
@@ -138,178 +138,178 @@
 
 [class~=MSButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/zoommenu/masterslave.png);
+	background-image: url(/static/images/icons/globalmenu/zoommenu/masterslave.png);
 }
 
 [class~=closeMSButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/zoommenu/closemasterslave.png);
+	background-image: url(/static/images/icons/globalmenu/zoommenu/closemasterslave.png);
 }
 
 [class~=disableMSButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/zoommenu/disablemasterslave.png);
+	background-image: url(/static/images/icons/globalmenu/zoommenu/disablemasterslave.png);
 }
 
 [class~=startMSButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/zoommenu/masterslave.png);
+	background-image: url(/static/images/icons/globalmenu/zoommenu/masterslave.png);
 }
 
 [class~=AllMSButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/zoommenu/masterslaveALL.png);
+	background-image: url(/static/images/icons/globalmenu/zoommenu/masterslaveALL.png);
 }
 
 [class~=zoomNodesButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/zoommenu/zoomNode.png);
+	background-image: url(/static/images/icons/globalmenu/zoommenu/zoomNode.png);
 }
 
 [class~=closeZoomNodesButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/zoommenu/closezoomNode.png);
+	background-image: url(/static/images/icons/globalmenu/zoommenu/closezoomNode.png);
 }
 
 
 [class~=disablezoomNodesButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/zoommenu/disablezoomNode.png);
+	background-image: url(/static/images/icons/globalmenu/zoommenu/disablezoomNode.png);
 }
 
 [class~=stateGlobalMenuButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/statemenu/showInfo.png);
+	background-image: url(/static/images/icons/globalmenu/statemenu/showInfo.png);
 }
 
 [class~=closeStateGlobalMenuButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/statemenu/closeShowInfo.png);
+	background-image: url(/static/images/icons/globalmenu/statemenu/closeShowInfo.png);
 }
 
 [class~=QRcodeButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/statemenu/QRcode.png);
+	background-image: url(/static/images/icons/globalmenu/statemenu/QRcode.png);
 }
 
 [class~=closeQRcodeButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/statemenu/closeQRcode.png);
+	background-image: url(/static/images/icons/globalmenu/statemenu/closeQRcode.png);
 }
 [class~=OnOffButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/statemenu/OnOff.png);
+	background-image: url(/static/images/icons/globalmenu/statemenu/OnOff.png);
 }
 
 [class~=closeOnOffButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/statemenu/closeOnOff.png);
+	background-image: url(/static/images/icons/globalmenu/statemenu/closeOnOff.png);
 }
 
 [class~=RotateButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/Rotate.png);
+	background-image: url(/static/images/icons/globalmenu/Rotate.png);
 }
 
 [class~=closeRotateButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/closeRotate.png);
+	background-image: url(/static/images/icons/globalmenu/closeRotate.png);
 }
 
 [class~=managementGlobalMenuButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/management/options.png);	
+	background-image: url(/static/images/icons/globalmenu/management/options.png);	
 }
 
 [class~=closeManagementGlobalMenuButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/management/closeOptions.png);	
+	background-image: url(/static/images/icons/globalmenu/management/closeOptions.png);	
 }
 
 [class~=DrawsButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/management/drawManagement.png);
+	background-image: url(/static/images/icons/globalmenu/management/drawManagement.png);
 }
 
 [class~=closeDrawsButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/management/closeDrawManagement.png);
+	background-image: url(/static/images/icons/globalmenu/management/closeDrawManagement.png);
 }
 
 
 [class~=brushButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/brush.png);
+	background-image: url(/static/images/icons/globalmenu/brush.png);
 }
 
 [class~=DrawOnAllNodesIcon]
 {
-	background-image: url(../images/icons/globalmenu/zoommenu/masterslave.png);
+	background-image: url(/static/images/icons/globalmenu/zoommenu/masterslave.png);
 }
 
 [class~=showInfoButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/statemenu/showInfo.png);
+	background-image: url(/static/images/icons/globalmenu/statemenu/showInfo.png);
 }
 
 [class~=closeShowInfoButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/statemenu/closeShowInfo.png);
+	background-image: url(/static/images/icons/globalmenu/statemenu/closeShowInfo.png);
 }
 
 [class~=refreshButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/refresh.png);
+	background-image: url(/static/images/icons/globalmenu/refresh.png);
 }
 
 [class~=cancelGlobalMenuButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/cancel/back.png);
+	background-image: url(/static/images/icons/globalmenu/cancel/back.png);
 }
 
 [class~=closeCancelGlobalMenuButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/cancel/forward.png);
+	background-image: url(/static/images/icons/globalmenu/cancel/forward.png);
 }
 
 [class~=moveBackButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/cancel/back.png);
+	background-image: url(/static/images/icons/globalmenu/cancel/back.png);
 }
 
 [class~=moveForwardButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/cancel/forward.png);
+	background-image: url(/static/images/icons/globalmenu/cancel/forward.png);
 }
 
 [class~=saveButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/management/save.png);
+	background-image: url(/static/images/icons/globalmenu/management/save.png);
 }
 
 [class~=optionsButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/management/options.png);	
+	background-image: url(/static/images/icons/globalmenu/management/options.png);	
 }
 
 [class~=closeOptionsButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/management/closeOptions.png);	
+	background-image: url(/static/images/icons/globalmenu/management/closeOptions.png);	
 }
 
 [class~=helpButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/management/help.png);
+	background-image: url(/static/images/icons/globalmenu/management/help.png);
 }
 
 [class~=closeHelpButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/management/closeHelp.png);
+	background-image: url(/static/images/icons/globalmenu/management/closeHelp.png);
 }
 
 [class~=downArrowButtonIcon]
 {
-	background-image: url(../images/icons/globalmenu/updown/down_arrow.png);
+	background-image: url(/static/images/icons/globalmenu/updown/down_arrow.png);
 }
 
 /* Node menu */
@@ -317,218 +317,218 @@
 
 [class~=columnButtonIcon]
 {
-	background-image: url(../images/icons/nodemenu/column.png);
+	background-image: url(/static/images/icons/nodemenu/column.png);
 }
 [class~=lineButtonIcon]
 {
-	background-image: url(../images/icons/nodemenu/line.png);
+	background-image: url(/static/images/icons/nodemenu/line.png);
 }
 
 [class~=drawButtonIcon]
 {
-	background-image: url(../images/icons/nodemenu/draw.png);
+	background-image: url(/static/images/icons/nodemenu/draw.png);
 }
 
 [class~=disabledrawButtonIcon]
 {
-	background-image: url(../images/icons/nodemenu/disabledraw.png);
+	background-image: url(/static/images/icons/nodemenu/disabledraw.png);
 }
 
 [class~=transparentButtonIcon]
 {
-	background-image: url(../images/icons/nodemenu/transparent.png);
+	background-image: url(/static/images/icons/nodemenu/transparent.png);
 }
 
 [class~=closeTransparentButtonIcon]
 {
-	background-image: url(../images/icons/nodemenu/closeTransparent.png);
+	background-image: url(/static/images/icons/nodemenu/closeTransparent.png);
 }
 
 [class~=writeButtonIcon]
 {
-	background-image: url(../images/icons/nodemenu/write.png);
+	background-image: url(/static/images/icons/nodemenu/write.png);
 }
 
 [class~=closeWriteButtonIcon]
 {
-	background-image: url(../images/icons/nodemenu/closeWrite.png);
+	background-image: url(/static/images/icons/nodemenu/closeWrite.png);
 }
 
 [class~=zoomNodeButtonIcon]
 {
-	background-image: url(../images/tiles/zoomNode.png);
+	background-image: url(/static/images/tiles/zoomNode.png);
 }
 
 /* Tag menu */
 [class~=managementTagMenuButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/management/addTag.png);
+	background-image: url(/static/images/icons/tagmenu/management/addTag.png);
 }
 
 [class~=closeManagementTagMenuButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/management/closeAddTag.png);
+	background-image: url(/static/images/icons/tagmenu/management/closeAddTag.png);
 }
 
 [class~=addTagButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/management/addTag.png);
+	background-image: url(/static/images/icons/tagmenu/management/addTag.png);
 }
 
 [class~=closeAddTagButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/management/closeAddTag.png);
+	background-image: url(/static/images/icons/tagmenu/management/closeAddTag.png);
 }
 
 [class~=selectTagButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/selection/selectTags.png);
+	background-image: url(/static/images/icons/tagmenu/selection/selectTags.png);
 }
 
 [class~=closeSelectTagButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/selection/closeSelectTags.png);
+	background-image: url(/static/images/icons/tagmenu/selection/closeSelectTags.png);
 }
 
 [class~=selectTagMenuButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/selection/selectTags.png);
+	background-image: url(/static/images/icons/tagmenu/selection/selectTags.png);
 }
 
 [class~=closeSelectTagMenuButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/selection/closeSelectTags.png);
+	background-image: url(/static/images/icons/tagmenu/selection/closeSelectTags.png);
 }
 
 [class~=selectionToTagButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/selection/selectionToTag.png);
+	background-image: url(/static/images/icons/tagmenu/selection/selectionToTag.png);
 }
 
 [class~=closeSelectionToTagButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/selection/closeSelectionToTag.png);
+	background-image: url(/static/images/icons/tagmenu/selection/closeSelectionToTag.png);
 }
 
 [class~=selectMultipleTagsButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/selection/MultipleTags.png);
+	background-image: url(/static/images/icons/tagmenu/selection/MultipleTags.png);
 }
 
 [class~=closeSelectMultipleTagsButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/selection/closeMultipleTags.png);
+	background-image: url(/static/images/icons/tagmenu/selection/closeMultipleTags.png);
 }
 
 [class~=alignTagButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/alignTags.png);
+	background-image: url(/static/images/icons/tagmenu/alignTags.png);
 }
 
 [class~=closeAlignTagButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/closeAlignTags.png);
+	background-image: url(/static/images/icons/tagmenu/closeAlignTags.png);
 }
 
 [class~=alignOrderTagsMenuButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/alignOrderTags.png);
+	background-image: url(/static/images/icons/tagmenu/alignOrderTags.png);
 }
 
 [class~=closeAlignOrderTagsMenuButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/closeAlignOrderTags.png);
+	background-image: url(/static/images/icons/tagmenu/closeAlignOrderTags.png);
 }
 
 [class~=increaseOrderTagsButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/order/increaseOrderTags.png);
+	background-image: url(/static/images/icons/tagmenu/order/increaseOrderTags.png);
 }
 
 [class~=closeIncreaseOrderTagsButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/order/closeIncreaseOrderTags.png);
+	background-image: url(/static/images/icons/tagmenu/order/closeIncreaseOrderTags.png);
 }
 
 [class~=decreaseOrderTagsButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/order/decreaseOrderTags.png);
+	background-image: url(/static/images/icons/tagmenu/order/decreaseOrderTags.png);
 }
 
 [class~=closeDecreaseOrderTagsButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/order/closeDecreaseOrderTags.png);
+	background-image: url(/static/images/icons/tagmenu/order/closeDecreaseOrderTags.png);
 }
 
 [class~=hideTagsMenuButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/HideTag.png);
+	background-image: url(/static/images/icons/tagmenu/HideTag.png);
 }
 [class~=closeHideTagsMenuButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/closeHideTag.png);
+	background-image: url(/static/images/icons/tagmenu/closeHideTag.png);
 }
 
 [class~=hideTagsButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/HideTag.png);
+	background-image: url(/static/images/icons/tagmenu/HideTag.png);
 }
 
 [class~=closeHideTagsButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/closeHideTag.png);
+	background-image: url(/static/images/icons/tagmenu/closeHideTag.png);
 }
 
 [class~=showTagsButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/hide/showTag.png);
+	background-image: url(/static/images/icons/tagmenu/hide/showTag.png);
 }
 
 [class~=closeShowTagsButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/hide/closeShowTag.png);
+	background-image: url(/static/images/icons/tagmenu/hide/closeShowTag.png);
 }
 
 [class~=KillTagButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/KillTag.png);
+	background-image: url(/static/images/icons/tagmenu/KillTag.png);
 }
 
 [class~=closeKillTagButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/closeKillTag.png);
+	background-image: url(/static/images/icons/tagmenu/closeKillTag.png);
 }
 
 [class~=removeTagButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/management/removeTag.png);
+	background-image: url(/static/images/icons/tagmenu/management/removeTag.png);
 }
 
 [class~=closeRemoveTagButtonIcon]
 {
-	background-image: url(../images/icons/tagmenu/management/closeRemoveTag.png);
+	background-image: url(/static/images/icons/tagmenu/management/closeRemoveTag.png);
 }
 
 /* Draw menu */
 [class~=paletteButtonIcon]
 {
-	background-image: url(../images/icons/drawmenu/palette.png);
+	background-image: url(/static/images/icons/drawmenu/palette.png);
 }
 [class~=closePaletteButtonIcon]
 {
-	background-image: url(../images/icons/drawmenu/closePalette.png);
+	background-image: url(/static/images/icons/drawmenu/closePalette.png);
 }
 [class~=lineWidthButtonIcon]
 {
-	background-image: url(../images/icons/drawmenu/lineWidth.png);
+	background-image: url(/static/images/icons/drawmenu/lineWidth.png);
 }
 [class~=closeLineWidthButtonIcon]
 {
-	background-image: url(../images/icons/drawmenu/closeLineWidth.png);
+	background-image: url(/static/images/icons/drawmenu/closeLineWidth.png);
 }
 [class~=DrawOnNodeButtonIcon]
 {
-	background-image: url(../images/icons/drawmenu/drawonNode.png);
+	background-image: url(/static/images/icons/drawmenu/drawonNode.png);
 }
 
 [class~=BlinkIcon]
@@ -593,52 +593,52 @@ iframe
 
 .drag-handle-off
 {
-	background-image: url(../images/tiles/drag-handle-off.png);
+	background-image: url(/static/images/tiles/drag-handle-off.png);
 }
 
 .drag-handle-on
 {
-	background-image: url(../images/tiles/drag-handle-on.png);
+	background-image: url(/static/images/tiles/drag-handle-on.png);
 }
 
 .drag-handle-dragging
 {
-	background-image: url(../images/tiles/drag-handle-dragging.png);
+	background-image: url(/static/images/tiles/drag-handle-dragging.png);
 }
 
 .menu-handle-off
 {
-	background-image: url(../images/tiles/drag-handle-off.png);
+	background-image: url(/static/images/tiles/drag-handle-off.png);
 }
 
 .menu-handle-on
 {
-	background-image: url(../images/tiles/drag-handle-on.png);
+	background-image: url(/static/images/tiles/drag-handle-on.png);
 }
 
 .menu-handle-dragging
 {
-	background-image: url(../images/tiles/drag-handle-dragging.png);
+	background-image: url(/static/images/tiles/drag-handle-dragging.png);
 }
 
 .drop-down-menu
 {
-	background-image: url(../images/icons/globalmenu/drop-down-arrow.png);
+	background-image: url(/static/images/icons/globalmenu/drop-down-arrow.png);
 }
 
 .drop-up-menu
 {
-	background-image: url(../images/icons/globalmenu/drop-up-arrow.png);
+	background-image: url(/static/images/icons/globalmenu/drop-up-arrow.png);
 }
 
 .drop-right-menu
 {
-	background-image: url(../images/icons/globalmenu/drop-right-arrow.png);
+	background-image: url(/static/images/icons/globalmenu/drop-right-arrow.png);
 }
 
 .drop-left-menu
 {
-	background-image: url(../images/icons/globalmenu/drop-left-arrow.png);
+	background-image: url(/static/images/icons/globalmenu/drop-left-arrow.png);
 }
 
 .rotate
@@ -652,7 +652,7 @@ iframe
 	padding:80px;
 	background-repeat: no-repeat;
 	background-position: center center;
-	background-image: url(../images/tiles/rotate.png);
+	background-image: url(/static/images/tiles/rotate.png);
 }
 
 #blackboard 
@@ -731,7 +731,7 @@ header
 
 .node-ui-draggable-with-border
 {
-	background-image :url(../images/blank.png);
+	background-image :url(/static/images/blank.png);
 	outline: 10px solid white;
 	z-index:999;
 }
@@ -962,7 +962,7 @@ output
 	position : absolute;
 	top : 80%;
 	left: 20%;
-	background-image: url(../images/icons/globalmenu/management/checkOptions.png);
+	background-image: url(/static/images/icons/globalmenu/management/checkOptions.png);
 }
 
 #buttonCancel
@@ -974,7 +974,7 @@ output
 	position : absolute;
 	top : 80%;
 	left: 30%;
-	background-image: url(../images/icons/globalmenu/zoommenu/closeZoomButton.png);
+	background-image: url(/static/images/icons/globalmenu/zoommenu/closeZoomButton.png);
 }
 
 #buttonSave
@@ -986,7 +986,7 @@ output
 	position : absolute;
 	top : 80%;
 	left: 40%;
-	background-image: url(../images/icons/globalmenu/management/save.png);
+	background-image: url(/static/images/icons/globalmenu/management/save.png);
 }
 
 #buttonShare
@@ -998,7 +998,7 @@ output
 	position : absolute;
 	top : 80%;
 	left: 50%;
-	background-image: url(../images/icons/globalmenu/management/share.png);
+	background-image: url(/static/images/icons/globalmenu/management/share.png);
 }
 
 ul.ui-autocomplete.ui-menu{
@@ -1011,7 +1011,7 @@ ul.ui-autocomplete.ui-menu{
 	text-align : center;
 	vertical-align :middle;
 	color : red;
-	background-image: url(../images/warning.png);
+	background-image: url(/static/images/warning.png);
 }
 
 .tag-notif

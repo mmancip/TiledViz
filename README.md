@@ -72,7 +72,11 @@ udisks2-volume-monitor service. You can deactivate this behaviour with
 
 9. SSL and server deployment
 
-You must use SSL branch to have web secure layer parameters.
+You have to change default server name in TVWeb/FlaskDocker/Dockerfile.web :
+ENV DOMAIN mdls.fr
+ENV SERVER_NAME desktop
+
+You may update SSL keys with update_SSL script.
 
 10. Logger
 

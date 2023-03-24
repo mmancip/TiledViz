@@ -2127,7 +2127,7 @@ def addtileset():
             datapath=str(myform.dataset_path.data)
         else:
             if (urlbool):
-                datapath="http"
+                datapath="https"
             else:
                 datapath=""
                 
@@ -2599,7 +2599,7 @@ def edittileset():
             datapath=str(myform.dataset_path.data)
         else:
             if (urlbool):
-                datapath="http"
+                datapath="https"
             else:
                 datapath=""          
         oldtileset.datapath=datapath
@@ -3955,10 +3955,10 @@ def handle_invite_link_request(cdata):
     if (client_type=="active"):
         #TODO : save key and creation date
         key=tvdb.passrandom(10)
-        sdata = {"link":"http://"+DEFAULT_URL+"/join/"+str(session["sessionname"])+"_"+client_type+"_"+session["username"]+"_"+str(creation_date)+"_"+str(key)}
+        sdata = {"link":"https://"+DEFAULT_URL+"/join/"+str(session["sessionname"])+"_"+client_type+"_"+session["username"]+"_"+str(creation_date)+"_"+str(key)}
     else:
         #client_type="passive"
-        sdata = {"link":"http://"+DEFAULT_URL+"/join/"+str(session["sessionname"])+"_"+client_type+"_"+"Anonymous"+"_"+str(creation_date)+"_"+str(tvdb.passrandom(10))}
+        sdata = {"link":"https://"+DEFAULT_URL+"/join/"+str(session["sessionname"])+"_"+client_type+"_"+"Anonymous"+"_"+str(creation_date)+"_"+str(tvdb.passrandom(10))}
 
     socketio.emit("get_link_back" ,sdata,room=croom)
 
@@ -4054,53 +4054,75 @@ def TVerror():
     logging.error("Error with TiledViz for user "+str(session["username"]))
     return redirect(url_for(".index"))
 
-# Proxy VNC
-# Thank's to https://stackoverflow.com/posts/36601467/revisions
-@app.route('/<path:dummy>')
-def routevnc(path=None,dummy=None):
-    is_noVNC=re.search(r''+"noVNC",dummy)
-    if ( dummy == "favicon.ico" ):
-        # logging.warning("proxy favicon : \n "+str(request.host_url))
-        resp = requests.request(
-            method=request.method,
-            url=request.host_url,
-            headers={key: value for (key, value) in request.headers if key != 'Host'},
-            data=request.get_data(),
-            cookies=request.cookies,
-            allow_redirects=False)
-    elif (is_noVNC) :
-        #logging.debug("request : \n "+str(request))
-        logging.debug("proxy noVNC path : \n "+str(path)+":"+str(dummy))
-        logging.debug("routevnc : \n url "+str(request.host_url))
-        # logging.error("routevnc : \n url "+str(request.host_url)+"\n method "+str(request.method).replace("\r","")+"\n header"+str(request.headers).replace("\r","")+"\n args :"+str(request.args).replace("\r",""))
+# # Proxy VNC
+# # Thank's to https://stackoverflow.com/posts/36601467/revisions
+# @app.route('/<path:dummy>')
+# def routevnc(path=None,dummy=None):
+#     is_noVNC=re.search(r''+"noVNC",dummy)
+#     is_images=re.search(r''+"(images|favicon.ico)",dummy)
+#     if ( is_images ):
+#         logging.warning("is_images : \n "+str(is_images))
+#         #dummy == "favicon.ico"
+#         logging.warning("proxy favicon : \n "+str(request.host_url))
+#         resp = requests.request(
+#             method=request.method,
+#             url=request.host_url,
+#             headers={key: value for (key, value) in request.headers if key != 'Host'},
+#             data=request.get_data(),
+#             cookies=request.cookies,
+#             allow_redirects=False)
+#     elif (is_noVNC) :
+#         #logging.debug("request : \n "+str(request))
+#         logging.debug("proxy noVNC path : \n "+str(path)+":"+str(dummy))
+#         logging.debug("routevnc : \n url "+str(request.host_url))
+#         # logging.error("routevnc : \n url "+str(request.host_url)+"\n method "+str(request.method).replace("\r","")+"\n header"+str(request.headers).replace("\r","")+"\n args :"+str(request.args).replace("\r",""))
         
-        VNCurl="http://127.0.0.1/"
-        logging.debug("Connect with url : "+VNCurl+dummy)
-        newurl=request.url.replace(request.host_url, VNCurl)
-        logging.debug("Replace url : "+newurl)
+#         VNCurl="https://"+app.config["SERVER_NAME"]
+#         logfun("Connect with url : "+VNCurl+dummy)
+#         newurl=request.url.replace(request.host_url, VNCurl)
+#         logfun("Replace url : "+newurl)
         
-        logging.debug(dummy+" header :"+str(request.headers))
-        resp = requests.request(
-            method=request.method,
-            url=newurl,
-            headers={key: value for (key, value) in request.headers if key != 'Host'},
-            data=request.get_data(),
-            cookies=request.cookies,
-            allow_redirects=False)
-    else:
-        logging.debug("proxy unknwon path : \n "+str(path)+":"+str(dummy)+"  "+str(request.host_url))
-        resp = requests.request(
-            method=request.method,
-            url=request.host_url,
-            headers={key: value for (key, value) in request.headers if key != 'Host'},
-            data=request.get_data(),
-            cookies=request.cookies,
-            allow_redirects=False)
+#         logging.debug(dummy+" header :"+str(request.headers))
+#         resp = requests.request(
+#             method=request.method,
+#             url=newurl,
+#             headers={key: value for (key, value) in request.headers if key != 'Host'},
+#             data=request.get_data(),
+#             cookies=request.cookies,
+#             allow_redirects=False)
+#     # elif (is_images) :
+#     #     logging.warning("images request : \n "+str(request))
+#     #     logging.warning("proxy images path : \n "+str(path)+":"+str(dummy))
+#     #     logging.warning("host_url : \n url "+str(request.host_url))
+#     #     # logging.error("routevnc : \n url "+str(request.host_url)+"\n method "+str(request.method).replace("\r","")+"\n header"+str(request.headers).replace("\r","")+"\n args :"+str(request.args).replace("\r",""))
+        
+#     #     LocalUrl="https://localhost:5000/"
+#     #     logfun("Connect with url : "+LocalUrl+dummy)
+#     #     newurl=request.url.replace(request.host_url, LocalUrl)
+#     #     logfun("Replace url : "+newurl)
+        
+#     #     logging.warning(dummy+" header :"+str(request.headers))
+#     #     resp = requests.request(
+#     #         method=request.method,
+#     #         url=newurl,
+#     #         headers={key: value for (key, value) in request.headers if key != 'Host'},
+#     #         data=request.get_data(),
+#     #         cookies=request.cookies,
+#     #         allow_redirects=False)        
+#     else:
+#         logging.warning("proxy unknwon path : \n "+str(path)+":"+str(dummy)+"  "+str(request.host_url))
+#         resp = requests.request(
+#             method=request.method,
+#             url=request.host_url,
+#             headers={key: value for (key, value) in request.headers if key != 'Host'},
+#             data=request.get_data(),
+#             cookies=request.cookies,
+#             allow_redirects=False)
 
-    excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
-    headers = [(name, value) for (name, value) in resp.raw.headers.items()
-               if name.lower() not in excluded_headers]
+#     excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
+#     headers = [(name, value) for (name, value) in resp.raw.headers.items()
+#                if name.lower() not in excluded_headers]
     
-    response = Response(resp.content, resp.status_code, headers)
-    return response
+#     response = Response(resp.content, resp.status_code, headers)
+#     return response
 

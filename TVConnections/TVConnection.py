@@ -152,12 +152,68 @@ class ClientAction(threading.Thread):
             logging.warning("ClientAction : problem with action "+funaction+" launch.")
             pass
 
-# This function must be overlap in CASE job script for specific request:
+### Functions used in case job ###
+
+# Those functions must be overlap in CASE job script for specific request.
+
+# Launch dockers
+def Run_dockers():
+    COMMAND="bash -c \""+os.path.join(TILEDOCKERS_path,"launch_dockers")+" "+REF_CAS+" "+GPU_FILE+" "+SSH_FRONTEND+":"+SSH_IP+\
+             " "+network+" "+nethost+" "+domain+" "+init_IP+" TileSetPort "+UserFront+"@"+Frontend+" "+OPTIONS+\
+             " > "+os.path.join(JOBPath,"output_launch")+" 2>&1 \"" 
+    logging.warning("\nCommand dockers : "+COMMAND)
+    client.send_server(LaunchTS+' '+COMMAND)
+    state=client.get_OK()
+    logging.warning("Out of launch docker : "+ str(state))
+    sys.stdout.flush()
+    stateVM=(state == 0)
+    return stateVM
+
+# Build nodes.json file from new dockers list
+def build_nodes_file():
+    logging.warning("Build nodes.json file from new dockers list.")
+    COMMAND=LaunchTS+' ./build_nodes_file '+os.path.join(JOBPath,CASE_config)+' '+os.path.join(JOBPath,SITE_config)+' '+TileSet
+    logging.warning("\nCommand dockers : "+COMMAND)
+    client.send_server(COMMAND)
+    state=client.get_OK()
+    logging.warning("Out of build_nodes_file : "+ str(state))
+    time.sleep(2)
+    stateVM=(state == 0)
+    return stateVM
+
+def replaceconf(x):
+    if (re.search('}',x)):
+        varname=x.replace("{","").replace("}","")
+        return config['CASE'][varname]
+    else:
+        return x
+        
 def kill_all_containers():
+    # Get back PORTWSS and kill websockify servers
+    for i in range(NUM_DOCKERS):
+        i0="%0.3d" % (i+1)
+        TILEi=ExecuteTS+' Tiles=('+containerId(i+1)+') '
+        COMMANDi="bash -c \" "+\
+                  " export PORTWSS=\$(cat .vnc/port_wss); "+\
+                  " ssh "+SSH_LOGIN+"@"+SSH_FRONTEND+''' \' bash -c \\\" '''+\
+                  '''      pgrep -f \\\\\".*websockify.*\'\$PORTWSS\'\\\\\" |xargs kill '''+\
+                  ''' \\\"\' ''' +\
+                  "\""
+        logging.warning("%s | %s" % (TILEi, COMMANDi)) 
+        sys.stdout.flush()
+        client.send_server(TILEi+COMMANDi)
+        state=client.get_OK()
+        logging.warning("Out of kill websockify %s : %s" % (i0,state))
+        sys.stdout.flush()
+        if (state != 0):
+            break
     client.send_server(ExecuteTS+' killall Xvnc')
-    print("Out of killall command : "+ str(client.get_OK()))
+    state=client.get_OK()
+    print("Out of killall command : "+ str(state))
     client.send_server(LaunchTS+" "+COMMANDStop)
     client.close()
+    stateVM=(state == 0)
+    return stateVM
         
 # return the IP of a client tileNum or tileId
 def Get_client_IP(tileNum=-1,tileId='001'):
@@ -186,28 +242,88 @@ def Get_client_IP(tileNum=-1,tileId='001'):
         logging.error("Cannot retreive ip from %s." % (Id) )
         return "-1"
     
-def tunnel():
-    client.send_server(ExecuteTS+' /opt/tunnel_ssh '+SOCKETdomain+' '+HTTP_FRONTEND+' '+HTTP_LOGIN)
-    logging.warning("Out of tunnel_ssh : "+ str(client.get_OK()))
-
+def launch_tunnel():
+    # Call tunnel for VNC
+    client.send_server(ExecuteTS+' /opt/tunnel_ssh '+SSH_FRONTEND+' '+SSH_LOGIN)
+    state=client.get_OK()
+    stateVM=(state == 0)
+    print("Out of tunnel_ssh : "+ str(state))
+    if (not stateVM):
+        return stateVM
+    # Create list_wss file of free uniq socket port for each tile 
+    COMMAND=" bash -c './build_wss.py "+str(NUM_DOCKERS*2)+"; uniq -d list_wss' "
+    client.send_server(LaunchTS+' '+COMMAND)
+    state=client.get_OK()
+    stateVM=(state == 0)
+    print("Out of create list_wss : "+ str(state))
+    if (not stateVM):
+        return stateVM
+    # Get back PORT
+    for i in range(NUM_DOCKERS):
+        i0="%0.3d" % (i+1)
+        TILEi=ExecuteTS+' Tiles=('+containerId(i+1)+') '
+        SSH_JobPath=SSH_LOGIN+"@"+SSH_FRONTEND+":"+JOBPath
+        COMMANDi="bash -c \""+\
+                  " export PORT=\$(cat .vnc/port); "+\
+                  " export PORTWSS=\$(sed '"+str(i+1)+"q;d' CASE/list_wss); "+\
+                  " scp "+SSH_JobPath+"/nodes.json CASE/ ;"+\
+                  " sed -e 's#port="+SOCKETdomain+i0+"#port='\$PORTWSS'#' -i CASE/nodes.json; "+\
+                  " scp CASE/nodes.json "+SSH_JobPath+"/ ;"+\
+                  " ssh "+SSH_LOGIN+"@"+SSH_FRONTEND+''' \' bash -c \\\" cd '''+TILEDOCKERS_path+"/..; "+\
+                  "    ./wss_websockify "+SSL_PUBLIC+" "+SSL_PRIVATE+\
+                  ''' \'\$PORTWSS\' \'\$PORT\' '''+TILEDOCKERS_path+"/../../TVWeb &"+\
+                  ''' \\\"\' & ''' +\
+                  "\""
+        print("%s | %s" % (TILEi, COMMANDi)) 
+        sys.stdout.flush()
+        client.send_server(TILEi+COMMANDi)
+        state=client.get_OK()
+        stateVM=stateVM and (state == 0)
+        print("Out of change port %s : %s" % (i0,state))
+        sys.stdout.flush()
+        if (state != 0):
+            break
+    if (not stateVM):
+        return stateVM
+    sys.stdout.flush()
+    stateVM=launch_nodes_json()
+    return stateVM
     
-def vnc():
+def launch_vnc():
     client.send_server(ExecuteTS+' /opt/vnccommand')
-    logging.warning("Out of vnccommand : "+ str(client.get_OK()))
+    state=client.get_OK()
+    logging.warning("Out of vnccommand : "+ str(state))
+    stateVM=(state == 0)
+    return stateVM
 
 
 def init_wmctrl():
     client.send_server(ExecuteTS+' wmctrl -l -G')
-    logging.warning("Out of wmctrl : "+ str(client.get_OK()))
+    state=client.get_OK()
+    logging.warning("Out of wmctrl : "+ str(state))
+    stateVM=(state == 0)
+    return stateVM
 
     
-def clear_VNC(tileNum=-1,tileId='001'):
+def clear_vnc(tileNum=-1,tileId='001'):
     if ( tileNum > -1 ):
         TilesStr=' Tiles=('+containerId(tileNum+1)+') '
     else:
         TilesStr=' Tiles=('+tileId+') '
     client.send_server(ExecuteTS+TilesStr+' x11vnc -R clear-all')
-    logging.warning("Out of clear-vnc : "+ str(client.get_OK()))
+    state=client.get_OK()
+    logging.warning("Out of clear-vnc : "+ str(state))
+    stateVM=(state == 0)
+    return stateVM
+
+
+def clear_vnc_all():
+    os.system('x11vnc -R clear-all')
+    stateVM=True
+    for i in range(NUM_DOCKERS):
+        stateVM=stateVM and clear_vnc(i)
+        #clear_vnc(tileId=containerId(i))
+    return stateVM
 
 def changeSize(RESOL="1920x1080",tileNum=-1,tileId='001'):
     if ( tileNum > -1 ):
@@ -217,17 +333,47 @@ def changeSize(RESOL="1920x1080",tileNum=-1,tileId='001'):
     COMMAND=ExecuteTS+TilesStr+' xrandr --fb '+RESOL
     logging.warning("call server with : "+COMMAND)
     client.send_server(COMMAND)
-    logging.warning("server answer is "+str(client.get_OK()))
-        
-def fullscreenThisApp(App="xterm",tileNum=-1,tileId='001'):
-    COMMAND='/opt/movewindows '+App+' -b toggle,fullscreen'
+    state=client.get_OK()
+    logging.warning("server answer is "+str(state))
+    stateVM=(state == 0)
+    return stateVM
+
+def all_resize(RESOL="1280x800"): #"1440x900"
+    client.send_server(ExecuteTS+' bash -c "export DISPLAY=:1; xrandr --fb '+RESOL+'"')
+    state=client.get_OK()
+    logging.warning("Out of xrandr : "+ str(state))
+    stateVM=(state == 0)
+    return stateVM
+
+# def fullscreenThisApp(App="xterm",tileNum=-1,tileId='001'):
+#     COMMAND='/opt/movewindows '+App+' -b toggle,fullscreen'
+#     if ( tileNum > -1 ):
+#         TilesStr=' Tiles=('+containerId(tileNum+1)+') '            
+#     else:
+#         TilesStr=' Tiles=('+tileId+') '
+#     client.send_server(ExecuteTS+TilesStr+COMMAND)
+#     client.get_OK()
+
+def fullscreenApp(windowname="labelImg",tileNum=-1,tileId='001'):
     if ( tileNum > -1 ):
-        TilesStr=' Tiles=('+containerId(tileNum+1)+') '            
+        stateVM=movewindows(windowname=windowname,wmctrl_option='toggle,fullscreen',tileNum=tileNum)
+    else:
+        stateVM=movewindows(windowname=windowname,wmctrl_option='toggle,fullscreen',tileId=tileId)
+    return stateVM
+    
+def movewindows(windowname="labelImg",wmctrl_option='toggle,fullscreen',tileNum=-1,tileId='001'):
+    COMMAND='/opt/movewindows '+windowname+' -b '+wmctrl_option
+    #remove,maximized_vert,maximized_horz
+    #toggle,above
+    if ( tileNum > -1 ):
+        TilesStr=' Tiles=('+containerId(tileNum+1)+') '
     else:
         TilesStr=' Tiles=('+tileId+') '
     client.send_server(ExecuteTS+TilesStr+COMMAND)
-    client.get_OK()
-
+    state=client.get_OK()
+    stateVM=(state == 0)
+    return stateVM
+    
 def showThisGUI(App="xterm",tileNum=-1,tileId='001'):
     COMMAND='/opt/movewindows '+App+' -b toggle,above'
     if ( tileNum > -1 ):
@@ -235,9 +381,11 @@ def showThisGUI(App="xterm",tileNum=-1,tileId='001'):
     else:
         TilesStr=' Tiles=('+tileId+') '
     client.send_server(ExecuteTS+TilesStr+COMMAND)
-    client.get_OK()
+    state=client.get_OK()
+    stateVM=(state == 0)
+    return stateVM
 
-def clickPoint(tileNum=-1,tileId='001',X=0,Y=0):
+def click_point(tileNum=-1,tileId='001',X=0,Y=0):
     if ( tileNum > -1 ):
         TilesStr=' Tiles=('+containerId(tileNum+1)+') '
     else:
@@ -245,8 +393,10 @@ def clickPoint(tileNum=-1,tileId='001',X=0,Y=0):
     COMMAND=" xdotool mousemove "+str(X)+" "+str(Y)+" click 1 mousemove restore"
     # -> xdotool getmouselocation
     client.send_server(ExecuteTS+TilesStr+COMMAND)
-    print("Out of click_point : "+ str(client.get_OK()))
-
+    state=client.get_OK()
+    logging.warning("Out of click_point : "+ str(state))
+    stateVM=(state == 0)
+    return stateVM
 
         
 if __name__ == '__main__':
