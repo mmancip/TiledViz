@@ -249,14 +249,16 @@ def launch_tunnel():
     stateVM=(state == 0)
     print("Out of tunnel_ssh : "+ str(state))
     if (not stateVM):
+        print("!! Error launch_tunnel.!!")
         return stateVM
     # Create list_wss file of free uniq socket port for each tile 
-    COMMAND=" bash -c './build_wss.py "+str(NUM_DOCKERS*2)+"; uniq -d list_wss' "
+    COMMAND=" python3 ./build_wss.py "+str(NUM_DOCKERS*2)
     client.send_server(LaunchTS+' '+COMMAND)
     state=client.get_OK()
     stateVM=(state == 0)
     print("Out of create list_wss : "+ str(state))
     if (not stateVM):
+        print("!! Error launch_tunnel.!!")
         return stateVM
     # Get back PORT
     for i in range(NUM_DOCKERS):
@@ -284,6 +286,7 @@ def launch_tunnel():
         if (state != 0):
             break
     if (not stateVM):
+        print("!! Error launch_tunnel.!!")
         return stateVM
     sys.stdout.flush()
     stateVM=launch_nodes_json()
@@ -641,6 +644,7 @@ if __name__ == '__main__':
             time.sleep(2)
             pass
         #os.system('rm -f ./nodes.json')
+        return True
     
     if (args.debug):
         try:
