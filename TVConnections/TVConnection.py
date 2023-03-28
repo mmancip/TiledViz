@@ -189,14 +189,15 @@ def replaceconf(x):
         return x
         
 def kill_all_containers():
+    stateVM=True
     # Get back PORTWSS and kill websockify servers
     for i in range(NUM_DOCKERS):
         i0="%0.3d" % (i+1)
         TILEi=ExecuteTS+' Tiles=('+containerId(i+1)+') '
         COMMANDi="bash -c \" "+\
-                  " export PORTWSS=\$(cat .vnc/port_wss); "+\
+                  " export PORT=\$(cat .vnc/port); "+\
                   " ssh "+SSH_LOGIN+"@"+SSH_FRONTEND+''' \' bash -c \\\" '''+\
-                  '''      pgrep -f \\\\\".*websockify.*\'\$PORTWSS\'\\\\\" |xargs kill '''+\
+                  '''      pgrep -f \\\\\\\"^python3.*websockify.*\'\$PORT\'\\\\\\\" |xargs kill '''+\
                   ''' \\\"\' ''' +\
                   "\""
         logging.warning("%s | %s" % (TILEi, COMMANDi)) 
@@ -205,14 +206,16 @@ def kill_all_containers():
         state=client.get_OK()
         logging.warning("Out of kill websockify %s : %s" % (i0,state))
         sys.stdout.flush()
-        if (state != 0):
-            break
-    client.send_server(ExecuteTS+' killall Xvnc')
+        stateVM=stateVM and (state == 0)
+    client.send_server(ExecuteTS+' killall bash')
     state=client.get_OK()
     print("Out of killall command : "+ str(state))
     client.send_server(LaunchTS+" "+COMMANDStop)
-    client.close()
+    state=client.get_OK()
+    print("Out of COMMANDStop : "+ str(state))
     stateVM=(state == 0)
+    time.sleep(2)
+    Remove_TileSet()
     return stateVM
         
 # return the IP of a client tileNum or tileId
@@ -357,14 +360,15 @@ def all_resize(RESOL="1280x800"): #"1440x900"
 #     client.send_server(ExecuteTS+TilesStr+COMMAND)
 #     client.get_OK()
 
-def fullscreenApp(windowname="labelImg",tileNum=-1,tileId='001'):
+App="N/A"
+def fullscreenApp(windowname=App,tileNum=-1,tileId='001'):
     if ( tileNum > -1 ):
         stateVM=movewindows(windowname=windowname,wmctrl_option='toggle,fullscreen',tileNum=tileNum)
     else:
         stateVM=movewindows(windowname=windowname,wmctrl_option='toggle,fullscreen',tileId=tileId)
     return stateVM
     
-def movewindows(windowname="labelImg",wmctrl_option='toggle,fullscreen',tileNum=-1,tileId='001'):
+def movewindows(windowname=App,wmctrl_option='toggle,fullscreen',tileNum=-1,tileId='001'):
     COMMAND='/opt/movewindows '+windowname+' -b '+wmctrl_option
     #remove,maximized_vert,maximized_horz
     #toggle,above
@@ -433,6 +437,21 @@ if __name__ == '__main__':
     TileSetDB=session.query(models.TileSet).filter_by(id_connections=args.connectionId).order_by(models.TileSet.id.desc()).first()
     TileSet=TileSetDB.name
     
+    # Default values for TileSet
+    CreateTS='create TS='+TileSet+' Nb='+str(1)
+
+    # Execute on each/a set of tiles
+    ExecuteTS='execute TS='+TileSet+" "
+    # Launch a command on the frontend
+    LaunchTS='launch TS='+TileSet+" ."
+
+    def Remove_TileSet():
+        # Remove TileSet in TileServer
+        RemoveTS='remove TS='+TileSet
+        client.send_server(RemoveTS)
+        logging.warning("TileSet "+TileSet+" removed on server")
+    
+    # User not used
     TVuser=session.query(models.User).filter(models.User.id==TVconnection.id_users).first().name
 
     session.close()
@@ -733,12 +752,16 @@ if __name__ == '__main__':
             os.system(CleanKeyFrontend)
         # On localhost (no need) "ssh-keygen -R "+Frontend+" -f ~/.ssh/known_hosts"
     except :
+        # stop containers
+        kill_all_containers()
         traceback.print_exc(file=sys.stderr)
         #myglobals=globals()
         #code.interact(local=locals())
         pass
-    
-    
+
+    # close connection with server. 
+    client.close()
+
     # Kill ssh tunneling for VNC :
     #os.system("ps -Aef | grep 'connect.*@172.17.*' |grep -v grep | sed -e 's%myuser\\s*\\([0-9]*\\).*%\\1%' |xargs kill")
     os.system('killall -9 ssh')

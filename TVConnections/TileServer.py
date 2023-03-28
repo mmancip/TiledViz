@@ -85,6 +85,16 @@ class TilesSet(threading.Thread):
         self.laststate=False
         self.lastval=255
 
+    def __del__(self):
+        # !! Must have kill tiles before !!
+        for tileconnection in self.ListClient:
+            del tileconnection
+        del TSthreads[self.TileSetName]
+        serverLogger.warning("Remove TileSet "+TileSetName
+              +" , thread "+str(self.thread)
+              +" and id "+str(self.id))
+        self.thread.join()
+        
     def run(self, TileSetName, Nb):
         # Launch TileSet ??
 
@@ -316,6 +326,15 @@ class ClientConnect(threading.Thread):
             
                 # TODO : give password to connection after create TS
             
+            elif (re.search(r'remove TS',CommandRecv)):
+                p=re.compile(r'remove TS=(\w*)')
+                TSName=p.sub(r'\1',CommandRecv)
+                serverLogger.warning('Receive remove command for TileSet "'+TSName+'".')
+                outHandler.flush()
+                
+                del self.TileSets[TSName]
+                self.__del__()
+                
             elif (re.search(r'execute all',CommandRecv)):
                 p=re.compile(r'execute all (.*)')
                 serverLogger.warning('Execute all TileSets command "'+CommandTS+'"')
