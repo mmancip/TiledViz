@@ -15,7 +15,7 @@ import configparser
 import tarfile
 from io import BytesIO
 # import tempfile
-import json
+import pickle
 
 import socket
 
@@ -54,6 +54,9 @@ if (configExist):
     # Max number of connections before relaunch TVSecure
     NbSecureConnection=int(config['TVSecure']['NbSecureConnection'])
 
+    # Max number of bites keep in flaskdock log for TVSecure to be analysed. 
+    NbBitesLog=config['TVSecure']['NbBitesLog']
+        
     # Start port for ssh connection between TVConnection.py and TVSecure.py through ssh
     ConnectionPort=int(config['TVSecure']['ConnectionPort'])
     
@@ -61,6 +64,7 @@ if (configExist):
     ActionPort=int(config['TVSecure']['ActionPort'])
 else:
     NbSecureConnection=59
+    NbBitesLog="500k"
     # Default init connection PORT
     ConnectionPort=54040
     ActionPort=64040
@@ -83,6 +87,8 @@ POSTGRES_USER="tiledviz"
 POSTGRES_DB="TiledViz"
 POSTGRES_PASSWORD="m_test/@03"
 secretKey="my Preci0us secr_t key for t&sts."
+
+flaskaddr=os.getenv('SERVER_NAME')+"."+os.getenv('DOMAIN')
 
 client = docker.from_env()
 def parse_args(argv):
@@ -108,9 +114,10 @@ def parse_args(argv):
 TVvolume=docker.types.Mount(target='/TiledViz',source=os.getenv('PWD'),type='bind',read_only=False)
 
 SSLpath=os.path.dirname(os.getenv('SSLpublic'))
-TVssl=docker.types.Mount(target=SSLpath,source=SSLpath,type='bind',read_only=False)
+TVssl=docker.types.Mount(target=SSLpath,source=SSLpath,type='bind',read_only=True)
 
-TVlogs=docker.types.LogConfig(type=docker.types.LogConfig.types.JSON, config={"max-size": "500k", "max-file": "3"})
+flaskc={"max-size": NbBitesLog, "max-file": "3"}
+TVlogs=docker.types.LogConfig(type=docker.types.LogConfig.types.JSON, config=flaskc)
 
 threads={}
 
@@ -161,7 +168,6 @@ class FlaskDocker(threading.Thread):
 
         self.oldtime=time.time()
 
-        flaskaddr=os.getenv('SERVER_NAME')+"."+os.getenv('DOMAIN')
         #socket.gethostbyname(socket.gethostname())
         self.commandFlask=[POSTGRES_HOST,POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, flaskaddr, str(os.getuid()),str(os.getgid()), secretKey]
         
@@ -242,7 +248,7 @@ class FlaskDocker(threading.Thread):
 
         # string from Flask for new connection
 
-        createnewconnection=r'WARNING:.*addconnection:\s*(?P<username>\w+)\s*;\s*(?P<hostname>[^ ;]+)\s*;\s*(?P<connection>\w+)\s*;\s*(?P<containers>\w+)\s*;\s*(?P<scheduler>\w+)\s*;\s*(?P<idTS>\d+)\s*;\s*(?P<idCon>\d+)\s*;\s*(?P<Debug>\d)'
+        createnewconnection=r'WARNING:.*addconnection:\s*(?P<username>\w+)\s*;\s*(?P<hostname>[^ ;]+)\s*;\s*(?P<connection>\w+)\s*;\s*(?P<containers>\w+)\s*;\s*(?P<scheduler>\w+)\s*;\s*(?P<idTS>\d+)\s*;\s*(?P<idCon>\d+)\s*;\s*(?P<nbTiles>\d+)\s*;\s*(?P<Debug>\d)'
         create_newconnection = re.compile(r''+createnewconnection)
 
         # string from Flask for edit old connection
@@ -349,7 +355,8 @@ class FlaskDocker(threading.Thread):
                     #                 +" "+create_oldconnect.group("username")+" "+create_oldconnect.group("hostname")
                     #                 +" "+create_oldconnect.group("connection")+" "+create_oldconnect.group("containers")
                     #                 +" "+create_oldconnect.group("scheduler")+" "+create_oldconnect.group("idTS")
-                    #                 +" "+create_oldconnect.group("idCon") +" "+create_newconnect.group("Debug"))
+                    #                 +" "+create_oldconnect.group("idCon") +" "+create_newconnect.group("nbTiles")
+                    #                 +" "+create_newconnect.group("Debug"))
                     logging.debug("Connection container type :"+create_newconnect.group("containers"))
 
                     # Find the first free Connection
@@ -383,10 +390,11 @@ class FlaskDocker(threading.Thread):
                                                  "connectionid":create_newconnect.group("idCon"),
                                                  "ThisConnection":""})
 
+                        nbTiles=int(create_newconnect.group("nbTiles"))
                         debug=bool(int(create_newconnect.group("Debug")))
                         if (debug):
                             logging.warning("Debug mode for connection.")
-                        ThisConnection=ConnectionDocker(self.containerFlask, debug, firstFree,
+                        ThisConnection=ConnectionDocker(self.containerFlask, nbTiles, debug, firstFree,
                                                         POSTGRES_HOST, POSTGRES_IP, POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD)
                         Connections[firstFree]["ThisConnection"]=ThisConnection
                 else:
@@ -423,12 +431,23 @@ class FlaskDocker(threading.Thread):
                     for theConnection in Connections:
                         if( quit_oldconnect.group("username") == theConnection["username"] and
                             quit_oldconnect.group("idCon") == theConnection["connectionid"] ):
-                            logging.warning("Quit connection "+str(theConnection["connectionid"]))                            
+                            logging.warning("Before quit connection "+str(theConnection["connectionid"]))                            
                             theConnection["ThisConnection"].callfunction("quitConnection")
                             try:
-                                ConnectNum=theConnection["ThisConnection"].ConnectNum
+                                ConnectNum= theConnection["ThisConnection"].ConnectNum
                                 ConnectName=theConnection["ThisConnection"].name
-                                logging.warning("Before Connection %s suppression : %d" % (ConnectName,ConnectNum))
+                                logging.warning("Connection %s suppression : %d" % (ConnectName,ConnectNum))
+                                iquit=0
+                                while (not theConnection["ThisConnection"].hasQuit ):
+                                    time.sleep(1)
+                                    iquit=iquit+1
+                                    if (iquit > 20):
+                                        logging.error("Connection %s has never quitted : %d" % (ConnectName,ConnectNum))
+                                        try:
+                                            theConnection["ThisConnection"].quitConnection()
+                                        except Exception as err:
+                                            logging.error("Error while direct stoping Connection with id "+str(quit_oldconnect.group("idCon"))+" : "+str(err), exc_info=True)
+                                        break
                                 Connections[ConnectNum]=sqltConnections
                                 usedConnections[ConnectNum]=False
                                 logging.warning("Connection table :"+str(usedConnections))
@@ -495,18 +514,18 @@ class FlaskDocker(threading.Thread):
         self.Logs=self.containerFlask.logs(timestamps=True,since=int(self.oldtime),tail=nbLines).decode("utf-8")
         self.oldtime=time.time()
         
-        logging.warning(self.Logs)
+        logging.warning(str(self.Logs))
 
     def getContainerFlask(self):
         return self.containerFlask
 
 class ConnectionDocker(threading.Thread):
     
-    def __init__(self,containerFlask, debug, ConnectNum,
+    def __init__(self,containerFlask, nbTiles, debug, ConnectNum,
                  POSTGRES_HOST=POSTGRES_HOST, POSTGRES_IP=POSTGRES_IP, POSTGRES_PORT=POSTGRES_PORT,
                  POSTGRES_DB=POSTGRES_DB, POSTGRES_USER=POSTGRES_USER, POSTGRES_PASSWORD=POSTGRES_PASSWORD):
         threading.Thread.__init__(self)
-        self.thread = threading.Thread(target=self.run,args=(containerFlask,debug, ConnectNum,
+        self.thread = threading.Thread(target=self.run,args=(containerFlask, nbTiles, debug, ConnectNum,
                                                              POSTGRES_HOST, POSTGRES_IP, POSTGRES_PORT,
                                                              POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD,))
         self.thread.start()
@@ -515,7 +534,7 @@ class ConnectionDocker(threading.Thread):
         threads[self.name]=self.thread
         #threading.Thread.__init__(self, target=self.run_forever)
 
-    def run(self,containerFlask,debug, ConnectNum,
+    def run(self,containerFlask, nbTiles, debug, ConnectNum,
             POSTGRES_HOST=POSTGRES_HOST, POSTGRES_IP=POSTGRES_IP, POSTGRES_PORT=POSTGRES_PORT,
             POSTGRES_DB=POSTGRES_DB, POSTGRES_USER=POSTGRES_USER, POSTGRES_PASSWORD=POSTGRES_PASSWORD):
 
@@ -524,29 +543,38 @@ class ConnectionDocker(threading.Thread):
 
         self.oldtime=time.time()
 
+        self.nbTiles=nbTiles
         self.ConnectNum=ConnectNum
         self.name="connectiondock"+str(Connections[self.ConnectNum]["connectionid"])
         self.tilesetId=int(Connections[self.ConnectNum]["tilesetid"])
         self.connectionId=int(Connections[self.ConnectNum]["connectionid"])
+        self.hasQuit=False
         
         self.containerFlask = containerFlask
         self.IPFlask=self.containerFlask.attrs["NetworkSettings"]["Networks"]["bridge"]["IPAddress"]
 
+        self.websockifyPID=-1
+        
         self.call_list=[]
         
         logging.warning("Connection creation :"+self.name)
         self.dir='/tmp/'+self.name
         if (not os.path.isdir(self.dir)): os.mkdir(self.dir)
 
+        # sshd
+        s=socket.socket();
+        s.bind(("", 0));
+        self.PORTssh=s.getsockname()[1]
+        s.close()
                               
         VncVolume=docker.types.Mount(source=self.dir,target=self.home+"/.vnc",type='bind',read_only=False)
         XLocale=docker.types.Mount(source="/usr/share/X11/locale",target="/usr/share/X11/locale",type='bind')
 
         if (debug):
-            self.commandConnect=[str(self.connectionId),POSTGRES_HOST,POSTGRES_PORT,POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,'-r',CONNECTION_RESOL,'-u',str(os.getuid()),'-g',str(os.getgid()),'-d']
+            self.commandConnect=[str(self.connectionId),POSTGRES_HOST,POSTGRES_PORT,POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,'-r',CONNECTION_RESOL,'-u',str(os.getuid()),'-g',str(os.getgid()),'-p',str(self.PORTssh),'-d']
             self.cont_auto_remove=False
         else:
-            self.commandConnect=[str(self.connectionId),POSTGRES_HOST,POSTGRES_PORT,POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,'-r',CONNECTION_RESOL,'-u',str(os.getuid()),'-g',str(os.getgid())]
+            self.commandConnect=[str(self.connectionId),POSTGRES_HOST,POSTGRES_PORT,POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,'-r',CONNECTION_RESOL,'-u',str(os.getuid()),'-g',str(os.getgid()),'-p',str(self.PORTssh)]
             self.cont_auto_remove=True
 
         logging.debug("Input param commandConnect : '"+str(self.commandConnect)+"'")
@@ -563,6 +591,15 @@ class ConnectionDocker(threading.Thread):
 
         #healthcheckN=docker.types.Healthcheck(interval=50000000) #test=['NONE'])
             
+        # Ports for tiles
+        self.listPortsTiles={str(self.PORTssh)+'/tcp':('0.0.0.0',self.PORTssh)};
+        for t in range(self.nbTiles):
+            s=socket.socket();
+            s.bind(("", 0));
+            self.listPortsTiles[str(s.getsockname()[1])+'/tcp']=('0.0.0.0',s.getsockname()[1]);
+            s.close()        
+        # Open port in firewall here ?
+        
         # Wake up docker server ?
         #client = docker.from_env()
         logging.warning("Before start "+self.name+", containers list :"+str(client.containers.list()))
@@ -572,9 +609,10 @@ class ConnectionDocker(threading.Thread):
 
             self.containerConnect=client.containers.create(
                 name=self.name, image="mageiaconnect",
-                mounts=[VncVolume,XLocale], 
+                mounts=[VncVolume,XLocale,TVssl],
                 extra_hosts=self.postgresHost,
                 command=self.commandConnect,
+                ports=self.listPortsTiles,
                 devices=list_gpu_dev,
                 auto_remove=self.cont_auto_remove, detach=True)
 #                healthcheck=healthcheckN,
@@ -627,7 +665,7 @@ class ConnectionDocker(threading.Thread):
             " && useradd -r -u "+uid+" -g "+self.flaskusr+" "+self.flaskusr+" && cp -rp /etc/skel "+flaskhome+\
             " && chown -R "+self.flaskusr+":"+self.flaskusr+" "+flaskhome+"'"
         self.LogAddUser=container_exec_out(self.containerFlask, commandAdduser)
-        logging.debug("Add user "+self.flaskusr+" on Flask container."+re.sub(r'\*n',r'\\n',self.LogAddUser))
+        logging.debug("Add user "+self.flaskusr+" on Flask container."+re.sub(r'\*n',r'\\n',str(self.LogAddUser)))
         
         # Get id_rsa.pub for tunneling VNC flux
         authorized_key="No such file or directory"
@@ -651,15 +689,15 @@ class ConnectionDocker(threading.Thread):
         # Put this key in flask docker
         commandBuildSsh="mkdir "+flaskhome+"/.ssh"
         self.LogBuildSsh=container_exec_out(self.containerFlask, commandBuildSsh,user=self.flaskusr)
-        logging.debug("Create .ssh to Flask docker :\n'"+re.sub(r'\*n',r'\\n',self.LogBuildSsh)+"'")
+        logging.debug("Create .ssh to Flask docker :\n'"+re.sub(r'\*n',r'\\n',str(self.LogBuildSsh))+"'")
         commandBuildSsh="chmod 700 "+flaskhome+"/.ssh"
         self.LogBuildSsh=container_exec_out(self.containerFlask, commandBuildSsh,user=self.flaskusr)
-        logging.debug("Protect .ssh to Flask docker :\n'"+re.sub(r'\*n',r'\\n',self.LogBuildSsh)+"'")
+        logging.debug("Protect .ssh to Flask docker :\n'"+re.sub(r'\*n',r'\\n',str(self.LogBuildSsh))+"'")
 
         # Use awk to insert key in .ssh/authorized_key file !
         commandBuildSsh="awk 'BEGIN {print \""+authorized_key+"\" >>\""+flaskhome+"/.ssh/authorized_keys\"}' /dev/null"
         self.LogBuildSsh=container_exec_out(self.containerFlask, commandBuildSsh,user=self.flaskusr)
-        logging.debug("Add autorized_key to Flask docker :\n'"+re.sub(r'\*n',r'\\n',self.LogBuildSsh)+"'")
+        logging.debug("Add autorized_key to Flask docker :\n'"+re.sub(r'\*n',r'\\n',str(self.LogBuildSsh))+"'")
 
         # List .ssh/authorized_key in Flask
         # commandBuildSsh="ls -la "+flaskhome+"/.ssh/authorized_keys"
@@ -711,26 +749,59 @@ class ConnectionDocker(threading.Thread):
         logging.warning("tunnel script built.")
 
         self.connect()
+                
+        # Add password for temporary connection
+        commandBuildVNC="awk 'BEGIN {print \""+self.password+"\" >>\""+flaskhome+"/vncpassword\"}' /dev/null"
+        self.LogBuildVNC=container_exec_out(self.containerFlask, commandBuildVNC,user=self.flaskusr)
+        logging.debug("Add VNC password to Flask docker :\n"+re.sub(r'\*n',r'\\n',str(self.LogBuildVNC)))
+
+        # Write connection PORT in DB for vncconnection.html
+        try:
+            self.ConnectionDB.connection_vnc=externPort-32768
+            session.commit()
+        except:
+            logging.error("Can't commit connection in DB !", exc_info=True)
+        logging.debug("Connection VNC port saved : "+str(self.ConnectionDB.connection_vnc)+" real : "+str(self.ConnectionDB.connection_vnc+32768))
+
+        self.dir_out="TVFiles/"+str(self.ConnectionDB.id_users)+"/"+str(self.ConnectionDB.id)
+        
+        # Test already in use extern port from old websockify process
+        try:
+            commandTestOldWebsockify="bash -c 'pgrep -fa websockify |grep "+str(externPort)+"| grep -v pgrep'"
+            self.LogTestOldWebsockify=self.containerFlask.exec_run(cmd=commandTestOldWebsockify,user="root")
+            logging.warning("Test already in use extern port from old websockify process "+str(self.LogTestOldWebsockify.output,"utf-8"))
+            if( re.sub(r'.*('+str(externPort)+').*',r'\1',str(self.LogTestOldWebsockify)) == str(externPort) ):
+                PIDoldwebsockify=int(re.sub(r'^([0-9]*) .*',r'\1',str(self.LogTestOldWebsockify.output,"utf-8")))
+                commandKillOldWebsockify="bash -c 'kill -9 "+str(PIDoldwebsockify)+"'"
+                self.LogKillOldWebsockify=self.containerFlask.exec_run(cmd=commandKillOldWebsockify,user="root")
+                logging.warning("Kill old websockify process"+str(self.LogKillOldWebsockify))
+        except Exception as err:
+            logging.error("Error while testing or killing old websockify process "+str(externPort)+" : "+str(err), exc_info=True)
         
         # SSL encrypt : use websockify and SSL public/secret keys.
-        
+        self.SSLpublic=os.getenv('SSLpublic')
+        self.SSLprivate=os.getenv('SSLprivate')
         # Call websockify server for this connection
         commandLaunchWebsockify="bash -c 'cd /TiledViz/TVConnections/; source /flask_venv/bin/activate; "+\
-            "./wss_websockify "+os.getenv('SSLpublic')+" "+os.getenv('SSLprivate')+ \
+            "./wss_websockify "+self.SSLpublic+" "+self.SSLprivate+ \
             " "+str(externPort)+" "+str(internPort)+" /TiledViz/TVWeb"+ \
             " 2>&1 > /tmp/websockify_$(date +%F_%H-%M-%S).log &'"
         logging.debug("commandLaunchWebsockify : "+commandLaunchWebsockify)
         logging.warning("commandLaunchWebsockify.")
         self.LogLaunchWebsockify=self.containerFlask.exec_run(cmd=commandLaunchWebsockify,user=self.flaskusr,detach=True)
+        #user="root"
+        
         # Get websockify PID :
         commandWebsockifyPID="bash -c 'echo $(pgrep -f \"^python3 .*"+str(internPort)+"\" |sort |head -1)'"
         tries=0
         while True:
             time.sleep(1)
             self.LogWebsockifyPID=container_exec_out(self.containerFlask, commandWebsockifyPID,user=self.flaskusr)
+            #user="root"
             if ( str(self.LogWebsockifyPID) != '' ):
                 try:
                     self.websockifyPID=int(self.LogWebsockifyPID)
+                    break
                 except:
                     logging.error("Wait for websockify PID " + str(self.LogWebsockifyPID))
                     tries=tries+1
@@ -740,22 +811,6 @@ class ConnectionDocker(threading.Thread):
                 self.websockifyPID=-1
                 break
         logging.warning("PID for websockify for user "+self.flaskusr+" on Flask container. "+str(self.websockifyPID))
-        
-        
-        # Add password for temporary connection
-        commandBuildVNC="awk 'BEGIN {print \""+self.password+"\" >>\""+flaskhome+"/vncpassword\"}' /dev/null"
-        self.LogBuildVNC=container_exec_out(self.containerFlask, commandBuildVNC,user=self.flaskusr)
-        logging.debug("Add VNC password to Flask docker :\n"+re.sub(r'\*n',r'\\n',self.LogBuildVNC))
-
-        
-        # Write connection PORT in DB for vncconnection.html
-        try:
-            self.ConnectionDB.connection_vnc=externPort-32768
-            session.commit()
-        except:
-            logging.error("Can't commit connection in DB !", exc_info=True)
-        logging.debug("Connection VNC port saved : "+str(self.ConnectionDB.connection_vnc)+" real : "+str(self.ConnectionDB.connection_vnc+32768))
-
         
         # Connect to TVConnection in connectionDocker to send actions commands.
         self.actionPort=ActionPort+self.ConnectNum
@@ -796,10 +851,71 @@ class ConnectionDocker(threading.Thread):
         self.LogModAction=self.containerConnect.exec_run(cmd="chmod u+x "+self.kill_action_script,user=self.user,detach=True)
         logging.warning("action script built.")
         
+        listPortsTilesFile=os.path.join(self.dir_out,"listPortsTiles.pickle")
+        logging.warning("Launch websockify and save "+listPortsTilesFile+" on Connection "+self.name)
+        try:
+            # SSL encrypt : use websockify and SSL public/secret keys.
+            self.listPortsTilesIE={}
+            self.listPortsTilesIE["TiledVizHost"]=flaskaddr
+            inode=0
+            for key in self.listPortsTiles:
+                externPort=self.listPortsTiles[key][1]
+                if ( externPort == self.PORTssh ):
+                    self.listPortsTilesIE["TiledVizConnectionPort"]=self.PORTssh
+                    pass
+                else:
+                    # get internal port for ssh tunneling in connectiondock
+                    s=socket.socket();
+                    s.bind(("127.0.0.1", 0));
+                    internPort=s.getsockname()[1];
+                    s.close()
+                    # Call websockify client for this tile
+                    commandLaunchWebsockify="bash -c 'cd /TiledViz/TVConnections/; source /TiledViz/TiledVizEnv_*/bin/activate; "+\
+                        "./wss_websockify "+self.SSLpublic+" "+self.SSLprivate+ \
+                        " "+str(externPort)+" "+str(internPort)+" /TiledViz/TVWeb"+ \
+                        " 2>&1 > /tmp/websockify_$(date +%F_%H-%M-%S).log &'"
+                    logging.debug("commandLaunchWebsockify : "+commandLaunchWebsockify)
+                    logging.warning("commandLaunchWebsockify : "+commandLaunchWebsockify)
+                    #logging.warning("commandLaunchWebsockify. "+key)
+                    self.LogLaunchWebsockify=self.containerConnect.exec_run(cmd=commandLaunchWebsockify,user=self.user,detach=True)
+                    #user="root",
+                    # save external and internal ports
+                    self.listPortsTilesIE[str(inode)]=(internPort,externPort)
+                    inode=inode+1
+
+            with open(listPortsTilesFile,'wb') as portsf:
+                pickle.dump(self.listPortsTilesIE,portsf)
+        except Exception as err:
+            logging.error("Error with launch websockify and save "+listPortsTilesFile+" on Connection "+self.name+" : "+str(err), exc_info=True)
+            logging.error(str(self.listPortsTiles))
+
+        try:
+            filetar = BytesIO()
+            intar = tarfile.TarFile(fileobj=filetar, mode='w')
+            with open(listPortsTilesFile,'rb') as tf:
+                tfd=tf.read()
+                filename=os.path.basename(listPortsTilesFile)
+                tarinfo = tarfile.TarInfo(name=filename)
+                tarinfo.size = len(tfd)
+                tarinfo.mtime = time.time()
+                tarinfo.uid = os.getuid()
+                tarinfo.gid = os.getgid()
+                intar.addfile(tarinfo, BytesIO(tfd))
+                tf.close()
+            intar.close()
+            filetar.seek(0)
+
+            # Use put_archive to cp config files 
+            self.LogPut=self.containerConnect.put_archive(path=self.home, data=filetar)
+            logging.warning("Put "+listPortsTilesFile+" to connection docker :\n"+str(self.LogPut))
+            filetar.close()
+        except Exception as err:
+            logging.error("Error while putting "+listPortsTilesFile+" on Connection "+self.name+" : "+str(err), exc_info=True)
+            logging.error(str(self.listPortsTilesIE))
+
         search_action = re.compile(r''+"action=")
 
         path_nodesjson=os.path.join(self.home,"nodes.json")
-        self.dir_out="TVFiles/"+str(self.ConnectionDB.id_users)+"/"+str(self.ConnectionDB.id)
         time.sleep(timeAliveConn)
 
         self.nodes_ok=False
@@ -975,7 +1091,7 @@ class ConnectionDocker(threading.Thread):
         self.LogTunnel=self.containerConnect.exec_run(cmd="sh -c "+self.kill_tunnel_script,user=self.user,detach=True)
 
         logging.warning("Kill tunnel end to Flask docker")
-        # logging.warning("Kill tunnel to Flask docker :\n"+re.sub(r'\*n',r'\\n',self.LogTunnel))
+        # logging.warning("Kill tunnel to Flask docker :\n"+re.sub(r'\*n',r'\\n',str(self.LogTunnel)))
 
     def startActionConnection(self):
         # Server in TVSecure wait for connection from TVConnection in connectionDocker to send actions commands.
@@ -1000,17 +1116,18 @@ class ConnectionDocker(threading.Thread):
             self.action_OK=True
         except Exception as err:
             logging.error("Error with Action server "+str(self.ConnectionDB.id)+" : "+str(err), exc_info=True)
-        
+
     def quitConnection(self):
         # Quit Websockify for user
         commandKillWebsockify="bash -c 'kill "+str(self.websockifyPID)+"'"
         self.LogKillWebsockify=container_exec_out(self.containerFlask,commandKillWebsockify,user=self.flaskusr)
-        logging.warning("Kill websokify for "+self.flaskusr+" on Flask container. "+re.sub(r'\*n',r'\\n',self.LogKillWebsockify))
+        #user="root"
+        logging.warning("Kill websokify PID "+str(self.websockifyPID)+" on Flask container. "+re.sub(r'\*n',r'\\n',str(self.LogKillWebsockify)))
 
         # Erase login on flask
         commandRmuser="bash -c 'userdel -r -f "+self.flaskusr+"'"
         self.LogRmUser=container_exec_out(self.containerFlask, commandRmuser)
-        logging.warning("Rm user "+self.flaskusr+" on Flask container."+re.sub(r'\*n',r'\\n',self.LogRmUser))
+        logging.warning("Rm user "+self.flaskusr+" on Flask container."+re.sub(r'\*n',r'\\n',str(self.LogRmUser)))
 
         # End action connection:
         try:
@@ -1030,8 +1147,9 @@ class ConnectionDocker(threading.Thread):
             logging.error("Error while stoping Connection docker "+str(self.ConnectionDB.id)+" : "+str(err), exc_info=True)
 
         logging.warning("End of quitConnection for "+self.name+", containers list :"+str(client.containers.list()))
+        self.hasQuit=True
         raise ValueError                        
-            
+    
         
     def connect(self):
         logging.debug("Tunnel command in "+self.tunnel_script+" : "+self.tunnel_command)
@@ -1040,7 +1158,7 @@ class ConnectionDocker(threading.Thread):
         # outHandler.flush()
         # testTunnel="sh -c \'pgrep -fla \"ssh.*"+self.flaskusr+"\"\'"
         # self.LogTestTunnel=container_exec_out(self.containerConnect, testTunnel,user=self.user)
-        # logging.debug("Tunnel to Flask docker :\n"+re.sub(r'\*n',r'\\n',self.LogTestTunnel))
+        # logging.debug("Tunnel to Flask docker :\n"+re.sub(r'\*n',r'\\n',str(self.LogTestTunnel)))
         logging.warning("Container connected.")
         outHandler.flush()
 

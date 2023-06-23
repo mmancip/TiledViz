@@ -11,6 +11,7 @@ ARGS=$@
 #1920x1080
 myUID=1000
 myGID=1000
+PORTssh=22
 
 export ConnectionId=$1
 export POSTGRES_HOST=$2
@@ -20,7 +21,7 @@ export POSTGRES_USER=$5
 export POSTGRES_PASSWORD="$6"
 
 if [ -z "$5" ]; then
-	echo Usage: $0 ConnectionId POSTGRES_HOST POSTGRES_PORT POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD [-r RESOL_XxRESOL_Y] -u UID [-g GID] [-d]
+	echo Usage: $0 ConnectionId POSTGRES_HOST POSTGRES_PORT POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD [-r RESOL_XxRESOL_Y] -p PORTssh -u UID [-g GID] [-d]
 	exit 1
 else
     IFS=' ' read -ra ADDR <<< "$ARGS"
@@ -36,6 +37,8 @@ else
 		    myUID=${ADDR[$((i+1))]};;
 		'-g')
 		    myGID=${ADDR[$((i+1))]};;
+		'-p')
+		    PORTssh=${ADDR[$((i+1))]};;
 		'-d')
 		    debug=true;;
 		'.*')
@@ -48,6 +51,9 @@ fi
 
 
 /etc/init.d/postfix start
+sed -e "s&#Port 22&Port $PORTssh&" -i /etc/ssh/sshd_config
+/usr/sbin/sshd-keygen
+/usr/sbin/sshd -E /var/log/sshd.log
 
 groupadd -g ${myGID} myuser
 useradd -r -u ${myUID} -g myuser myuser

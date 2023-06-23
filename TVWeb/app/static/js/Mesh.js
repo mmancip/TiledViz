@@ -126,6 +126,8 @@ $(document).ready(    function (){
     	_allowDragAndDrop = true;
 	$('.handle').addClass("drag-handle-on").removeClass("drag-handle-off");
     }
+
+    function parseBool(val) { return val === true || val === "true" };
     
 Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
@@ -161,7 +163,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
     // Rotation increment
     var RotInc=0.5;
-    if (configBehaviour.smoothRotation) {
+    if (parseBool(configBehaviour.smoothRotation)) {
 	RotInc=parseFloat(configBehaviour.RotationSpeed); //for a smooth touchmove rotation
     } else {
 	// for a turn over with only touchstart / touchend (no touchmove) events
@@ -192,7 +194,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     TagHeight=0; // tag-legend zone height
     
     // Correct wrong default config
-    if (! configBehaviour.onlyMasterMS)
+    if (!! configBehaviour.onlyMasterMS)
 	configBehaviour.onlyMasterMS=false
     configBehaviour.touchonWindow=false
     
@@ -507,8 +509,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	// see http://imakewebthings.com/waypoints/ for details
 	var waypoint = new Array();
 
+	// Definition of the background $(#superSail) 
 	if(nodeZoomTab.length!=0){		
-	    // Definition of the background $(#superSail) 
 	    // (each time tiles are magnified, it will be removed and re-created since it’s not a complex and heavy element)
 	    $("body").append('<div id=superSail></div>');
 	    $("#superSail").css({ // GLOBALCSS !
@@ -892,8 +894,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    }
 	}
 	for (O in nodesByLoc)  { 
-	    if (nodesByLoc[O].getOnOffStatus() &&
-		nodesByLoc[O].getNodeInViewportStatus()) {
+	    if (nodesByLoc[O].getNodeInViewportStatus()) {
+		//nodesByLoc[O].getOnOffStatus() &&
 	    	SetOn(nodesByLoc[O].getId());
 	    } else {
 	    	SetOff(nodesByLoc[O].getId());
@@ -1157,8 +1159,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		}
 	    }
 	    for (O in nodesByLoc)  { 
-		if (nodesByLoc[O].getOnOffStatus() &&
-		    nodesByLoc[O].getNodeInViewportStatus()) {
+		if (nodesByLoc[O].getNodeInViewportStatus()) {
+		    //nodesByLoc[O].getOnOffStatus() &&
 	    	    SetOn(nodesByLoc[O].getId());
 		} else {
 	    	    SetOff(nodesByLoc[O].getId());
@@ -2319,7 +2321,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		// We repeat first node because its div will be used as master.
 		nodeMSTab=Array(nodeMSTab[0]).concat(nodeMSTab);
-		if (configBehaviour.onlyMasterMS)
+		if (parseBool(configBehaviour.onlyMasterMS))
 		    configBehaviour.allMSShowMax=0;
 		if (nodeMSTab.length > configBehaviour.allMSShowMax+1) {
 		    nodeMSTab_=nodeMSTab.slice(0, configBehaviour.allMSShowMax+1);
@@ -2763,7 +2765,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 				nodesByLoc[O].getHtmlNode().children(".info").css({visibility : "visible", display : "inline" });
 			$('#'+id+'option'+optionNumber).removeClass('showInfoButtonIcon').addClass('closeShowInfoButtonIcon');
 		    } else { 
-			if(! configBehaviour.alwaysShowInfo)  { 
+			if(!! configBehaviour.alwaysShowInfo)  { 
 			    for (O in nodesByLoc)
 				if (nodesByLoc[O].getNodeInViewportStatus())
 				    nodesByLoc[O].getHtmlNode().children(".info").css({visibility : "hidden"});
@@ -2868,7 +2870,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			    //$('input[name=drawOtherNodes'+thisblob.nodeId+'][value=yes]').attr("checked", true);
    			    $('#drawOtherNodes'+thisblob.nodeId).off("change").on({
    				change : function() {
-				    if (! $('input[name=drawOtherNodes'+thisblob.nodeId+']').attr("checked")) {
+				    if (!! $('input[name=drawOtherNodes'+thisblob.nodeId+']').attr("checked")) {
 					// Checked : Hide all pictures of this blob on tiles.
 					emit_ModifDraws("HideDraw",thisblob.nodeId);
 				    } else {
@@ -3217,19 +3219,22 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		// Primary Zoom Slider
 		$('#options-look').append("<div id=options-primaryZoomSlider-label class=label>Global Zoom Slider</div>");
 		$('#options-look').append("<input type='checkbox' name=enable-primaryZoom value="+ configBehaviour.primaryZoomSlider +">Enable primary Zoom Slider<br />");
-		$('input[name=enable-primaryZoom]').attr("checked",configBehaviour.primaryZoomSlider);
+		if (parseBool(configBehaviour.primaryZoomSlider))
+		    $('input[name=enable-primaryZoom]').attr("checked",configBehaviour.primaryZoomSlider);
 		
 		// Primary Zoom Slider
 		$('#options-look').append("<div id=options-globalVerticalSlider-label class=label>Global Vertical Slider</div>");
 		var gVS=false;
 		$('#options-look').append("<input type='checkbox' name=enable-globalVertical value="+gVS+">Enable browser vertical slider<br />");
-		$('input[name=enable-globalVertical]').attr("checked",gVS);
+		if (parseBool(gVS))
+		    $('input[name=enable-globalVertical]').attr("checked",gVS);
 		
 		// Spread
 		$('#options-zone').append("<div id=options-spread class=option-group></div>");
 		$('#options-spread').append("<div id=options-spread-label class=label>Tile size</div>");
 		$('#options-spread').append("<input type='checkbox' name=spread-keepratio value="+ configBehaviour.defaultKeepRatio +">Keep ratio<br />");
-		$('input[name=spread-keepratio]').attr("checked",configBehaviour.defaultKeepRatio);
+		if (parseBool(configBehaviour.defaultKeepRatio))
+		    $('input[name=spread-keepratio]').attr("checked",configBehaviour.defaultKeepRatio);
 
 		$('#options-spread').append("X: <input id=spreadX name=spreadX type='number' value=" +spread.X +">px   ");
 		$('#options-spread').append("Y: <input id=spreadY name=spreadY type='number' value=" +spread.Y +">px <br />");
@@ -3273,7 +3278,9 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		// Always show info
 		$('#options-zone').append("<div id=options-info class=option-group></div>");
 		$('#options-info').append("<div id=options-showinfo-label class=label>Informations</div>");
-		$('#options-info').append("<input type='checkbox' id='showinfo-cb' name='showinfo-cb' value='yes'>Always show</input>");
+		$('#options-info').append("<input type='checkbox' id='showinfo-cb' name='showinfo-cb' value="+configBehaviour.alwaysShowInfo+">Always show</input>");
+		if (parseBool( configBehaviour.alwaysShowInfo))
+		    $('input[name=showinfo-cb]').attr("checked", configBehaviour.alwaysShowInfo);
 		// Info style
 		$('#options-info').append("<div id=options-info-font-label class=label>Font</div>");
 		$('#options-info').append("<select id=options-info-font-select></select>");
@@ -3285,36 +3292,41 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		}
 		$('#options-info').append("<div id=options-info-size-label class=label>Size</div>");
 		$('#options-info').append("<input id=infoSize name=infoSize type='number' value="+ parseInt($('.info').css("font-size"))  +"><h1> less than "+configBehaviour.maxInfoFontSize+"</h1>");
-		$('input[name=showinfo-cb][value=yes]').attr("checked", configBehaviour.alwaysShowInfo);
 
 		// Drag and drop behaviour
 		$('#options-zone').append("<div id=options-dragdrop class=option-group></div>");
 		$('#options-dragdrop').append("<div id=options-dragdrop-label class=label>Drag & drop</div>");
-		$('#options-dragdrop').append("<input type='checkbox' id='show-only-border-cb' name='show-only-border-cb' value='yes'>Show only the border</br></input>");
-		$('input[name=show-only-border-cb]').attr("checked", configBehaviour.moveOnlyABorder);
-		$('#options-dragdrop').append("<input type='checkbox' id='move-on-menu-item-cb' name='move-on-menu-item-cb' value='yes'>Enable in menu items</br></input>");
-		//console.log(configBehaviour.moveOnMenuOption);
-		$('input[name=move-on-menu-item-cb]').attr("checked", configBehaviour.moveOnMenuOption);
-		$('#options-dragdrop').append("<input type='checkbox' id='move-on-grid-cb' name='move-on-grid-cb' value='yes'>Move on a grid</br></br></input>");
-		$('input[name=move-on-grid-cb]').attr("checked", configBehaviour.moveOnGrid);
-		$('#options-dragdrop').append("<input type='checkbox' id='showAnimationsLineColSwap' name='showAnimationsLineColSwap' value='yes'>Animate moves</br></input>");
-		$('input[name=showAnimationsLineColSwap]').attr("checked", configBehaviour.showAnimationsLineColSwap);
-
+		$('#options-dragdrop').append("<input type='checkbox' id='show-only-border-cb' name='show-only-border-cb' value="+configBehaviour.moveOnlyABorder+">Show only the border</br></input>");
+		if (parseBool( configBehaviour.moveOnlyABorder))
+		    $('input[name=show-only-border-cb]').attr("checked", configBehaviour.moveOnlyABorder);
+		$('#options-dragdrop').append("<input type='checkbox' id='move-on-menu-item-cb' name='move-on-menu-item-cb' value="+configBehaviour.moveOnMenuOption+">Enable in menu items</br></input>");
+		if (parseBool( configBehaviour.moveOnMenuOption))
+		    $('input[name=move-on-menu-item-cb]').attr("checked", configBehaviour.moveOnMenuOption);
+		$('#options-dragdrop').append("<input type='checkbox' id='move-on-grid-cb' name='move-on-grid-cb' value="+configBehaviour.moveOnGrid+">Move on a grid</br></br></input>");
+		if (parseBool( configBehaviour.moveOnGrid))
+		    $('input[name=move-on-grid-cb]').attr("checked", configBehaviour.moveOnGrid);
+		$('#options-dragdrop').append("<input type='checkbox' id='showAnimationsLineColSwap' name='showAnimationsLineColSwap' value="+configBehaviour.showAnimationsLineColSwap+">Animate moves</br></input>");
+		if (parseBool( configBehaviour.showAnimationsLineColSwap))
+		    $('input[name=showAnimationsLineColSwap]').attr("checked", configBehaviour.showAnimationsLineColSwap);
 		$('#options-dragdrop').append("<br>Speed of animations:</br><input id=AnimationSpeed name=AnimationSpeed type='number' value=" +configBehaviour.animationSpeed+ "></br>");
 
 		// Zoom Nodes behaviour
 		$('#options-zone').append("<div id=options-zoom class=option-group></div>");
 		$('#options-zoom').append("<div id=options-sharedZoomNodes-label class=label>Shared zoom nodes</div>");
 		$('#options-zoom').append("<input type='checkbox' name=enable-sharedzoomnodes value="+ configBehaviour.sharedZoomNodes +">Enable shared zoom nodes<br /></br>");
-		$('input[name=enable-sharedzoomnodes]').attr("checked",configBehaviour.sharedZoomNodes);
+		if (parseBool(configBehaviour.sharedZoomNodes))
+		    $('input[name=enable-sharedzoomnodes]').attr("checked",configBehaviour.sharedZoomNodes);
 		
 		$('#options-zoom').append("<input type='checkbox' name=enable-sharedSliderzoom value="+ configBehaviour.sharedSliderZoom +">Enable shared slider zoom<br /></br>");
-		$('input[name=enable-sharedSliderzoom]').attr("checked",configBehaviour.sharedSliderZoom);
+		if (parseBool(configBehaviour.sharedSliderZoom))
+		    $('input[name=enable-sharedSliderzoom]').attr("checked",configBehaviour.sharedSliderZoom);
 		
 		// master-slave behaviour
 		$('#options-zoom').append("<div id=options-masterslave-label class=label>Parallel interaction</div>");
 		$('#options-zoom').append("<br>Number of tiles showed:</br><input id=allMSShowMax name=allMSShowMax type='number' value=" +configBehaviour.allMSShowMax+ "></br>");
 		$('#options-zoom').append("<br>Only MASTER in MS mode:</br><input id=onlyMasterMS name=onlyMasterMS type='checkbox' value=" +configBehaviour.onlyMasterMS+ "></br>");
+		if (parseBool(configBehaviour.onlyMasterMS))
+		    $('input[name=onlyMasterMS]').attr("checked",configBehaviour.onlyMasterMS);
 
 		$('#options-zone').append("<div id=options-touch class=option-group></div>");
 		// Touch behaviour
@@ -3323,11 +3335,12 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		    $('#options-touch').append("<br>Speed of touch:</br><input id=touchSpeed name=touchSpeed type='number' value=" +configBehaviour.touchSpeed+ "></br>");
 		    $('#options-touch').append("<input type='checkbox' id='touchon-window' name='touchon-window' value="+configBehaviour.touchonWindow+">Touch on window gesture</input></br>");
-		    $('input[name=touchon-window]').attr("checked", configBehaviour.touchonWindow);
-			    
+		    if (parseBool( configBehaviour.touchonWindow))
+		        $('input[name=touchon-window]').attr("checked", configBehaviour.touchonWindow);			    
 		}
-		$('#options-touch').append("<input type='checkbox' id='smooth-rotation' name='smooth-rotation' value='no'>Smooth rotation</input>");
-		$('input[name=smooth-rotation]').attr("checked", configBehaviour.smoothRotation);
+		$('#options-touch').append("<input type='checkbox' id='smooth-rotation' name='smooth-rotation' value="+configBehaviour.smoothRotation+">Smooth rotation</input>");
+		if (parseBool( configBehaviour.smoothRotation))
+		    $('input[name=smooth-rotation]').attr("checked", configBehaviour.smoothRotation);
 		
 		$('#options-touch').append("<br>Speed of rotation:</br><input id=RotInc name=RotInc type='number' step='0.1' value=" +configBehaviour.RotationSpeed+ "></br>");
 
@@ -3372,7 +3385,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    tempBehaviour=tempBehaviour.replace("***","'opacity':"+configBehaviour.opacity+", ***");
 
 		    configBehaviour.primaryZoomSlider = $('input[name=enable-primaryZoom]').is(":checked");
-		    if ( configBehaviour.primaryZoomSlider ) {
+		    if (parseBool( configBehaviour.primaryZoomSlider )) {
 			$('#primarySliderLabel').show();
 			$('#primarySlider').show();
 			$('#primarySlider').click();
@@ -3384,7 +3397,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    }
 		    
 		    var gVS = $('input[name=enable-globalVertical]').is(":checked");
-		    if (gVS)
+		    if (parseBool(gVS))
 			document.body.setAttribute('style','overflow:hidden auto;');
 		    else
 			document.body.setAttribute('style','overflow:hidden;');
@@ -3473,7 +3486,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			tempBehaviour=tempBehaviour.replace("***","'touchSpeed': "+configBehaviour.touchSpeed+", ***");
 
 			configBehaviour.touchonWindow = $('#touchon-window').val();
-			if (configBehaviour.touchonWindow) {
+			if (parseBool(configBehaviour.touchonWindow)) {
 			    document.body.setAttribute('style','overflow:auto;');			    
 			} else {
 			    document.body.setAttribute('style','overflow:hidden;');
@@ -3483,7 +3496,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 		    configBehaviour.smoothRotation = $('input[name=smooth-rotation]').is(":checked");
 		    tempBehaviour=tempBehaviour.replace("***","'smoothRotation': '"+configBehaviour.smoothRotation+"', ***");
-		    if (configBehaviour.smoothRotation) {
+		    if (parseBool(configBehaviour.smoothRotation)) {
 			configBehaviour.RotationSpeed=$('#RotInc').val();
 			tempBehaviour=tempBehaviour.replace("***","'RotationSpeed': '"+configBehaviour.smoothRotation+"', ***");
 			RotInc=parseFloat(configBehaviour.RotationSpeed); //for a smooth touchmove rotation
@@ -3550,6 +3563,13 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 			    //saveAs(file);
 			    download([ConfigJson], fileName, {type: "text/plain;charset=utf-8"})
 			    addBlink(this)
+
+			    // Force save config in DB too.
+			    cdata ={"room":my_session, "Config": ConfigJson.replaceAll("'",'"') }
+			    console.log("Share config : "+ConfigJson);
+			    // used to deploy config but not on the user that have emited the signal.
+			    myOwnConfig=true;
+			    socket.emit("share_Config", cdata);
 			}
 		});
 		
@@ -3666,7 +3686,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
         if(tempBehaviour.hasOwnProperty('smoothRotation'))
 	    configBehaviour.smoothRotation = $.parseJSON(tempBehaviour.smoothRotation);
 
-	if (configBehaviour.smoothRotation) {
+	if (parseBool(configBehaviour.smoothRotation)) {
             if(tempBehaviour.hasOwnProperty('RotationSpeed'))
 		configBehaviour.RotationSpeed =  $.parseJSON(tempBehaviour.RotationSpeed);
 	    RotInc=parseFloat(configBehaviour.RotationSpeed); //for a smooth touchmove rotation
@@ -4376,7 +4396,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    $('.tagsGlobalMenuButtonIcon').click()
 
 	me.setSelectTags(true);
-	$('#clearSelectionButtonIcon').click();
+	$('.clearSelectionButtonIcon').click();
 
 	if (nextList.length == 0) {
 	    var numberOff=$('.Off').length;
@@ -4384,140 +4404,328 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	    // Select next "Off" tiles with max number "On" or "Off" if it is lower
 	    var numberToView=Math.min(numberOn,numberOff)
 	}
+	    
+	// All functions for this page salection
+	// to AddOnTagsPage
+	funApplyNewTag_CloseMenuButtonIcon=function(newtag) {
+	    var checkApplyNewTag = setInterval(function() {
+		if ( $('.'+newtag).length > 0 ) {
+		    clearInterval(checkApplyNewTag);
+		    $('.closeSelectTagMenuButtonIcon').click();
+		}
+	    }, IntervalApplyToTag)
+	}
+
+	funEndselectionToTag_taglegendclick=function(newtag) {
+	    var checkEndselectionToTag = setInterval(function() {
+		if ( $('.closeSelectionToTagButtonIcon').length) {
+		    clearInterval(checkEndselectionToTag);
+		    $('#tag-legend>#'+newtag).click();
+		    funApplyNewTag_CloseMenuButtonIcon(newtag);
+		}
+	    }, IntervalSelectionToTag)
+	}
+
+	funEndaddPageTag_selectionToTagButtonIcon = function(newtag) {
+	    var checkEndaddPageTag = setInterval(function() {
+		if (receive_Add_Tag) {
+		    clearInterval(checkEndaddPageTag);
+		    addBlink($('.selectionToTagButtonIcon'));
+		    $('.selectionToTagButtonIcon').click()
+		    funEndselectionToTag_taglegendclick(newtag);
+		}
+	    }, IntervalAddNextTag)
+	}
+
+	funCloseSelectTag_emitnewTag = function(page) {
+	    var checkCloseSelectTag = setInterval(function() {
+		if ($('.selectTagButtonIcon').length) {
+		    clearInterval(checkCloseSelectTag);
+		    var newtag="Page"+page;
+ 		    console.log("New On page ", newtag);
+		    emit_newTag(id+'option'+optionNumber,newtag);
+		    
+		    funEndaddPageTag_selectionToTagButtonIcon(newtag)
+		}
+	    }, IntervalCloseSelectTag)
+	}
+
+	funEndshareSelectionOn_closeSelectTag = function(page) {
+	    var checkEndshareSelectionOn = setInterval(function() {
+		if (receive_deploy_Selection) {
+		    clearInterval(checkEndshareSelectionOn);
+		    
+		    addBlink($('.closeSelectTagButtonIcon'));
+		    $('.closeSelectTagButtonIcon').click();
+		    
+		    funCloseSelectTag_emitnewTag(page);
+		}
+	    }, IntervalShareSelection)
+	}
+
+	funEndselectOnStickers_listSelectionIds = function(page) {
+	    var checkEndselectOnStickers= setInterval(function() {
+		if ( me.getSelectedNodes().length > 0) {
+		    clearInterval(checkEndselectOnStickers);
+		    
+		    var selectedNodes=me.getSelectedNodes().filter(node=>{if (node.getNodeTagList().indexOf("On") > -1) return node});
+		    
+		    addBlink($('.closeSelectTagButtonIcon'))
+		    me.setSelectTags(false);
+		    
+    		    var listSelectionIds = [];
+    		    var listSelectionTiles=me.getSelectedNodes();
+    		    for(O in listSelectionTiles)  { 
+    			listSelectionIds.push(listSelectionTiles[O].getId());
+    		    }
+     		    //console.log("share_Selection",listSelectionIds);
+		    receive_deploy_Selection=false;
+    		    var cdata ={"room":my_session, "Selection": "["+listSelectionIds.toString()+"]" }
+    		    socket.emit("share_Selection", cdata);
+		    
+		    funEndshareSelectionOn_closeSelectTag(page);
+		}
+	    }, IntervalSelectOffStickers)
+	}
 	
-	var checkEndcloseTagsGlobalMenu = setInterval(function() {
-	    if ($('.closeTagsGlobalMenuButtonIcon').length ) {
-		clearInterval(checkEndcloseTagsGlobalMenu);
-		
-		// We can't click on SelectTagMenu and .tagsMenuSelectButton
-		// because nodes tagged off are not identically distributed to all clients.
-		// Then we use here internal function setSelectTags and share_Selection after.
-		if ($('.closeSelectTagMenuButtonIcon').length == 0)
-		    $('.selectTagMenuButtonIcon').click();
-		$('.clearSelectionButtonIcon').click()
-		addBlink($('.clearSelectionButtonIcon'));
+	funselectTagButton_taglegendOn = function(page) {
+	    var checkselectTagButton = setInterval(function() {
+		if ($('.closeSelectTagButtonIcon').length) {
+		    clearInterval(checkselectTagButton);
+		    
+		    $('#tag-legend>#On').click();
+		    addBlink($('#tag-legend>#On'));
+     		    console.log("Selection On");
+		    
+		    funEndselectOnStickers_listSelectionIds(page);
+		}
+	    }, IntervalCloseTagButton)
+	}
 
-		var checkselectTagMenu = setInterval(function() {
-		    if ($('.closeSelectTagMenuButtonIcon').length) {
-			clearInterval(checkselectTagMenu);
-			if ($('.closeSelectTagButtonIcon').length == 0)
-			    $('.selectTagButtonIcon').click();
-			
-			var checkselectTagButton = setInterval(function() {
-			    if ($('.closeSelectTagButtonIcon').length) {
-				clearInterval(checkselectTagButton);
+	funselectTagMenu_selectTagButtonIcon = function(page) {
+	    var checkselectTagMenu = setInterval(function() {
+		if ($('.closeSelectTagMenuButtonIcon').length) {
+		    clearInterval(checkselectTagMenu);
+		    if ($('.closeSelectTagButtonIcon').length == 0)
+			$('.selectTagButtonIcon').click();
+			    
+		    funselectTagButton_taglegendOn(page);
+		}
+	    }, IntervalCloseTagMenu)
+	}
 
-				if (nextList.length < 1) {
-				    $('#tag-legend>#Off').click();
-				    addBlink($('#tag-legend>#Off'));
-     				    console.log("Selection Off");
-				} else {
-				    var oldtag="Next"+(nextList.length-1);
-				    // sans les On ! ou intersection oldtag et Off actuel
-				    $('#tag-legend>#'+oldtag).click();
-				    addBlink($('#tag-legend>#'+oldtag));
-     				    console.log("Selection "+oldtag);
-				}
-				
-				var checkEndselectOffStickers = setInterval(function() {
-				    if ( me.getSelectedNodes().length > 0) {
-					clearInterval(checkEndselectOffStickers);
+	funAddOnTagsPage = function(page) {
+	    var checkEndcloseTagsGlobalMenu=setInterval(function() {
+		if ($('.closeTagsGlobalMenuButtonIcon').length ) {
+		    clearInterval(checkEndcloseTagsGlobalMenu);
+		    
+		    if ($('.closeSelectTagMenuButtonIcon').length == 0)
+			$('.selectTagMenuButtonIcon').click();
+		    $('.clearSelectionButtonIcon').click()
+		    addBlink($('.clearSelectionButtonIcon'));
 
-					// Correction from previous Next selection and still Off tiles.
-					//var selectedNodes= me.getSelectedNodes(); for (O in selectedNodes) { var node=selectedNodes[O]; console.log(node.getNodeTagList()) }
-					//var selectedNodes= me.getSelectedNodes(); selectedNodes.filter(node=>{ console.log("Off" in node.getNodeTagList()); if ("Off" in node.getNodeTagList()) node })
-					selectedNodes=selectedNodes.filter(node=>{if (node.getNodeTagList().indexOf("Off") > -1) return node});
-					//.slice(0,numberToView);
-					
-					addBlink($('.selectTagButtonIcon'))
-					me.setSelectTags(false);
-					
-    					var listSelectionIds = [];
-    					var listSelectionTiles=me.getSelectedNodes();
-    					for(O in listSelectionTiles)  { 
-    					    listSelectionIds.push(listSelectionTiles[O].getId());
-    					}
-     					//console.log("share_Selection",listSelectionIds);
-					receive_deploy_Selection=false;
-    					var cdata ={"room":my_session, "Selection": "["+listSelectionIds.toString()+"]" }
-    					socket.emit("share_Selection", cdata);
+		    funselectTagMenu_selectTagButtonIcon(page);
+		}
+	    }, IntervalClearSelection)
+	}
+	
+	//funAddOnTagsPage(nextList.length);
 
-					
-					var checkEndshareSelectionOff = setInterval(function() {
-					    if (receive_deploy_Selection) {
-						clearInterval(checkEndshareSelectionOff);
-						
-						addBlink($('.closeSelectTagButtonIcon'));
-						$('.closeSelectTagButtonIcon').click();
+	//
+	// All functions for Next page iteration
+	//
+	funCloseAll = function() {
+	    var checkCloseAll = setInterval(function() {
+		if ( EndOfGroupping) {
+		    clearInterval(checkCloseAll);
+		    // HowTo/NeedTo Wait for click on new tag here ?
+		    $('.closeAlignTagButtonIcon').click();
+		    $('.clearSelectionButtonIcon').click();	
+		}
+	    }, IntervalCloseAll)	    
+	}
+	
+	funEndalignTag = function(newtag) {
+	    var checkEndalignTag = setInterval(function() {
+		if ( $('.closeAlignTagButtonIcon').length ) {
+		    clearInterval(checkEndalignTag);
+		    EndOfGroupping=false;
+		    $('#tag-legend>#'+newtag).click();
+		    
+		    funCloseAll();
+		    $('#'+id+'option'+optionNumber).removeClass('closeNextTilesButtonIcon').addClass('nextTilesButtonIcon');
+		    
+		}
+	    }, IntervalAlignTag)
+	}
 
-						var checkCloseSelectTag = setInterval(function() {
-						    if ($('.selectTagButtonIcon').length) {
-							clearInterval(checkCloseSelectTag);
-							var newtag="Next"+nextList.length;
-							nextList.push(newtag);
- 							console.log("Next add New Tag ", newtag);
-							emit_newTag(id+'option'+optionNumber,newtag);
-							
-							var checkEndaddNextTag = setInterval(function() {
-							    if (receive_Add_Tag) {
-								clearInterval(checkEndaddNextTag);
-								addBlink($('.selectionToTagButtonIcon'));
-								$('.selectionToTagButtonIcon').click()
-								
-								var checkEndselectionToTag = setInterval(function() {
-								    if ( $('.closeSelectionToTagButtonIcon').length) {
-									clearInterval(checkEndselectionToTag);
-									$('#tag-legend>#'+newtag).click();
-									
-									var checkApplyNewTag = setInterval(function() {
-									    if ( $('.'+newtag).length > 0 ) {
-										clearInterval(checkApplyNewTag);
-										$('.closeSelectTagMenuButtonIcon').click();
+	funCloseSelect = function(newtag) {
+	    var checkCloseSelect = setInterval(function() {
+		if ( $('.selectTagMenuButtonIcon').length ) {
+		    clearInterval(checkCloseSelect);
+		    $('.alignTagButtonIcon').click();
+		    addBlink($('.alignTagButtonIcon'));
+		    
+		    funEndalignTag(newtag);
+		}
+	    }, IntervalCloseSelect)
+	}
 
-										var checkCloseSelect = setInterval(function() {
-										    if ( $('.selectTagMenuButtonIcon').length ) {
-											clearInterval(checkCloseSelect);
-											$('.alignTagButtonIcon').click();
-											addBlink($('.alignTagButtonIcon'));
+	//,funnext
+	funApplyNewTag = function(newtag) {
+	    var checkApplyNewTag = setInterval(function() {
+		if ( $('.'+newtag).length > 0 ) {
+		    clearInterval(checkApplyNewTag);
+		    $('.closeSelectTagMenuButtonIcon').click();
+		    
+		    funCloseSelect(newtag);
+		}
+	    }, IntervalApplyToTag)
+	}
 
-											var checkEndalignTag = setInterval(function() {
-											    if ( $('.closeAlignTagButtonIcon').length ) {
-												clearInterval(checkEndalignTag);
-												EndOfGroupping=false;
-												$('#tag-legend>#'+newtag).click();
-												
-												var checkCloseAll = setInterval(function() {
-												    if ( EndOfGroupping) {
-													clearInterval(checkCloseAll);
-													// HowTo/NeedTo Wait for click on new tag here ?
-													$('.closeAlignTagButtonIcon').click();
-													$('.clearSelectionButtonIcon').click();	
-													$('#'+id+'option'+optionNumber).removeClass('closeNextTilesButtonIcon').addClass('nextTilesButtonIcon');
+	funEndselectionToTag = function(newtag) {
+	    var checkEndselectionToTag = setInterval(function() {
+		if ( $('.closeSelectionToTagButtonIcon').length) {
+		    clearInterval(checkEndselectionToTag);
+		    $('#tag-legend>#'+newtag).click();
+		    
+		    funApplyNewTag(newtag);
+		}
+	    }, IntervalSelectionToTag)
+	}
 
-												    }
-												}, IntervalCloseAll)
-											    }
-											}, IntervalAlignTag)
-										    }
-										}, IntervalCloseSelect)
-									    }
-									}, IntervalApplyToTag)
-								    }
-								}, IntervalSelectionToTag)
-							    }
-							}, IntervalAddNextTag)
-						    }
-						}, IntervalCloseSelectTag)
-					    }
-					}, IntervalShareSelection)
-				    }
-				}, IntervalSelectOffStickers)
-			    }
-			}, IntervalCloseTagButton)
+	funEndaddNextTag = function(newtag) {
+	    var checkEndaddNextTag = setInterval(function() {
+		if (receive_Add_Tag) {
+		    clearInterval(checkEndaddNextTag);
+		    addBlink($('.selectionToTagButtonIcon'));
+		    $('.selectionToTagButtonIcon').click()
+		    
+		    funEndselectionToTag(newtag);
+		}
+	    }, IntervalAddNextTag)
+	}
+
+	funCloseSelectTag = function(newtag) {
+	    var checkCloseSelectTag = setInterval(function() {
+		if ($('.selectTagButtonIcon').length) {
+		    clearInterval(checkCloseSelectTag);
+		    var newtag="Next"+nextList.length;
+		    nextList.push(newtag);
+ 		    console.log("Next add New Tag ", newtag);
+		    emit_newTag(id+'option'+optionNumber,newtag);
+		    
+		    funEndaddNextTag(newtag)
+		}
+	    }, IntervalCloseSelectTag)
+	}
+
+	funEndshareSelectionOff = function() {
+	    var checkEndshareSelectionOff = setInterval(function() {
+		if (receive_deploy_Selection) {
+		    clearInterval(checkEndshareSelectionOff);
+		    
+		    addBlink($('.closeSelectTagButtonIcon'));
+		    $('.closeSelectTagButtonIcon').click();
+		    
+		    funCloseSelectTag();
+		}
+	    }, IntervalShareSelection)
+	}
+
+	funEndselectOffStickers = function() {
+	    var checkEndselectOffStickers = setInterval(function() {
+		if ( me.getSelectedNodes().length > 0) {
+		    clearInterval(checkEndselectOffStickers);
+		    
+		    // Correction from previous Next selection and still Off tiles.
+		    //var selectedNodes= me.getSelectedNodes();
+		    //for (O in selectedNodes) { var node=selectedNodes[O]; console.log(node.getNodeTagList()) }
+		    //var selectedNodes= me.getSelectedNodes(); selectedNodes.filter(node=>{ console.log("Off" in node.getNodeTagList()); if ("Off" in node.getNodeTagList()) node })
+		    var selectedNodes=me.getSelectedNodes().filter(node=>{if (node.getNodeTagList().indexOf("Off") > -1) return node});
+		    //.slice(0,numberToView);
+		    
+		    addBlink($('.selectTagButtonIcon'))
+		    me.setSelectTags(false);
+		    
+    		    var listSelectionIds = [];
+    		    var listSelectionTiles=me.getSelectedNodes();
+    		    for(O in listSelectionTiles)  { 
+    			listSelectionIds.push(listSelectionTiles[O].getId());
+    		    }
+     		    //console.log("share_Selection",listSelectionIds);
+		    receive_deploy_Selection=false;
+    		    var cdata ={"room":my_session, "Selection": "["+listSelectionIds.toString()+"]" }
+    		    socket.emit("share_Selection", cdata);
+		    
+		    
+		    funEndshareSelectionOff();
+		}
+	    }, IntervalSelectOffStickers)
+	}
+
+	funselectTagButton = function() {
+	    var checkselectTagButton = setInterval(function() {
+		if ($('.closeSelectTagButtonIcon').length) {
+		    clearInterval(checkselectTagButton);
+		    
+		    if (nextList.length < 1) {
+			//funAddOnTagsPage(0);
+			$('#tag-legend>#Off').click();
+			addBlink($('#tag-legend>#Off'));
+     			console.log("Selection Off");
+		    } else {
+			//funAddOnTagsPage(nextList.length);
+			var oldtag="Next"+(nextList.length-1);
+			// sans les On ! ou intersection oldtag et Off actuel
+			$('#tag-legend>#'+oldtag).click();
+			addBlink($('#tag-legend>#'+oldtag));
+     			console.log("Selection "+oldtag);
 		    }
-		}, IntervalCloseTagMenu)
-	    }
-	}, IntervalClearSelection)
+		    
+		    funEndselectOffStickers();
+		}
+	    }, IntervalCloseTagButton)
+	}
+	
+	funselectTagMenu = function() {
+	    var checkselectTagMenu = setInterval(function() {
+		if ($('.closeSelectTagMenuButtonIcon').length) {
+		    clearInterval(checkselectTagMenu);
+		    if ($('.closeSelectTagButtonIcon').length == 0)
+			$('.selectTagButtonIcon').click();
+		    
+		    funselectTagButton();
+		}
+	    }, IntervalCloseTagMenu)
+	}
+
+	funEndcloseTagsGlobalMenu = function() {
+	    var checkEndcloseTagsGlobalMenu = setInterval(function() {
+		if ($('.closeTagsGlobalMenuButtonIcon').length ) {
+		    clearInterval(checkEndcloseTagsGlobalMenu);
+		    
+		    // We can't click on SelectTagMenu and .tagsMenuSelectButton
+		    // because nodes tagged off are not identically distributed to all clients.
+		    // Then we use here internal function setSelectTags and share_Selection after.
+		    if ($('.closeSelectTagMenuButtonIcon').length == 0)
+			$('.selectTagMenuButtonIcon').click();
+		    $('.clearSelectionButtonIcon').click()
+		    addBlink($('.clearSelectionButtonIcon'));
+		    
+		    //funAddOnTagsPage(nextList.length)
+
+		    //funnext.pop()()
+		    funselectTagMenu();
+		}
+	    }, IntervalClearSelection)
+	}
+
+	// List of call functions for show Next tiles 
+	funnext=new Array(funEndalignTag,funCloseSelect);	
+
+	// Run first node for show Next tiles 
+	funEndcloseTagsGlobalMenu();
     });
     menuIconClassAttributesTab.push("nextTilesButtonIcon");
     menuShareEvent.push(false);
@@ -4570,7 +4778,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		for (O in nodesByLoc)  { 
 		    if (nodesByLoc[O].getNodeInViewportStatus()) { 
 			nodesByLoc[O].sub('hitbox').off("click"); 
-			if (!configBehaviour.moveOnMenuOption)  { 
+			if (!!configBehaviour.moveOnMenuOption)  { 
 			    nodesByLoc[O].sub('').off(); 
 			}
 			nodesByLoc[O].sub('hitbox').on("click", clickHBTag);
@@ -4868,7 +5076,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
     menuEventTab.push(    function(v,id,optionNumber){
         if (executeAtEndComplete) {
 	    if(v==true)  { 	
-		if (!configBehaviour.moveOnNodeMenuOption)  { 
+		if (!!configBehaviour.moveOnNodeMenuOption)  { 
 		    for (O in nodesByLoc)
 			if (nodesByLoc[O].getNodeInViewportStatus()) {
 			    nodesByLoc[O].sub('').off();
@@ -5759,7 +5967,6 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	}());
 
 
-
     //******nodesOldPosition*******//
 
 
@@ -5861,7 +6068,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		var node = nodesById["node"+nodeId];
 		var hnode=node.getHtmlNode();
 		var ratio = 1;
-		if ($("#"+nodeId).children("iframe").length == 0) {
+		if ($("#iframe"+nodeId).length == 0) {
 		    hnode.append('<iframe id=iframe'+node.getId()+' scrolling = "yes" src="" frameborder=0 height = "'+  
 				  hnode[0].clientHeight + 'px" width = "' + hnode[0].clientWidth + 'px" style="display=none"></iframe>');
 		}
@@ -5968,7 +6175,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 	}
 
 	me.computeNumColumns();
-	for(O in mesh.getNodes()){
+	for(O in nodesById){
 
 	    var id = O.replace("node","");
 	    var node = mesh.getNode(id);
@@ -6048,6 +6255,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    if (nodesByLoc[O].getNodeInViewportStatus()) { 
 			nodesByLoc[O].sub('qrcode').off();
 			nodesByLoc[O].sub('handle').off();
+			nodesByLoc[O].sub('rotate').off();
 			
 			nodesByLoc[O].sub('hitbox').off(); 
 			nodesByLoc[O].sub('onoff').off();
@@ -6063,6 +6271,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		    if (nodesByLoc[O].getNodeInViewportStatus()) { 
 			nodesByLoc[O].sub('onoff').on(OOFEvent);
 			nodesByLoc[O].sub('handle').on(handleEvent);
+			nodesByLoc[O].sub('rotate').on(rotateEvent);
 			nodesByLoc[O].sub('hitbox').on(HBEvent);
 			nodesByLoc[O].sub('').on(NodeEvent);
 			nodesByLoc[O].setLoadedStatus(true);			
@@ -6092,7 +6301,7 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 		putOnTop(targetNode_); 
 		$('#'+targetNode_).draggable();
 		$('#' + targetNode_).off("mouseleave");
-		if (configBehaviour.moveOnGrid) {
+		if (parseBool(configBehaviour.moveOnGrid)) {
 		    $('#' + targetNode_).draggable("option", "grid", [spread.X + gapBetweenColumns, spread.Y + configBehaviour.gapBetweenLines]);
 		}
 		$('#' + targetNode_).off("mouseup").on("mouseup", function(e){
@@ -6226,8 +6435,8 @@ Mesh = function(cardinal,NumColumnsConstant,maxNumOfColumns_) {
 
 	// Group tags along a pattern
 	var groupTags = function(pattern_) {
-	    var Nodes = mesh.getNodes();
-	    var NodesByLoc = mesh.getNodes();
+	    var Nodes = nodesByLoc;
+	    var NodesByLoc = nodesByLoc;
 	    //console.log("grouping", pattern_);
 	    var w = 0;
 	    for (O in Nodes)  { 
@@ -6580,7 +6789,7 @@ dblclick: dblclickFunction*/
 		    if (rotate_ok) {
 			
 			rotstate_angle = node.getNodeAngle();
-			if (! configBehaviour.smoothRotation) {
+			if (!! configBehaviour.smoothRotation) {
 			    if ( rotstate_angle > 340 || rotstate_angle < 20) 
 				rotstate_angle=0;
 			    else if ( rotstate_angle > 70 && rotstate_angle < 110) 
@@ -6821,7 +7030,7 @@ dblclick: dblclickFunction*/
 			var node = mesh.getNode(id);
 			var nodeToDrag=$('#' + id);
 
-			if (! configBehaviour.smoothRotation) {
+			if (!! configBehaviour.smoothRotation) {
 			    if ( rotstate.angle > 340 || rotstate.angle < 20) 
 				rotstate.angle=0;
 			    else if ( rotstate.angle > 70 && rotstate.angle < 110) 

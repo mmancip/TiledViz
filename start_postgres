@@ -8,7 +8,6 @@ echo "===== 1 List and close active containers ====="
 docker container ls -a --filter=name=$postgresNAME && docker container ls -a -q --filter=name=$postgresNAME |xargs docker rm -f -v
 
 echo "===== 2 PostgreSQL container ====="
-#PostgresDock=postgres:9.6-alpine
 PostgresDock=postgres:11.18-alpine
 if ( ! docker images --filter "reference=${PostgresDock}" >/dev/null ); then
     docker pull ${PostgresDock}

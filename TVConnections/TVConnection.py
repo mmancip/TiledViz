@@ -6,7 +6,9 @@ import argparse
 import sys,os,traceback
 import pexpect,re
 import platform
+import configparser
 import threading
+import pickle
 
 import code
 import IPython
@@ -31,6 +33,20 @@ from connect.transfer import send_file_server, get_file_client
 
 user='myuser'
 ActionPort=64040
+
+# Read TiledViz config
+TVrunDir=os.environ['HOME']+'/.tiledviz'
+TVconf=TVrunDir+"/tiledviz.conf"
+
+config = configparser.ConfigParser()
+config.optionxform = str
+config.read(TVconf)
+
+# Default port for connection between client in sock.py and TVSecure.py 
+#PORTServer=int(config['sock']['PORTServer'])
+
+# Message fix size for data transfert through socket
+MSGsize=int(config['sock']['MSGsize'])
 
 # Usefull fuction for debugging CASE script:
 def cat_between(b,e,f):
@@ -179,6 +195,9 @@ def build_nodes_file():
     logging.warning("Out of build_nodes_file : "+ str(state))
     time.sleep(2)
     stateVM=(state == 0)
+    state=launch_nodes_json()
+    stateVM=stateVM and (state == 0)
+    os.system("mv nodes.json nodes.json_init")
     return stateVM
 
 def replaceconf(x):
@@ -190,23 +209,6 @@ def replaceconf(x):
         
 def kill_all_containers():
     stateVM=True
-    # Get back PORTWSS and kill websockify servers
-    for i in range(NUM_DOCKERS):
-        i0="%0.3d" % (i+1)
-        TILEi=ExecuteTS+' Tiles=('+containerId(i+1)+') '
-        COMMANDi="bash -c \" "+\
-                  " export PORT=\$(cat .vnc/port); "+\
-                  " ssh "+SSH_LOGIN+"@"+SSH_FRONTEND+''' \' bash -c \\\" '''+\
-                  '''      pgrep -f \\\\\\\"^python3.*websockify.*\'\$PORT\'\\\\\\\" |xargs kill '''+\
-                  ''' \\\"\' ''' +\
-                  "\""
-        logging.warning("%s | %s" % (TILEi, COMMANDi)) 
-        sys.stdout.flush()
-        client.send_server(TILEi+COMMANDi)
-        state=client.get_OK()
-        logging.warning("Out of kill websockify %s : %s" % (i0,state))
-        sys.stdout.flush()
-        stateVM=stateVM and (state == 0)
     client.send_server(ExecuteTS+' killall bash')
     state=client.get_OK()
     print("Out of killall command : "+ str(state))
@@ -245,54 +247,97 @@ def Get_client_IP(tileNum=-1,tileId='001'):
         logging.error("Cannot retreive ip from %s." % (Id) )
         return "-1"
     
+# commande de tunnel :
 def launch_tunnel():
+    stateVM=True
+    
+    # Share ssh connection keys whith tiles
+    # TODO : secure that action ?
+    totbyte=0
+    filesize=os.path.getsize(sshKeyPath)
+    connectionkey=os.path.join(os.getenv("HOME"),".ssh/id_rsa_connection")
+    os.system("cp "+sshKeyPath+".pub "+os.path.join(os.getenv("HOME"),".ssh/authorized_keys"))
+    packet_id_length=MSGsize-200
+    with open(sshKeyPath,'rb') as privatek:
+        l = '\\\"'+str(privatek.read(packet_id_length).replace(b"\n",b""),"utf-8")+'\\\"'
+        COMMANDid=ExecuteTS+' bash -c "echo '+l+' > '+connectionkey+'; chmod 600 '+connectionkey+'"'
+        logging.warning("Send id_rsa with %s." % (COMMANDid) )
+        client.send_server(COMMANDid)
+        state=client.get_OK()
+        stateVM=stateVM and (state == 0)
+        while (l):
+            totbyte=totbyte+packet_id_length
+            rest=filesize-totbyte;
+            if (rest > packet_id_length ):
+                l = '\\\"'+str(privatek.read(packet_id_length).replace(b"\n",b""),"utf-8")+'\\\"'
+                COMMANDid=ExecuteTS+' bash -c "echo '+l+' >> '+connectionkey+'"'
+                logging.warning("Send id_rsa with %s." % (COMMANDid) )
+                client.send_server(COMMANDid)
+                state=client.get_OK()
+                stateVM=stateVM and (state == 0)
+            else:
+                if (rest > 0):
+                    l = '\\\"'+str(privatek.read(rest).replace(b"\n",b""),"utf-8")+'\\\"'
+                    COMMANDid=ExecuteTS+' bash -c "echo '+l+' >> '+connectionkey+'"'
+                    logging.warning("Send id_rsa with %s." % (COMMANDid) )
+                    client.send_server(COMMANDid)
+                    state=client.get_OK()
+                    stateVM=stateVM and (state == 0)
+                break
+    logging.warning("Out of id_rsa : "+ str(stateVM))
+    COMMANDid=ExecuteTS+' bash -c "sed -e \\\"s&KEY-----&KEY-----\\\\n&\\\" -e \\\"s&-----END&\\\\n-----END&\\\" -i '+connectionkey+'"'
+    logging.warning("Send id_rsa with %s." % (COMMANDid) )
+    client.send_server(COMMANDid)
+    state=client.get_OK()
+    stateVM=stateVM and (state == 0)
+    with open(sshKeyPath+'.pub','rb') as publick:
+        l = '\\\"'+str(publick.read().replace(b"\n",b""),"utf-8")+'\\\"'
+        COMMANDid=ExecuteTS+' bash -c "echo '+l+' > '+connectionkey+'.pub"'
+        logging.warning("Send id_rsa.pub with %s." % (COMMANDid) )
+        client.send_server(COMMANDid)
+        state=client.get_OK()
+        stateVM=stateVM and (state == 0)
+    logging.warning("Out of id_rsa.pub : "+ str(stateVM))
+    if (not stateVM):
+        logging.error("!! Error send id_rsa.!!")
+        return stateVM
+
+    with open("listPortsTiles.pickle", 'rb') as file_pi:
+        listPortsTilesIE=pickle.load(file_pi)
     # Call tunnel for VNC
-    client.send_server(ExecuteTS+' /opt/tunnel_ssh '+SSH_FRONTEND+' '+SSH_LOGIN)
-    state=client.get_OK()
-    stateVM=(state == 0)
-    print("Out of tunnel_ssh : "+ str(state))
-    if (not stateVM):
-        print("!! Error launch_tunnel.!!")
-        return stateVM
-    # Create list_wss file of free uniq socket port for each tile 
-    COMMAND=" python3 ./build_wss.py "+str(NUM_DOCKERS*2)
-    client.send_server(LaunchTS+' '+COMMAND)
-    state=client.get_OK()
-    stateVM=(state == 0)
-    print("Out of create list_wss : "+ str(state))
-    if (not stateVM):
-        print("!! Error launch_tunnel.!!")
-        return stateVM
-    # Get back PORT
     for i in range(NUM_DOCKERS):
         i0="%0.3d" % (i+1)
         TILEi=ExecuteTS+' Tiles=('+containerId(i+1)+') '
-        SSH_JobPath=SSH_LOGIN+"@"+SSH_FRONTEND+":"+JOBPath
-        COMMANDi="bash -c \""+\
-                  " export PORT=\$(cat .vnc/port); "+\
-                  " export PORTWSS=\$(sed '"+str(i+1)+"q;d' CASE/list_wss); "+\
-                  " scp "+SSH_JobPath+"/nodes.json CASE/ ;"+\
-                  " sed -e 's#port="+SOCKETdomain+i0+"#port='\$PORTWSS'#' -i CASE/nodes.json; "+\
-                  " scp CASE/nodes.json "+SSH_JobPath+"/ ;"+\
-                  " ssh "+SSH_LOGIN+"@"+SSH_FRONTEND+''' \' bash -c \\\" cd '''+TILEDOCKERS_path+"/..; "+\
-                  "    ./wss_websockify "+SSL_PUBLIC+" "+SSL_PRIVATE+\
-                  ''' \'\$PORTWSS\' \'\$PORT\' '''+TILEDOCKERS_path+"/../../TVWeb &"+\
-                  ''' \\\"\' & ''' +\
-                  "\""
-        print("%s | %s" % (TILEi, COMMANDi)) 
-        sys.stdout.flush()
+        internPort=listPortsTilesIE[str(i)][0]
+        WebServerHost=listPortsTilesIE["TiledVizHost"]
+        ServerTSPortSSH=listPortsTilesIE["TiledVizConnectionPort"]
+        COMMANDi=' ssh-agent /opt/tunnel_ssh '+SSH_FRONTEND+' '+SSH_LOGIN+' '+str(internPort)+' '+WebServerHost+' '+str(ServerTSPortSSH)+' -i '+connectionkey
+        logging.warning("%s | %s" % (TILEi, COMMANDi)) 
         client.send_server(TILEi+COMMANDi)
         state=client.get_OK()
-        stateVM=stateVM and (state == 0)
-        print("Out of change port %s : %s" % (i0,state))
-        sys.stdout.flush()
-        if (state != 0):
-            break
+        stateVM=(state == 0)
     if (not stateVM):
         print("!! Error launch_tunnel.!!")
         return stateVM
     sys.stdout.flush()
-    stateVM=launch_nodes_json()
+    # Update nodes.json locally
+    JsonFile="nodes.json_init"
+    with open(JsonFile) as json_tiles_file:
+        nodes_json=json.loads(json_tiles_file.read())
+    for tilei in range(NUM_DOCKERS):
+        nodeurl=nodes_json["nodes"][tilei]["url"]
+        nodeurl=re.sub(r'https://[^/]*',r'https://'+listPortsTilesIE["TiledVizHost"],nodeurl)
+        nodeurl=re.sub(r'host=[^&]*',r'host='+listPortsTilesIE["TiledVizHost"],nodeurl)
+        oldport=int(re.sub(r'.*port=([^&]*)&.*',r'\1',nodeurl))
+        tileip=oldport % 1000 - 1
+        logging.warning("tile %d update nodes.json : new url %s with old port %d" % (tilei, nodeurl, oldport)) 
+        if ( str(tileip) in listPortsTilesIE):
+            extern=listPortsTilesIE[str(tileip)][1]
+            nodes_json["nodes"][tilei]["url"]=re.sub(r'port=[^&]*',r'port='+str(extern),nodeurl)
+            logging.warning("tile %d : new url %s" % (tilei,nodes_json["nodes"][tilei]["url"])) 
+    with open("nodes.json",'w') as nodesf:
+        nodesf.write(json.dumps(nodes_json))
+    logging.warning("Out of tunnel_ssh : "+ str(stateVM))
     return stateVM
     
 def launch_vnc():
@@ -523,7 +568,7 @@ if __name__ == '__main__':
                         expindex=childcopy.expect([pexpect.EOF, pexpect.TIMEOUT])
                         if (expindex != 0):
                             try:
-                                logging.error("Error respond from server : "+str(childcopy.buffer.decode("utf-8")))
+                                logging.error("Error respond from server : "+str(childcopy.buffer,"utf-8"))
                             except:
                                 logging.error("Error respond from server. "+expindex)
                         else:                        

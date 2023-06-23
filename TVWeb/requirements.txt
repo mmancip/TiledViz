@@ -18,3 +18,4 @@ metadata_parser
 scikit-learn
 pandas
 kneed
+configparser

@@ -117,7 +117,7 @@ $(document).ready(    function (){
 			backgroundColor : color,
 			top : 50*it+"px",		
 		    });
-		    $('#stickers_'+id).on('mouseover',function() {
+		    $('#stickers_'+id).off('mouseover').on('mouseover',function() {
 			if (configBehaviour.tooltip) {
 		    	    $(this).append('<div id=tooltip class="tooltipfrom'+id
 		    			   +' fg-tooltip ui-widget ui-widget-content ui-corner-all" style="font-size: 40px"></div>');
@@ -130,7 +130,7 @@ $(document).ready(    function (){
 		    	    tooltip.fadeIn('500');
 		    	    tooltip.fadeTo('10',10);
 			}
-		    }).on('mouseout',function() {
+		    }).off('mouseout').on('mouseout',function() {
 			if (configBehaviour.tooltip) {
 			    $(this).attr("title",$(this).children('div#tooltip').text());
 		    	    $(this).children('div#tooltip').remove();

@@ -993,7 +993,7 @@ Tile = function(Mesh) {
     //*****Comment******//
 
     this.getComment = function()  { 
-	return $('#postit'+id).text();
+	return $('#postit'+id).text().replace(/[0-9][0-9]\/[0-9][0-9]\/[0-9][0-9][0-9][0-9] \([0-9][0-9]:[0-9][0-9]:[0-9][0-9]\)Note config.*/,"")
     }
 
     //******nodeOpacity******//

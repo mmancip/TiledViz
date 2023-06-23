@@ -41,7 +41,7 @@ RUN urpmi  -y  \
 	 gnu-free-serif-fonts-20120503-9 \
          gnu-free-fonts-common-20120503-9
 	 
-RUN dnf install -y alsa-utils lib64fribidi0 xdg-utils wmctrl openssh-clients xwd netpbm gettext
+RUN dnf install -y alsa-utils lib64fribidi0 xdg-utils wmctrl openssh-server openssh-clients xwd netpbm gettext
 RUN dnf --downloadonly --downloaddir=/tmp/cache install -y icewm-theme-oxygen-aya \
     && ls -la /tmp/cache \
     && rpm -ip /tmp/cache/icewm-theme-oxygen-aya*.rpm --nodeps \
@@ -74,6 +74,9 @@ RUN cd /TiledViz/TVConnections/mageianconnect/ && \
     cp /etc/inputrc /home/myuser/.inputrc &&\
     cp start.sh /start.sh
     
+COPY TVConnections/mageianconnect/sshd_config /etc/ssh
+RUN chown root:root /etc/ssh/sshd_config
+
 COPY TVConnections/cat_between /
 
 RUN mkdir /home/myuser/.tiledviz
@@ -84,6 +87,6 @@ ENTRYPOINT ["/start.sh"]
 RUN touch /home/myuser/.Xauthority
 
 
-CMD ["-1", "localhost", "6431", "TiledViz", "tiledviz", "m_test/@03", "-r","800x600","-u","1000","-g","1000","-d"]
+CMD ["-1", "localhost", "6431", "TiledViz", "tiledviz", "m_test/@03", "-r","800x600","-u","1000","-g","1000","-p","22222","-d"]
 
 

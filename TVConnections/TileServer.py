@@ -219,7 +219,7 @@ class TilesSet(threading.Thread):
                             serverLogger.error(self.TileSetName+" : No state on all tiles %d." % (count))
                             RET=-1
                             break
-            serverLogger.info(self.TileSetName+" : State on all tiles : "+str(RET))
+            serverLogger.warning(self.TileSetName+" : State on all tiles : "+str(RET))
             return RET
         else:
             return False
@@ -290,7 +290,7 @@ class TilesSet(threading.Thread):
                                 break
                 else:
                     return False
-            serverLogger.info(self.TileSetName+" : State on list "+str(tilesId)+" of tiles : "+str(RET))
+            serverLogger.warning(self.TileSetName+" : State on list "+str(tilesId)+" of tiles : "+str(RET))
             return RET
         else:
             return False

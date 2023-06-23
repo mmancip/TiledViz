@@ -47,7 +47,7 @@
 		"borderSize" : 0, 
 		"onlyOneTransparentTile" : false,
 		"opacity" : 0.2, 
-		"alwaysShowInfo" : true,
+		"alwaysShowInfo" : false
 		"showInfoAtLoading" : true, 
 		"defautInfoFontSize" : 55,
 		"maxInfoFontSize" : 60,

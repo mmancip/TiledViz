@@ -39,6 +39,7 @@ import random
 
 import tempfile, filecmp
 import tarfile
+import configparser
 
 import pandas as pd
 
@@ -280,7 +281,7 @@ def copy_connection(oldtileset,newtileset,newsessionname):
     else:
         idconnection=oldconnection.id
     if ( not "connection"+str(idconnection) in session):
-        flash("You don't have connection information in your personal cookie for this connection.")
+        flash("You must use createconnection button after have given job script file and configuration files or tarball.")
         logging.error("You (user "+str(user_id)+") don't have connection information in your personal cookie for this connection : "+str(idconnection))
         return
 
@@ -516,11 +517,18 @@ def remove_this_session(sessionid):
     for ts in thissession.tile_sets:
         thissession.tile_sets.remove(ts)
     # Suppress all link with any user
+    logging.warning('in remove_this_session All users :'+str(thissession.users))
+    logging.warning("in remove_this_session Link "+str(db.session.query(models.t_many_users_has_many_sessions).filter_by(id_sessions=sessionid).all()))
     for us in thissession.users:
         thissession.users.remove(us)
     db.session.commit()
+    logging.warning('in remove_this_session All users after commit :'+str(thissession.users))
 
+    logging.warning("in remove_this_session Link after commit "+str(db.session.query(models.t_many_users_has_many_sessions).filter_by(id_sessions=sessionid).all()))
+    for link in db.session.query(models.t_many_users_has_many_sessions).filter_by(id_sessions=sessionid).all():
+        link.delete()
     delelement(models.Session, "session", sessionid)
+    db.session.commit()
 
     
 def remove_this_project(projectid):
@@ -532,6 +540,7 @@ def remove_this_project(projectid):
         remove_this_session(thissession.id)
 
     delelement(models.Project, "project", projectid)
+    db.session.commit()
 
 def remove_this_user(userid):
     thisuser=db.session.query(models.User).filter_by(id=userid).one()
@@ -1553,9 +1562,9 @@ def oldsessions():
     logging.debug("Old project : "+str(oldproject["name"])+" list old sessions :"+str(listsessions))
     myform = BuildOldProjectForm(oldproject, listsessions)()
     if myform.validate_on_submit():
+        session["sessionname"]=myform.chosen_session.data
         if(myform.from_session.data=="use"):
             logging.debug("reuse old session : "+myform.chosen_session.data)
-            session["sessionname"]=myform.chosen_session.data
             session["is_client_active"]=True
             return redirect("/grid")
         elif(myform.from_session.data=="edit"):
@@ -1618,8 +1627,11 @@ def newsession():
             message = '{"sessionname":"'+newsession.name+'"}'
             return redirect(url_for(".configsession",message=message))
         else:
-            message='{"username":"'+session["username"]+'","sessionname":"'+session["sessionname"]+'"}'
-            return redirect(url_for(".addtileset",message=message))
+            #message='{"username":"'+session["username"]+'","sessionname":"'+session["sessionname"]+'"}'
+            #return redirect(url_for(".addtileset",message=message))
+            flash("One must validate new session before create a tiledset.")
+            message='{"oldsessionname":"'+session["sessionname"]+'"}'
+            return redirect(url_for(".editsession",message=message))
     return render_template("main_login.html", title="New session TiledViz", form=myform)        
 
 # Copy an old session and edit tilesets
@@ -1666,7 +1678,10 @@ def copysession():
                 flash("Session with name {} creation problem.".format(newsession.name))
                 return render_template("main_login.html", title="Copy session TiledViz", form=myform, message=message)
         else:
-            flash("You must change session name {} for new session.".format(newsession.data))
+            try:
+                flash("You must change session name {} for new session.".format(newsession.data))
+            except:
+                flash("You must change session name {} for new session.".format(str(newsession)))
             return render_template("main_login.html", title="Copy Session TiledViz", form=myform)
 
         theaction=myform.tilesetaction.data
@@ -1976,7 +1991,7 @@ def searchtileset():
             flash("Add tileSet {}.".format(thisTS.name))
             return redirect(url_for(".editsession",message=message))
 
-    return render_template("main_login.html", title="Old projects TiledViz", form=myform)
+    return render_template("main_login.html", title="All my Tiledsets ", form=myform)
 
 # Config Session : give the json (depend of static/js/config_default.json)
 @app.route('/configsession', methods=["GET", "POST"])
@@ -2651,7 +2666,6 @@ def edittileset():
                 oldtile.pos_px_y= pos_px_y
                 oldtile.IdLocation=IdLocation
                 oldtileset.tiles.append(oldtile)
-                db.session.commit()
             except AttributeError:
                 # if not : insert at end of oldtileset.tiles ?
                 newtile = models.Tile(title=title,
@@ -2672,14 +2686,13 @@ def edittileset():
                 else:
                     newtile.id=1
                 db.session.add(newtile)
-                db.session.commit()
                 oldtileset.tiles.append(newtile)
                 logging.warning(str(i)+" add tile "+str(newtile.id))
-                db.session.commit()
             except Exception:
                 logging.warning(str(i)+" Error tile ")
                 traceback.print_exc(file=sys.stderr)
                 
+        db.session.commit()
         
         session["is_client_active"]=True
 
@@ -2831,7 +2844,7 @@ def vncconnection():
                            vncpassword=vnctransfert["vncpassword"],
                            session=session["sessionname"],
                            flaskaddr=flaskaddr)
-    
+
 @app.route('/addconnection', methods=["GET", "POST"])
 def addconnection():
     global TimeConnection
@@ -2977,6 +2990,31 @@ def addconnection():
         passpath="/home/connect"+str(newConnection.id)+"/vncpassword"
         logging.warning("Go to vnc with path "+passpath)
 
+        config = configparser.ConfigParser()
+        config.optionxform = str
+        
+        if ( "config.tar" in newtileset.config_files ):
+            tar_config_file=tarfile.TarFile(name=newtileset.config_files["config.tar"],mode='r')
+            tar_config_file.list()
+            try:
+                with tar_config_file.extractfile("case_config.ini") as case_config_file:
+                    config.read_string(case_config_file.read().decode('utf-8'))
+                nbtiles=int(config['CASE']['NUM_DOCKERS'])
+            except Exception as err:
+                traceback.print_exc(file=sys.stderr)
+                strerror="Error getting number of tiles from case_config in config.tar before connection : "+str(err)
+                logging.error(strerror)
+                nbtiles=0
+        else:
+            try:
+                config.read(newtileset.config_files["case_config.ini"])
+                nbtiles=int(config['CASE']['NUM_DOCKERS'])
+            except Exception as err:
+                traceback.print_exc(file=sys.stderr)
+                strerror="Error getting number of tiles from case_config.ini before connection : "+str(err)
+                logging.error(strerror)
+                nbtiles=0
+        
         logging.warning("addconnection: "
                         +str(session["username"])+" ; "
                         +str(myform.host_address.data)+" ; "
@@ -2985,6 +3023,7 @@ def addconnection():
                         +str(myform.scheduler.data)+" ; "
                         +str(newtileset.id)+" ; "
                         +str(newConnection.id)+" ; "
+                        +str(nbtiles)+" ; "
                         +str(deb))
         myflush()
 

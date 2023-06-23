@@ -4,3 +4,4 @@ MAINTAINER  "Martial Mancip" <Martial.Mancip@MaisondelaSimulation.fr>
 
 
 COPY TVConnections/TVConnection.py /TiledViz/TVConnections/
+COPY tiledviz.conf /home/myuser/.tiledviz/

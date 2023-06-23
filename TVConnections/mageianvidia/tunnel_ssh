@@ -1,17 +1,25 @@
 #!/bin/bash
-HTTP_FRONTEND=$1
-HTTPLOGNAME=$2
-shift 2
+SSH_FRONTEND=$1
+SSHLOGNAME=$2
+PORTvnc=$3
+TiledvizHost=$4
+TiledvizConnectionPort=$5
+shift 5
 OPTIONS=$@
 
 . /home/myuser/.bashrc
 
-PORT=$( ssh -T ${HTTPLOGNAME}@${HTTP_FRONTEND} python -c "'import socket; s=socket.socket(); s.bind((\"\", 0)); print(s.getsockname()[1]); s.close()'" )
+echo "" >> .ssh/config
+echo "Host $TiledvizHost" >> .ssh/config
+echo "  User myuser" >> .ssh/config
+echo "  ProxyCommand ssh ${SSHLOGNAME}@${SSH_FRONTEND} -W %h:%p" >> .ssh/config
 
-COMMANDssh="ssh -T -N -nf -R \*:$PORT:localhost:5902 ${OPTIONS} ${HTTPLOGNAME}@${HTTP_FRONTEND}"
+# Host desktop.mdls.fr
+# User myuser
+# ProxyCommand ssh -T -q -o 'ForwardAgent yes' mmancip@mandelbrot-smp.extra.cea.fr 'ssh-add -t 1 && nc %h %p'
+
+COMMANDssh="ssh -T -N -nf -R \*:${PORTvnc}:localhost:5902 ${OPTIONS} myuser@${TiledvizHost} -p ${TiledvizConnectionPort}"
 echo $COMMANDssh
-
-echo $PORT > /home/myuser/.vnc/port
 
 i=0
 while [ true ]; do
