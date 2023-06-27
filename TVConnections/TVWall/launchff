@@ -1,0 +1,45 @@
+clush -g visu 'killall firefox '
+clush -g visu 'killall mozilla-firefox '
+sleep 1
+
+#APPLINK="http://mandelbrot.extra.cea.fr/wildos/test/TileVizCases_config/ANATOMIST_dev_param/TileViz/tileviz.html"
+#APPLINK="http://mandelbrot.extra.cea.fr/wildos/test/TileVizCases_config/ANATOMIST/TileViz/tileviz.html"
+#APPLINK="http://mandelbrot.extra.cea.fr/wildos/test/TileVizCases_config/VMD/TileViz/tileviz.html"
+#APPLINK="http://192.168.0.13:5000/grid"
+#APPLINK="http://mandelbrot-desktop:5000/grid"
+#APPLINK="http://0.0.0.0:5000/join/session_id_or_rand_part"
+#APPLINK="http://192.168.0.12:5000/join/ANATOMIST-corrected_passive_Anonymous_2018-10-11T12:39:28.920410_b'rMkm7KI4c9'"
+#APPLINK="http://192.168.0.12:5000/join/Leonie64b_31-01-2019_10-29-01_passive_Anonymous_2018-10-11T12:39:28.920410_b'rMkm7KI4c9'"
+#APPLINK="http://192.168.0.12:5000/join/Leonie64_passive_Anonymous_2018-10-11T12:39:28.920410_b'rMkm7KI4c9'"
+#APPLINK="http://192.168.0.12:5000/join/LEONIE40_passive_Anonymous_2019-02-13T13:58:55.212797_b'9Z2YPYdhGQ'"
+#APPLINK="http://192.168.0.12:5000/join/IRM1_passive_Anonymous_2018-10-11T12:39:28.920410_b'rMkm7KI4c9'"
+#APPLINK="http://192.168.0.12:5000/join/UREE1_passive_Anonymous_2018-10-11T12:39:28.920410_b'rMkm7KI4c9'"
+
+#APPLINK="http://192.168.0.12:5000/join/UREE200_passive_Anonymous_2018-10-11T12:39:28.920410_b'rMkm7KI4c9'"
+
+#APPLINK="http://192.168.0.12:5000/join/session_id_or_rand_part"
+#APPLINK="http://192.168.0.12:5000/join/session_uree3_passive_Anonymous_2018-10-18T09:16:53.890533_b'shcyxMeL-7'"
+#APPLINK="http://192.168.0.12:5000/join/Mandelbrottest_passive_Anonymous_2018-10-18T09:16:53.890533_b'shcyxMeL-7'"
+#APPLINK="http://192.168.0.12:5000/join/DemoHCERES_passive_Anonymous_2018-10-18T09:16:53.890533_b'shcyxMeL-7'"
+
+#APPLINK="http://192.168.0.12:5000/join/TestSession_passive_Anonymous_2018-10-11T12:39:28.920410_b'rMkm7KI4c9'"
+APPLINK="http://192.168.0.12:5000/join/Mandelbrottest_passive_Anonymous_2018-10-11T12:39:28.920410_b'rMkm7KI4c9'"
+
+#APPLINK="http://192.168.0.12:5000/join/Tuto1_passive_Anonymous_2018-10-11T12:39:28.920410_b'rMkm7KI4c9'"
+
+#APPLINK="http://192.168.0.12:5000/join/Leonie64VMD_passive_Anonymous_2018-10-11T12:39:28.920410_b'rMkm7KI4c9'"
+APPLINK="http://192.168.0.12:5000/join/Leonie64_passive_Anonymous_2018-10-11T12:39:28.920410_b'rMkm7KI4c9'"
+#APPLINK="http://192.168.0.12:5000/join/DEMO_E5_passive_Anonymous_2018-10-11T12:39:28.920410_b'rMkm7KI4c9'"
+
+#ANATOMIST
+#APPSCALE=0.60
+# VMD
+#APPSCALE=0.52
+# TEST
+#APPSCALE=1
+
+APPSCALE=0.52
+
+
+set -vx
+./scriptff.sh ${APPLINK} ${APPSCALE}

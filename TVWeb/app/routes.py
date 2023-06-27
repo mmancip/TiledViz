@@ -602,6 +602,21 @@ def remove_this_connection(oldtileset,idconnection,user_id):
     session["connection"+str(idconnection)]=""
     del(session["connection"+str(idconnection)])
 
+def myrender():
+    myargs={}
+    myargs["isadmin"]=False
+    if ("Admin" in session):
+        if (session["Admin"]):
+            myargs["isadmin"]=True
+    
+    myargs["notlogin"]=True
+    myargs["username"]=""
+    if ("username" in session):
+        myargs["username"]=session["username"]
+        if (session["username"]!="Anonymous"):
+            myargs["notlogin"]=False
+    
+    return myargs
 
 # ====================================================================
 # Index/home page
@@ -629,18 +644,15 @@ def index():
     except KeyError as e: # If session["username"] does not exist (no cookie yet)
         logging.error("Home error : "+e)
         # If the cookie is not present
-        project = "test"
-        psession = "testsession"
+        project = "noproject"
+        psession = "nosession"
         session["username"]="Anonymous"
         user = {"username" : session["username"] }
         session["projectname"]=project
         session["sessionname"]=psession
         session["is_client_active"]=False
 
-    if ("Admin" in session):
-        return render_template("main_template.html", title="TiledViz home", user=user, project=project, session=psession, admin=session["Admin"])
-    else:
-        return render_template("main_template.html", title="TiledViz home", user=user, project=project, session=psession)
+    return render_template("main_template.html", **(myrender()), title="TiledViz home", user=user, project=project, session=psession)
 
 
 # ====================================================================
@@ -679,7 +691,7 @@ def register():
             if (showexist):
                 flash("Known user {}, remember_me={}".format(myform.username.data, myform.remember_me.data))
                 showexist=False
-                return render_template("main_login.html", title="TiledViz register", form=myform)
+                return render_template("main_login.html", **(myrender()), title="TiledViz register", form=myform)
             logging.warning("username already exists.")
 
             if (myform.newpassword.data):
@@ -724,17 +736,17 @@ def register():
                     if (showknown):
                         flash(Markup("Correct Login for user {} remember_me={}".format(myform.username.data, myform.remember_me.data)))
                         showknown=False
-                        return render_template("main_login.html", title="TiledViz register", form=myform)
+                        return render_template("main_login.html", **(myrender()), title="TiledViz register", form=myform)
                     user = {"username" : session["username"] }
                     session["is_client_active"]=True
                 else:
                     if (showknown):
                         flash("You have entered an already existing username, but wrong password for user {}".format(myform.username.data))
                         showknown=False
-                        return render_template("main_login.html", title="TiledViz register", form=myform)
+                        return render_template("main_login.html", **(myrender()), title="TiledViz register", form=myform)
 
                     flash("This username {} already exists and passwd is incorrect : ".format(session["username"]))
-                    return render_template("main_login.html", 
+                    return render_template("main_login.html", **(myrender()), 
                                            title="TiledViz register", 
                                            form=myform)
         else:
@@ -782,10 +794,10 @@ def register():
                 # or Request an invite link from another connected user and use it !
                 logging.info("New user "+session["username"]+" : create a new project or ask for invite_link.")
                 flash("New user {} registred : please create a new project or ask another user for an invite_link.".format(session["username"]))
-                return render_template("main_login.html", 
+                return render_template("main_login.html", **(myrender()), 
                     title="TiledViz register", 
                     form=myform)
-    return render_template("main_login.html", title="TiledViz register", form=myform)
+    return render_template("main_login.html", **(myrender()), title="TiledViz register", form=myform)
 
 # OR Login
 @app.route('/login', methods=["GET", "POST"])
@@ -841,11 +853,11 @@ def login():
                     return redirect("/allsessions")
             else:
                 flash("Invalid Password user {}".format(myform.username.data))
-                return render_template("main_login.html", title="Invalid Password : Login TiledViz", form=myform)
+                return render_template("main_login.html", **(myrender()), title="Invalid Password : Login TiledViz", form=myform)
         else:
             flash("Unknown user {}".format(myform.username.data))
-            return render_template("main_login.html", title="Unknown user : Login TiledViz", form=myform)
-    return render_template("main_login.html", title="Login TiledViz", form=myform)        
+            return render_template("main_login.html", **(myrender()), title="Unknown user : Login TiledViz", form=myform)
+    return render_template("main_login.html", **(myrender()), title="Login TiledViz", form=myform)
 
 @app.route('/logout')
 def logout():
@@ -864,7 +876,7 @@ def logout():
 @app.route('/test')
 def testserver():
     # only test TiledViz server.
-    return render_template("test.html")        
+    return render_template("test.html")
 
 @app.route('/savesession', methods=['GET', 'POST'])
 def savesession():
@@ -873,6 +885,10 @@ def savesession():
         user_id=get_user_id("Savession",session["username"])
     else:
         flash("You are not connected. You must login before saving a session.")
+        return redirect("/login")
+
+    if (not "is_client_active" in session):
+        flash("You must be connected and not Anonymous to save a session.")
         return redirect("/login")
 
     all_session={"username":session['username'],"is_client_active":session["is_client_active"],
@@ -899,7 +915,7 @@ def savesession():
         return redirect("/index")
         #return redirect(url_for('index'))
     
-    return render_template("savesession.html",
+    return render_template("savesession.html", **(myrender()),
                            all_session=json_all_session)
 
 @app.route('/retreivesession', methods=["GET", "POST"])
@@ -954,7 +970,7 @@ def retreivesession():
         #     pass
         
     #    return render_template("retreivesession.html")
-    return render_template("main_login.html", title="Retreive saved session for TiledViz", form=myform)
+    return render_template("main_login.html", **(myrender()), title="Retreive saved session for TiledViz", form=myform)
 
 
 # Create new project
@@ -1039,7 +1055,7 @@ def project():
             logging.error("Error for chosen project.")
             return redirect("/project")            
         
-    return render_template("main_login.html", title="New project TiledViz", form=myform)
+    return render_template("main_login.html", **(myrender()), title="New project TiledViz", form=myform)
 
 # List all my old projects and after all sessions I am in
 @app.route('/admin', methods=["GET", "POST"])
@@ -1426,7 +1442,7 @@ def admin():
 
         return redirect("/admin")
             
-    return render_template("main_login.html", title="Admin for user.", form=myform, message=message)
+    return render_template("main_login.html", **(myrender()), title="Admin for user.", form=myform, message=message)
 
 
 # List all my old projects and after all sessions I am in
@@ -1536,7 +1552,7 @@ def allmysessions():
             return redirect(url_for(".editsession",message=message))
         return redirect("/grid")
         
-    return render_template("main_login.html", title="All projects/sessions TiledViz", form=myform, message=message)
+    return render_template("main_login.html", **(myrender()), title="All projects/sessions TiledViz", form=myform, message=message)
 
     
 # List all old sessions for the projectname I am in
@@ -1576,7 +1592,7 @@ def oldsessions():
             message = '{"oldsessionname":"'+myform.chosen_session.data+'"}'
             return redirect(url_for(".copysession",message=message))
 
-    return render_template("main_login.html", title="Old projects TiledViz", form=myform)
+    return render_template("main_login.html", **(myrender()), title="Old projects TiledViz", form=myform)
 
 # ==> invite an existing user (and connected) with invite_link
 # Create new session
@@ -1598,7 +1614,7 @@ def newsession():
         if myform.add_users.data:
             myform.users.append_entry()
             flash("New user for user {} in session {}".format(session["username"], myform.sessionname.data))
-            return render_template("main_login.html", title="New session TiledViz", form=myform)
+            return render_template("main_login.html", **(myrender()), title="New session TiledViz", form=myform)
         logging.info("in session")
         id_projects=db.session.query(models.Project.id).filter_by(name=session["projectname"])
         sessionname=myform.sessionname.data
@@ -1611,10 +1627,10 @@ def newsession():
                 traceback.print_exc(file=sys.stderr)
             
                 flash("Session with name {} creation problem.".format(sessionname))    
-                return render_template("main_login.html", title="New Session TiledViz", form=myform, message=message)
+                return render_template("main_login.html", **(myrender()), title="New Session TiledViz", form=myform, message=message)
         else:
             flash("Session with name {} already exists".format(sessionname))
-            return render_template("main_login.html", title="New Session TiledViz", form=myform)
+            return render_template("main_login.html", **(myrender()), title="New Session TiledViz", form=myform)
 
         # Create default config for new session 
         config_default_file=open("app/static/js/config_default.json",'r')
@@ -1632,7 +1648,8 @@ def newsession():
             flash("One must validate new session before create a tiledset.")
             message='{"oldsessionname":"'+session["sessionname"]+'"}'
             return redirect(url_for(".editsession",message=message))
-    return render_template("main_login.html", title="New session TiledViz", form=myform)        
+    return render_template("main_login.html", **(myrender()), title="New session TiledViz", form=myform)
+
 
 # Copy an old session and edit tilesets
 @app.route('/copysession', methods=["GET", "POST"])
@@ -1658,7 +1675,7 @@ def copysession():
             message = '{"oldsessionname":"'+session["sessionname"]+'"}'
             flash("New user avaible for user {} in session {}".format(session["username"], myform.sessionname.data))
             # TODO !! => send invitation to new users ?
-            return render_template("main_login.html", title="Copy session TiledViz", form=myform)
+            return render_template("main_login.html", **(myrender()), title="Copy session TiledViz", form=myform)
 
         newsession,exist=create_newsession(myform.sessionname.data, myform.description.data, oldsession.id_projects, myform.users)
 
@@ -1676,13 +1693,13 @@ def copysession():
             
                 message = '{"oldsessionname":"'+oldsessionname+'"}'
                 flash("Session with name {} creation problem.".format(newsession.name))
-                return render_template("main_login.html", title="Copy session TiledViz", form=myform, message=message)
+                return render_template("main_login.html", **(myrender()), title="Copy session TiledViz", form=myform, message=message)
         else:
             try:
                 flash("You must change session name {} for new session.".format(newsession.data))
             except:
                 flash("You must change session name {} for new session.".format(str(newsession)))
-            return render_template("main_login.html", title="Copy Session TiledViz", form=myform)
+            return render_template("main_login.html", **(myrender()), title="Copy Session TiledViz", form=myform)
 
         theaction=myform.tilesetaction.data
         
@@ -1711,7 +1728,7 @@ def copysession():
         elif (theaction == "search"):
             message = '{"oldsessionname":"'+newsession.name+'"}'
             return redirect(url_for(".searchtileset",message=message))
-    return render_template("main_login.html", title="Copy session TiledViz", form=myform, message=message)
+    return render_template("main_login.html", **(myrender()), title="Copy session TiledViz", form=myform, message=message)
 
 
 # Edit old session
@@ -1801,12 +1818,12 @@ def editsession():
             message = '{"oldsessionname":"'+oldsessionname+'"}'
             flash("New user avaible for user {} in session {}".format(session["username"], myform.sessionname.data))
             # TODO !! => send invitation to new users ?
-            return render_template("main_login.html", title="Edit session TiledViz", form=myform)
+            return render_template("main_login.html", **(myrender()), title="Edit session TiledViz", form=myform)
 
         if (myform.sessionname.data != oldsessionname):
             message = '{"oldsessionname":"'+oldsessionname+'"}'
             flash("You must NOT change session name to edit session {}".format(oldsessionname))
-            return render_template("main_login.html", title="Edit session TiledViz", form=myform, message=message)
+            return render_template("main_login.html", **(myrender()), title="Edit session TiledViz", form=myform, message=message)
 
         oldsession.description=str(myform.description.data)
         creation_date=datetime.datetime.now()
@@ -1864,7 +1881,7 @@ def editsession():
                 flash("Error remove tileset {}".format(db.session.query(models.TileSet).filter_by(id=tilesetid).scalar().name))
             message = '{"oldsessionname":"'+oldsessionname+'"}'
             return redirect(url_for(".editsession",message=message))
-    return render_template("main_login.html", title="Edit session TiledViz", form=myform, message=message)
+    return render_template("main_login.html", **(myrender()), title="Edit session TiledViz", form=myform, message=message)
 
 # Use json editor for session nodes.json
 @app.route('/editnodes', methods=["GET", "POST"])
@@ -1991,7 +2008,7 @@ def searchtileset():
             flash("Add tileSet {}.".format(thisTS.name))
             return redirect(url_for(".editsession",message=message))
 
-    return render_template("main_login.html", title="All my Tiledsets ", form=myform)
+    return render_template("main_login.html", **(myrender()), title="All my Tiledsets ", form=myform)
 
 # Config Session : give the json (depend of static/js/config_default.json)
 @app.route('/configsession', methods=["GET", "POST"])
@@ -2072,7 +2089,7 @@ def configsession():
         message = '{"oldsessionname":"'+sessionname+'"}'
         return redirect(url_for(".editsession",message=message))
         
-    return render_template("main_login.html", title="Config session", form=myform, message=message)
+    return render_template("main_login.html", **(myrender()), title="Config session", form=myform, message=message)
 
 
 # New TileSet : always create tile even if another (title/comment) exists
@@ -2131,7 +2148,7 @@ def addtileset():
             launch_file=myform.script_launch_file.data
             if (not launch_file):
                 flash("TileSet with connection must have at least a script to launch your tiles.\n You must add launch_file script.")    
-                return render_template("main_login.html", title="New TileSet TiledViz", form=myform, message=message) 
+                return render_template("main_login.html", **(myrender()), title="New TileSet TiledViz", form=myform, message=message) 
             connectionbool=True
 
         #print(session["sessionname"])
@@ -2155,10 +2172,10 @@ def addtileset():
                 traceback.print_exc(file=sys.stderr)
                 
                 flash("TileSet with name {} creation problem :".format(tilesetname))    
-                return render_template("main_login.html", title="New TileSet TiledViz", form=myform, message=message)
+                return render_template("main_login.html", **(myrender()), title="New TileSet TiledViz", form=myform, message=message)
         else:
             flash("TileSet with name {} already exists : Please give another name ".format(tilesetname))
-            return render_template("main_login.html", title="New TileSet TiledViz", form=myform, message=message)
+            return render_template("main_login.html", **(myrender()), title="New TileSet TiledViz", form=myform, message=message)
         
         # Register config files in jsontransfert to write them in connection path
         if (connectionbool):
@@ -2219,7 +2236,7 @@ def addtileset():
             message = '{"oldsessionname":"'+session["sessionname"]+'"}'
             return redirect(url_for(".editsession",message=message))
     
-    return render_template("edittileset.html", title="New TileSet TiledViz", form=myform, message=message)
+    return render_template("edittileset.html", **(myrender()), title="New TileSet TiledViz", form=myform, message=message)
 
 
 # Copy an old TileSet
@@ -2250,7 +2267,7 @@ def copytileset():
             message = '{"oldtilsetid":"'+str(oldtilesetid)+'"}'
             flash("You must change tilsetname to copy tileset {}".format(oldtileset.name))
             #return redirect(url_for(".copytileset",message=message))
-            return render_template("main_login.html", title="Copy tileset TiledViz", form=myform, message=message)
+            return render_template("main_login.html", **(myrender()), title="Copy tileset TiledViz", form=myform, message=message)
 
         nbr_of_tiles = len(oldtileset.tiles)
         
@@ -2266,7 +2283,7 @@ def copytileset():
                 traceback.print_exc(file=sys.stderr)
 
                 flash("TileSet creation with name {} already exist :".format(tilesetname))    
-                return render_template("main_login.html", title="New TileSet TiledViz", form=myform, message=message)
+                return render_template("main_login.html", **(myrender()), title="New TileSet TiledViz", form=myform, message=message)
 
 
         newtileset.tiles=[]
@@ -2299,7 +2316,7 @@ def copytileset():
             message = '{"oldsessionname":"'+session["sessionname"]+'"}'
             return redirect(url_for(".editsession",message=message))
             
-    return render_template("edittileset.html", title="Copy TileSet TiledViz", form=myform, message=message)
+    return render_template("edittileset.html", **(myrender()), title="Copy TileSet TiledViz", form=myform, message=message)
 
 # Edit old new TileSet
 @app.route('/edittileset', methods=["GET", "POST"])
@@ -2541,7 +2558,7 @@ def edittileset():
             launch_file=myform.script_launch_file.data
             if (not launch_file):
                 flash("TileSet with connection must have at least a script to launch your tiles.\n You must add launch_file script.")    
-                return render_template("main_login.html", title="Edit TileSet TiledViz", form=myform, message=message)
+                return render_template("main_login.html", **(myrender()), title="Edit TileSet TiledViz", form=myform, message=message)
             # Register config files in jsontransfert to write them in connection path
             TStmpName="tileset_"+str(oldtileset.id)
             if ( not TStmpName in  jsontransfert):
@@ -2716,7 +2733,7 @@ def edittileset():
             message = '{"oldsessionname":"'+session["sessionname"]+'"}'
             return redirect(url_for(".editsession",message=message))
     
-    return render_template("edittileset.html", title="Edit TileSet TiledViz", form=myform, message=message)
+    return render_template("edittileset.html", **(myrender()), title="Edit TileSet TiledViz", form=myform, message=message)
 
 # # 
 # def linkrandom(nbchar):
@@ -2837,7 +2854,7 @@ def vncconnection():
                 logging.warning("Wait for "+out_nodes_json)
             count=count+1
                 
-    return render_template("vncconnection.html",
+    return render_template("vncconnection.html", **(myrender()),
                            port=connection_vnc,
                            id=idconnection,
                            tsid=idtileset,
@@ -3064,7 +3081,7 @@ def addconnection():
                 myflush()
                 return redirect(url_for(".vncconnection",message=message))
         
-    return render_template("addconnection.html", title="Add new Connection TiledViz", form=myform, message=message)
+    return render_template("addconnection.html", **(myrender()), title="Add new Connection TiledViz", form=myform, message=message)
 
 # Edit old Connection related to a tileset
 @app.route('/editconnection', methods=["GET", "POST"])
@@ -3224,7 +3241,7 @@ def editconnection():
                                   myform.scheduler.data)
         return redirect(url_for(".vncconnection",message=message))
 
-    return render_template("main_login.html", title="Edit Connection TiledViz", form=myform, message=message)
+    return render_template("main_login.html", **(myrender()), title="Edit Connection TiledViz", form=myform, message=message)
 
 
 # Remove old Connection related to a tileset
@@ -3302,7 +3319,7 @@ def jsoneditor():
         #logging.debug("jsoneditor message :"+str(message))
 
         return redirect(url_for("."+callfunction["function"],message=message))
-    return render_template("jsoneditor.html",TheJson=TheJson)
+    return render_template("jsoneditor.html", **(myrender()), TheJson=TheJson)
 
 # ====================================================================
 # Grid/main page

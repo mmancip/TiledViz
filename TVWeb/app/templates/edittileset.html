@@ -13,15 +13,17 @@
 			{{ message }}
 		</div>
 		{% endif %}
-		{% with messagesF = get_flashed_messages() %}
-		{% if messagesF %}
-		<ul class=flashes>
-		  {% for messageF in messagesF %}
-		  <li>{{ messageF }}</li>
+  {% with messagesF = get_flashed_messages() %}
+    {% if messagesF %}
+		<div class="alert alert-warning alert-dimissible show">
+		  {% for messageF in get_flashed_messages() %}
+		  {{ messageF }}
+		  <button type="button" class="btn-close float-end"
+			  data-bs-dismiss="alert" aria-label="Close"></button>
 		  {% endfor %}
-		</ul>
-		{% endif %}
-		{% endwith %}
+		</div>
+    {% endif %}
+  {% endwith %}
 		{% import "bootstrap/wtf.html" as wtf %}
 		{{ wtf.quick_form(form, button_map={"submit":"primary"}, id="login-form") }}
 		<script type="text/javascript">

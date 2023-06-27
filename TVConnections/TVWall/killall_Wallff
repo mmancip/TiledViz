@@ -1,0 +1,3 @@
+ssh mandelbrot clush -g visu 'killall -9 http-server'
+ssh mandelbrot clush -g visu 'killall firefox '
+#clush -g visu 'killall mozilla-firefox '

@@ -1,0 +1,4 @@
+clush -g visu 'cd /tmp; tar cf temp-profile-0_$(hostname).tar temp-profile-0'
+clush -g visu 'cd /tmp; tar cf temp-profile-1_$(hostname).tar temp-profile-1'
+clush -g visu 'cd /tmp; cp temp-profile-*.tar ~/VIZMDLS/WALL/'
+clush -g visu 'cd /tmp; rm temp-profile-*.tar'

@@ -1,0 +1,2 @@
+clush -g visu 'killall chrome '
+clush -g visu 'killall google-chrome '

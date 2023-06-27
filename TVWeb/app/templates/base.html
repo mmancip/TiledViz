@@ -2,6 +2,10 @@
 <html>
   <head>
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="Martial Mancip, Cécile Balsier, Yacouba Kaloga.">
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico')}}">
     {% block title %}{% endblock %}
 
@@ -9,10 +13,7 @@
 	  href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css"
 	  integrity="sha256-rByPlHULObEjJ6XQxW/flG2r+22R5dKiAoef+aXWfik="
 	  crossorigin="anonymous" />
-    <link rel="stylesheet"
-	  href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css"
-	  integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS"
-	  crossorigin="anonymous">
+    <link href="../static/dist/css/bootstrap.min.css" rel="stylesheet">
     <style type="text/css">
       h1, h2, h3, h4, h5, h6,
       .h1, .h2, .h3, .h4, .h5, .h6, p {
@@ -23,8 +24,84 @@
 	  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
 	  integrity="sha256-eZrrJcwDc/3uDhsdt61sL2oOBY362qM3lon1gyExkL0="
 	  crossorigin="anonymous" />
+    <script src="../static/dist/js/bootstrap.bundle.min.js"></script>
 
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/base.css') }}">    
+
+    <style>
+      .bd-placeholder-img {
+        font-size: 1.125rem;
+        text-anchor: middle;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        user-select: none;
+      }
+
+      @media (min-width: 768px) {
+        .bd-placeholder-img-lg {
+          font-size: 3.5rem;
+        }
+      }
+
+      .b-example-divider {
+        width: 100%;
+        height: 3rem;
+        background-color: rgba(0, 0, 0, .1);
+        border: solid rgba(0, 0, 0, .15);
+        border-width: 1px 0;
+        box-shadow: inset 0 .5em 1.5em rgba(0, 0, 0, .1), inset 0 .125em .5em rgba(0, 0, 0, .15);
+      }
+
+      .b-example-vr {
+        flex-shrink: 0;
+        width: 1.5rem;
+        height: 100vh;
+      }
+
+      .bi {
+        vertical-align: -.125em;
+        fill: currentColor;
+      }
+
+      .nav-scroller {
+        position: relative;
+        z-index: 2;
+        height: 2.75rem;
+        overflow-y: hidden;
+      }
+
+      .nav-scroller .nav {
+        display: flex;
+        flex-wrap: nowrap;
+        padding-bottom: 1rem;
+        margin-top: -1px;
+        overflow-x: auto;
+        text-align: center;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .btn-bd-primary {
+        --bd-violet-bg: #712cf9;
+        --bd-violet-rgb: 112.520718, 44.062154, 249.437846;
+
+        --bs-btn-font-weight: 600;
+        --bs-btn-color: var(--bs-white);
+        --bs-btn-bg: var(--bd-violet-bg);
+        --bs-btn-border-color: var(--bd-violet-bg);
+        --bs-btn-hover-color: var(--bs-white);
+        --bs-btn-hover-bg: #6528e0;
+        --bs-btn-hover-border-color: #6528e0;
+        --bs-btn-focus-shadow-rgb: var(--bd-violet-rgb);
+        --bs-btn-active-color: var(--bs-btn-hover-color);
+        --bs-btn-active-bg: #5a23c8;
+        --bs-btn-active-border-color: #5a23c8;
+      }
+      .bd-mode-toggle {
+        z-index: 1500;
+      }
+    </style>
+    <link href="../static/dist/css/navbars.css" rel="stylesheet">
 
     <!-- jQuery -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"
@@ -38,15 +115,17 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.6/umd/popper.min.js"
 	    integrity="sha384-wHAiFfRlMFy6i5SRaxvfOCifBUQy1xHdJ/yoi7FRNXMRBu5WHdZYu1hA6ZOblgut"
 	    crossorigin="anonymous"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/js/bootstrap.min.js"
-	    integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k"
-	    crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.min.js"
+	    integrity="sha512-3dZ9wIrMMij8rOH7X3kLfXAzwtcHpuYpEgQg1OA4QAob1e81H8ntUQmQm3pBudqIoySO5j0tHN4ENzA6+n2r4w=="
+	    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="../static/dist/js/bootstrap.bundle.min.js"></script>
     <!-- SocketIO -->
     <script src="https://cdn.socket.io/3.1.3/socket.io.min.js"
 	    integrity="sha384-cPwlPLvBTa3sKAgddT6krw0cJat7egBga3DJepJyrLl4Q9/5WLra3rrnMcyTyOnh"
 	    crossorigin="anonymous"></script>
     {% block additional_scripts_css %}{% endblock %}
 
+  
   <script type="text/javascript">
     autoadaptzoom = function(){
 	var P=window.devicePixelRatio;
@@ -75,5 +154,55 @@
     }
   </script>		  
   </head>
+
+<body>
+  <div style="none" username="{{ username }}" isadmin="{{ isadmin }}" notlogin="{{ notlogin }}"> </div>
+
+  {% if username is defined %}
+  <nav class="navbar navbar-expand-xxl navbar-dark bg-dark" aria-label="Seventh navbar example">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#TiledViz">TiledViz</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarsExampleXxl" aria-controls="navbarsExampleXxl" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarsExampleXxl">
+        <ul class="navbar-nav me-auto mb-2 mb-xl-0">
+          <li class="nav-item">
+            <a class="nav-link active" aria-current="page" href="/home">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#"></a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">Menu</a>
+            <ul class="dropdown-menu">
+	      {% if notlogin %} 
+              <li><a class="dropdown-item" href="/login">Login</a></li>
+              <li><a class="dropdown-item" href="/register">Register</a></li>
+	      {% else %}
+              <li><a class="dropdown-item" href="/allsessions">All Sessions</a></li>
+              <li><a class="dropdown-item" href="/grid">Last grid</a></li>
+              <li><a class="dropdown-item" href="/savesession">Save cookie</a></li>
+              <li><a class="dropdown-item" href="/retreivesession">Reload cookie</a></li>
+              <li><a class="dropdown-item" href="/admin">UserAdmin</a></li>
+              <li><a class="dropdown-item" href="/logout">Logout</a></li>
+	      {% endif %}
+            </ul>
+          </li>
+	  {% if isadmin %}
+          <li class="nav-item">
+              <a class="nav-link" href="/admin">Admin</a>
+          </li>
+	  {% endif %}
+        </ul>
+        <!-- <form role="search"> -->
+        <!--   <input class="form-control" type="search" placeholder="Search" aria-label="Search"> -->
+        <!-- </form> -->
+      </div>
+    </div>
+  </nav>
+  {% endif %}  
   {% block body %}{% endblock %}
+</body>
 </html>

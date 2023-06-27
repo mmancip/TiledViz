@@ -1,0 +1,5 @@
+#!/bin/bash -vx
+echo version $1
+clush -g visu 'cd /tmp; rm -rf temp-profile-*'
+clush -g visu bash -c "'cd /tmp; cp ~/VIZMDLS/WALL/temp-profile-*_\$(hostname)_'$1'.tar .'"
+clush -g visu bash -c "'cd /; for x in \$( ls 'tmp/temp-profile-*_\$(hostname)_01.tar' ); do echo \$x; tar xf \$x; done; pwd; ls -la /tmp/temp-pro*'"

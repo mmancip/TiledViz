@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" 
+	  content="user-scalable=yes, initial-scale=0.2, maximum-scale=0.5, minimum-scale=0.1,
+		   width=device-width, height=device-height"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  </head>
+  
+  <body>
+    <header>
+      <!-- <script type="text/javascript" src="https://code.jquery.com/jquery-2.2.4.min.js"></script> -->
+      <!-- <script type="text/javascript" src="https://code.jquery.com/jquery-3.3.1.min.js"></script> -->
+    </header>
+    <div id="dtileviz" style="position: relative; display: block">
+      <iframe id="tileviz" scrolling="no" src="" style="position: absolute; border-width: 0px"></iframe> 
+    </div>
+    <style type="text/css">
+      body 
+      {
+      margin: 0px;
+      width: WALLWIDTHpx;
+      height: WALLHEIGHTpx;
+      overflow: hidden;
+      transform-origin: top left;
+      -moz-transform-origin: top left;
+      -webkit-transform-origin: top left;
+      }
+      
+    </style>
+	    
+    <script type="text/javascript">
+      //document.body.style.zoom = APPSCALE
+      var myscale = 'scale(APPSCALE)';
+      document.body.style.webkitTransform =  myscale;    // Chrome, Opera, Safari
+      document.body.style.mozTransform = myscale;
+      document.body.style.transform = myscale;     // General
+      myframe=document.getElementById("tileviz");
+      myframe.scrolling="no"; 
+      myframe.src="APPSRC";
+      myframe.style.width="APPWIDTHpx";
+      myframe.style.height="APPHEIGHTpx";
+//      myframe.style.transform="scale(APPSCALE)";
+      dframe=document.getElementById("dtileviz");
+      dframe.style.width="APPWIDTHpx";
+      dframe.style.height="APPHEIGHTpx";
+      dframe.style.left="SHIFTLEFTpx";
+      dframe.style.top="SHIFTTOPpx";
+    </script>
+  </body>
+</html>

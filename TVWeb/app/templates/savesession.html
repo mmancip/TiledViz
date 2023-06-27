@@ -9,15 +9,14 @@
 	href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"
 	integrity="sha256-eZrrJcwDc/3uDhsdt61sL2oOBY362qM3lon1gyExkL0="
 	crossorigin="anonymous" />
-{% endblock %}
-
-{% block body %}
 <header>
   <script type="text/javascript" charset="utf-8">
     all_session={{ all_session|tojson }};
   </script>
 </header>
-<body>
+{% endblock %}
+
+{% block body %}
   <h3>
     Save currect session.
   </h3>
@@ -66,6 +65,5 @@
     document.body.appendChild(a);
 
   </script>
-</body>
 {% endblock %}
 

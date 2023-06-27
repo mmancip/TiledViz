@@ -1,0 +1,28 @@
+#!/bin/sh
+
+echo "Session = " $1 
+
+clush -g visu 'killall firefox '
+clush -g visu 'killall mozilla-firefox '
+clush -g visu killall -9 http-server
+sleep 1
+
+APPLINK="https://desktop.mdls.fr/join/$1_passive_Anonymous_2018-10-11T12:39:28.920410_b'rMkm7KI4c9'"
+
+#ANATOMIST
+#APPSCALE=0.60
+# VMD
+#APPSCALE=0.52
+# TEST
+#APPSCALE=1
+
+#APPSCALE=0.52
+if [ "X$2" == X"" ]; then
+	APPSCALE=0.55
+else
+	APPSCALE=$2
+fi
+
+
+set -vx
+./scriptff_ssl.sh ${APPLINK} ${APPSCALE}
