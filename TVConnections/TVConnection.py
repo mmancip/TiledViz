@@ -22,20 +22,26 @@ import logging
 
 import inspect
 
-sys.path.append(os.path.abspath('/TiledViz/TVDatabase'))
+Home=os.environ['HOME']
+user=os.environ["USER"]
+TiledVizPath='/TiledViz'
+
+TilesScriptsPath='/opt'
+
+
+sys.path.append(os.path.abspath(TiledVizPath+'/TVDatabase'))
 from TVDb import tvdb
 from TVDb import models
 
 # Add connect module directory
-sys.path.append(os.path.realpath('/TiledViz/TVConnections/'))
+sys.path.append(os.path.realpath(TiledVizPath+'/TVConnections/'))
 from connect import sock
 from connect.transfer import send_file_server, get_file_client
 
-user='myuser'
 ActionPort=64040
 
 # Read TiledViz config
-TVrunDir=os.environ['HOME']+'/.tiledviz'
+TVrunDir=Home+'/.tiledviz'
 TVconf=TVrunDir+"/tiledviz.conf"
 
 config = configparser.ConfigParser()
@@ -249,14 +255,16 @@ def Get_client_IP(tileNum=-1,tileId='001'):
     
 # commande de tunnel :
 def launch_tunnel():
+    global TilesScriptsPath
+    logging.warning("TilesScriptsPath : %s" % (TilesScriptsPath))
     stateVM=True
     
     # Share ssh connection keys whith tiles
     # TODO : secure that action ?
     totbyte=0
     filesize=os.path.getsize(sshKeyPath)
-    connectionkey=os.path.join(os.getenv("HOME"),".ssh/id_rsa_connection")
-    os.system("cp "+sshKeyPath+".pub "+os.path.join(os.getenv("HOME"),".ssh/authorized_keys"))
+    connectionkey=os.path.join(Home,".ssh/id_rsa_connection")
+    os.system("cp "+sshKeyPath+".pub "+os.path.join(Home,".ssh/authorized_keys"))
     packet_id_length=MSGsize-200
     with open(sshKeyPath,'rb') as privatek:
         l = '\\\"'+str(privatek.read(packet_id_length).replace(b"\n",b""),"utf-8")+'\\\"'
@@ -311,7 +319,7 @@ def launch_tunnel():
         internPort=listPortsTilesIE[str(i)][0]
         WebServerHost=listPortsTilesIE["TiledVizHost"]
         ServerTSPortSSH=listPortsTilesIE["TiledVizConnectionPort"]
-        COMMANDi=' ssh-agent /opt/tunnel_ssh '+SSH_FRONTEND+' '+SSH_LOGIN+' '+str(internPort)+' '+WebServerHost+' '+str(ServerTSPortSSH)+' -i '+connectionkey
+        COMMANDi=' ssh-agent '+TilesScriptsPath+'/tunnel_ssh '+SSH_FRONTEND+' '+SSH_LOGIN+' '+str(internPort)+' '+WebServerHost+' '+str(ServerTSPortSSH)+' -i '+connectionkey
         logging.warning("%s | %s" % (TILEi, COMMANDi)) 
         client.send_server(TILEi+COMMANDi)
         state=client.get_OK()
@@ -341,7 +349,7 @@ def launch_tunnel():
     return stateVM
     
 def launch_vnc():
-    client.send_server(ExecuteTS+' /opt/vnccommand')
+    client.send_server(ExecuteTS+' '+TilesScriptsPath+'/vnccommand')
     state=client.get_OK()
     logging.warning("Out of vnccommand : "+ str(state))
     stateVM=(state == 0)
@@ -397,7 +405,7 @@ def all_resize(RESOL="1280x800"): #"1440x900"
     return stateVM
 
 # def fullscreenThisApp(App="xterm",tileNum=-1,tileId='001'):
-#     COMMAND='/opt/movewindows '+App+' -b toggle,fullscreen'
+#     COMMAND=TilesScriptsPath+'/movewindows '+App+' -b toggle,fullscreen'
 #     if ( tileNum > -1 ):
 #         TilesStr=' Tiles=('+containerId(tileNum+1)+') '            
 #     else:
@@ -414,7 +422,7 @@ def fullscreenApp(windowname=App,tileNum=-1,tileId='001'):
     return stateVM
     
 def movewindows(windowname=App,wmctrl_option='toggle,fullscreen',tileNum=-1,tileId='001'):
-    COMMAND='/opt/movewindows '+windowname+' -b '+wmctrl_option
+    COMMAND=TilesScriptsPath+'/movewindows '+windowname+' -b '+wmctrl_option
     #remove,maximized_vert,maximized_horz
     #toggle,above
     if ( tileNum > -1 ):
@@ -427,7 +435,7 @@ def movewindows(windowname=App,wmctrl_option='toggle,fullscreen',tileNum=-1,tile
     return stateVM
     
 def showThisGUI(App="xterm",tileNum=-1,tileId='001'):
-    COMMAND='/opt/movewindows '+App+' -b toggle,above'
+    COMMAND=TilesScriptsPath+'/movewindows '+App+' -b toggle,above'
     if ( tileNum > -1 ):
         TilesStr=' Tiles=('+containerId(tileNum+1)+') '            
     else:
@@ -457,7 +465,7 @@ if __name__ == '__main__':
     logFormatter = logging.Formatter("TVConnection %(asctime)s - %(threadName)s - %(levelname)s: %(message)s ")
     rootLogger = logging.getLogger()
     rootLogger.setLevel(logging.WARNING)
-    fileHandler = logging.FileHandler("/home/myuser/.vnc/TVConnection.log")
+    fileHandler = logging.FileHandler(Home+"/.vnc/TVConnection.log")
     fileHandler.setLevel(logging.DEBUG)
     fileHandler.setFormatter(logFormatter)
     rootLogger.addHandler(fileHandler)
@@ -532,7 +540,7 @@ if __name__ == '__main__':
 
         if (resp != 'n'):
             
-            sshKeyPath=os.path.join(os.getenv("HOME"),".ssh","id_rsa_"+Frontend)
+            sshKeyPath=os.path.join(Home,".ssh","id_rsa_"+Frontend)
             
             if (TVconnection.auth_type == "ssh" and not OK_Key):
                 cmdgen="ssh-keygen -b 1024 -t rsa -N '' -f /home/"+user+"/.ssh/id_rsa_"+Frontend
@@ -596,28 +604,34 @@ if __name__ == '__main__':
                     if (childcopy.exitstatus == 0):
                         NOT_CONNECTED=False
 
+    # Get free local PORT for ssh to Frontend TileServer
+    import socket;
+    s=socket.socket();
+    s.bind(("", 0));
+    sshPORT=str(int(s.getsockname()[1]));
+    s.close()
     # Save/restore here ?
     TunnelFrontend = "ssh -x -4 -i "+sshKeyPath+" -T -N -nf"+\
                      "  -L "+str(sock.PORTServer)+":"+Frontend+":"+str(sock.PORTServer)+\
-                     "  -L 2222:localhost:22 "+UserFront+"@"+Frontend
+                     "  -L "+sshPORT+":localhost:22 "+UserFront+"@"+Frontend
 
     logging.debug(TunnelFrontend)
     os.system(TunnelFrontend)
     logging.info("ssh tunneling OK.")
 
-    lshome="ssh -x -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'ls $HOME/.tiledviz'"
+    lshome="ssh -x -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost 'ls $HOME/.tiledviz'"
     logging.debug(lshome)
     os.system(lshome)
     
-    mkdirhome="ssh -x -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'mkdir $HOME/.tiledviz'"
+    mkdirhome="ssh -x -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost 'mkdir $HOME/.tiledviz'"
     logging.debug(mkdirhome)
     os.system(mkdirhome)
 
-    chmodhome="ssh -x -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'chmod og-rx $HOME/.tiledviz'"
+    chmodhome="ssh -x -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost 'chmod og-rx $HOME/.tiledviz'"
     logging.debug(chmodhome)
     os.system(chmodhome)
     
-    cmdhome="ssh -x -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'echo $HOME'"
+    cmdhome="ssh -x -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost 'echo $HOME'"
     logging.debug(cmdhome)
     childhome=pexpect.spawn(cmdhome)
     expindex=childhome.expect([pexpect.EOF, pexpect.TIMEOUT])
@@ -629,7 +643,7 @@ if __name__ == '__main__':
         HomeFront = os.path.join("/home",UserFront)
     childhome.close(force=True)
     
-    TiledVizPath=os.path.join(HomeFront,'.tiledviz')
+    TiledVizConfPath=os.path.join(HomeFront,'.tiledviz')
     
     # import Swarm
     # if (TVconnection.scheduler_file != ""):
@@ -638,28 +652,28 @@ if __name__ == '__main__':
     #time.sleep(10)
 
     DATE=re.sub(r'\..*','',datetime.datetime.isoformat(datetime.datetime.now(),sep='_').replace(":","-"))
-    JOBPath=os.path.join(TiledVizPath,TileSet+'_'+DATE)
+    JOBPath=os.path.join(TiledVizConfPath,TileSet+'_'+DATE)
 
     if (TVconnection.auth_type == "ssh"):
-        WorkdirFrontend = "ssh -x -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost mkdir "+JOBPath
+        WorkdirFrontend = "ssh -x -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost mkdir "+JOBPath
         logging.debug(WorkdirFrontend)
         os.system(WorkdirFrontend)
 
     # prepare connect dir :
-    CONNECTdir="/TiledViz/TVConnections/connect"
+    CONNECTdir=TiledVizPath+"/TVConnections/connect"
     CONNECTpath=os.path.join(JOBPath,"connect")
     
-    ConnectdirFrontend = 'rsync -va -e "ssh -T -i '+sshKeyPath+' -p 2222 " '+CONNECTdir+' '+UserFront+"@localhost"+":"+JOBPath
+    ConnectdirFrontend = 'rsync -va -e "ssh -T -i '+sshKeyPath+' -p '+sshPORT+' " '+CONNECTdir+' '+UserFront+"@localhost"+":"+JOBPath
     logging.debug(ConnectdirFrontend)
     os.system(ConnectdirFrontend)
 
     # Send or test TileServer run on server ??
     def launch_server(ServerFront):
         if ( ServerFront == "" ):
-            TileServerFrontend = 'scp -i '+sshKeyPath+' -P 2222 /TiledViz/TVConnections/TileServer.py  '+UserFront+"@localhost"+":"+TiledVizPath
+            TileServerFrontend = 'scp -i '+sshKeyPath+' -P '+sshPORT+' '+TiledVizPath+'/TVConnections/TileServer.py  '+UserFront+"@localhost"+":"+TiledVizConfPath
             logging.debug(TileServerFrontend)
             os.system(TileServerFrontend)
-            cmdTileServer="ssh -x -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'sh -c \"cd "+TiledVizPath+"; cp -rp "+os.path.join(JOBPath,"connect")+" .; HOSTNAME=\""+Frontend+"\" python3 TileServer.py > TileServer_"+DATE+".log 2>&1 & \"'"
+            cmdTileServer="ssh -x -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost 'sh -c \"cd "+TiledVizConfPath+"; cp -rp "+os.path.join(JOBPath,"connect")+" .; HOSTNAME=\""+Frontend+"\" python3 TileServer.py > TileServer_"+DATE+".log 2>&1 & \"'"
             logging.debug(cmdTileServer)
             childTileServer=pexpect.spawn(cmdTileServer)
             expindex=childTileServer.expect([pexpect.EOF, pexpect.TIMEOUT])
@@ -671,7 +685,7 @@ if __name__ == '__main__':
             childTileServer.close(force=True)
 
     def test_TileServer():
-        cmdServer="ssh -x -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'sh -c \"ps -Aef |grep TileServer |grep -v grep |grep "+UserFront+"\"'"
+        cmdServer="ssh -x -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost 'sh -c \"ps -Aef |grep TileServer |grep -v grep |grep "+UserFront+"\"'"
         logging.debug(cmdServer)
         childServer=pexpect.spawn(cmdServer)
         expindex=childServer.expect([pexpect.EOF, pexpect.TIMEOUT])
@@ -724,7 +738,7 @@ if __name__ == '__main__':
         client=sock.client()
     except:
         logging.warning("Connection is not working with TileServer on Frontend, but the process exists. We ")
-        cmdServer="ssh -x -i "+sshKeyPath+" -p 2222 "+UserFront+"@localhost 'sh -c \"pgrep TileServer |xargs kill \"'"
+        cmdServer="ssh -x -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost 'sh -c \"pgrep TileServer |xargs kill \"'"
         os.system(cmdServer)
         logging.debug(cmdServer)
         
@@ -792,7 +806,7 @@ if __name__ == '__main__':
         # Clean key :
         if (TVconnection.auth_type == "ssh"):
             myhostname=os.getenv('HOSTNAME', os.getenv('COMPUTERNAME', platform.node())).split('.')[0]
-            CleanKeyFrontend = "ssh -x -i "+sshKeyPath+" -p 2222 "+UserFront+'@localhost bash -c \'\"sed -i.'+DATE+' /'+myhostname+'/d ~/.ssh/authorized_keys\"\''
+            CleanKeyFrontend = "ssh -x -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+'@localhost bash -c \'\"sed -i.'+DATE+' /'+myhostname+'/d ~/.ssh/authorized_keys\"\''
             logging.debug(CleanKeyFrontend)
             os.system(CleanKeyFrontend)
         # On localhost (no need) "ssh-keygen -R "+Frontend+" -f ~/.ssh/known_hosts"
@@ -808,7 +822,7 @@ if __name__ == '__main__':
     client.close()
 
     # Kill ssh tunneling for VNC :
-    #os.system("ps -Aef | grep 'connect.*@172.17.*' |grep -v grep | sed -e 's%myuser\\s*\\([0-9]*\\).*%\\1%' |xargs kill")
+    #os.system("ps -Aef | grep 'connect.*@172.17.*' |grep -v grep | sed -e 's%'+user+'\\s*\\([0-9]*\\).*%\\1%' |xargs kill")
     os.system('killall -9 ssh')
 
     if (args.debug):

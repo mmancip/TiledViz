@@ -1,8 +1,7 @@
-TiledViz is designed to be a client-server version of TileViz, our small-multiple and
-generic data visualisation tool.
+TiledViz is designed to be a client-server for small-multiple and generic data visualisation tool.
 
-With TiledViz, you can use secure connection to watch remote VNC stream from
-computing machine with TiledViz.
+With TiledViz, you can use secure connection to watch remote VNC streams from
+computing machine and metadata for each element of ensemble from a database.
 
 On host, the job is TiledViz Secure (TVSecure.py).
 Flask is running inside TVSecure then you don't need to run its docker container

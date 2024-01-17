@@ -1,0 +1,118 @@
+#!/bin/bash
+LOGFILE="$HOME/.vnc/log"
+SINGULARITYID=$1
+DISPLAY=$2
+shift 2
+ARGS=$@
+echo $SINGULARITYID $DISPLAY ${ARGS[@]}
+
+myXPort=$DISPLAY
+#$((10 + 10#$(echo $SINGULARITYID)))
+
+RESOL="1280x960"
+myPORT=55555
+myFront=localhost
+if [ -z "$1" ]; then
+	echo Usage: $0 [-r RESOL_XxRESOL_Y] -u UID [-g GID] -p PORTserver -h Frontend
+	exit 1
+else
+    IFS=' ' read -ra ADDR <<< "$ARGS"
+    lenADDR=${#ADDR[@]}
+    if [ ${lenADDR} -gt 0 ]; then
+	i=0
+	while [ $i -lt ${lenADDR} ]; do
+	    case "${ADDR[$i]}" in
+		'-r') 
+		    RESOL=${ADDR[$((i+1))]};;
+		'-p')
+		    myPORT=${ADDR[$((i+1))]};;
+		'-h')
+		    myFront=${ADDR[$((i+1))]};;
+		'.*')
+		    myGID=${myUID}
+	    esac
+	    i=$((i+2));
+	done
+fi
+fi
+
+
+if ! [ -e ${HOME}/.vnc/passwd_sing ]; then
+	if [ -z "$VNC_PASSWORD" ]; then
+		choose() { echo -n ${1:$((RANDOM%${#1})):1}; }
+		password=$({
+			for i in $(seq 1 8); do
+			    choose "-._+0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+			done
+		})
+		echo Random Password Generated: $password |tee -a $LOGFILE
+		echo "$password" |xargs -I@ x11vnc -storepasswd @ ${HOME}/.vnc/passwd_sing
+	else
+		echo "$VNC_PASSWORD" |xargs -I@ x11vnc -storepasswd @ ${HOME}/.vnc/passwd_sing
+	fi
+	chmod 600 ${HOME}/.vnc/passwd_sing
+
+	sleep 1
+else
+    echo Random Password Generated: $(x11vnc -showrfbauth ${HOME}/.vnc/passwd_sing |tail -1 |sed -e 's/.*pass: //' ) |tee -a $LOGFILE
+fi
+
+export DATE=$(date +%F_%H-%M-%S)_$$
+export STARTUP=/tmp/startup_$DATE
+
+echo "#!/bin/bash 
+
+sleep 1
+
+xterm -rv -geometry ${RESOL}-0-0 -e /opt/client_python ${SINGULARITYID} ${myPORT} ${myFront} &
+
+sleep 1
+icewm
+#xterm
+#unset SESSION_MANAGER
+#unset DBUS_SESSION_BUS_ADDRESS
+" >${STARTUP}
+chmod 755 ${STARTUP}
+
+export LC_ALL=C
+
+export LOGxvfb=/tmp/out_xvfb_$DATE
+export XOPTIONS='-s "-screen 0 '${RESOL}'x24" '
+echo xvfb-run --server-num $myXPort -e ${LOGxvfb} ${STARTUP}
+xvfb-run --server-num $myXPort -e ${LOGxvfb} ${STARTUP} &
+sleep 2
+
+pgrep -fa Xvfb >> ${LOGxvfb}
+
+# Set defaults if the user did not specify envs.
+export DISPLAY=${XVFB_DISPLAY:-:$myXPort}
+screen=${XVFB_SCREEN:-0}
+resolution=${XVFB_RESOLUTION:-${RESOL}x24}
+timeout=${XVFB_TIMEOUT:-5}
+
+echo $DISPLAY
+AUTH=$( pgrep -fa Xvfb| sed -e "s&.*auth /&/&" )
+XAUTH=$( xauth -f $AUTH list )
+xauth add $XAUTH
+
+#Xvfb ${DISPLAY} -screen ${screen} ${resolution} &
+
+loopCount=0
+until xdpyinfo -display ${DISPLAY} > /dev/null 2>&1
+do
+    loopCount=$((loopCount+1))
+    sleep 1
+    if [ ${loopCount} -gt ${timeout} ]
+    then
+        echo "xvfb failed to start"
+        exit 1
+    fi
+done
+
+cat  ${LOGxvfb} >> $LOGFILE
+echo "Log file is $LOGFILE $(date +%F_%H-%M-%S)" >> $LOGFILE
+xterm -e bash 
+
+# myPORT=$((5910 + 10#$(echo $SINGULARITYID)))
+# x11vnc -forever -rfbport $myPORT -noncache -cursor arrow -shared -nowf -display  ${DISPLAY} -rfbauth $HOME/.vnc/passwd_sing -http > /tmp/out_x11vnc_$DATE 2>&1
+

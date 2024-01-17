@@ -46,14 +46,16 @@ while [ $i -le ${NUM} ]; do
        GPUfile=/dev/nvidia${NVIDIAGPU}
        if [ ${realhost} = $( hostname ) -o ${realhost} = "localhost" ]; then
 	   HOSTCOMMAND=
+	   #HOSTCOMMAND="ssh -x localhost "
 	   # Nvidia or Nouveau driver
 	   if [ -e $GPUfile ]; then
 	       TestNVIDIA[${realhost},${NVIDIAGPU}]=true
 	   else
 	       TestNVIDIA[${realhost},${NVIDIAGPU}]=false
 	   fi
-	   if ( ${TestNVIDIA[${NVIDIAGPU}]} ); then
-	       DEVICES="--device=$GPUfile:/dev/nvidia0 --device=/dev/nvidiactl"
+	   if ( ${TestNVIDIA[[${realhost},${NVIDIAGPU}]} ); then
+	       DEVICES=" -e NVIDIA_DRIVER_CAPABILITIES=graphics,utility,compute --device=$GPUfile:/dev/nvidia0 --device=/dev/nvidiactl"
+	       #--gpus='\"device=${NVIDIAGPU}\"'
 	   else
 	       DEVICES=""
 	   #     DEVICES="--device=/dev/video0:/dev/video0"
@@ -64,7 +66,8 @@ while [ $i -le ${NUM} ]; do
 	   TestNVIDIA[${realhost},${NVIDIAGPU}]=$( $HOSTCOMMAND bash -c "'[[ -e $GPUfile ]] && echo true || echo false'" )
 
 	   if ( ${TestNVIDIA[${realhost},${NVIDIAGPU}]} ); then
-	       DEVICES="--device=$GPUfile:/dev/nvidia0 --device=/dev/nvidiactl"
+	       DEVICES=" -e NVIDIA_DRIVER_CAPABILITIES=graphics,utility,compute --device=$GPUfile:/dev/nvidia0 --device=/dev/nvidiactl"
+	       #--gpus='\"device=${NVIDIAGPU}\"'
 	   else
 	       DEVICES=""
 	   #     DEVICES="--device=/dev/video0:/dev/video0"

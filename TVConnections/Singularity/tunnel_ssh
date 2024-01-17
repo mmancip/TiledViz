@@ -1,0 +1,52 @@
+#!/bin/bash
+SSH_FRONTEND=$1
+SSHLOGNAME=$2
+PORTvnc=$3
+TiledvizHost=$4
+TiledvizConnectionPort=$5
+shift 5
+OPTIONS=$@
+
+. $HOME/.bashrc
+
+if ! ( grep "Host $TiledvizHost" $HOME/.ssh/config ) && ! ( grep "User myuser" $HOME/.ssh/config ) ; then
+    echo "" >> $HOME/.ssh/config
+    echo "Host $TiledvizHost" >> $HOME/.ssh/config
+    echo "  User myuser" >> $HOME/.ssh/config
+    echo "  ProxyCommand ssh ${SSHLOGNAME}@${SSH_FRONTEND} -W %h:%p" >> $HOME/.ssh/config
+fi
+
+# Host desktop.mdls.fr
+# User myuser
+# ProxyCommand ssh -T -q -o 'ForwardAgent yes' mmancip@mandelbrot-smp.extra.cea.fr 'ssh-add -t 1 && nc %h %p'
+
+# Detect a free PORT and save it to a file for script_icewm/vnccommand 
+myPORT=$(. /etc/bash.bashrc; python3 -c "import socket; s=socket.socket(); s.bind((\"\", 0)); print(s.getsockname()[1]); s.close()" )
+#$((5910+ 10#$(echo $SINGULARITYID)))
+echo $myPORT > $HOME/.vnc/vncport
+echo "Free PORT for x11vnc : $myPORT" >> $HOME/.vnc/out_tunnel_ssh
+
+COMMANDssh="ssh -T -N -nf -R \*:${PORTvnc}:localhost:${myPORT} ${OPTIONS} -p ${TiledvizConnectionPort} myuser@${TiledvizHost}"
+echo $COMMANDssh >> $HOME/.vnc/out_tunnel_ssh
+
+${COMMANDssh} 2>&1 >> $HOME/.vnc/out_tunnel_ssh
+# i=0
+# while [ true ]; do
+#   ${COMMANDssh} 2>&1 >> $HOME/.vnc/out_tunnel_ssh
+
+#   RET=$?
+#   echo $i $RET
+#   if [ $RET -eq 0 ]; then 
+#     echo "ssh done" >> $HOME/.vnc/stdout
+#     break
+#   elif [ $i -gt 100 ]; then
+#     echo "ssh error" >> $HOME/.vnc/stdout
+#     RET=$((100+$RET))
+#     break
+#   fi
+#   echo "ssh wait $RET $i" >> $HOME/.vnc/stdout
+#   sleep 1
+#   i=$((i+1))
+# done
+echo tunnel ssh end >> $HOME/.vnc/stdout
+exit $RET

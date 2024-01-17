@@ -1,0 +1,33 @@
+#!/bin/bash
+. /etc/bash.bashrc;
+
+DATE=$(date +%F_%H-%M)
+export LOG=$HOME/.vnc/out_x11vnc_$DATE
+
+export myPORT=$(cat $HOME/.vnc/vncport)
+echo "Free PORT for VNC $myPORT" |tee -a $LOG
+
+#myPORT=$((5910+$SINGULARITYID))
+#echo "PORT from 5910 : ${myPORT}"
+
+x11vnc -forever -rfbport $myPORT -noncache -cursor arrow -shared -nowf -display ${DISPLAY} -rfbauth $HOME/.vnc/passwd_sing -http 2>&1 >> $LOG &
+RET=$?
+
+#x11vnc -forever -rfbport 5902 -noncache -cursor arrow -shared -nowf -display :1 -rfbauth $HOME/.vnc/passwd -http > $HOME/.vnc/x11vnc 2>&1 &
+
+# i=0
+# while [ true ]; do
+#     sleep 1
+#     grep PORT=59 $HOME/.vnc/*x11vnc*
+#     RET=$?
+#     if [ $RET -eq 0 ]; then
+# 	echo vnc done >> $HOME/.vnc/stdout
+# 	break
+#     elif [ $i -gt 100 ]; then 
+# 	RET=100+$RET
+# 	echo error vnc >> $HOME/.vnc/stdout
+# 	break
+#     fi
+#     i=$((i+1))
+# done
+exit $RET

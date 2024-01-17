@@ -1,0 +1,117 @@
+#!/bin/bash
+NUM=$1
+DATE=$2
+DIR=$3
+SINGULARITYNAME=$4
+GPU_FILE=${5:-list_hostsgpu}
+
+ERASE_SINGULARITYDIR=true
+
+# echo "sudo killall Xvfb"
+# sudo killall Xvfb
+# echo "#/bin/sh" > ./killall_Xvfb
+# echo "killall -9 Xvfb " >> ./killall_Xvfb
+# chmod a+rx ./killall_Xvfb
+
+# find /dockerspace -type d -name "${SINGULARITYNAME}_${DATE}_*" -exec cp ./killall_Xvfb '{}' \; 
+
+# ../launch_command $1 $2 $3 $4 $5 '/root/.vnc/killall_Xvnc' {001..$NUM}
+#../launch_command $NUM $DATE $DIR $SINGULARITYNAME $GPU_FILE 'killall -9 Xvnc' {001..$(printf "%03d" $NUM)}
+
+if [[ -d ${SINGULARITYNAME}_${DATE}_001 ]]; then
+    # Supress all ssh connections to free ports.
+    # echo "Supress all ssh connections to free ports."
+    # ../launch_command $NUM $DATE $DIR $SINGULARITYNAME $GPU_FILE 'killall -9 ssh' {001..$NUM}
+    # sleep 5
+
+    echo "Supress all xvfb-run to stop containers."
+    ../launch_command $NUM $DATE $DIR $SINGULARITYNAME $GPU_FILE 'killall xvfb-run' {001..$NUM}
+    sleep 2
+fi
+
+i=1
+while [ $i -le ${NUM} ]; do
+   i0=$(printf "%03d" $i)
+   SINGULARITYDIR=$(basename ${SINGULARITYNAME} | sed -e 's/\.sif//')_${DATE}_${i0}
+
+   if [[ -f ${GPU_FILE} ]]; then
+       line=$( sed -n "$i p" ${GPU_FILE} )
+       realhost=${line% *}
+       thishost=$( echo ${realhost}  | sed -e 's/-/_/g' )
+
+       #echo "sudo ssh ${realhost} killall Xvnc"
+       #sudo ssh ${realhost} killall Xvnc
+
+       if [ ${realhost} = $( hostname ) -o ${realhost} = "localhost" ]; then
+	   HOSTCOMMAND="ssh localhost"
+       else
+	   HOSTCOMMAND="ssh $LOGNAME@${realhost}"
+       fi
+       export HOSTCOMMAND${thishost}="${HOSTCOMMAND}"
+   fi
+   SINGULARITYNUM=${SINGULARITYDIR}
+   ${HOSTCOMMAND} bash -c '"singularity instance list |grep \"'${SINGULARITYDIR}'\" "'
+   #|sed -e \"s&\([^ ]*\) \([0-9]*\) .*&\2&\""')
+
+   echo "stop containers ${HOSTCOMMAND} $i0 ${SINGULARITYNUM}"
+   echo ${HOSTCOMMAND} bash -c '" singularity instance stop '${SINGULARITYDIR}' "'
+   ${HOSTCOMMAND} bash -c '" singularity instance stop '${SINGULARITYDIR}' "'
+
+   LISTENOM=LISTE${thishost}
+   eval export ${LISTENOM}="\${${LISTENOM}}' '${SINGULARITYNUM}"
+
+   i=$(( i + 1 ))
+done
+
+# if [[ -f ${GPU_FILE} ]]; then
+#     env | grep LISTE | sed -e 's/LISTE\(.*\)=.*/\1/'
+#     LISTEShosts=$(env | grep LISTE | sed -e 's/LISTE\(.*\)=.*/\1/')
+#     for host in ${LISTEShosts[*]}; do
+# 	eval echo \${${host}[*]}
+#     done
+#     echo "stop containers."
+#     for host in ${LISTEShosts[*]}; do
+#     	eval NOMhost=LISTE${host}
+#     	echo ${host}
+#     	eval \${HOSTCOMMAND${host}} singularity instance stop \${${NOMhost}[*]} &
+#     done
+
+#     count=0
+#     while [ $( ps -Aef |grep 'docker stop' |grep -v grep | wc -l) -gt 0 ]; do
+#     	sleep 2
+#     	# if no singularity stop after 500 loop we break.
+#     	if [ $count -gt 40 ]; then
+#     	    break
+#     	fi
+#     	count=$((count + 1))
+#     done
+    
+#     echo "rm containers."
+#     for host in ${LISTEShosts}; do
+# 	eval NOMhost=LISTE${host}
+# 	echo ${host}
+# 	#eval \${HOSTCOMMAND${host}} singularity rm -f \${${NOMhost}[*]} &
+#     done
+# else
+#     echo ${LISTE}
+#     echo "stop containers."
+#     singularity stop ${LISTE[*]}
+
+#     echo "rm containers."
+#     #singularity rm ${LISTE[*]}
+# fi
+
+i=0
+while [ $i -lt ${NUM} ]; do
+   i0=$(printf "%03d" $((i+1)))
+   SINGULARITYDIR=$(echo ${SINGULARITYNAME}| sed -e 's/:.*//')_${DATE}_${i0}
+   if [[ -d ${DIR}/${SINGULARITYDIR} ]]; then
+       ${ERASE_SINGULARITYDIR} && rm -rf ${DIR}/${SINGULARITYDIR} &
+   fi
+   i=$(( i + 1 ))
+done
+
+# LIST_RUN=$( docker ps -aq 2>&1 )
+# echo ${LIST_RUN[*]}
+# echo ${LIST_RUN[*]} | xargs -I % bash -c 'docker stop %; docker rm %' &
+

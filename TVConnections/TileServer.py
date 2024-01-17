@@ -397,7 +397,7 @@ class ClientConnect(threading.Thread):
                             serverLogger.debug(TSName+" : Wait for state on list command "+CommandRecv+" %d." % (count))
                             if (count > MaxWaitExecute):
                                 serverLogger.error(TSName+" : No state "+str(laststate)+" on list command "+CommandRecv+"\n"+
-                                                   "CommandTS "+CommandTS+"  StrTiles"+StrTiles+"\n"+
+                                                   "CommandTS "+CommandTS+"  StrTiles "+str(StrTiles)+" \n"+
                                                    " %d." % (count))
                                 RET=-1
                                 break

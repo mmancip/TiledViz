@@ -8,9 +8,15 @@ import subprocess as subp
 
 sys.path[0]=''
 sys.path.append(os.path.abspath('/home/myuser/CASE'))
+sys.path.append(os.path.abspath('/TiledViz/TVConnections'))
 from connect import sock
 
 PORT = 6501
+if (len(sys.argv) > 2):
+  try:
+    PORT=int(sys.argv[2])
+  except Exception as err:
+    print("Wrong type of argument for PORT in TileClient for ID %d : %s : " % (sys.argv[1],sys.argv[2]))
 
 SELECT_SEC=1
 
@@ -18,9 +24,10 @@ client=sock.client(PORT)
 
 # sys.stdout.flush()
 # search for last string of launch (wait 1s after each test)
-Hostname=os.getenv("HOSTNAME")
-LogFile="/home/myuser/.vnc/"+Hostname+".log"
-OKLaunchStr="Log file is /home/myuser/.vnc/"+Hostname+":1.log"
+Home=os.environ["HOME"]
+VNCpath=os.path.join(Home,".vnc")
+LogFile=os.path.join(VNCpath,"log")
+OKLaunchStr="Log file is"
 StrPass='Random Password Generated: '
 
 with open(LogFile) as LogFileDesc:

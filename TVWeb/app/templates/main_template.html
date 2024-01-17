@@ -23,6 +23,9 @@
     {% endif %}
   {% endwith %}
 <div class="row">
+        <img src="{{ url_for('static',
+		  filename='images/logo_TiledViz.png')}}"
+	     style="position: fixed; top:-100px; left: -100px;transform: scale(0.25);">
 	<h1> Welcome, {{ user.username }}!</h1>
 	<!-- <div> -->
 	<!-- <i class="fas fa-info"></i> -->

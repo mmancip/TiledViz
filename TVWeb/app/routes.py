@@ -2,7 +2,8 @@
 
 # routes are defined here, then imported in __init__.py
 
-from flask import render_template, flash, Markup, redirect, session, request, jsonify, make_response, url_for, Response
+from flask import render_template, flash, redirect, session, request, jsonify, make_response, url_for, Response
+import markupsafe
 
 import sqlalchemy
 from sqlalchemy.orm.session import make_transient
@@ -3379,6 +3380,13 @@ def show_grid():
 
     # Build Session
     ThisSession=db.session.query(models.Session).filter(models.Session.name == session["sessionname"]).first()
+
+    # Test if session is empty
+    if (len(ThisSession.tile_sets) == 0):
+        flash("No TileSet in this session : You must define tileset before going to grid.")
+        message = '{"oldsessionname":"'+session["sessionname"]+'"}'
+        return redirect(url_for(".editsession",message=message))
+        
     
     # session["tilesetnames"]=[]
     # if (db.session.query(func.count(ThisSession.tile_sets)).scalar() > 0):

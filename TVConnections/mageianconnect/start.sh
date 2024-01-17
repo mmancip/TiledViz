@@ -94,7 +94,25 @@ fi
 
 echo "start X "
 
+xvfbLockFilePath="/tmp/.X1-lock"
+if [ -f "${xvfbLockFilePath}" ]
+then
+    echo "Removing xvfb lock file '${xvfbLockFilePath}'..."
+    if ! rm -v "${xvfbLockFilePath}"
+    then
+        echo "Failed to remove xvfb lock file" 1>&2
+        exit 1
+    fi
+fi
+
+echo "export HOSTNAME="${HOSTNAME} >> /etc/profile.d/env_variable.sh
+
+# Set defaults if the user did not specify envs.
 export DISPLAY=:1
+#${XVFB_DISPLAY:-:1}
+screen=${XVFB_SCREEN:-0}
+resolution=${XVFB_RESOLUTION:-${RESOL}x24}
+timeout=${XVFB_TIMEOUT:-5}
 
 # Create the xstartup file
 echo "#!/bin/bash
@@ -137,3 +155,18 @@ cat ${HOME_user}/startx
 su - myuser -l -c ${HOME_user}/startx
 #ls -al /root/.vnc/
 #exec xterm 
+
+
+# loopCount=0
+# until xdpyinfo -display ${DISPLAY} > /dev/null 2>&1
+# do
+#     loopCount=$((loopCount+1))
+#     sleep 1
+#     if [ ${loopCount} -gt ${timeout} ]
+#     then
+#         echo "xvfb failed to start" 1>&2 
+#         exit 1
+#     fi
+# done
+
+# su - myuser -l -c "${HOME_user}/.vnc/xstartup "
