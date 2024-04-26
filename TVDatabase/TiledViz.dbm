@@ -1,45 +1,44 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 CAUTION: Do not modify this file unless you know what you are doing.
-         Unexpected results may occur if the code is changed deliberately.
+ Unexpected results may occur if the code is changed deliberately.
 -->
-<dbmodel pgmodeler-ver="0.9.0" last-position="0,0" last-zoom="0.95"
-	 default-schema="public" default-owner="postgres">
+<dbmodel pgmodeler-ver="0.9.4" use-changelog="false" last-position="0,0" last-zoom="0.95" max-obj-count="12"
+	 default-schema="public" default-owner="postgres"
+	 layers="Default layer"
+	 active-layers="0"
+	 layer-name-colors="#000000"
+	 layer-rect-colors="#d21cfa"
+	 show-layer-names="false" show-layer-rects="false">
 <role name="tiledviz"
-      superuser="true"
-      createdb="true"
-      createrole="true"
-      inherit="true"
-      login="true"
-      encrypted="true"
-      password="m_test/@03">
+ superuser="true"
+ createdb="true"
+ createrole="true"
+ inherit="true"
+ login="true"
+ encrypted="true"
+ password="m_test/@03">
 </role>
 
-<database name="TiledViz" encoding="UTF8" template="template0" lc-collate="en_US.utf-8" lc-ctype="en_US.utf-8">
+<database name="TiledViz" encoding="UTF8" template="template0" lc-collate="en_US.utf-8" lc-ctype="en_US.utf-8" is-template="false" allow-conns="true">
 	<role name="tiledviz"/>
 	<tablespace name="pg_default"/>
 </database>
 
-<schema name="public" rect-visible="true" fill-color="#e1e1e1" sql-disabled="true">
+<schema name="public" layers="0" rect-visible="true" fill-color="#e1e1e1" sql-disabled="true">
 </schema>
 
-<sequence name="projects_id_seq"
-	 start="1" increment="1"
-	 min-value="1" max-value="9223372036854775807"
-	 cache="1" cycle="false">
+<sequence name="projects_id_seq" cycle="false" start="1" increment="1" min-value="1" max-value="9223372036854775807" cache="1">
 	<schema name="public"/>
 	<role name="tiledviz"/>
 </sequence>
 
-<sequence name="users_id_seq"
-	 start="1" increment="1"
-	 min-value="1" max-value="9223372036854775807"
-	 cache="1" cycle="false">
+<sequence name="users_id_seq" cycle="false" start="1" increment="1" min-value="1" max-value="9223372036854775807" cache="1">
 	<schema name="public"/>
 	<role name="tiledviz"/>
 </sequence>
 
-<table name="users">
+<table name="users" layers="0" collapse-mode="2" max-obj-count="10" z-value="0">
 	<schema name="public"/>
 	<role name="tiledviz"/>
 	<position x="300" y="40"/>
@@ -79,7 +78,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	</constraint>
 </table>
 
-<table name="projects">
+<table name="projects" layers="0" collapse-mode="2" max-obj-count="6" z-value="0">
 	<schema name="public"/>
 	<role name="tiledviz"/>
 	<position x="40" y="340"/>
@@ -111,15 +110,12 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	</customidxs>
 </table>
 
-<sequence name="invite_links_id_seq"
-	 start="1" increment="1"
-	 min-value="1" max-value="9223372036854775807"
-	 cache="1" cycle="false">
+<sequence name="invite_links_id_seq" cycle="false" start="1" increment="1" min-value="1" max-value="9223372036854775807" cache="1">
 	<schema name="public"/>
 	<role name="tiledviz"/>
 </sequence>
 
-<table name="invite_links">
+<table name="invite_links" layers="0" collapse-mode="2" max-obj-count="9" z-value="0">
 	<schema name="public"/>
 	<role name="tiledviz"/>
 	<position x="1060" y="40"/>
@@ -159,15 +155,12 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	</customidxs>
 </table>
 
-<sequence name="sessions_id_seq"
-	 start="1" increment="1"
-	 min-value="1" max-value="9223372036854775807"
-	 cache="1" cycle="false">
+<sequence name="sessions_id_seq" cycle="false" start="1" increment="1" min-value="1" max-value="9223372036854775807" cache="1">
 	<schema name="public"/>
 	<role name="tiledviz"/>
 </sequence>
 
-<table name="sessions">
+<table name="sessions" layers="0" collapse-mode="2" max-obj-count="9" z-value="0">
 	<schema name="public"/>
 	<role name="tiledviz"/>
 	<position x="580" y="460"/>
@@ -211,15 +204,12 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	</customidxs>
 </table>
 
-<sequence name="connections_id_seq"
-	 start="1" increment="1"
-	 min-value="1" max-value="9223372036854775807"
-	 cache="1" cycle="false">
+<sequence name="connections_id_seq" cycle="false" start="1" increment="1" min-value="1" max-value="9223372036854775807" cache="1">
 	<schema name="public"/>
 	<role name="tiledviz"/>
 </sequence>
 
-<table name="connections">
+<table name="connections" layers="0" collapse-mode="2" max-obj-count="12" z-value="0">
 	<schema name="public"/>
 	<role name="tiledviz"/>
 	<position x="1120" y="420"/>
@@ -230,7 +220,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 		<type name="timestamp" length="0"/>
 	</column>
 	<column name="host_address">
-		<type name="character varying" length="40"/>
+		<type name="character varying" length="60"/>
 	</column>
 	<column name="auth_type">
 		<type name="character varying" length="10"/>
@@ -263,15 +253,12 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	</customidxs>
 </table>
 
-<sequence name="tiles_id_seq"
-	 start="1" increment="1"
-	 min-value="1" max-value="9223372036854775807"
-	 cache="1" cycle="false">
+<sequence name="tiles_id_seq" cycle="false" start="1" increment="1" min-value="1" max-value="9223372036854775807" cache="1">
 	<schema name="public"/>
 	<role name="tiledviz"/>
 </sequence>
 
-<table name="tiles">
+<table name="tiles" layers="0" collapse-mode="2" max-obj-count="14" z-value="0">
 	<schema name="public"/>
 	<role name="tiledviz"/>
 	<position x="1120" y="720"/>
@@ -322,15 +309,12 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	</customidxs>
 </table>
 
-<sequence name="tile_sets_id_seq"
-	 start="1" increment="1"
-	 min-value="1" max-value="9223372036854775807"
-	 cache="1" cycle="false">
+<sequence name="tile_sets_id_seq" cycle="false" start="1" increment="1" min-value="1" max-value="9223372036854775807" cache="1">
 	<schema name="public"/>
 	<role name="tiledviz"/>
 </sequence>
 
-<table name="tile_sets">
+<table name="tile_sets" layers="0" collapse-mode="2" max-obj-count="10" z-value="0">
 	<schema name="public"/>
 	<role name="tiledviz"/>
 	<position x="520" y="760"/>
@@ -374,15 +358,12 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	</customidxs>
 </table>
 
-<sequence name="sockets_id_seq"
-	 start="1" increment="1"
-	 min-value="1" max-value="9223372036854775807"
-	 cache="1" cycle="false">
+<sequence name="sockets_id_seq" cycle="false" start="1" increment="1" min-value="1" max-value="9223372036854775807" cache="1">
 	<schema name="public"/>
 	<role name="tiledviz"/>
 </sequence>
 
-<relationship name="many_users_has_many_sessions" type="relnn"
+<relationship name="many_users_has_many_sessions" type="relnn" layers="0"
 	 src-col-pattern="{sc}_{st}" dst-col-pattern="{sc}_{dt}"
 	 pk-pattern="{gt}_pk" uq-pattern="{gt}_uq"
 	 src-fk-pattern="{st}_fk" dst-fk-pattern="{dt}_fk"
@@ -393,7 +374,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	 src-required="false" dst-required="false"
 	 table-name="many_users_has_many_sessions"/>
 
-<relationship name="projects_has_many_sessions" type="rel1n"
+<relationship name="projects_has_many_sessions" type="rel1n" layers="0"
 	 src-col-pattern="{sc}_{st}"
 	 pk-pattern="{dt}_pk" uq-pattern="{dt}_uq"
 	 src-fk-pattern="{st}_fk"
@@ -402,7 +383,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	 dst-table="public.sessions"
 	 src-required="true" dst-required="false"/>
 
-<relationship name="many_tiles_has_many_tile_sets" type="relnn"
+<relationship name="many_tiles_has_many_tile_sets" type="relnn" layers="0"
 	 src-col-pattern="{sc}_{st}" dst-col-pattern="{sc}_{dt}"
 	 pk-pattern="{gt}_pk" uq-pattern="{gt}_uq"
 	 src-fk-pattern="{st}_fk" dst-fk-pattern="{dt}_fk"
@@ -413,7 +394,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	 src-required="false" dst-required="false"
 	 table-name="many_tiles_has_many_tile_sets"/>
 
-<relationship name="sessions_has_many_invite_links" type="rel1n"
+<relationship name="sessions_has_many_invite_links" type="rel1n" layers="0"
 	 src-col-pattern="{sc}_{st}"
 	 pk-pattern="{dt}_pk" uq-pattern="{dt}_uq"
 	 src-fk-pattern="{st}_fk"
@@ -422,7 +403,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	 dst-table="public.invite_links"
 	 src-required="false" dst-required="false"/>
 
-<relationship name="connections_has_many_tiles" type="rel1n"
+<relationship name="connections_has_many_tiles" type="rel1n" layers="0"
 	 src-col-pattern="{sc}_{st}"
 	 pk-pattern="{dt}_pk" uq-pattern="{dt}_uq"
 	 src-fk-pattern="{st}_fk"
@@ -431,7 +412,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	 dst-table="public.tiles"
 	 src-required="false" dst-required="false"/>
 
-<relationship name="tile_sets_has_one_connections" type="rel11"
+<relationship name="tile_sets_has_one_connections" type="rel11" layers="0"
 	 src-col-pattern="{sc}_{st}"
 	 pk-pattern="{dt}_pk" uq-pattern="{dt}_uq"
 	 src-fk-pattern="{st}_fk"
@@ -440,7 +421,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	 dst-table="public.tile_sets"
 	 src-required="false" dst-required="false"/>
 
-<relationship name="users_has_many_invite_links" type="rel1n"
+<relationship name="users_has_many_invite_links" type="rel1n" layers="0"
 	 src-col-pattern="{sc}_{st}"
 	 pk-pattern="{dt}_pk" uq-pattern="{dt}_uq"
 	 src-fk-pattern="{st}_fk"
@@ -449,7 +430,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	 dst-table="public.invite_links"
 	 src-required="false" dst-required="false"/>
 
-<relationship name="users_has_many_projects" type="rel1n"
+<relationship name="users_has_many_projects" type="rel1n" layers="0"
 	 src-col-pattern="{sc}_{st}"
 	 pk-pattern="{dt}_pk" uq-pattern="{dt}_uq"
 	 src-fk-pattern="{st}_fk"
@@ -458,7 +439,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	 dst-table="public.projects"
 	 src-required="false" dst-required="false"/>
 
-<relationship name="users_has_many_connections" type="rel1n"
+<relationship name="users_has_many_connections" type="rel1n" layers="0"
 	 src-col-pattern="{sc}_{st}"
 	 pk-pattern="{dt}_pk" uq-pattern="{dt}_uq"
 	 src-fk-pattern="{st}_fk"
@@ -467,7 +448,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	 dst-table="public.connections"
 	 src-required="true" dst-required="false"/>
 
-<relationship name="many_sessions_has_many_tile_sets" type="relnn"
+<relationship name="many_sessions_has_many_tile_sets" type="relnn" layers="0"
 	 src-col-pattern="{sc}_{st}" dst-col-pattern="{sc}_{dt}"
 	 pk-pattern="{gt}_pk" uq-pattern="{gt}_uq"
 	 src-fk-pattern="{st}_fk" dst-fk-pattern="{dt}_fk"

@@ -38,8 +38,6 @@ sys.path.append(os.path.realpath(TiledVizPath+'/TVConnections/'))
 from connect import sock
 from connect.transfer import send_file_server, get_file_client
 
-ActionPort=64040
-
 # Read TiledViz config
 TVrunDir=Home+'/.tiledviz'
 TVconf=TVrunDir+"/tiledviz.conf"
@@ -47,6 +45,7 @@ TVconf=TVrunDir+"/tiledviz.conf"
 config = configparser.ConfigParser()
 config.optionxform = str
 config.read(TVconf)
+ActionPort=int(config['TVSecure']['ActionPort'])
 
 # Default port for connection between client in sock.py and TVSecure.py 
 #PORTServer=int(config['sock']['PORTServer'])
@@ -215,13 +214,14 @@ def replaceconf(x):
         
 def kill_all_containers():
     stateVM=True
-    client.send_server(ExecuteTS+' killall bash')
-    state=client.get_OK()
-    print("Out of killall command : "+ str(state))
     client.send_server(LaunchTS+" "+COMMANDStop)
-    state=client.get_OK()
-    print("Out of COMMANDStop : "+ str(state))
-    stateVM=(state == 0)
+    print("Out of COMMANDStop.")
+    # state=client.get_OK()
+    # print("Out of COMMANDStop : "+ str(state))
+    # stateVM=(state == 0)
+    # client.send_server(ExecuteTS+' killall -9 Xvfb')
+    # state=client.get_OK()
+    # print("Out of killall command : "+ str(state))
     time.sleep(2)
     Remove_TileSet()
     return stateVM

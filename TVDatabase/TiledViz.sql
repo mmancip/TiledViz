@@ -188,7 +188,7 @@ ALTER SEQUENCE public.connections_id_seq OWNER TO tiledviz;
 CREATE TABLE public.connections(
 	id integer NOT NULL DEFAULT nextval('public.connections_id_seq'::regclass),
 	creation_date timestamp,
-	host_address character varying(40),
+	host_address character varying(60),
 	auth_type character varying(10),
 	container character varying(100),
 	id_users integer NOT NULL,

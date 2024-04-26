@@ -1566,6 +1566,10 @@ def oldsessions():
         flash("Old sessions : User must login !")
         return redirect("/login")
 # Old Session page
+    if (not "projectname" in session):
+        flash("Old sessions : Must define a project first !")
+        return redirect("/project")
+        
     Project = db.session.query(models.Project).filter_by(name=session["projectname"]).scalar()
     project_id=Project.id
     project_desc=Project.description
@@ -2319,6 +2323,80 @@ def copytileset():
             
     return render_template("edittileset.html", **(myrender()), title="Copy TileSet TiledViz", form=myform, message=message)
 
+def save_tiles(oldtileset,nbr_of_tiles,connectionbool,urlbool,datapath,jsonTileSet,creation_date):
+    oldtileset.tiles=[]
+    tilesetname=oldtileset.name    
+
+    for i in range(nbr_of_tiles):
+        Mynode=jsonTileSet["nodes"][i]
+        #print (str(i)+" "+str(Mynode))
+
+        title,name,comment,tags,variable,pos_px_x,pos_px_y,IdLocation,url,ConnectionPort = \
+            convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath)
+            
+        # # Insert and create only NEW tiles into TileSet or
+        # # TODO: edit OLD tiles from TileSet.tiles list ? (add a suppress old tiles button in form).
+        # # search if Tile already exists :
+        # try:
+        #     # unicity for (title, comment, tags) (url ?)
+        #     oldtile=db.session.query(models.Tile).filter_by(title=title,comment=comment).order_by(models.Tile.id.desc()).first()
+        
+        #     # if (type(oldtile) == type(None)):
+        #     #     logging.warning(str(i)+" tile type "+str(type(oldtile)))
+        #     #     # search with url ? (if comment has changed)
+        #     #     try:
+        #     #         oldtile=db.session.query(models.Tile).filter_by(title=title,source={"name":name,"url":url,"connection":ConnectionPort,"variable":variable}).order_by(models.Tile.id.desc()).first()
+        #     # => sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedFunction) operator does not exist: json = unknown
+        #     # LINE 3: WHERE tiles.title = '001 ' AND tiles.source = '{"name": "001...
+        #     #                                                     ^
+        #     # HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
+        #     #         oldtile=db.session.query(models.Tile).filter_by(title=title,source=jsonify(name=name,url=url,connection=ConnectionPort,variable=variable)).order_by(models.Tile.id.desc()).first()
+        #     # TypeError: Object of type Response is not JSON serializable
+        #     #     except :
+        #     #         raise AttributeError
+        
+        #     logging.debug(str(i)+" tile type "+str(type(oldtile)))
+        #     oldtileid=oldtile.id
+        #     logging.warning(str(i)+" update old tile "+str(oldtileid))
+        #     oldtile.tags=tags
+        #     oldtile.source= {"name" : name,
+        #                      "connection" : ConnectionPort,
+        #                      "url" : url,
+        #                      "variable": variable}
+        #     flag_modified(oldtile,"source")
+        #     oldtile.pos_px_x= pos_px_x
+        #     oldtile.pos_px_y= pos_px_y
+        #     oldtile.IdLocation=IdLocation
+        #     oldtileset.tiles.append(oldtile)
+        # except AttributeError:
+        # if not : insert at end of oldtileset.tiles ?
+        if (True):
+            newtile = models.Tile(title=title,
+                                  comment=comment,
+                                  tags=tags,
+                                  source= {"name" : name,
+                                           "connection" : ConnectionPort,
+                                           "url" : url,
+                                           "variable": variable
+                                           },
+                                  pos_px_x= pos_px_x,
+                                  pos_px_y= pos_px_y,
+                                  IdLocation=IdLocation,
+                                  creation_date= creation_date)
+            lasttile=db.session.query(models.Tile.id).order_by(models.Tile.id.desc()).first()
+            if ( lasttile ):
+                newtile.id=lasttile.id+1
+            else:
+                newtile.id=1
+            db.session.add(newtile)
+            oldtileset.tiles.append(newtile)
+            logging.warning(str(i)+" add tile "+str(newtile.id))
+        # except Exception:
+        #     logging.warning(str(i)+" Error tile ")
+        #     traceback.print_exc(file=sys.stderr)
+                
+    db.session.commit()
+        
 # Edit old new TileSet
 @app.route('/edittileset', methods=["GET", "POST"])
 def edittileset():
@@ -2625,8 +2703,6 @@ def edittileset():
         if (myform.type_of_tiles.data == "URL"):
             urlbool=True
 
-        tilesetname=oldtileset.name
-        
         creation_date=datetime.datetime.now()
         if (myform.dataset_path.data):
             datapath=str(myform.dataset_path.data)
@@ -2639,78 +2715,6 @@ def edittileset():
         oldtileset.creation_date=creation_date
         db.session.commit()
 
-        
-
-        oldtileset.tiles=[]
-
-        for i in range(nbr_of_tiles):
-            Mynode=jsonTileSet["nodes"][i]
-            #print (str(i)+" "+str(Mynode))
-
-            title,name,comment,tags,variable,pos_px_x,pos_px_y,IdLocation,url,ConnectionPort = \
-                convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath)
-            
-            # Insert and create only NEW tiles into TileSet or
-            # TODO: edit OLD tiles from TileSet.tiles list ? (add a suppress old tiles button in form).
-            # search if Tile already exists :
-            try:
-                # unicity for (title, comment, tags) (url ?)
-                oldtile=db.session.query(models.Tile).filter_by(title=title,comment=comment).order_by(models.Tile.id.desc()).first()
-
-                # if (type(oldtile) == type(None)):
-                #     logging.warning(str(i)+" tile type "+str(type(oldtile)))
-                #     # search with url ? (if comment has changed)
-                #     try:
-                #         oldtile=db.session.query(models.Tile).filter_by(title=title,source={"name":name,"url":url,"connection":ConnectionPort,"variable":variable}).order_by(models.Tile.id.desc()).first()
-                # => sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedFunction) operator does not exist: json = unknown
-                # LINE 3: WHERE tiles.title = '001 ' AND tiles.source = '{"name": "001...
-                #                                                     ^
-                # HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
-                #         oldtile=db.session.query(models.Tile).filter_by(title=title,source=jsonify(name=name,url=url,connection=ConnectionPort,variable=variable)).order_by(models.Tile.id.desc()).first()
-                # TypeError: Object of type Response is not JSON serializable
-                #     except :
-                #         raise AttributeError
-                
-                logging.debug(str(i)+" tile type "+str(type(oldtile)))
-                oldtileid=oldtile.id
-                logging.warning(str(i)+" update old tile "+str(oldtileid))
-                oldtile.tags=tags
-                oldtile.source= {"name" : name,
-                                 "connection" : ConnectionPort,
-                                 "url" : url,
-                                 "variable": variable}
-                flag_modified(oldtile,"source")
-                oldtile.pos_px_x= pos_px_x
-                oldtile.pos_px_y= pos_px_y
-                oldtile.IdLocation=IdLocation
-                oldtileset.tiles.append(oldtile)
-            except AttributeError:
-                # if not : insert at end of oldtileset.tiles ?
-                newtile = models.Tile(title=title,
-                                      comment=comment,
-                                      tags=tags,
-                                      source= {"name" : name,
-                                               "connection" : ConnectionPort,
-                                               "url" : url,
-                                               "variable": variable
-                                      },
-                                      pos_px_x= pos_px_x,
-                                      pos_px_y= pos_px_y,
-                                      IdLocation=IdLocation,
-                                      creation_date= creation_date)
-                lasttile=db.session.query(models.Tile.id).order_by(models.Tile.id.desc()).first()
-                if ( lasttile ):
-                    newtile.id=lasttile.id+1
-                else:
-                    newtile.id=1
-                db.session.add(newtile)
-                oldtileset.tiles.append(newtile)
-                logging.warning(str(i)+" add tile "+str(newtile.id))
-            except Exception:
-                logging.warning(str(i)+" Error tile ")
-                traceback.print_exc(file=sys.stderr)
-                
-        db.session.commit()
         
         session["is_client_active"]=True
 
@@ -2725,12 +2729,14 @@ def edittileset():
             elif (myform.manage_connection.data == "Quit"):
                 return redirect(url_for(".removeconnection",message=message))
             else:
+                save_tiles(oldtileset,nbr_of_tiles,connectionbool,urlbool,datapath,jsonTileSet,creation_date)
                 return redirect(url_for(".editsession",message=message))
             #TODO:
             # ("New","Create a new one."),
             # ("Save","Save the connection for reuse."),
             # ("Reload","Reload saved connection."),
         else:        
+            save_tiles(oldtileset,nbr_of_tiles,connectionbool,urlbool,datapath,jsonTileSet,creation_date)
             message = '{"oldsessionname":"'+session["sessionname"]+'"}'
             return redirect(url_for(".editsession",message=message))
     

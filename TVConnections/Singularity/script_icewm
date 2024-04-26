@@ -9,7 +9,7 @@ echo $SINGULARITYID $DISPLAY ${ARGS[@]}
 myXPort=$DISPLAY
 #$((10 + 10#$(echo $SINGULARITYID)))
 
-RESOL="1280x960"
+RESOL="1920x1080"
 myPORT=55555
 myFront=localhost
 if [ -z "$1" ]; then
@@ -64,7 +64,7 @@ echo "#!/bin/bash
 
 sleep 1
 
-xterm -rv -geometry ${RESOL}-0-0 -e /opt/client_python ${SINGULARITYID} ${myPORT} ${myFront} &
+xterm -rv -geometry ${RESOL}-0-0 -e /opt/TiledViz/client_python ${SINGULARITYID} ${myPORT} ${myFront} &
 
 sleep 1
 icewm
@@ -79,6 +79,7 @@ export LC_ALL=C
 export LOGxvfb=/tmp/out_xvfb_$DATE
 export XOPTIONS='-s "-screen 0 '${RESOL}'x24" '
 echo xvfb-run --server-num $myXPort -e ${LOGxvfb} ${STARTUP}
+echo xvfb-run --server-num $myXPort -e ${LOGxvfb} ${STARTUP} > ${LOGxvfb}
 xvfb-run --server-num $myXPort -e ${LOGxvfb} ${STARTUP} &
 sleep 2
 

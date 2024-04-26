@@ -17,7 +17,7 @@ from io import BytesIO
 # import tempfile
 import pickle
 
-import socket
+import socket, requests
 
 sys.path.append(os.path.abspath('./TVDatabase'))
 from TVDb import tvdb
@@ -93,7 +93,7 @@ flaskaddr=os.getenv('SERVER_NAME')+"."+os.getenv('DOMAIN')
 client = docker.from_env()
 def parse_args(argv):
     parser = argparse.ArgumentParser(
-        'Launch Flask docker with postgres parameters. Lauch on-demand connections.')
+        'Launch Flask docker with postgres parameters. Launch on-demand connections.')
     parser.add_argument('--POSTGRES_HOST', default=POSTGRES_HOST,
                         help='POSTGRES_HOST (default: '+POSTGRES_HOST+')')
     parser.add_argument('--POSTGRES_IP', default=POSTGRES_IP,
@@ -540,7 +540,8 @@ class ConnectionDocker(threading.Thread):
 
         self.user="myuser"
         self.home='/home/'+self.user
-
+        self.debug=debug
+        
         self.oldtime=time.time()
 
         self.nbTiles=nbTiles
@@ -593,11 +594,25 @@ class ConnectionDocker(threading.Thread):
             
         # Ports for tiles
         self.listPortsTiles={str(self.PORTssh)+'/tcp':('0.0.0.0',self.PORTssh)};
+        listPorts=[self.PORTssh]
+        listSock=[]
         for t in range(self.nbTiles):
-            s=socket.socket();
-            s.bind(("", 0));
-            self.listPortsTiles[str(s.getsockname()[1])+'/tcp']=('0.0.0.0',s.getsockname()[1]);
-            s.close()        
+            already=True
+            while (already):
+                s=socket.socket();
+                s.bind(("", 0));
+                port=s.getsockname()[1]
+                if (not port in listPorts):
+                    already=False
+                    listPorts.append(port)
+                    listSock.insert(0,s)
+                    self.listPortsTiles[str(port)+'/tcp']=('0.0.0.0',port);
+                else:
+                    logging.error("Build %d find again port %d ports list %s" % (t,port,str(listPorts)))
+                    time.sleep(0.1)
+                    s.close()
+        logging.warning("Build connection with "+str(self.nbTiles)+" ports : "+str(self.listPortsTiles))
+
         # Open port in firewall here ?
         
         # Wake up docker server ?
@@ -606,7 +621,9 @@ class ConnectionDocker(threading.Thread):
         
         # Detect or create flask container :
         try:
-
+            for s in listSock:
+                s.close()
+            
             self.containerConnect=client.containers.create(
                 name=self.name, image="mageiaconnect",
                 mounts=[VncVolume,XLocale,TVssl],
@@ -624,9 +641,11 @@ class ConnectionDocker(threading.Thread):
             logging.error("The specified image does not exist.", exc_info=True)
             sys.exit(listerrors["ImageError"])
         except docker.errors.APIError:
-            logging.error("The server returns an error.", exc_info=True)
+            logging.error("The server returns an APIError.", exc_info=True)
             sys.exit(listerrors["APIError"])
-
+        except Exception as err:
+            logging.error("Another error during container creation : ", exc_info=True)
+            
         self.daterun=datetime.datetime.now()
         logging.warning("Ready to start "+self.name+".")
         try:
@@ -913,23 +932,87 @@ class ConnectionDocker(threading.Thread):
             logging.error("Error while putting "+listPortsTilesFile+" on Connection "+self.name+" : "+str(err), exc_info=True)
             logging.error(str(self.listPortsTilesIE))
 
-        search_action = re.compile(r''+"action=")
-
-        path_nodesjson=os.path.join(self.home,"nodes.json")
         time.sleep(timeAliveConn)
+        self.get_nodesjson()
 
-        self.nodes_ok=False
+        logging.warning("Launch start action connection.")
+        self.startActionConnection()
+
+        search_action = re.compile(r''+"action=")
         self.action_OK=False
         while True:
+            # Wrapper to private members :
+            while( len(self.call_list) > 0 ):
+                logging.warning("Container "+self.name+" call list : "+str(self.call_list))
+                outHandler.flush()
+                callfunc=self.call_list[0] 
+                if callfunc == "updateScripts":
+                    self.updateScripts()
+                elif callfunc == "quitConnection":
+                    self.quitConnection()
+                elif callfunc == "killTunnel":
+                    self.killTunnel()
+                elif callfunc == "reconnect":
+                    if (not os.path.exists(os.path.join(self.dir_out,"nodes.json"))):
+                        self.get_nodesjson()                    
+                    self.connect();
+                elif (search_action.search(callfunc)):
+                    logging.warning("Action detected "+str(callfunc))
+                    if (not self.action_OK):
+                        self.startActionConnection()
+                    self.action(callfunc)
+                else:
+                    logging.error("Error with calling function "+callfunc+ " for Connection "+self.name+" .")
+                self.call_list.pop(0)
+
+                if not self.isalive():
+                    self.quitConnection()
+                # else:
+                #     logging.debug("Connection "+str(self.connectionId)+" alive.")
+
+                time.sleep(timeAliveConn)
+                #logging.debug("Container loop.")
+
+        
+    def get_nodesjson(self):
+        path_nodesjson=os.path.join(self.home,"nodes.json")
+        path_nodesTVFile=os.path.join(self.dir_out,"nodes.json")
+        logging.warning("New get nodes.json instance for "+str(self.connectionId)+" connection.")
+
+        self.nodes_ok=False
+
+        iter=0
+        # Wait in second
+        swait=4
+        # Max wait before stop container
+        mwait=1800
+        notlaunched=True
+        while notlaunched:
             #logging.debug("Container "+self.name+" wake up.")
+            if (not os.path.exists(path_nodesTVFile)):
+                logging.warning("TRY GET "+path_nodesjson+ " file from Connection Docker.")
+            else:
+                logging.warning("ALREADY GET "+path_nodesTVFile+ " file from Connection Docker.")
+                os.system("ls -la "+path_nodesTVFile)
+                return
             
+            if(iter > mwait/swait):
+                logging.error("Wait too much "+path_nodesjson+ " file for Connection to tiledset "+str(self.TileSetDB.name))
+                # TODO : option for automaticaly suppress connection ??
+                # try:
+                #     self.quitConnection()
+                # except ValueError as err:
+                #     logging.warning(path_nodesjson+" ValueError for iter %d." % (iter))
+                return
+                
+
             if (not self.nodes_ok):
                 try: 
                     # Get back nodes.json from connection docker ?
                     bits, stat = self.containerConnect.get_archive(path=path_nodesjson)
                     logging.warning("GET "+path_nodesjson+ " file from Connection Docker.")
                     
-                    if (debug):
+                    if (self.debug):
                         logging.error("Infos "+str(stat))
                     else:
                         logging.warning("Infos "+str(stat))
@@ -958,86 +1041,38 @@ class ConnectionDocker(threading.Thread):
                         # os.system("ls -la "+self.dir_out)
                         filetar.close()
 
-                    except ValueError as err:
-                        logging.error("ValueError with GET "+path_nodesjson+" : try again."+str(err), exc_info=True)
-                        time.sleep(2)
-                        # Get back nodes.json from connection docker ?
-                        bits, stat = self.containerConnect.get_archive(path=path_nodesjson)
-                        if (debug):
-                            logging.error("Infos "+str(stat))
-                        else:
-                            logging.warning("Infos "+str(stat))
-                
+                        self.nodes_ok=True
                         outHandler.flush()
-                        try:
-                            if stat["size"]==0 :
-                                logging.error("Infos "+str(stat))
-                                logging.error(" nodes.json size == 0")
-                                # code.interact(banner="Test stat0 :",local=dict(globals(), **locals()))
-                                raise ValueError                        
-                            # raise NodeSizeError
-                            # Write nodes.json file in TVFile dir.
-                            filetar = BytesIO()
-                            for chunk in bits:
-                                filetar.write(chunk)
-                            filetar.seek(0)
-                            
-                            mytar=tarfile.TarFile(fileobj=filetar, mode='r')
-                            mytar.extractall(self.dir_out)
-                            mytar.close()
-                            filetar.close()
-                        except Exception as err:
-                            logging.error("Error with GET "+path_nodesjson+" : stop trying. "+str(err), exc_info=True)
+                        notlaunched=False
+
+                        self.killTunnel()
+                        logging.warning("Job started.")
+                    except ValueError as err:
+                        logging.warning(path_nodesjson+" ValueError for iter %d." % (iter))
+                        time.sleep(swait)
+                        pass
 
                     except Exception as err:
                         logging.error("Error with GET "+path_nodesjson+". tar error.", exc_info=True)
+                        time.sleep(swait)
+                        pass
 
                         # Send again get via action launch_nodes_json
                         #raise ValueError                        
                         
-                    self.nodes_ok=True
                     outHandler.flush()
-
-                    logging.warning("Lauch start action connection.")
-                    self.startActionConnection()
-
-                    self.killTunnel()
-                    logging.warning("Job started.")
+                except (docker.errors.NotFound, requests.exceptions.HTTPError) as err:
+                    logging.warning(path_nodesjson+" NotFound for iter %d." % (iter))
                     outHandler.flush()
-                except:
-                    #logging.debug("Job not correctly started", exc_info=True)
-                    outHandler.flush()
+                    time.sleep(swait)
                     pass
-
-            # Wrapper to private members :
-            while( len(self.call_list) > 0 ):
-                logging.warning("Container "+self.name+" call list : "+str(self.call_list))
-                outHandler.flush()
-                callfunc=self.call_list[0] 
-                if callfunc == "updateScripts":
-                    self.updateScripts()
-                elif callfunc == "quitConnection":
-                    self.quitConnection()
-                elif callfunc == "killTunnel":
-                    self.killTunnel()
-                elif callfunc == "reconnect":
-                    self.connect();
-                elif (search_action.search(callfunc)):
-                    logging.warning("Action detected "+str(callfunc))
-                    if (not self.action_OK):
-                        self.startActionConnection()
-                    self.action(callfunc)
-                else:
-                    logging.error("Error with calling function "+callfunc+ " for Connection "+self.name+" .")
-                self.call_list.pop(0)
-
-            if not self.isalive():
-                self.quitConnection()
-            # else:
-            #     logging.debug("Connection "+str(self.connectionId)+" alive.")
-
-            time.sleep(timeAliveConn)
-            #logging.debug("Container loop.")
+                    
+                except:
+                    logging.error("Job not correctly started", exc_info=True)
+                    outHandler.flush()
+                    time.sleep(swait)
+                    pass
+                iter=iter+1
 
     def callfunction (self,myfunc):
         logging.debug("From Flask thread calling function "+myfunc+ " for Connection "+self.name+" .")
@@ -1094,7 +1129,12 @@ class ConnectionDocker(threading.Thread):
         # logging.warning("Kill tunnel to Flask docker :\n"+re.sub(r'\*n',r'\\n',str(self.LogTunnel)))
 
     def startActionConnection(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as testsock:
+            if testsock.connect_ex(('localhost', self.actionPort)) == 0:
+                logging.warning("Action server "+str(self.ConnectionDB.id)+" already started.")
+                return
         # Server in TVSecure wait for connection from TVConnection in connectionDocker to send actions commands.
+        logging.warning("Try start ActionConnection on port "+str(self.actionPort))
         try:
             self.ActionConnect=sock.server(self.actionPort)
             logging.warning("Action server launched on "+str(self.actionPort)+".")

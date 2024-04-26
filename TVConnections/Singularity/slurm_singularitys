@@ -1,0 +1,229 @@
+#!/bin/bash
+#SBATCH --job-name=ssingularity
+#SBATCH --output=output_launch    # fichier qui réceptionne la sortie standard
+#SBATCH --error=error_launch      # fichier qui réceptionne la sortie erreur
+#SBATCH --ntasks=NTASKS           # Nombre d'unité de calcul ou de processus MPI
+#SBATCH --nodes=NODES             # Nombre de noeuds à exploiter
+#SBATCH --time=TIME               # Temps souhaité pour la réservation
+#SBATCH --cpus-per-task=TASKS     # utilisez 10 coeurs pour obtenir 1/4 de la RAM CPU
+#SBATCH --gres=gpu:GPUS
+##SBATCH --exclusive              # Attention utilise la totalité du noeud
+#SBATCH --partition=PARTITION
+
+
+NUM=NUM_DOCKERS
+DATE=DATE
+DIR=/dockerspace
+SINGULARITY_NAME=ubuntu18_icewm.sif
+#FRONTENDIP=frontend:192.168.0.254
+TILEDVIZ_DIR=/TiledViz
+TILESINGULARITYS_path=/TiledViz/TVConnections/Singularity
+TileSetP=55555
+#Python server is on HPC FRONTEND
+FRONTEND=192.168.0.1
+
+NGPUS=GPUS
+
+OPTIONS=OTHER_OPTIONS
+echo "OPTIONS = "${OPTIONS}
+
+
+# FRONTENDIP is for ssh tunneling of vnc flux 
+SINGULARITYOPTIONS="-r 1920x1080 -p ${TileSetP} -h ${FRONTEND} "
+
+
+# Minimal size of output for singularity container correctly started :
+SINGULARITYsize=200
+#TODO better get SINGULARITY response for real start rather than SINGULARITYsize
+
+echo "launch singularitys at ${DATE}"
+srun hostname |sort
+
+# Nvidia or Nouveau driver
+TestNVIDIA=""
+
+# count X display on each host
+declare -A HostX
+
+
+# Slurm Job informations 
+#squeue -u mancipm -j 6707575 -O "nodelist"
+#squeue -j $(squeue -u $USER   -o "%A" |tail -1) -O "nodelist"
+
+#env |grep SLURM
+
+# put all SLURM_JOB_NODELIST in an array :
+#IFS=', ' read -r -a LIST_NODES <<< $SLURM_NODELIST
+oIFS=$IFS
+IFS=$'\n'
+LIST_NODES=( $(srun hostname |sort) )
+IFS=$oIFS
+
+NNODES=$SLURM_NNODES
+echo "NNODES="$NNODES
+echo "NGPUS="$NGPUS
+echo "LIST_NODES="${LIST_NODES[*]}
+echo "SLURM_JOB_ID="$SLURM_JOB_ID
+echo "CUDA_VISIBLE_DEVICES="$CUDA_VISIBLE_DEVICES
+
+
+i=1
+inode=0
+while [ $i -le ${NUM} ]; do
+   HOSTCOMMAND=""
+   NVIDIAGPU=0
+   DEVICESCOMM=""
+   DEVICES=""
+
+   realhost=$(echo ${LIST_NODES[$inode]} |sed -e "s&\..*&&") 
+   echo ${LIST_NODES[$inode]} $realhost
+   
+   NVIDIAGPU=$(( (($i-1) / $NNODES) % $NGPUS ))
+   GPUfile=/dev/nvidia${NVIDIAGPU}
+
+
+   if [ ${realhost} = $( hostname |sed -e "s&\..*&&" ) -o ${realhost} = "localhost" ]; then
+   	   HOSTCOMMAND=
+   	   #HOSTCOMMAND="ssh -x localhost "
+   	   # Nvidia or Nouveau driver
+   	   if [ -e $GPUfile ]; then
+   	       TestNVIDIA[${realhost}, ${NVIDIAGPU}]=true
+   	   else
+   	       TestNVIDIA[${realhost}, ${NVIDIAGPU}]=false
+   	   fi
+   	   if ( ${TestNVIDIA[${realhost}, ${NVIDIAGPU}]} ); then
+   	       GID=$(echo $GPUfile | sed -e "s&.*nvidia&&")
+   	       DEVICESCOMM=" CUDA_VISIBLE_DEVICES=$GID "
+   	       #DEVICES="--device=$GPUfile:/dev/nvidia0 --device=/dev/nvidiactl"
+   	       DEVICES=" --nv "
+   	   else
+   	       DEVICES=""
+   	   #     DEVICES="--device=/dev/video0:/dev/video0"
+   	   fi
+   	   BEG="'"
+   	   END="'"
+   else
+   	   HOSTCOMMAND="ssh -x $LOGNAME@${realhost}"
+   	   # Nvidia or Nouveau driver
+   	   TestNVIDIA[${realhost}, ${NVIDIAGPU}]=$( $HOSTCOMMAND bash -c "'[[ -e $GPUfile ]] && echo true || echo false'" )
+   	   
+   	   if ( ${TestNVIDIA[${realhost}, ${NVIDIAGPU}]} ); then
+   	       GID=$(echo $GPUfile | sed -e "s&.*nvidia&&")
+   	       DEVICESCOMM=" CUDA_VISIBLE_DEVICES=$GID "
+   	       #--device=$GPUfile:/dev/nvidia0 --device=/dev/nvidiactl"
+   	       # => depending on SSH server configuration (e.g. AcceptEnv)
+   	       DEVICES=" --nv "
+   	   else
+   	       DEVICES=""
+   	   fi
+   	   BEG="'\""
+   	   END="\"'"
+   fi
+   if [ ${#HostX[${realhost}]} != 0 ]; then
+   	   HostX[${realhost}]=$(( HostX[${realhost}] + 1 ))
+   else
+   	   # max is 19 for DISPLAY
+   	   # displays 0-1 for user needs
+   	   # => 2-19 for singularitys
+   	   HostX[${realhost}]=2
+   fi
+   DISPLAY=${HostX[${realhost}]}
+   
+   i0=$(printf "%03d" $i)
+   SINGULARITYID=${i0}
+   HOSTCOMMAND="$HOSTCOMMAND ${DEVICESCOMM} SINGULARITYID=${SINGULARITYID} bash -c $BEG"
+
+   SINGULARITY="$HOSTCOMMAND module load singularity/3.8.3/gcc-11.2.0; singularity"
+
+   SINGULARITYDIR=$(basename ${SINGULARITY_NAME}| sed -e 's/\.sif//')_${DATE}_${i0}
+   mkdir ${DIR}/${SINGULARITYDIR}
+   mkdir ${DIR}/${SINGULARITYDIR}/tmp
+   mkdir ${DIR}/${SINGULARITYDIR}/scratch
+   mkdir ${DIR}/${SINGULARITYDIR}/scratch/$USER-$SLURM_JOB_ID
+
+   
+   # if [ ${network} = X ] || [ ${domain} = 0 ] ; then
+   #     NETARGS=
+   # else
+   #     NETARGS=' --net  --network-args portmap="'${nethost}${i0}':5902/tcp,22:22/tcp"'
+   #     #' --network='${network}' --network-alias='${nethost}${i0}
+   #     #' --ip='${domain}'.'$((i+init_IP-1))
+   # fi
+
+   
+   echo "${SINGULARITY} instance start ${DEVICES} \
+       --bind ${DIR}/${SINGULARITYDIR}:${HOME}/.vnc:rw,${DIR}/${SINGULARITYDIR}/tmp:/tmp:rw,${DIR}/${SINGULARITYDIR}/scratch:/scratch:rw,${TILEDVIZ_DIR}:/TiledViz:ro,${TILESINGULARITYS_path}:/opt/TiledViz:ro,${HOME}:/home/myuser:rw${OPTIONS} \
+        ${SINGULARITY_NAME} ${SINGULARITYDIR} 2>&1 |tee -a ${DIR}/${SINGULARITYDIR}/stdout $END" > ${DIR}/${SINGULARITYDIR}/call_singularity-run
+
+   echo "${SINGULARITY} exec instance://${SINGULARITYDIR} ${TILESINGULARITYS_path}/script_icewm  $SINGULARITYID ${DISPLAY} ${SINGULARITYOPTIONS} & 2>&1 |tee -a ${DIR}/${SINGULARITYDIR}/stdout $END" >> ${DIR}/${SINGULARITYDIR}/call_singularity-run
+   
+   chmod a+x  ${DIR}/${SINGULARITYDIR}/call_singularity-run
+
+   ${DIR}/${SINGULARITYDIR}/call_singularity-run > ./${SINGULARITYDIR}_stdout 2>&1 &
+   sleep 0.1
+
+   i=$(( i + 1 ))
+   inode=$(( inodes + 1 ))
+   if [ $inode -eq $SLURM_NNODES ]; then
+       inode=0
+   fi
+done
+sleep 5
+
+count=0
+while [ true ]; do
+    SINGULARITYDIR=$(basename ${SINGULARITY_NAME} | sed -e 's/\.sif//')_${DATE}
+    NstartSingularity=$(wc -c  ./${SINGULARITYDIR}_*_stdout |head -n ${NUM} |awk '{print ($1 >= '$SINGULARITYsize')}' |grep 1 |wc -l)
+    #echo "Number of started Singularitys=${NstartSingularity}"
+    if [ ${NstartSingularity} -eq ${NUM} ]; then
+	break
+    elif [ $count -gt 100 ]; then
+	echo "Error launch singularity : time_out"
+	exit 100
+    fi
+    count=$(( count + 1 ))
+    sleep 0.2
+done
+#TODO better get SINGULARITY response for real start rather than SINGULARITYsize:
+#??
+
+rm -f ./list_dockers_pass
+touch ./list_dockers_pass
+i=1
+inode=0
+LISTE=""
+while [ $i -le ${NUM} ]; do
+   i0=$(printf "%03d" $i)
+   realhost=${LIST_NODES[$inode]}
+   SINGULARITYDIR=$(basename ${SINGULARITY_NAME}| sed -e 's/\.sif//')_${DATE}_${i0}
+   DISPLAYNUM=$( grep  "^:[0-9]*" ./${SINGULARITYDIR}_stdout | sed -e "s/://" )
+   LIGNE=$( grep "Random\ Password\ Generated:" ./${SINGULARITYDIR}_stdout )
+   PASS=${LIGNE##*:}
+   echo $i ${DISPLAYNUM} ${PASS}
+   LISTE="${LISTE} ${DISPLAYNUM}"
+
+   echo ${realhost} ${PASS} | sed -e "s/\r//" >> ./list_dockers_pass
+
+   # Remove ssh process
+   pgrep -fla  "ssh.*${realhost} .*singularity exec instance.*${SINGULARITYDIR}"
+   OUTssh=$(pgrep -fla  "ssh.*${realhost} .*singularity exec instance.*${SINGULARITYDIR}" |sed -e 's@\([0-9]*\) .*@\1@')
+   if [ ${#OUTssh[@]} -gt 0 ]; then
+       echo ${OUTssh[@]}
+       #echo ${OUTssh[@]}  |xargs kill
+   fi
+   #rm ./${SINGULARITYDIR}_stdout
+
+   i=$(( i + 1 ))
+   inode=$(( inodes + 1 ))
+   if [ $inode -eq $SLURM_NNODES ]; then
+       inode=0
+   fi
+done
+
+echo  ${NUM} ${DATE} ${DIR} ${SINGULARITY_NAME} > out_launch_singularitys
+echo ${LISTE} >> out_launch_singularitys
+
+while [ ! -f ./end_slurm_singularitys ]; do
+    sleep 2
+    echo "Job sleep"
+done

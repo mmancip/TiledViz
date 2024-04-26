@@ -35,5 +35,6 @@ while [ true ]; do
 done
 pgrep -fla ssh  >> ${OUTClient}
 #DISPLAY=:1
+echo /usr/bin/python3 /TiledViz/TVConnections/TileClient.py $ID $locPORT >> ${OUTClient} 
 /usr/bin/python3 /TiledViz/TVConnections/TileClient.py $ID $locPORT >> ${OUTClient} 2>&1
 

@@ -184,6 +184,7 @@
 	      {% else %}
               <li><a class="dropdown-item" href="/allsessions">All Sessions</a></li>
               <li><a class="dropdown-item" href="/grid">Last grid</a></li>
+              <li><a class="dropdown-item" href="/oldsessions">Edit Project</a></li>
               <li><a class="dropdown-item" href="/savesession">Save cookie</a></li>
               <li><a class="dropdown-item" href="/retreivesession">Reload cookie</a></li>
               <li><a class="dropdown-item" href="/admin">UserAdmin</a></li>
@@ -201,6 +202,9 @@
         <!--   <input class="form-control" type="search" placeholder="Search" aria-label="Search"> -->
         <!-- </form> -->
       </div>
+    </div>
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#Project"> {{ session["projectname"] }} {{ session["sessionname"] }} {{ session["username"] }} </a>
     </div>
   </nav>
   {% endif %}  

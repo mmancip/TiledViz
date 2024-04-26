@@ -24,8 +24,10 @@ if [[ -d ${SINGULARITYNAME}_${DATE}_001 ]]; then
     # ../launch_command $NUM $DATE $DIR $SINGULARITYNAME $GPU_FILE 'killall -9 ssh' {001..$NUM}
     # sleep 5
 
-    echo "Supress all xvfb-run to stop containers."
-    ../launch_command $NUM $DATE $DIR $SINGULARITYNAME $GPU_FILE 'killall xvfb-run' {001..$NUM}
+    echo "Supress all Xvfb to stop containers."
+    ../launch_command $NUM $DATE $DIR $SINGULARITYNAME $GPU_FILE 'killall Xvfb' {001..$NUM}
+    # echo "Supress all xvfb-run to stop containers."
+    # ../launch_command $NUM $DATE $DIR $SINGULARITYNAME $GPU_FILE 'killall xvfb-run' {001..$NUM}
     sleep 2
 fi
 

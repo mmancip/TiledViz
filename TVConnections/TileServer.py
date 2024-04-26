@@ -13,6 +13,8 @@ import argparse
 
 import traceback
 
+import socket
+
 sys.path.append(os.path.abspath('./connect'))
 from connect import sock
 IdTS=sock.PORTServer+1
@@ -26,7 +28,7 @@ DEBUG=False
 TRACE=False
 
 MaxWaitExecute=120
-
+waitsleep=0.5
 
 
 def parse_args(argv):
@@ -113,9 +115,13 @@ class TilesSet(threading.Thread):
         global IdTS
         self.lock.acquire()
         IdTS=IdTS+1
-        self.TileSetPort=IdTS
         self.id=IdTS-sock.PORTServer
         self.lock.release()
+        # detect a free port here
+        s=socket.socket()
+        s.bind(("", 0))
+        self.TileSetPort=int(s.getsockname()[1])
+        s.close()
 
         serverLogger.warning("for TileSet "+TileSetName
               +" TSthreads is modified with thread "+str(self.thread)
@@ -172,12 +178,20 @@ class TilesSet(threading.Thread):
         self.ClientNotReady=False
 
         serverLogger.warning("All client sorted for %s : %d " % (self.TileSetName,len(self.ListClient)))
-        
+
+    def wait_client(self,callfun,command):
+        count=0
+        while(self.ClientNotReady):
+            serverLogger.debug("Wait for clients. "+callfun)
+            time.sleep(waitsleep)
+            count=count+1
+            if (count > MaxWaitExecute):
+                serverLogger.error(self.TileSetName+" : Wait too much on command" +command)
+                break
+            
     def execute_all(self,command):
         serverLogger.warning(self.TileSetName+" : Command on all tiles : "+command)
-        while(self.ClientNotReady):
-            serverLogger.debug("Wait for clients.")
-            time.sleep(1)
+        self.wait_client("execute_all",command)
             
         self.laststate=False
         # if (len(self.ListClient) == 0):
@@ -193,9 +207,7 @@ class TilesSet(threading.Thread):
         
     def get_laststate_execute_all(self):
         serverLogger.warning(self.TileSetName+" : Get state on all tiles.")
-        while(self.ClientNotReady):
-            serverLogger.warning("Wait for clients.")
-            time.sleep(1)
+        self.wait_client("get_laststate_execute_all","")
 
         # if (len(self.ListClient) == 0):
         #     self.TSconnect.send_OK(self.id,-1)
@@ -226,9 +238,7 @@ class TilesSet(threading.Thread):
         
     def execute_list(self,tilesId,command):
         serverLogger.warning(self.TileSetName+" : Command on list "+str(tilesId)+" of tiles : "+command)
-        while(self.ClientNotReady):
-            serverLogger.warning("Wait for clients.")
-            time.sleep(1)
+        self.wait_client("execute_list",command)
 
         self.laststate=False
         # if (len(self.ListClient) == 0):
@@ -256,9 +266,7 @@ class TilesSet(threading.Thread):
 
     def get_laststate_execute_list(self,tilesId):
         serverLogger.warning(self.TileSetName+" : Get state on list "+str(tilesId)+" of tiles.")
-        while(self.ClientNotReady):
-            serverLogger.warning("Wait for clients.")
-            time.sleep(1)
+        self.wait_client("get_laststate_execute_list","")
 
         # if (len(self.ListClient) == 0):
         #     self.TSconnect.send_OK(self.id,-1)
@@ -302,6 +310,13 @@ class ClientConnect(threading.Thread):
         threading.Thread.__init__(self)
         self.thread = threading.Thread(target=self.run, args=(id, Connect),)
         self.thread.start()
+
+    def __del__(self):
+        serverLogger.warning("Remove ClientConnect "
+              +" , thread "+str(self.thread)
+              +" and id "+str(self.id))
+        self.close()
+        self.thread.join()
 
     def run(self, id, connect):
         self.id=id
@@ -444,7 +459,9 @@ class ClientConnect(threading.Thread):
                 CommandEXE=p.sub(r'\2',CommandTS)
                 
                 # Give the connection PORT to server
-                CommandEXE=CommandEXE.replace('TileSetPort',str(self.TileSets[TSName].TileSetPort))
+                if (re.search(r'TileSetPort',CommandEXE)):
+                    CommandEXE=CommandEXE.replace('TileSetPort',str(self.TileSets[TSName].TileSetPort))
+                    serverLogger.warning('Change TileSetPort on tileset "'+TSName+'" and command "'+CommandEXE+'"')
 
                 # TEST command and path validity ??
                 serverLogger.info('Launch command "'+CommandEXE+'" with path "'+CommandPATH+'" on tileset '+TSName)
@@ -488,7 +505,7 @@ class ClientConnect(threading.Thread):
                                      (TSName,CommandFilename,CommandPath))
 
                 (FileSize, FileSha256) = self.Connect.send_file(self.id,CommandPath,CommandFilename)
-                serverLogger.debug('File sent with size %d and sha256 %s ' % (FileSize,FileSha256))
+                serverLogger.warning('File sent with size %d and sha256 %s ' % (FileSize,FileSha256))
                 
             else:
                 serverLogger.error("*********** UNRECOGNIZED COMMAND FROM CLIENT "+str(self.Connect.clientinfos[self.id])+" *********** :")
