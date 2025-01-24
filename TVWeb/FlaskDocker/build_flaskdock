@@ -1,0 +1,10 @@
+#!/bin/bash
+
+date +%F_%H-%M-%S
+mv TVDatabase/postgresql $HOME/tmp
+source $HOME/.cache/envTiledViz
+sed -e "s&_SERVER_NAME_&$SERVER_NAME&"  -e "s&_DOMAIN_&$DOMAIN&" -e "s&_SSLpublic_&$SSLpublic&" -e "s&_SSLprivate_&$SSLprivate&" TVWeb/FlaskDocker/Dockerfile.web_i > TVWeb/FlaskDocker/Dockerfile.web
+sed -e "s&DNSservername&$SERVER_NAME&"  -e "s&_DOMAIN_&$DOMAIN&" -e "s&_SSLpublic_&$SSLpublic&" -e "s&_SSLprivate_&$SSLprivate&" TVWeb/nginx/nginx.conf_i > TVWeb/nginx/nginx.conf
+docker buildx build -t flaskimage -f TVWeb/FlaskDocker/Dockerfile.web .
+mv $HOME/tmp/postgresql  TVDatabase
+date +%F_%H-%M-%S

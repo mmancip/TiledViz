@@ -4,6 +4,7 @@
 import errno
 import threading, time
 import sys,os,re
+import weakref
 from subprocess import Popen as Popen
 import subprocess as subp
 import shlex
@@ -27,7 +28,7 @@ import logging
 DEBUG=False
 TRACE=False
 
-MaxWaitExecute=120
+MaxWaitExecute=20
 waitsleep=0.5
 
 
@@ -60,7 +61,7 @@ class TileConnection:
         self.ids=(container, password)
         self.laststate=False
         self.lastval=255
-        serverLogger.debug("New connection : "+str(self.TSserver)+self.TileSetName+str(self.Id)+str(self.ids))
+        serverLogger.warning("New connection : serveur %s TS %s id %d properties %s ." % (str(self.TSserver),self.TileSetName,self.Id,str(self.ids)))
 
     def get_laststate(self):
         if (self.laststate):
@@ -80,7 +81,15 @@ class TileConnection:
 
 # TileSet management
 class TilesSet(threading.Thread):
-    def __init__(self, TileSetName, Nb):
+    _alive = []
+    def __new__(cls, TileSetName, Nb):
+        self = super().__new__(cls)
+        TilesSet._alive.append(self)
+        self.init(TileSetName, Nb)
+        return weakref.proxy(self)
+
+
+    def init(self, TileSetName, Nb):
         threading.Thread.__init__(self)
         self.thread = threading.Thread(target=self.run, args=(TileSetName,Nb,))
         self.thread.start()
@@ -92,10 +101,11 @@ class TilesSet(threading.Thread):
         for tileconnection in self.ListClient:
             del tileconnection
         del TSthreads[self.TileSetName]
-        serverLogger.warning("Remove TileSet "+TileSetName
+        serverLogger.warning("Remove TileSet "+self.TileSetName
               +" , thread "+str(self.thread)
               +" and id "+str(self.id))
-        self.thread.join()
+        #self.thread.stop()
+        self._alive.remove(self)
         
     def run(self, TileSetName, Nb):
         # Launch TileSet ??
@@ -136,11 +146,11 @@ class TilesSet(threading.Thread):
 
         count=0
         while count < self.Nb:
+            id=count+1
             serverLogger.warning( "TileSet "+self.TileSetName
                    +" with "+str(self.Nb)
-                   +" tiles id "+str(count+1)
+                   +" tiles id "+str(id)
                    +" Listening to clients ...")
-            id=count+1
             TSconnect.new_connect(id)
             
             try: 
@@ -162,11 +172,17 @@ class TilesSet(threading.Thread):
                     self.ListClient.append((thisTile, self, TileSetName, id, container, password))
                     # Get Tile properties + password !!
                     # thisTile.properties()
+                    serverLogger.warning( "TileSet "+self.TileSetName
+                                          +" tile "+str(id)+" over "+str(self.Nb)
+                                          +" container %s password %s " % (str(container), str(password)))
                     break
             except Exception as err:
                 serverLogger.error("Exception with list of tiles : "+str(err))
                 traceback.print_exc(file=sys.stderr)
-                
+
+            # TODO : Timer to break after n sec for last tiles not started ?
+            # self.ListClient already contained started tiles.
+            
             count=count+1
 
         serverLogger.warning("All socket opened for "+self.TileSetName+" : "+str(len(self.ListClient)))
@@ -182,11 +198,11 @@ class TilesSet(threading.Thread):
     def wait_client(self,callfun,command):
         count=0
         while(self.ClientNotReady):
-            serverLogger.debug("Wait for clients. "+callfun)
+            serverLogger.warning("%d wait for clients. call %s command %s " % (self.id,callfun,command))
             time.sleep(waitsleep)
             count=count+1
             if (count > MaxWaitExecute):
-                serverLogger.error(self.TileSetName+" : Wait too much on command" +command)
+                serverLogger.error(self.TileSetName+" %d : Wait too much on command %s " % (self.id,command))
                 break
             
     def execute_all(self,command):
@@ -206,7 +222,7 @@ class TilesSet(threading.Thread):
         self.laststate=True
         
     def get_laststate_execute_all(self):
-        serverLogger.warning(self.TileSetName+" : Get state on all tiles.")
+        serverLogger.warning(self.TileSetName+" %d : Get state on all tiles." % (self.id))
         self.wait_client("get_laststate_execute_all","")
 
         # if (len(self.ListClient) == 0):
@@ -224,7 +240,7 @@ class TilesSet(threading.Thread):
                         RET=RET+laststate
                         break
                     else:
-                        time.sleep(1)
+                        time.sleep(waitsleep)
                         count=count+1
                         serverLogger.debug(self.TileSetName+" : Wait for state on all tiles %d." % (count))
                         if (count > MaxWaitExecute):
@@ -289,7 +305,7 @@ class TilesSet(threading.Thread):
                             RET=RET+laststate
                             break
                         else:
-                            time.sleep(1)
+                            time.sleep(waitsleep)
                             count=count+1
                             serverLogger.debug(self.TileSetName+" : Wait for state on list "+str(tilesId)+" of tiles %d." % (count))
                             if (count > MaxWaitExecute):
@@ -306,17 +322,17 @@ class TilesSet(threading.Thread):
 
 # class for each ClientId instance (multiple client connections).
 class ClientConnect(threading.Thread):
-    def __init__(self, id, Connect):
+    _alive = []
+    def __new__(cls,id, Connect):
+        self = super().__new__(cls)
+        ClientConnect._alive.append(self)
+        self.init(id, Connect)
+        return weakref.proxy(self)
+
+    def init(self, id, Connect):
         threading.Thread.__init__(self)
         self.thread = threading.Thread(target=self.run, args=(id, Connect),)
         self.thread.start()
-
-    def __del__(self):
-        serverLogger.warning("Remove ClientConnect "
-              +" , thread "+str(self.thread)
-              +" and id "+str(self.id))
-        self.close()
-        self.thread.join()
 
     def run(self, id, connect):
         self.id=id
@@ -348,7 +364,10 @@ class ClientConnect(threading.Thread):
                 outHandler.flush()
                 
                 del self.TileSets[TSName]
-                self.__del__()
+                self.Connect.close(self.id)
+                #self.thread.stop()
+                self._alive.remove(self)
+                return
                 
             elif (re.search(r'execute all',CommandRecv)):
                 p=re.compile(r'execute all (.*)')
@@ -368,7 +387,7 @@ class ClientConnect(threading.Thread):
                             RET=RET+laststate
                             break
                         else:
-                            time.sleep(1)
+                            time.sleep(waitsleep)
                             count=count+1
                             serverLogger.debug(str(TheTS)+" : Wait for state on list command "+CommandRecv+" %d." % (count))
                             if (count > MaxWaitExecute):
@@ -407,9 +426,9 @@ class ClientConnect(threading.Thread):
                             RET=RET+laststate
                             break
                         else:
-                            time.sleep(1)
+                            time.sleep(waitsleep)
                             count=count+1
-                            serverLogger.debug(TSName+" : Wait for state on list command "+CommandRecv+" %d." % (count))
+                            serverLogger.warning(TSName+" : Wait for state on list command "+CommandRecv+" %d." % (count))
                             if (count > MaxWaitExecute):
                                 serverLogger.error(TSName+" : No state "+str(laststate)+" on list command "+CommandRecv+"\n"+
                                                    "CommandTS "+CommandTS+"  StrTiles "+str(StrTiles)+" \n"+
@@ -431,7 +450,7 @@ class ClientConnect(threading.Thread):
                                 RET=RET+laststate
                                 break
                             else:
-                                time.sleep(1)
+                                time.sleep(waitsleep)
                                 count=count+1
                                 serverLogger.debug(TSName+" : Wait for state on all command "+CommandRecv+" %d." % (count))
                                 if (count > MaxWaitExecute):

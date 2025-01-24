@@ -104,19 +104,32 @@ class ClientAction(threading.Thread):
         self.iter=0
         # Wait for commands by TVSecure.py
         while True:
-            if (self.detect()):
+            detectActionConnection=self.detect()
+            if (detectActionConnection):
                 self.execute(globals,locals)
+            elif (detectActionConnection == -1):
+                return
             time.sleep(0.1)
+            if (self.iter > 100):
+                logging.error("No ActionServer detected after 100 tries.")
+                return
 
     def detect(self):
         global tiles_actions
-        
-        #logging.warning("ClientAction : detect")
-        data=self.actionclient.recv()
-        if not data:
-            return False
-        self.actionclient.send_OK(self.iter)
+        self.IsActionConnected=False
         self.iter=self.iter+1
+        #logging.warning("ClientAction : detect")
+        if ("actionclient" in dir(self)):
+            data=self.actionclient.recv()
+            if not data:
+                return False
+        else:
+            # No ActionConnection server
+            logging.error("ClientAction : No more Action connection to server connectiondock")
+            return -1
+        self.actionclient.send_OK(self.iter)
+        self.IsActionConnected=True
+
         try:
             actiontiles=list(map(int,data.replace(',,','').split(",")))
             logging.warning("ClientAction : get actionTile message "+str(actiontiles))
@@ -146,6 +159,8 @@ class ClientAction(threading.Thread):
     def execute(self,globals,locals):
         # Separate Execute
         logging.debug("ClientAction : run")
+        if (not self.IsActionConnected):
+            return
         try:
             funaction=tiles_actions[self.thisAction][0]
             functionAction=eval(funaction)
@@ -252,14 +267,48 @@ def Get_client_IP(tileNum=-1,tileId='001'):
     except:
         logging.error("Cannot retreive ip from %s." % (Id) )
         return "-1"
+
+def read_nodes_init():
+    # Update nodes.json locally
+    JsonFile="nodes.json_init"
+    logging.warning("Before read  : "+ str(JsonFile))
+    try:
+        with open(JsonFile) as json_tiles_file:
+            nodes_json=json.loads(json_tiles_file.read())
+    except:
+        sys.stdout.flush()
+        traceback.print_exc(file=sys.stdout)
+        os.system('ls -la '+JsonFile)
+        kill_all_containers()
+    return nodes_json
+
+def nodes_json_init():
+    with open("listPortsTiles.pickle", 'rb') as file_pi:
+        listPortsTilesIE=pickle.load(file_pi)
+
+    nodes_json=read_nodes_init()
     
-# commande de tunnel :
-def launch_tunnel():
-    global TilesScriptsPath
-    logging.warning("TilesScriptsPath : %s" % (TilesScriptsPath))
-    stateVM=True
-    
+    for tilei in range(NUM_DOCKERS):
+        nodeurl=nodes_json["nodes"][tilei]["url"]
+        nodeurl=re.sub(r'https://[^/]*',r'https://'+listPortsTilesIE["TiledVizHost"],nodeurl)
+        nodeurl=re.sub(r'host=[^&]*',r'host='+listPortsTilesIE["TiledVizHost"],nodeurl)
+        oldport=int(re.sub(r'.*port=([^&]*)&.*',r'\1',nodeurl))
+        tileip=oldport % 1000 - 1
+        #logging.warning("tile %d update nodes.json : new url %s with old port %d" % (tilei, nodeurl, oldport)) 
+        if ( str(tileip) in listPortsTilesIE):
+            extern=listPortsTilesIE[str(tileip)][1]
+            nodes_json["nodes"][tilei]["url"]=re.sub(r'port=[^&]*',r'port='+str(extern),nodeurl)
+            logging.warning("tile %d : new url %s" % (tilei,nodes_json["nodes"][tilei]["url"])) 
+        sys.stdout.flush()
+    logging.warning("Before write nodes.json")
+    with open("nodes.json",'w') as nodesf:
+        nodesf.write(json.dumps(nodes_json))
+    return True
+
+# share ssh key for each docker
+def share_ssh_key_docker():
     # Share ssh connection keys whith tiles
+    stateVM=True
     # TODO : secure that action ?
     totbyte=0
     filesize=os.path.getsize(sshKeyPath)
@@ -308,7 +357,42 @@ def launch_tunnel():
     logging.warning("Out of id_rsa.pub : "+ str(stateVM))
     if (not stateVM):
         logging.error("!! Error send id_rsa.!!")
-        return stateVM
+    return stateVM
+
+# share ssh key on home for singularity
+def share_ssh_key_singularity():
+    stateVM=True
+
+    # Share ssh connection keys whith tiles
+    connectionkey=os.path.join(HomeFront,".ssh/id_rsa_connection")
+    os.system("cp "+sshKeyPath+".pub "+os.path.join(Home,".ssh/authorized_keys"))
+    send_file_server(client,TileSet,os.path.join(Home,".ssh"), "id_rsa_"+Frontend, JOBPath)
+    COMMANDid=LaunchTS+' bash -c "mv '+os.path.join(JOBPath,"id_rsa_"+Frontend)+' '+connectionkey+'; chmod 600 '+connectionkey+'"'
+    logging.warning("Send id_rsa with \"%s\"." % (COMMANDid) )
+    client.send_server(COMMANDid)
+    state=client.get_OK()
+    stateVM=stateVM and (state == 0)
+
+    send_file_server(client,TileSet,os.path.join(Home,".ssh"), "id_rsa_"+Frontend+".pub", JOBPath)
+    COMMANDid=LaunchTS+' bash -c "mv '+os.path.join(JOBPath,"id_rsa_"+Frontend+".pub")+' '+connectionkey+".pub"+'; chmod 666 '+connectionkey+".pub"+'"'
+    logging.warning("Send id_rsa with \"%s\"." % (COMMANDid) )
+    client.send_server(COMMANDid)
+    state=client.get_OK()
+    stateVM=stateVM and (state == 0)
+    logging.warning("Out of id_rsa.pub : "+ str(stateVM))
+    if (not stateVM):
+        logging.error("!! Error send id_rsa.!!")
+    return stateVM
+
+share_ssh_key=share_ssh_key_docker
+
+# commande de tunnel :
+def launch_tunnel_docker():
+    global TilesScriptsPath
+    logging.warning("TilesScriptsPath : %s" % (TilesScriptsPath))
+    stateVM=True
+    
+    connectionkey="/home/myuser/.ssh/id_rsa_connection"
 
     with open("listPortsTiles.pickle", 'rb') as file_pi:
         listPortsTilesIE=pickle.load(file_pi)
@@ -320,34 +404,54 @@ def launch_tunnel():
         WebServerHost=listPortsTilesIE["TiledVizHost"]
         ServerTSPortSSH=listPortsTilesIE["TiledVizConnectionPort"]
         COMMANDi=' ssh-agent '+TilesScriptsPath+'/tunnel_ssh '+SSH_FRONTEND+' '+SSH_LOGIN+' '+str(internPort)+' '+WebServerHost+' '+str(ServerTSPortSSH)+' -i '+connectionkey
-        logging.warning("%s | %s" % (TILEi, COMMANDi)) 
         client.send_server(TILEi+COMMANDi)
         state=client.get_OK()
-        stateVM=(state == 0)
+        logging.warning("%s | %s : %s" % (TILEi, COMMANDi,state)) 
+        stateVM=stateVM and (state == 0)
     if (not stateVM):
         print("!! Error launch_tunnel.!!")
         return stateVM
     sys.stdout.flush()
-    # Update nodes.json locally
-    JsonFile="nodes.json_init"
-    with open(JsonFile) as json_tiles_file:
-        nodes_json=json.loads(json_tiles_file.read())
-    for tilei in range(NUM_DOCKERS):
-        nodeurl=nodes_json["nodes"][tilei]["url"]
-        nodeurl=re.sub(r'https://[^/]*',r'https://'+listPortsTilesIE["TiledVizHost"],nodeurl)
-        nodeurl=re.sub(r'host=[^&]*',r'host='+listPortsTilesIE["TiledVizHost"],nodeurl)
-        oldport=int(re.sub(r'.*port=([^&]*)&.*',r'\1',nodeurl))
-        tileip=oldport % 1000 - 1
-        logging.warning("tile %d update nodes.json : new url %s with old port %d" % (tilei, nodeurl, oldport)) 
-        if ( str(tileip) in listPortsTilesIE):
-            extern=listPortsTilesIE[str(tileip)][1]
-            nodes_json["nodes"][tilei]["url"]=re.sub(r'port=[^&]*',r'port='+str(extern),nodeurl)
-            logging.warning("tile %d : new url %s" % (tilei,nodes_json["nodes"][tilei]["url"])) 
-    with open("nodes.json",'w') as nodesf:
-        nodesf.write(json.dumps(nodes_json))
+
     logging.warning("Out of tunnel_ssh : "+ str(stateVM))
     return stateVM
+
+# Launch singularity tunnels
+def launch_tunnel_singularity():
+    global TilesScriptsPath
+    logging.warning("Singularity TilesScriptsPath : %s" % (TilesScriptsPath))
+    logging.warning("Frontend Home in anatomist_job: "+HomeFront)
+    stateVM=True
+
+    connectionkey=os.path.join(HomeFront,".ssh/id_rsa_connection")
     
+    with open("listPortsTiles.pickle", 'rb') as file_pi:
+        listPortsTilesIE=pickle.load(file_pi)
+    # Call tunnel for VNC
+    for i in range(NUM_DOCKERS):
+        i0="%0.3d" % (i+1)
+        TILEi=ExecuteTS+' Tiles=('+containerId(i+1)+') '
+        internPort=listPortsTilesIE[str(i)][0]
+        WebServerHost=listPortsTilesIE["TiledVizHost"]
+        ServerTSPortSSH=listPortsTilesIE["TiledVizConnectionPort"]
+        #COMMANDi=' '+TilesScriptsPath+'/tunnel_ssh '+SSH_FRONTEND+' '+SSH_LOGIN+' '+str(internPort)+' '+WebServerHost+' '+str(ServerTSPortSSH)+' -i '+connectionkey
+        #COMMANDi=' ssh-agent '+TilesScriptsPath+'/tunnel_ssh '+SSH_FRONTEND+' '+SSH_LOGIN+' '+str(internPort)+' '+WebServerHost+' '+str(ServerTSPortSSH)+' -i '+connectionkey
+        COMMANDi=" nohup bash -c ' ssh-agent "+TilesScriptsPath+'/tunnel_ssh '+SSH_FRONTEND+' '+SSH_LOGIN+' '+str(internPort)+' '+WebServerHost+' '+str(ServerTSPortSSH)+' -i '+connectionkey+" '&"
+        client.send_server(TILEi+COMMANDi)
+        state=client.get_OK()
+        logging.warning("%s | %s : %s" % (TILEi, COMMANDi,state)) 
+        stateVM=stateVM and (state == 0)
+    if (not stateVM):
+        print("!! Error launch_tunnel.!!")
+        return stateVM
+    sys.stdout.flush()
+    #time.sleep(2)
+    
+    logging.warning("Out of tunnel_ssh : "+ str(stateVM))
+    return stateVM
+
+launch_tunnel=launch_tunnel_docker
+
 def launch_vnc():
     client.send_server(ExecuteTS+' '+TilesScriptsPath+'/vnccommand')
     state=client.get_OK()
@@ -527,7 +631,13 @@ if __name__ == '__main__':
         elif (TVconnection.auth_type == "ssh"):
             Frontend = TVconnection.host_address
             logging.warning("Distant machine frontend : "+Frontend)
-            UserFront = input("Enter your distant machine user name \n")
+            while True:
+                try:
+                    UserFront = input("Enter your distant machine user name \n")
+                    UserFront = UserFront.encode('ascii').decode()
+                    break
+                except UnicodeDecodeError:
+                    logging.error("Error : only ascii chars are available.")
             while True:
                 try:
                     Password = getpass("Enter your password for this user :\n")
@@ -563,7 +673,9 @@ if __name__ == '__main__':
                 OK_Key=True
                 
             if (TVconnection.auth_type == "ssh"):
-                cmdcopy="ssh-copy-id -i "+sshKeyPath+".pub "+UserFront+"@"+Frontend 
+                cmdcopy="ssh-copy-id -f -o ForwardX11=no -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i "+sshKeyPath+".pub "+UserFront+"@"+Frontend
+                #cmdcopy="bash -c 'ssh-copy-id -f -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i "+sshKeyPath+".pub "+UserFront+"@"+Frontend+ " 2>&1 $HOME/.vnc/out_copy_id'"                
+                logging.warning("ssh-copy-id command :"+cmdcopy)
                 childcopy=pexpect.spawn(cmdcopy)
                 #out1=childcopy.expect('.*')
                 expindex=childcopy.expect([UserFront+"@"+Frontend+"\'s password: ", ".*Password: ",pexpect.EOF, pexpect.TIMEOUT])
@@ -578,7 +690,7 @@ if __name__ == '__main__':
                             try:
                                 logging.error("Error respond from server : "+str(childcopy.buffer,"utf-8"))
                             except:
-                                logging.error("Error respond from server. "+expindex)
+                                logging.error("Error respond from server. "+str(expindex))
                         else:                        
                             logging.warning("ssh key copied on the server.")
                         childcopy.close(force=True)
@@ -586,8 +698,8 @@ if __name__ == '__main__':
                             NOT_CONNECTED=False
                 else:
                     try:
-                        logging.warning("Error with copy id ")
-                        logging.warning("buffer : "+childcopy.buffer.decode("utf-8"))
+                        logging.error("Error with copy id "+str(expindex))
+                        logging.error("buffer : |"+childcopy.buffer.decode("utf-8")+"|")
                         if (expindex == 3):
                             logging.warning("after TIMEOUT ")
                         else:
@@ -597,6 +709,7 @@ if __name__ == '__main__':
                         logging.warning("ssh key copied on the server.")
 
                     try:
+                        logging.error("load interact prompt to test by hand :")
                         code.interact(banner="Try connection :",local=dict(globals(), **locals()))
                     except SystemExit:
                         pass
@@ -611,7 +724,7 @@ if __name__ == '__main__':
     sshPORT=str(int(s.getsockname()[1]));
     s.close()
     # Save/restore here ?
-    TunnelFrontend = "ssh -x -4 -i "+sshKeyPath+" -T -N -nf"+\
+    TunnelFrontend = "ssh  -o ForwardX11=no -4 -i "+sshKeyPath+" -T -N -nf"+\
                      "  -L "+str(sock.PORTServer)+":"+Frontend+":"+str(sock.PORTServer)+\
                      "  -L "+sshPORT+":localhost:22 "+UserFront+"@"+Frontend
 
@@ -619,19 +732,19 @@ if __name__ == '__main__':
     os.system(TunnelFrontend)
     logging.info("ssh tunneling OK.")
 
-    lshome="ssh -x -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost 'ls $HOME/.tiledviz'"
+    lshome="ssh -o ForwardX11=no -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost 'ls $HOME/.tiledviz'"
     logging.debug(lshome)
     os.system(lshome)
     
-    mkdirhome="ssh -x -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost 'mkdir $HOME/.tiledviz'"
+    mkdirhome="ssh -o ForwardX11=no -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost 'mkdir $HOME/.tiledviz'"
     logging.debug(mkdirhome)
     os.system(mkdirhome)
 
-    chmodhome="ssh -x -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost 'chmod og-rx $HOME/.tiledviz'"
+    chmodhome="ssh -o ForwardX11=no -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost 'chmod og-rx $HOME/.tiledviz'"
     logging.debug(chmodhome)
     os.system(chmodhome)
     
-    cmdhome="ssh -x -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost 'echo $HOME'"
+    cmdhome="ssh -o ForwardX11=no -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost 'echo $HOME'"
     logging.debug(cmdhome)
     childhome=pexpect.spawn(cmdhome)
     expindex=childhome.expect([pexpect.EOF, pexpect.TIMEOUT])
@@ -655,7 +768,7 @@ if __name__ == '__main__':
     JOBPath=os.path.join(TiledVizConfPath,TileSet+'_'+DATE)
 
     if (TVconnection.auth_type == "ssh"):
-        WorkdirFrontend = "ssh -x -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost mkdir "+JOBPath
+        WorkdirFrontend = "ssh -o ForwardX11=no -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost mkdir "+JOBPath
         logging.debug(WorkdirFrontend)
         os.system(WorkdirFrontend)
 
@@ -663,17 +776,17 @@ if __name__ == '__main__':
     CONNECTdir=TiledVizPath+"/TVConnections/connect"
     CONNECTpath=os.path.join(JOBPath,"connect")
     
-    ConnectdirFrontend = 'rsync -va -e "ssh -T -i '+sshKeyPath+' -p '+sshPORT+' " '+CONNECTdir+' '+UserFront+"@localhost"+":"+JOBPath
+    ConnectdirFrontend = 'rsync -va -e "ssh -o ForwardX11=no -T -i '+sshKeyPath+' -p '+sshPORT+' " '+CONNECTdir+' '+UserFront+"@localhost"+":"+JOBPath
     logging.debug(ConnectdirFrontend)
     os.system(ConnectdirFrontend)
 
     # Send or test TileServer run on server ??
     def launch_server(ServerFront):
         if ( ServerFront == "" ):
-            TileServerFrontend = 'scp -i '+sshKeyPath+' -P '+sshPORT+' '+TiledVizPath+'/TVConnections/TileServer.py  '+UserFront+"@localhost"+":"+TiledVizConfPath
+            TileServerFrontend = 'scp -o ForwardX11=no -i '+sshKeyPath+' -P '+sshPORT+' '+TiledVizPath+'/TVConnections/TileServer.py  '+UserFront+"@localhost"+":"+TiledVizConfPath
             logging.debug(TileServerFrontend)
             os.system(TileServerFrontend)
-            cmdTileServer="ssh -x -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost 'sh -c \"cd "+TiledVizConfPath+"; cp -rp "+os.path.join(JOBPath,"connect")+" .; HOSTNAME=\""+Frontend+"\" python3 TileServer.py > TileServer_"+DATE+".log 2>&1 & \"'"
+            cmdTileServer="ssh -o ForwardX11=no -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost 'sh -c \"cd "+TiledVizConfPath+"; cp -rp "+os.path.join(JOBPath,"connect")+" .; HOSTNAME=\""+Frontend+"\" python3 TileServer.py > TileServer_"+DATE+".log 2>&1 & \"'"
             logging.debug(cmdTileServer)
             childTileServer=pexpect.spawn(cmdTileServer)
             expindex=childTileServer.expect([pexpect.EOF, pexpect.TIMEOUT])
@@ -685,7 +798,7 @@ if __name__ == '__main__':
             childTileServer.close(force=True)
 
     def test_TileServer():
-        cmdServer="ssh -x -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost 'sh -c \"ps -Aef |grep TileServer |grep -v grep |grep "+UserFront+"\"'"
+        cmdServer="ssh -o ForwardX11=no -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost 'sh -c \"ps -Aef |grep TileServer |grep -v grep |grep "+UserFront+"\"'"
         logging.debug(cmdServer)
         childServer=pexpect.spawn(cmdServer)
         expindex=childServer.expect([pexpect.EOF, pexpect.TIMEOUT])
@@ -718,9 +831,18 @@ if __name__ == '__main__':
     def launch_nodes_json():
         if (os.path.exists("nodes.json")):
                 os.system('bash -c "mv nodes.json nodes.json_$(date +%F_%H-%M-%S)"')
-        while( get_file_client(client,TileSet,JOBPath,"nodes.json",".") < 0):
+        out_get=get_file_client(client,TileSet,JOBPath,"nodes.json",".")
+        logging.warning("out of get_file nodes.json size : "+str(out_get))
+        iter=0
+        while( out_get <= 0):
             time.sleep(2)
-            pass
+            out_get=get_file_client(client,TileSet,JOBPath,"nodes.json",".")
+            logging.warning("out of get_file "+str(iter)+" nodes.json : "+str(out_get))
+            iter=iter+1
+            if (iter > 10):
+                logging.error("Something go wrong with nodes.json. We quit.")
+                kill_all_containers()
+                break
         #os.system('rm -f ./nodes.json')
         return True
     
@@ -738,7 +860,7 @@ if __name__ == '__main__':
         client=sock.client()
     except:
         logging.warning("Connection is not working with TileServer on Frontend, but the process exists. We ")
-        cmdServer="ssh -x -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost 'sh -c \"pgrep TileServer |xargs kill \"'"
+        cmdServer="ssh -o ForwardX11=no -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost 'sh -c \"pgrep TileServer |xargs kill \"'"
         os.system(cmdServer)
         logging.debug(cmdServer)
         
@@ -800,13 +922,14 @@ if __name__ == '__main__':
                 
     # Execute launch file
     try:
+        COMMANDStop="echo 'error script "+filename+"'"
         exec(compile(open(filename, "rb").read(), filename, 'exec'), globals(), locals())
         #filename.job(globals(), locals())
     except SystemExit:
         # Clean key :
         if (TVconnection.auth_type == "ssh"):
             myhostname=os.getenv('HOSTNAME', os.getenv('COMPUTERNAME', platform.node())).split('.')[0]
-            CleanKeyFrontend = "ssh -x -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+'@localhost bash -c \'\"sed -i.'+DATE+' /'+myhostname+'/d ~/.ssh/authorized_keys\"\''
+            CleanKeyFrontend = "ssh -o ForwardX11=no -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+'@localhost bash -c \'\"sed -i.'+DATE+' /'+myhostname+'/d ~/.ssh/authorized_keys\"\''
             logging.debug(CleanKeyFrontend)
             os.system(CleanKeyFrontend)
         # On localhost (no need) "ssh-keygen -R "+Frontend+" -f ~/.ssh/known_hosts"

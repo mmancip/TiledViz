@@ -1,4 +1,4 @@
-#!/bin/bash -vx
+#!/bin/bash
 date +%F_%H-%M-%S
 mv TVDatabase/postgresql $HOME/tmp
 docker build -t mageiaconnect -f TVConnections/mageianconnect/DockerfileUpdateTVConnection .

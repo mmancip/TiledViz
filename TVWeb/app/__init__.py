@@ -1,14 +1,15 @@
 #! python3
 # -*- coding: utf-8 -*-
 
+from gevent import monkey
+monkey.patch_all()
+
 from flask import Flask
 from flask_socketio import SocketIO
 from flask_sqlalchemy import SQLAlchemy
 from flask_bootstrap import Bootstrap
 from flask_wtf.csrf import CSRFProtect
-
-from gevent import monkey
-
+                    
 from gevent.pywsgi import WSGIServer
 
 import os
@@ -42,7 +43,6 @@ logging.getLogger('engineio').setLevel(logging.ERROR)
 # logging.getLogger('requests').setLevel(logging.CRITICAL)
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
-monkey.patch_all()
 
 #SQLALCHEMY_DATABASE_URI=os.environ("DATABASE_URL")
 app = Flask(__name__)

@@ -1,0 +1,7 @@
+# Docker file mageiaconnect
+FROM mageiaconnect:latest
+MAINTAINER  "Martial Mancip" <Martial.Mancip@MaisondelaSimulation.fr>
+
+COPY ./ /TiledViz
+
+RUN rm -rf /TiledViz/TVFiles/* /TiledViz/launch_TiledViz

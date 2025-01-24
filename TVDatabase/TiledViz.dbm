@@ -3,12 +3,12 @@
 CAUTION: Do not modify this file unless you know what you are doing.
  Unexpected results may occur if the code is changed deliberately.
 -->
-<dbmodel pgmodeler-ver="0.9.4" use-changelog="false" last-position="0,0" last-zoom="0.95" max-obj-count="12"
-	 default-schema="public" default-owner="postgres"
-	 layers="Default layer"
+<dbmodel pgmodeler-ver="1.0.6" use-changelog="false" last-position="0,0" last-zoom="1" max-obj-count="12"
+	 default-owner="postgres"
+	 layers="Default,Default layer"
 	 active-layers="0"
 	 layer-name-colors="#000000"
-	 layer-rect-colors="#d21cfa"
+	 layer-rect-colors="#b4b4b4"
 	 show-layer-names="false" show-layer-rects="false">
 <role name="tiledviz"
  superuser="true"
@@ -16,7 +16,6 @@ CAUTION: Do not modify this file unless you know what you are doing.
  createrole="true"
  inherit="true"
  login="true"
- encrypted="true"
  password="m_test/@03">
 </role>
 
@@ -59,7 +58,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	</column>
 	<column name="manager">
 		<type name="character varying" length="80"/>
-		<comment><![CDATA[Project manager]]></comment>
+		<comment> <![CDATA[Project manager]]> </comment>
 	</column>
 	<column name="salt" not-null="true">
 		<type name="character" length="20"/>
@@ -178,15 +177,15 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	</column>
 	<column name="Number_of_active_users">
 		<type name="smallint" length="0"/>
-		<comment><![CDATA[Number of users actively connected to this sessions]]></comment>
+		<comment> <![CDATA[Number of users actively connected to this sessions]]> </comment>
 	</column>
 	<column name="timeout">
 		<type name="integer" length="0"/>
-		<comment><![CDATA[Set the timeout (in seconds) after which a session is disactivated (Number_of_active_users is 0) while no socket is still connected.]]></comment>
+		<comment> <![CDATA[Set the timeout (in seconds) after which a session is disactivated (Number_of_active_users is 0) while no socket is still connected.]]> </comment>
 	</column>
 	<column name="config">
 		<type name="json" length="0"/>
-		<comment><![CDATA[configuration of the grid for this session]]></comment>
+		<comment> <![CDATA[configuration of the grid for this session]]> </comment>
 	</column>
 	<constraint name="sessions_pkey" type="pk-constr" table="public.sessions">
 		<columns names="id" ref-type="src-columns"/>
@@ -285,7 +284,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	</column>
 	<column name="source" not-null="true">
 		<type name="json" length="0"/>
-		<comment><![CDATA[source of the tile : may be an url or a path in a directory of initial conditions or a list of paths.]]></comment>
+		<comment> <![CDATA[source of the tile : may be an url or a path in a directory of initial conditions or a list of paths.]]> </comment>
 	</column>
 	<column name="tags">
 		<type name="json" length="0"/>
@@ -326,11 +325,11 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	</column>
 	<column name="type_of_tiles" not-null="true">
 		<type name="character varying" length="15"/>
-		<comment><![CDATA[must discribe the nature sources of the tiles connected for this tile_set. In this list : web png, local image, remote database file, set of database remote files]]></comment>
+		<comment> <![CDATA[must discribe the nature sources of the tiles connected for this tile_set. In this list : web png, local image, remote database file, set of database remote files]]> </comment>
 	</column>
 	<column name="Dataset_path">
 		<type name="character varying" length="100"/>
-		<comment><![CDATA[Path of  the database for this tile_set.]]></comment>
+		<comment> <![CDATA[Path of  the database for this tile_set.]]> </comment>
 	</column>
 	<column name="creation_date">
 		<type name="timestamp" length="0"/>

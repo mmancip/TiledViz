@@ -88,13 +88,34 @@ echo "allowed_users = anybody" >> /etc/X11/Xwrapper.config
 #mknod -m 666 /dev/tty16 c 5 0
 
 echo "start X "
+
+xvfbLockFilePath="/tmp/.X1-lock"
+if [ -f "${xvfbLockFilePath}" ]
+then
+    echo "Removing xvfb lock file '${xvfbLockFilePath}'..."
+    if ! rm -v "${xvfbLockFilePath}"
+    then
+        echo "Failed to remove xvfb lock file" 1>&2
+        exit 1
+    fi
+fi
+
+echo "export HOSTNAME="${HOSTNAME} >> /etc/profile.d/env_variable.sh
+
+# Set defaults if the user did not specify envs.
 export DISPLAY=:1
+#${XVFB_DISPLAY:-:1}
+screen=${XVFB_SCREEN:-0}
+resolution=${XVFB_RESOLUTION:-${RESOL}x24}
+timeout=${XVFB_TIMEOUT:-5}
 
 # Create the xstartup file
 echo "#!/bin/bash 
 source ~/.bashrc
 export DISPLAY=$DISPLAY
 sleep 1
+stty sane
+export TERM=linux
 xterm -rv -geometry ${RESOL}-0-0 -e /opt/client_python ${DOCKERID} ${myPORT} ${myFront} &
 
 sleep 1
@@ -112,20 +133,20 @@ echo export DOCKERID=$DOCKERID >> ${HOME_user}/.bashrc
 
 cd
 echo $( hostname )
-
-echo "#!/bin/bash 
-export LD_LIBRARY_PATH=/usr/local/lib64:/usr/lib64:/usr/lib64/dri:/usr/lib64/nvidia390
-#LD_PRELOAD=/usr/lib64/nvidia-current/libGL.so.1 
-/usr/bin/vncserver -geometry ${RESOL}  -fg  2>&1 |tee -a $LOGFILE
-#sleep 2
-#${HOME_user}/.vnc/xstartup
-" >${HOME_user}/startx
-chown myuser:myuser ${HOME_user}/startx
-chmod a+x ${HOME_user}/startx
+su - myuser -c " Xvfb ${DISPLAY} -screen ${screen} ${resolution} &"
+loopCount=0
+until xdpyinfo -display ${DISPLAY} > /dev/null 2>&1
+do
+    loopCount=$((loopCount+1))
+    sleep 1
+    if [ ${loopCount} -gt ${timeout} ]
+    then
+        echo "xvfb failed to start" 1>&2 
+        exit 1
+    fi
+done
 
 chown -R myuser:myuser ${HOME_user}
 
-# Start and wait for either Xvnc to be fully up or we hit the timeout.
-su - myuser -l -c ${HOME_user}/startx
-#ls -al /root/.vnc/
-#exec xterm 
+su - myuser -l -c "${HOME_user}/.vnc/xstartup "
+

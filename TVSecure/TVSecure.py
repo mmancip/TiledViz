@@ -62,16 +62,24 @@ if (configExist):
     
     # Start port for connection between TVConnection.py and TVSecure.py through socat and docker0
     ActionPort=int(config['TVSecure']['ActionPort'])
+
+    # Wait in second for nodes.json (a tile set is ready on supercomputer)
+    Swait=int(config['TVSecure']['Swait'])
+
+    # Maximum waiting for nodes.json before stoping container
+    Mwait=int(config['TVSecure']['Mwait'])
 else:
     NbSecureConnection=59
     NbBitesLog="500k"
     # Default init connection PORT
     ConnectionPort=54040
     ActionPort=64040
+    Swait=10
+    Mwait=1800
 
 nbLinesLogs=100
-timeAliveServ=0.2
-timeAliveConn=0.1
+timeAliveServ=0.5
+timeAliveConn=0.3
 timeWait=2
 CONNECTION_RESOL='1350x660'
 
@@ -609,8 +617,8 @@ class ConnectionDocker(threading.Thread):
                     self.listPortsTiles[str(port)+'/tcp']=('0.0.0.0',port);
                 else:
                     logging.error("Build %d find again port %d ports list %s" % (t,port,str(listPorts)))
-                    time.sleep(0.1)
                     s.close()
+                time.sleep(0.1)
         logging.warning("Build connection with "+str(self.nbTiles)+" ports : "+str(self.listPortsTiles))
 
         # Open port in firewall here ?
@@ -741,10 +749,11 @@ class ConnectionDocker(threading.Thread):
         session.refresh(self.TileSetDB)
         self.updateScripts()
 
+        # TODO : Secure protect that connection ! == no other port possible 5902 or no interactive connection for connenct# users
         # Tunnel to Flask : Give access from vncconnection page to this container
         vnc_command="if [ X\\\"\\$( pgrep -fla x11vnc )\\\" == X\\\"\\\" ]; then /opt/vnccommand; fi &"
         self.tunnel_script=os.path.join(self.home,".vnc","tunnel_flask")
-        self.tunnel_command="ssh -4 -T -N -nf -R 0.0.0.0:"+str(internPort)+":localhost:5902 "+self.flaskusr+"@"+self.IPFlask+" &"
+        self.tunnel_command="ssh -4 -T -N -nf -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -R 0.0.0.0:"+str(internPort)+":localhost:5902 "+self.flaskusr+"@"+self.IPFlask+" &"
         scriptTunnel="awk 'BEGIN {print \""+vnc_command+" \\n "+self.tunnel_command+"\" >>\""+self.tunnel_script+"\"}' > /dev/null &"
         logging.debug("awk command to build tunnel script : "+scriptTunnel)
         
@@ -876,6 +885,7 @@ class ConnectionDocker(threading.Thread):
             # SSL encrypt : use websockify and SSL public/secret keys.
             self.listPortsTilesIE={}
             self.listPortsTilesIE["TiledVizHost"]=flaskaddr
+            listInterPort=[]
             inode=0
             for key in self.listPortsTiles:
                 externPort=self.listPortsTiles[key][1]
@@ -883,21 +893,29 @@ class ConnectionDocker(threading.Thread):
                     self.listPortsTilesIE["TiledVizConnectionPort"]=self.PORTssh
                     pass
                 else:
-                    # get internal port for ssh tunneling in connectiondock
-                    s=socket.socket();
-                    s.bind(("127.0.0.1", 0));
-                    internPort=s.getsockname()[1];
-                    s.close()
-                    # Call websockify client for this tile
-                    commandLaunchWebsockify="bash -c 'cd /TiledViz/TVConnections/; source /TiledViz/TiledVizEnv_*/bin/activate; "+\
-                        "./wss_websockify "+self.SSLpublic+" "+self.SSLprivate+ \
-                        " "+str(externPort)+" "+str(internPort)+" /TiledViz/TVWeb"+ \
-                        " 2>&1 > /tmp/websockify_$(date +%F_%H-%M-%S).log &'"
-                    logging.debug("commandLaunchWebsockify : "+commandLaunchWebsockify)
-                    logging.warning("commandLaunchWebsockify : "+commandLaunchWebsockify)
-                    #logging.warning("commandLaunchWebsockify. "+key)
-                    self.LogLaunchWebsockify=self.containerConnect.exec_run(cmd=commandLaunchWebsockify,user=self.user,detach=True)
-                    #user="root",
+                    NotOKport=True
+                    while(NotOKport):
+                        # get internal port for ssh tunneling in connectiondock
+                        s=socket.socket();
+                        s.bind(("127.0.0.1", 0));
+                        internPort=s.getsockname()[1];
+                        s.close()
+                        if (internPort in listInterPort):
+                            time.sleep(0.1)
+                        else:
+                            # Call websockify client for this tile
+                            commandLaunchWebsockify="bash -c 'cd /TiledViz/TVConnections/; source /TiledViz/TiledVizEnv_*/bin/activate; "+\
+                                "./wss_websockify "+self.SSLpublic+" "+self.SSLprivate+ \
+                                " "+str(externPort)+" "+str(internPort)+" /TiledViz/TVWeb"+ \
+                                " 2>&1 > /tmp/websockify_$(date +%F_%H-%M-%S).log &'"
+                            logging.debug("commandLaunchWebsockify : "+commandLaunchWebsockify)
+                            logging.warning("commandLaunchWebsockify : "+commandLaunchWebsockify)
+                            #logging.warning("commandLaunchWebsockify. "+key)
+                            self.LogLaunchWebsockify=self.containerConnect.exec_run(cmd=commandLaunchWebsockify,user=self.user,detach=True)
+                            #user="root",
+                            NotOKport=False
+                        
+                    
                     # save external and internal ports
                     self.listPortsTilesIE[str(inode)]=(internPort,externPort)
                     inode=inode+1
@@ -955,7 +973,7 @@ class ConnectionDocker(threading.Thread):
                 elif callfunc == "reconnect":
                     if (not os.path.exists(os.path.join(self.dir_out,"nodes.json"))):
                         self.get_nodesjson()                    
-                    self.connect();
+                    self.connect()
                 elif (search_action.search(callfunc)):
                     logging.warning("Action detected "+str(callfunc))
                     if (not self.action_OK):
@@ -982,31 +1000,27 @@ class ConnectionDocker(threading.Thread):
         self.nodes_ok=False
 
         iter=0
-        # Wait in second
-        swait=4
-        # Max wait before stop container
-        mwait=1800
         notlaunched=True
         while notlaunched:
             #logging.debug("Container "+self.name+" wake up.")
             if (not os.path.exists(path_nodesTVFile)):
-                logging.warning("TRY GET "+path_nodesjson+ " file from Connection Docker.")
+                logging.warning("TRY GET "+path_nodesjson+ " file from Connection %s." % (self.name))
             else:
                 logging.warning("ALREADY GET "+path_nodesTVFile+ " file from Connection Docker.")
                 os.system("ls -la "+path_nodesTVFile)
                 return
             
-            if(iter > mwait/swait):
-                logging.error("Wait too much "+path_nodesjson+ " file for Connection to tiledset "+str(self.TileSetDB.name))
-                # TODO : option for automaticaly suppress connection ??
-                # try:
-                #     self.quitConnection()
-                # except ValueError as err:
-                #     logging.warning(path_nodesjson+" ValueError for iter %d." % (iter))
-                return
-                
-
             if (not self.nodes_ok):
+                if(iter > Mwait/Swait):
+                    logging.warning("Is job started : "+str(self.nodes_ok))
+                    logging.error("Wait too much "+path_nodesjson+ " file for Connection %s to tiledset %s %d %d %d " % (self.name,str(self.TileSetDB.name),iter,Swait,Mwait))
+                    # TODO : option for automaticaly suppress connection ??
+                    # try:
+                    #     self.quitConnection()
+                    # except ValueError as err:
+                    #     logging.warning(path_nodesjson+" ValueError for iter %d." % (iter))
+                    return
+
                 try: 
                     # Get back nodes.json from connection docker ?
                     bits, stat = self.containerConnect.get_archive(path=path_nodesjson)
@@ -1049,12 +1063,12 @@ class ConnectionDocker(threading.Thread):
                         logging.warning("Job started.")
                     except ValueError as err:
                         logging.warning(path_nodesjson+" ValueError for iter %d." % (iter))
-                        time.sleep(swait)
+                        time.sleep(Swait)
                         pass
 
                     except Exception as err:
                         logging.error("Error with GET "+path_nodesjson+". tar error.", exc_info=True)
-                        time.sleep(swait)
+                        time.sleep(Swait)
                         pass
 
                         # Send again get via action launch_nodes_json
@@ -1064,15 +1078,15 @@ class ConnectionDocker(threading.Thread):
                 except (docker.errors.NotFound, requests.exceptions.HTTPError) as err:
                     logging.warning(path_nodesjson+" NotFound for iter %d." % (iter))
                     outHandler.flush()
-                    time.sleep(swait)
+                    time.sleep(Swait)
                     pass
                     
                 except:
                     logging.error("Job not correctly started", exc_info=True)
                     outHandler.flush()
-                    time.sleep(swait)
+                    time.sleep(Swait)
                     pass
-                iter=iter+1
+            iter=iter+1
 
     def callfunction (self,myfunc):
         logging.debug("From Flask thread calling function "+myfunc+ " for Connection "+self.name+" .")
@@ -1142,7 +1156,7 @@ class ConnectionDocker(threading.Thread):
             self.ActionConnect.new_connect(1)
             # Send Not an action message after Hello
             HelloMsg=self.ActionConnect.recv(1)
-            logging.warning("Action client hello message : "+HelloMsg)
+            logging.warning("Action client hello message : "+str(HelloMsg))
             outHandler.flush()
             
             self.ActionConnect.send_client(1,"Hello connection"+str(self.ConnectionDB.id))
@@ -1171,20 +1185,23 @@ class ConnectionDocker(threading.Thread):
 
         # End action connection:
         try:
-            self.ActionConnect.close_all()
+            if ("ActionConnect" in dir(self)):
+                self.ActionConnect.close_all()
 
-            self.LogKillAction=self.containerConnect.exec_run(cmd="sh -c "+self.kill_action_script,user=self.user,detach=True)
-            logging.warning("Kill Action connection in Connection docker.")
+                self.LogKillAction=self.containerConnect.exec_run(cmd="sh -c "+self.kill_action_script,user=self.user,detach=True)
+                logging.warning("Kill Action connection in Connection docker.")
         except Exception as err:
             logging.error("Error while stoping Action server "+str(self.ConnectionDB.id)+" : "+str(err), exc_info=True)
 
         # suppress connection docker
         try:
+            #if ( self.containerConnect.status == "running" ):
             self.containerConnect.stop()
             if ( not self.cont_auto_remove ):
                 self.containerConnect.remove(v=True,force=True)
         except Exception as err:
-            logging.error("Error while stoping Connection docker "+str(self.ConnectionDB.id)+" : "+str(err), exc_info=True)
+            #logging.error("Error while stoping Connection docker "+str(self.ConnectionDB.id)+" : "+str(err), exc_info=True)
+            pass
 
         logging.warning("End of quitConnection for "+self.name+", containers list :"+str(client.containers.list()))
         self.hasQuit=True
@@ -1192,7 +1209,7 @@ class ConnectionDocker(threading.Thread):
     
         
     def connect(self):
-        logging.debug("Tunnel command in "+self.tunnel_script+" : "+self.tunnel_command)
+        logging.warning("Tunnel command in "+self.tunnel_script+" : "+self.tunnel_command)
         self.LogTunnel=self.containerConnect.exec_run(cmd="sh -c "+self.tunnel_script,user=self.user,detach=True)
         time.sleep(1)
         # outHandler.flush()

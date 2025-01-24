@@ -50,7 +50,8 @@ COPY ./ /TiledViz
 
 RUN rm -rf /TiledViz/TVFiles/* /TiledViz/launch_TiledViz
 
-RUN pip3 install -r /TiledViz/TVConnections/requirements.txt ;
+RUN pip3 install --pre sqlacodegen \
+    && pip3 install -r /TiledViz/TVConnections/requirements.txt ;
 
 RUN cd /TiledViz/TVConnections/mageianconnect/ && \
     mkdir -p /home/myuser &&\
@@ -78,14 +79,15 @@ CMD ["-1", "localhost", "6431", "TiledViz", "tiledviz", "m_test/@03", "-r","800x
 
 RUN bash -c "echo 'LD_LIBRARTY_PATH=/usr/local/lib64:$LD_LIBRARY_PATH' >> /etc/profile; sed -e 's&nvidia390&nvidia-current&' -i /home/myuser/.bashrc" 
 
-# TODO
-ENV SMTPserver TODO_SMTP
-ENV NTPserver TODO_NTP
- 
+# changed in install.sh
+ENV SMTPserver _SMTP_
+ENV NTPserver _NTP_
+
 RUN dnf install -y postfix \
     && echo "relayhost=$SMTPserver"  >> /etc/postfix/main.cf \
     && sed -e "s&inet_protocols = all&inet_protocols = ipv4&" -i /etc/postfix/main.cf
 
+#mageia:9 RUN dnf install -y ntpsec \
 RUN dnf install -y ntp \
     && sed -e "s/1.pool.ntp*/$NTPserver iburst/" -e "s/server [23].pool.ntp.*//" -i /etc/ntp.conf \
     && rm -f /etc/localtime \

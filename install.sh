@@ -19,6 +19,9 @@ ls -la $HOME/.cache/envTiledViz
 source $HOME/.cache/envTiledViz
 
 echo "==== Install environment ===="
+# pre-version 3.0 sqlacodegen
+pip3 install --pre sqlacodegen
+# other packages
 pip3 install -r requirements.txt
 
 # Get noVNC
@@ -54,47 +57,13 @@ echo "==== Copy tiledViz.conf in $HOME/.tiledviz cache dir ===="
 mkdir $HOME/.tiledviz
 cp tiledviz.conf $HOME/.tiledviz
 
-echo "==== Build Docker images ===="
-echo "===== build connection Docker ====="
-docker build -t mageiaconnect -f TVConnections/mageianconnect/Dockerfile .
-
-echo "===== build HPC images : ====="
-echo "====== Init : move postgresql dir ======"
-#mv TVDatabase/postgresql ${HOME}/tmp/postgresql_$DATE
-#ssh-keygen -t dsa -N '' -f ~/.ssh/id_dsa
-
-echo "====== Magiea 7 ======"
-# Copy HPC machine id in HPC running containers !
-# Security breach.
-# You must modify this key if it not the same server.
-cp -p ~/.ssh/id_rsa* TVConnections/mageianvidia/ssh
-
-docker build -t mageianvidia:7 -f TVConnections/mageianvidia/Dockerfile .
-docker tag mageianvidia:7 mageianvidia:latest 
-
-echo "====== Magiea 6 ======"
-docker build -t mageianvidia:6 -f TVConnections/mageianvidia/Dockerfile6 .
-
-echo "====== Ubuntu 18.04 ======"
-docker build -t tileubuntu -f TVConnections/tileubuntu/Dockerfile .
-
-
-echo "===== build Flask Docker ====="
-docker build -t flaskimage -f TVWeb/FlaskDocker/Dockerfile.web .
-
-echo "====== End build dockers ======"
-#mv ${HOME}/tmp/postgresql_$DATE TVDatabase/postgresql
-
-
-echo "==== Start PostgreSQL ===="
-./start_postgres
 
 echo "=== Add SSL certificates ==="
 if ( $installX11 ); then
     myweb=$(python3 -c "import zenipy; myweb=zenipy.zenipy.password(title='SSL web server.domain name',text='Please give a SERVER.DOMAIN for your SSL web server.', width=450, height=120, timeout=None); print(str(myweb))")
 else
     echo "Please give a SERVER.DOMAIN for your SSL web server"
-    read -s myweb;
+    read myweb;
 fi
 IFS='.' read -r -a webline <<<$myweb
 
@@ -107,20 +76,59 @@ DOMAIN=${webline[${#webline[*]}-2]}.${webline[${#webline[*]}-1]}
 if ( $installX11 ); then
     SSLpublic=$(python3 -c "import zenipy; myssl=zenipy.zenipy.password(title='SSL PUBLIC key path',text='Please give the PUBLIC SSL key PATH.', width=450, height=120, timeout=None); print(str(myssl))")
     SSLprivate=$(python3 -c "import zenipy; myssl=zenipy.zenipy.password(title='SSL PRIVATE key path',text='Please give the PRIVATE SSL key PATH.', width=450, height=120, timeout=None); print(str(myssl))")
+    SMTP=$(python3 -c "import zenipy; myserver=zenipy.zenipy.password(title='SMTP server address',text='Please give your SMTP server address - the outgoing mail server.', width=450, height=120, timeout=None); print(str(myserver))")
+    NTP=$(python3 -c "import zenipy; myserver=zenipy.zenipy.password(title='NTP server address',text='Please give your NTP server address - the time server.', width=450, height=120, timeout=None); print(str(myserver))")
 else
     echo "Please give the PUBLIC SSL key PATH."
-    read -s SSLpublic;
+    read SSLpublic;
     echo "Please give the PRIVATE SSL key PATH."
-    read -s SSLprivate;
+    read SSLprivate;
+
+    echo "Please give your SMTP server address - the outgoing mail server."
+    read SMTP;
+    echo "Please give your NTP server address - the time server."
+    read NTP;
 fi
 
+sed -e "s&DNSservername&$SERVER_NAME&"  -e "s&_DOMAIN_&$DOMAIN&" -e "s&_SSLpublic_&$SSLpublic&" -e "s&_SSLprivate_&$SSLprivate&" -e "s&_NTP_&$NTP&"  -e "s&_SMTP_&$SMTP&" -i $HOME/.cache/envTiledViz
 
-sed -e "s&_SERVER_NAME_&$SERVER_NAME&"  -e "s&_DOMAIN_&$DOMAIN&" -e "s&_SSLpublic_&$SSLpublic&" -e "s&_SSLprivate_&$SSLprivate&" -i TVWeb/FlaskDocker/Dockerfile.web
+echo "==== Build Docker images ===="
+echo "===== build connection Docker ====="
+TVConnections/build_connect
 
-sed -e "s&DNSservername&$SERVER_NAME&"  -e "s&_DOMAIN_&$DOMAIN&" -e "s&_SSLpublic_&$SSLpublic&" -e "s&_SSLprivate_&$SSLprivate&" -i TVWeb/nginx/nginx.conf
+echo "===== build Flask Docker ====="
+TVWeb/FlaskDocker/build_flaskdock
 
-sed -e "s&DNSservername&$SERVER_NAME&"  -e "s&_DOMAIN_&$DOMAIN&" -e "s&_SSLpublic_&$SSLpublic&" -e "s&_SSLprivate_&$SSLprivate&" -i $HOME/.cache/envTiledViz
 
+
+echo "===== build HPC images : ====="
+echo "====== Init : move postgresql dir ======"
+#mv TVDatabase/postgresql ${HOME}/tmp/postgresql_$DATE
+#ssh-keygen -t dsa -N '' -f ~/.ssh/id_dsa
+
+echo "====== Magiea connection client ======"
+# Copy HPC machine id in HPC running containers !
+# Security breach.
+# You must modify this key if it not the same server.
+cp -p ~/.ssh/id_rsa* TVConnections/mageianvidia/ssh
+
+#docker build -t mageianvidia:latest  -f TVConnections/mageianvidia/Dockerfile .
+TVConnections/build_mageia_latest
+TVConnections/build_mageia8
+
+# echo "====== Magiea 6 ======"
+# docker build -t mageianvidia:6 -f TVConnections/mageianvidia/Dockerfile6 .
+
+echo "====== Ubuntu connection client ======"
+docker build -t tileubuntu -f TVConnections/tileubuntu/Dockerfile .
+
+
+echo "====== End build dockers ======"
+#mv ${HOME}/tmp/postgresql_$DATE TVDatabase/postgresql
+
+
+echo "==== Start PostgreSQL ===="
+./start_postgres
 
 # TODO : git clone Countdown 360:
 #cd TVWeb/apps/static/dist/js

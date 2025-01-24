@@ -202,8 +202,12 @@ def create_newtileset(tilesetname, thesession, type_of_tiles, datapath, creation
 
 # Convert Tile fron json file structure to database object
 def convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath):
-    url=Mynode["url"]
-
+    try:
+        url=Mynode["url"]
+    except Keyerror as e:
+        traceback.print_exc(file=sys.stderr)
+        raise(e)
+    
     ConnectionPort=0
     if (urlbool and len(datapath) > 0):
         # Detect if path is already in tiles source url
@@ -901,6 +905,8 @@ def savesession():
             pass
         elif (item == 'csrf_token'):
             pass
+        elif (item != "Admin"):
+            pass
         else:
             all_session[item]=session[item]
             
@@ -945,8 +951,6 @@ def retreivesession():
             logging.warning("Read session_file :"+myform.session_file.data.filename)
             session_data = json.loads(json.loads(session_file.read().decode('utf-8')))
             logging.warning("Session_data :"+str(session_data))
-            logging.warning("Session_data type :"+str(type(session_data)))
-            logging.warning("Session_data user :"+str(session_data['username']))
             
             session["username"]=session_data['username']
             session["is_client_active"]=session_data["is_client_active"]
@@ -960,7 +964,8 @@ def retreivesession():
                 if item in all_session:
                     pass
                 else:
-                    session[item]=session_data[item]
+                    if (item != "Admin"):
+                        session[item]=session_data[item]
 
             flash("Session cookie restored.")
             return redirect("/index")
@@ -1035,9 +1040,11 @@ def project():
             logging.debug("Chosen project : "+str(session["projectname"]))
             if(myform.action_sessions.data == "create"):
                 logging.debug("Create new session ")
+                flash("Create new session for user {}".format(session["username"]))
                 return redirect("/newsession")
             else:
                 logging.debug("Use old sessions ")
+                flash("Use an old session for user {}".format(session["username"]))
                 return redirect("/oldsessions")
         elif (myform.chosen_project.data=="NoChoice"):
             creation_date=datetime.datetime.now()
@@ -1609,9 +1616,6 @@ def newsession():
     else:
         flash("Create new sessions : User must login !")
         return redirect("/login")
-
-    if ( not "sessionname" in session ):
-        return redirect("/allsessions")
 
     # New or session manager (copy, invite_link a list of connected users ?)
     myform = BuildNewSessionForm()() 
@@ -2202,10 +2206,16 @@ def addtileset():
 
             for i in range(nbr_of_tiles):
                 Mynode=jsonTileSet["nodes"][i]
+                try:
+                    title,name,comment,tags,variable,pos_px_x,pos_px_y,IdLocation,url,ConnectionPort = \
+                        convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath)
+                except Exception as e:
+                    etype, value, tb = sys.exc_info()
+                    flash("TileSet with name {} creation problem :".format(tilesetname)+"\n"+
+                          ''.join(traceback.format_tb(tb)))
+                    logging.error(''.join(traceback.format_tb(tb)))
+                    return redirect(url_for(".addtileset",message=message))
 
-                title,name,comment,tags,variable,pos_px_x,pos_px_y,IdLocation,url,ConnectionPort = \
-                    convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath)
-            
                 newtile = models.Tile(title=title,
                                       comment=comment,
                                       tags=tags,
@@ -2331,8 +2341,16 @@ def save_tiles(oldtileset,nbr_of_tiles,connectionbool,urlbool,datapath,jsonTileS
         Mynode=jsonTileSet["nodes"][i]
         #print (str(i)+" "+str(Mynode))
 
-        title,name,comment,tags,variable,pos_px_x,pos_px_y,IdLocation,url,ConnectionPort = \
-            convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath)
+        try:
+            title,name,comment,tags,variable,pos_px_x,pos_px_y,IdLocation,url,ConnectionPort = \
+                convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath)
+        except Exception as e:
+            etype, value, tb = sys.exc_info()
+            flash("TileSet with name {} edition problem :".format(tilesetname)+"\n"+
+                  ''.join(traceback.format_tb(tb)))
+            message=json.loads(request.args["message"].replace("'", '"'))
+            logging.error(''.join(traceback.format_tb(tb)))
+            return redirect(url_for(".edittileset",message=message))
             
         # # Insert and create only NEW tiles into TileSet or
         # # TODO: edit OLD tiles from TileSet.tiles list ? (add a suppress old tiles button in form).
@@ -2890,6 +2908,12 @@ def addconnection():
     if myform.validate_on_submit():
         logging.info("in addconnection")
 
+
+        # TODO :
+        # test validity of data with s.encode('ascii') and except UnicodeDecodeError:
+        #myform.host_address.data myform.auth_type.data myform.container.data ?
+
+        
         logging.info(str(session["username"])+" "+str(myform.host_address.data)+"  "+str(myform.auth_type.data)+"  "+str(myform.container.data))
 
         creation_date=datetime.datetime.now()
@@ -3584,7 +3608,8 @@ def show_grid():
             tiles_actions[thistileset.name]={}
         ts=ts+1
 
-    logging.warning("Global tile actions : "+str(tiles_actions))
+    if (len(tiles_actions)>0):
+        logging.warning("Global tile actions : "+str(tiles_actions))
 
     if ("colorTheme" in TheConfig["colors"]):
         colorTheme=TheConfig["colors"]["colorTheme"]
@@ -3980,8 +4005,12 @@ def config_client(cdata):
     clean_rooms()
     logging.info("room_dict are : "+ str(room_dict) + " my rooms "+ str(croom)+ " and "+str(croomsid))
 
-    sdata = {"part_nbr_update": str(len(room_dict[croom])-1)}
-    socketio.emit("new_client", sdata, room=croom)
+    try:
+        sdata = {"part_nbr_update": str(len(room_dict[croom])-1)}
+        socketio.emit("new_client", sdata, room=croom)
+    except:
+        traceback.print_exc(file=sys.stderr)
+        logging.error("Unknown room %s id %d in  room_dict %s " % (croom,croomsid,str(room_dict)))
     return {"room":croom, "session_id":request.sid}
 
 @socketio.on("disconnect")

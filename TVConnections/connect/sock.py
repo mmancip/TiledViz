@@ -273,7 +273,12 @@ class server:
         sockLogger.log(9,"Wait for OK from %d." % (id))
         RET=self.receive(id,2)
         if not RET: return -1
-        return int(RET,16)
+        try:
+            RET1=int(RET,16)
+        except:
+            sockLogger.error(9," from OK from %d.: %s" % (id,str(RET)))
+            RET1=-1
+        return RET1
 
     def get_file(self, id, path, filename, filesize, filesha256):
         fileout=os.path.join(path,os.path.basename(filename))

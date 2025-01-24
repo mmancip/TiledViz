@@ -116,15 +116,13 @@ while [ $i -le ${NUM} ]; do
    # fi
 
    
-   echo "${SINGULARITY} instance start ${DEVICES} \
+   echo "${SINGULARITY} exec ${DEVICES} \
        --bind ${DIR}/${SINGULARITYDIR}:${HOME}/.vnc:rw,${DIR}/${SINGULARITYDIR}/tmp:/tmp:rw,${TILEDVIZ_DIR}:/TiledViz:ro,${TILESINGULARITYS_path}:/opt/TiledViz:ro,${HOME}:/home/myuser:rw${OPTIONS} \
-        ${SINGULARITY_NAME} ${SINGULARITYDIR} 2>&1 |tee -a ${DIR}/${SINGULARITYDIR}/stdout $END" > ${DIR}/${SINGULARITYDIR}/call_singularity-run
+        ${SINGULARITY_NAME} ${TILESINGULARITYS_path}/script_icewm  $SINGULARITYID ${DISPLAY} ${SINGULARITYOPTIONS} 2>&1 |tee -a ${DIR}/${SINGULARITYDIR}/stdout $END" > ${DIR}/${SINGULARITYDIR}/call_singularity-run
 
    #TODO
    #   -v /usr/share/X11/locale:/usr/share/X11/locale:ro  \
 
-   echo "${SINGULARITY} exec instance://${SINGULARITYDIR} ${TILESINGULARITYS_path}/script_icewm  $SINGULARITYID ${DISPLAY} ${SINGULARITYOPTIONS} & 2>&1 |tee -a ${DIR}/${SINGULARITYDIR}/stdout $END" >> ${DIR}/${SINGULARITYDIR}/call_singularity-run
-   
    chmod a+x  ${DIR}/${SINGULARITYDIR}/call_singularity-run
 
    ${DIR}/${SINGULARITYDIR}/call_singularity-run > ./${SINGULARITYDIR}_stdout 2>&1 &
@@ -172,9 +170,9 @@ while [ $i -le ${NUM} ]; do
    echo ${realhost} ${PASS} | sed -e "s/\r//" >> ./list_dockers_pass
 
    # Remove ssh process
-   pgrep -fla  "ssh.*${realhost} .*singularity exec instance.*${SINGULARITYDIR}"
-   OUTssh=$(pgrep -fla  "ssh.*${realhost} .*singularity exec instance.*${SINGULARITYDIR}" |sed -e 's@\([0-9]*\) .*@\1@')
-   if [ ${#OUTssh[@]} -gt 0 ]; then
+   #pgrep -fla  "ssh.*${realhost} .*singularity exec .*${SINGULARITYDIR}" |sed -e 's@\([0-9]*\) .*@\1@'
+   OUTssh=$(pgrep -fla  "ssh.*${realhost} .*singularity exec .*${SINGULARITYDIR}" |sed -e 's@\([0-9]*\) .*@\1@')
+   if [ X"${OUTssh[@]}" != X"" ] && [ ${#OUTssh[@]} -gt 0 ]; then
        echo ${OUTssh[@]}
        echo ${OUTssh[@]}  |xargs kill
    fi

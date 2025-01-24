@@ -6,6 +6,8 @@ shift 2
 ARGS=$@
 echo $SINGULARITYID $DISPLAY ${ARGS[@]}
 
+echo "SINGULARITY_CACHEDIR=" $SINGULARITY_CACHEDIR
+
 myXPort=$DISPLAY
 #$((10 + 10#$(echo $SINGULARITYID)))
 
@@ -77,24 +79,60 @@ chmod 755 ${STARTUP}
 export LC_ALL=C
 
 export LOGxvfb=/tmp/out_xvfb_$DATE
-export XOPTIONS='-s "-screen 0 '${RESOL}'x24" '
-echo xvfb-run --server-num $myXPort -e ${LOGxvfb} ${STARTUP}
-echo xvfb-run --server-num $myXPort -e ${LOGxvfb} ${STARTUP} > ${LOGxvfb}
-xvfb-run --server-num $myXPort -e ${LOGxvfb} ${STARTUP} &
-sleep 2
+export XOPTIONS='-screen 0 '${RESOL}'x24 '
 
-pgrep -fa Xvfb >> ${LOGxvfb}
+XVFBCOMMAND="Xvfb :$myXPort $XOPTIONS"
+echo $XVFBCOMMAND
+echo $XVFBCOMMAND > ${LOGxvfb}
+
+#XVFBRCOMMAND="xvfb-run -e ${LOGxvfb} ${STARTUP}"
+#XVFBRCOMMAND="xvfb-run --server-num $myXPort -e ${LOGxvfb} ${STARTUP}"
+#XVFBRCOMMAND='xvfb-run --server-num '$myXPort' -e '${LOGxvfb}" -s '"$XOPTIONS"' "${STARTU}
+#XVFBRCOMMAND="xvfb-run --server-num $myXPort -e ${LOGxvfb} -s $XOPTIONS ${STARTUP}"
+
+# echo $XVFBRCOMMAND
+# echo $XVFBRCOMMAND >> ${LOGxvfb}
+
+OUTpgrepX=""
+loopCount=0
+timeout=10
+set -vx
+until [ X"$OUTpgrepX" != X"" ];
+do
+    $XVFBCOMMAND &
+    sleep 5
+    export DISPLAY=:$myXPort
+    # $XVFBRCOMMAND &
+    sleep 2
+
+    OUTpgrepX=$(pgrep -fa Xvfb)
+    echo $OUTpgrepX >> ${LOGxvfb}
+
+    if [ X"$OUTpgrepX" != X"" ]; then
+	${STARTUP} 2>&1 & >>${LOGxvfb}
+	break
+    fi
+
+    loopCount=$((loopCount+1))
+    if [ ${loopCount} -gt ${timeout} ]
+    then
+        echo $XVFBCOMMAND " failed to start"
+        echo $XVFBCOMMAND " failed to start" >> ${LOGxvfb}
+        break
+    fi
+
+done
+set +vx
 
 # Set defaults if the user did not specify envs.
-export DISPLAY=${XVFB_DISPLAY:-:$myXPort}
 screen=${XVFB_SCREEN:-0}
 resolution=${XVFB_RESOLUTION:-${RESOL}x24}
 timeout=${XVFB_TIMEOUT:-5}
 
 echo $DISPLAY
-AUTH=$( pgrep -fa Xvfb| sed -e "s&.*auth /&/&" )
-XAUTH=$( xauth -f $AUTH list )
-xauth add $XAUTH
+# AUTH=$( pgrep -fa "Xvfb :$myXPort"| sed -e "s&.*auth /&/&" )
+# XAUTH=$( xauth -f $AUTH list )
+# xauth add $XAUTH
 
 #Xvfb ${DISPLAY} -screen ${screen} ${resolution} &
 

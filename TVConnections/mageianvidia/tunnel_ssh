@@ -18,7 +18,7 @@ echo "  ProxyCommand ssh ${SSHLOGNAME}@${SSH_FRONTEND} -W %h:%p" >> .ssh/config
 # User myuser
 # ProxyCommand ssh -T -q -o 'ForwardAgent yes' mmancip@mandelbrot-smp.extra.cea.fr 'ssh-add -t 1 && nc %h %p'
 
-COMMANDssh="ssh -T -N -nf -R \*:${PORTvnc}:localhost:5902 ${OPTIONS} myuser@${TiledvizHost} -p ${TiledvizConnectionPort}"
+COMMANDssh="ssh -o ForwardX11=no -T -N -nf -R \*:${PORTvnc}:localhost:5902 ${OPTIONS} myuser@${TiledvizHost} -p ${TiledvizConnectionPort}"
 echo $COMMANDssh
 
 i=0

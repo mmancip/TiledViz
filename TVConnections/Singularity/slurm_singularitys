@@ -8,8 +8,9 @@
 #SBATCH --cpus-per-task=TASKS     # utilisez 10 coeurs pour obtenir 1/4 de la RAM CPU
 #SBATCH --gres=gpu:GPUS
 ##SBATCH --exclusive              # Attention utilise la totalité du noeud
+#SBATCH --account=ACCOUNT
 #SBATCH --partition=PARTITION
-
+##SBATCH --reservation=RESERVATION
 
 NUM=NUM_DOCKERS
 DATE=DATE
@@ -58,14 +59,22 @@ oIFS=$IFS
 IFS=$'\n'
 LIST_NODES=( $(srun hostname |sort) )
 IFS=$oIFS
+NbNODES=${#LIST_NODES[*]}
 
 NNODES=$SLURM_NNODES
 echo "NNODES="$NNODES
 echo "NGPUS="$NGPUS
 echo "LIST_NODES="${LIST_NODES[*]}
+echo "NbNODES="$NbNODES
 echo "SLURM_JOB_ID="$SLURM_JOB_ID
+echo "SLURM_JOB_GPUS="$SLURM_JOB_GPUS
 echo "CUDA_VISIBLE_DEVICES="$CUDA_VISIBLE_DEVICES
 
+echo "SINGULARITY_CACHEDIR=" $SINGULARITY_CACHEDIR
+
+srun bash -c 'echo $(hostname) "SLURM_JOB_GPUS="$SLURM_JOB_GPUS "CUDA_VISIBLE_DEVICES="$CUDA_VISIBLE_DEVICES "SLURM_STEP_GPUS="$SLURM_STEP_GPUS'
+LIST_NODES_GPUS=( $( srun bash -c 'echo $(hostname) $SLURM_STEP_GPUS' |sort) )
+echo ${LIST_NODES_GPUS[*]}
 
 i=1
 inode=0
@@ -76,11 +85,16 @@ while [ $i -le ${NUM} ]; do
    DEVICES=""
 
    realhost=$(echo ${LIST_NODES[$inode]} |sed -e "s&\..*&&") 
-   echo ${LIST_NODES[$inode]} $realhost
+   #echo ${LIST_NODES[$inode]} $realhost
    
-   NVIDIAGPU=$(( (($i-1) / $NNODES) % $NGPUS ))
+   iGPU=$(( (($i-1) / $NNODES) % $NGPUS + 1))
+   ilistGPU=$((2*inode))
+   LGPU=${LIST_NODES_GPUS[$((ilistGPU+1))]}
+   NVIDIAGPU=$(cut -d',' -f$iGPU <<<${LGPU})
    GPUfile=/dev/nvidia${NVIDIAGPU}
 
+   #echo $i $inode $ilistGPU ${iGPU} ${LGPU} ${NVIDIAGPU}
+   echo ${LIST_NODES[$inode]} $realhost ${NVIDIAGPU}
 
    if [ ${realhost} = $( hostname |sed -e "s&\..*&&" ) -o ${realhost} = "localhost" ]; then
    	   HOSTCOMMAND=
@@ -140,7 +154,8 @@ while [ $i -le ${NUM} ]; do
    mkdir ${DIR}/${SINGULARITYDIR}/tmp
    mkdir ${DIR}/${SINGULARITYDIR}/scratch
    mkdir ${DIR}/${SINGULARITYDIR}/scratch/$USER-$SLURM_JOB_ID
-
+   mkdir ${DIR}/${SINGULARITYDIR}/user
+   chmod 700 ${DIR}/${SINGULARITYDIR}/user
    
    # if [ ${network} = X ] || [ ${domain} = 0 ] ; then
    #     NETARGS=
@@ -151,11 +166,10 @@ while [ $i -le ${NUM} ]; do
    # fi
 
    
-   echo "${SINGULARITY} instance start ${DEVICES} \
-       --bind ${DIR}/${SINGULARITYDIR}:${HOME}/.vnc:rw,${DIR}/${SINGULARITYDIR}/tmp:/tmp:rw,${DIR}/${SINGULARITYDIR}/scratch:/scratch:rw,${TILEDVIZ_DIR}:/TiledViz:ro,${TILESINGULARITYS_path}:/opt/TiledViz:ro,${HOME}:/home/myuser:rw${OPTIONS} \
+   echo "${SINGULARITY} instance start ${DEVICES} --bind ${DIR}/${SINGULARITYDIR}:${HOME}/.vnc:rw,${DIR}/${SINGULARITYDIR}/tmp:/tmp:rw,${DIR}/${SINGULARITYDIR}/scratch:/scratch:rw,${DIR}/${SINGULARITYDIR}/user:/run/user/2347:rw,${TILEDVIZ_DIR}:/TiledViz:ro,${TILESINGULARITYS_path}:/opt/TiledViz:ro,${HOME}:/home/myuser:rw${OPTIONS} \
         ${SINGULARITY_NAME} ${SINGULARITYDIR} 2>&1 |tee -a ${DIR}/${SINGULARITYDIR}/stdout $END" > ${DIR}/${SINGULARITYDIR}/call_singularity-run
-
-   echo "${SINGULARITY} exec instance://${SINGULARITYDIR} ${TILESINGULARITYS_path}/script_icewm  $SINGULARITYID ${DISPLAY} ${SINGULARITYOPTIONS} & 2>&1 |tee -a ${DIR}/${SINGULARITYDIR}/stdout $END" >> ${DIR}/${SINGULARITYDIR}/call_singularity-run
+   echo "sleep 10"  >> ${DIR}/${SINGULARITYDIR}/call_singularity-run
+   echo "${SINGULARITY} exec instance://${SINGULARITYDIR} ${TILESINGULARITYS_path}/script_icewm  $SINGULARITYID ${DISPLAY} ${SINGULARITYOPTIONS} 2>&1 |tee -a ${DIR}/${SINGULARITYDIR}/stdout $END" >> ${DIR}/${SINGULARITYDIR}/call_singularity-run
    
    chmod a+x  ${DIR}/${SINGULARITYDIR}/call_singularity-run
 
@@ -163,12 +177,12 @@ while [ $i -le ${NUM} ]; do
    sleep 0.1
 
    i=$(( i + 1 ))
-   inode=$(( inodes + 1 ))
-   if [ $inode -eq $SLURM_NNODES ]; then
+   inode=$(( inode + 1 ))
+   if [ $inode -eq $NbNODES ]; then
        inode=0
    fi
 done
-sleep 5
+sleep 12
 
 count=0
 while [ true ]; do
@@ -184,8 +198,19 @@ while [ true ]; do
     count=$(( count + 1 ))
     sleep 0.2
 done
-#TODO better get SINGULARITY response for real start rather than SINGULARITYsize:
-#??
+
+#Get XVFB response
+SINGULARITYDIR=$(basename ${SINGULARITY_NAME} | sed -e 's/\.sif//')_${DATE}
+NErrorXvfb=$(grep -ni "xvfb failed to start" ./${SINGULARITYDIR}_*_stdout | wc -l)
+echo "Number of Xvfb error =${NErrorXvfb}"
+if [ ${NErrorXvfb} -eq ${NUM} ]; then
+    echo "All Xvfb can't start"
+    exit ${NUM}
+elif [ ${NErrorXvfb} -gt 0 ]; then
+    echo "Some Xvfb can't start :"
+    grep -ni "xvfb failed to start" ./${SINGULARITYDIR}_*_stdout
+    exit ${NErrorXvfb}
+fi
 
 rm -f ./list_dockers_pass
 touch ./list_dockers_pass
@@ -196,7 +221,20 @@ while [ $i -le ${NUM} ]; do
    i0=$(printf "%03d" $i)
    realhost=${LIST_NODES[$inode]}
    SINGULARITYDIR=$(basename ${SINGULARITY_NAME}| sed -e 's/\.sif//')_${DATE}_${i0}
-   DISPLAYNUM=$( grep  "^:[0-9]*" ./${SINGULARITYDIR}_stdout | sed -e "s/://" )
+   count=0
+   while [ true ]; do
+       DISPLAYNUM=$( grep  "^:[0-9]*" ./${SINGULARITYDIR}_stdout | sed -e "s/://" )
+       if [ X"$DISPLAYNUM" == X"" ]; then
+	   sleep 1
+	   echo "Wait for $inode on $realhost $SINGULARITYDIR"
+       elif [ $count -gt 100 ]; then
+	   echo "Error Xvfb start on $inode."
+	   exit 101
+       else
+	   break
+       fi
+       count=$(( count + 1 ))      
+   done
    LIGNE=$( grep "Random\ Password\ Generated:" ./${SINGULARITYDIR}_stdout )
    PASS=${LIGNE##*:}
    echo $i ${DISPLAYNUM} ${PASS}
@@ -214,7 +252,7 @@ while [ $i -le ${NUM} ]; do
    #rm ./${SINGULARITYDIR}_stdout
 
    i=$(( i + 1 ))
-   inode=$(( inodes + 1 ))
+   inode=$(( inode + 1 ))
    if [ $inode -eq $SLURM_NNODES ]; then
        inode=0
    fi
@@ -227,3 +265,4 @@ while [ ! -f ./end_slurm_singularitys ]; do
     sleep 2
     echo "Job sleep"
 done
+echo "End job."

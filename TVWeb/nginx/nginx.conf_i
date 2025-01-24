@@ -30,7 +30,7 @@ http {
 	
     server {
         listen 443 ssl;
-        server_name desktop.mdls.fr;
+        server_name DNSservername._DOMAIN_;
 
 	location ~ /noVNC {
 	    root /TiledViz/TVWeb;
@@ -41,7 +41,7 @@ http {
 	}
 		
 	location /socket.io {
-            proxy_pass https://desktop.mdls.fr:5000;
+            proxy_pass https://DNSservername._DOMAIN_:5000;
 	    proxy_redirect off;
             proxy_set_header Host $host;
 	    proxy_set_header X-Real-IP $remote_addr;
@@ -62,7 +62,7 @@ http {
 	}
 		
 	location / {
-            proxy_pass https://desktop.mdls.fr:5000/;
+            proxy_pass https://DNSservername._DOMAIN_:5000/;
             proxy_set_header Host $host;
 	    #gzip on;
         }
@@ -73,7 +73,7 @@ http {
 
     server {
         listen 80;
-        server_name desktop.mdls.fr;
+        server_name DNSservername._DOMAIN_;
 	return 301 https://$server_name$request_uri;
 	}
 

@@ -25,6 +25,7 @@ installation saved in envTiledViz.
 1. Docker rights
 
 You must first install docker package (at least 17.03 version).
+New Docker buildkit tool must be install too, with docker-buildx package.
 
 You must be in docker groups (don't forget to relog after and see "id" command
 output) to be abble to launch docker containers.

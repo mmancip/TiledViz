@@ -15,7 +15,10 @@ export DOMAIN=_DOMAIN_
 export SSLpublic=_SSLpublic_
 export SSLprivate=_SSLprivate_
 
+export SMTPserver=_SMTP_
+export NTPserver=_NTP_
+
 # Install with X11
-export installX11=true
+export installX11=false
 # Virtualenv DATE
 export DATE=

@@ -1,0 +1,1 @@
+mydate; pgrep -f TileServer|xargs -I_ bash -c ' echo _; if [ X"_" != X"" ]; then kill _; fi '

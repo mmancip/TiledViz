@@ -2,8 +2,8 @@ FROM flaskimage
 
 COPY ./ /TiledViz
 
-ENV SSLpublic erzhgb,dsbpdfbl,dflpbd
-ENV SSLprivate dqsvlksdnvùkndsfvklfnv
+#ENV SSLpublic _SSLpublic_
+#ENV SSLprivate _SSLprivate_
 
 #RUN /bin/bash -c "source /flask_venv/bin/activate ; \
 #                  export LC_ALL=C.UTF-8 ; \

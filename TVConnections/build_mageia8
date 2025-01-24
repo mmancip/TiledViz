@@ -1,0 +1,8 @@
+#!/bin/bash
+date +%F_%H-%M-%S
+mv TVDatabase/postgresql $HOME/tmp
+source $HOME/.cache/envTiledViz
+sed -e "s&_NTP_&$NTPserver&"  -e "s&_SMTP_&$SMTPserver&" TVConnections/mageianvidia/Dockerfile8 > TVConnections/mageianvidia/Dockerfile8_i
+docker build -t mageianvidia:8 -f TVConnections/mageianvidia/Dockerfile8_i .
+mv $HOME/tmp/postgresql  TVDatabase
+date +%F_%H-%M-%S

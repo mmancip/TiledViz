@@ -1,0 +1,7 @@
+#!/bin/bash
+date +%F_%H-%M-%S
+mv TVDatabase/postgresql $HOME/tmp
+source $HOME/.cache/envTiledViz
+docker build -t flaskimage -f TVWeb/FlaskDocker/Dockerfile_add .
+mv $HOME/tmp/postgresql TVDatabase
+date +%F_%H-%M-%S

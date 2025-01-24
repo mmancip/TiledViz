@@ -1,0 +1,13 @@
+#!/bin/bash
+
+source $HOME/.cache/envTiledViz
+
+docker ps -a
+
+if ( docker container ls -a --filter=name=$postgresNAME && docker container ls -a -q --filter=name=$postgresNAME && docker container ls -a --filter=name=$postgresNAME | grep Exited ) ; then
+   docker start $postgresNAME
+fi
+sleep 2
+docker container ls -a --filter=name=$postgresNAME
+
+./launch_TiledViz
