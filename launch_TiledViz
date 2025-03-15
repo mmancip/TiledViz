@@ -2,6 +2,7 @@
 source $HOME/.cache/envTiledViz
 
 export PythonVENV=./TiledVizEnv_${DATE}
+export PGGSSENCODEMODE=disable
 
 rm TVSecure.log TVWeb/TiledViz.log
 docker container ls -a --filter=name=flaskdock && docker container ls -a -q --filter=name=flaskdock |xargs docker rm -f -v

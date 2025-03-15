@@ -114,13 +114,13 @@ tiles_data["nodes"]=[]
 jsontransfert={}
 
 # For display in form list, specify length of elements
-usernamel=str(min(20,models.User.name.type.length))
-sessionl=str(min(60,models.Session.name.type.length))
-tilesetl=str(min(80,models.TileSet.name.type.length))
-projectl=str(min(15,models.Project.name.type.length))
-connectionh=str(min(40,models.Connection.host_address.type.length))
+usernamel=str(min(20,models.Users.name.type.length))
+sessionl=str(min(60,models.Sessions.name.type.length))
+tilesetl=str(min(80,models.TileSets.name.type.length))
+projectl=str(min(15,models.Projects.name.type.length))
+connectionh=str(min(40,models.Connections.host_address.type.length))
 datel=str(19)
-descrl=str(min(62,models.Project.description.type.length))
+descrl=str(min(62,models.Projects.description.type.length))
 
 
 # Global functions : creation, copy and delete DB elements
@@ -132,7 +132,7 @@ def myflush():
 # Test login user :
 def get_user_id(fun,username):
     try:
-        user=db.session.query(models.User.id).filter_by(name=session["username"]).one()
+        user=db.session.query(models.Users.id).filter_by(name=session["username"]).one()
     except:
         flash(fun+" requested : User must login !")
         return redirect(url_for("login"))
@@ -143,7 +143,7 @@ def copy_users_session(newsession,oldusers):
     if ( len(oldusers) > 0 ):
         # register only known oldusers
         for newuser in oldusers:
-            thisuserq=db.session.query(models.User).filter_by(name=newuser.data)
+            thisuserq=db.session.query(models.Users).filter_by(name=newuser.data)
             if db.session.query(thisuserq.exists()).scalar():
                 user=thisuserq.one()
                 # don't register a user two times
@@ -154,15 +154,15 @@ def copy_users_session(newsession,oldusers):
 # Define new session
 def create_newsession(sessionname, description, projectid, oldusers):
     creation_date=datetime.datetime.now()
-    newsession = models.Session(name=str(sessionname),
+    newsession = models.Sessions(name=str(sessionname),
                                 description=str(description),
                                 id_projects=projectid,
                                 creation_date=creation_date)
 
-    exist=db.session.query(models.Session.id).filter_by(name=sessionname).scalar() is not None
+    exist=db.session.query(models.Sessions.id).filter_by(name=sessionname).scalar() is not None
 
     if (not exist):
-        lastsession=db.session.query(models.Session.id).order_by(models.Session.id.desc()).first()
+        lastsession=db.session.query(models.Sessions.id).order_by(models.Sessions.id.desc()).first()
         if ( lastsession ):
             newsession.id=lastsession.id+1
         else:
@@ -171,7 +171,7 @@ def create_newsession(sessionname, description, projectid, oldusers):
         copy_users_session(newsession,oldusers)
         db.session.commit()
     else:
-        newsession=db.session.query(models.Session).filter_by(name=sessionname).one()
+        newsession=db.session.query(models.Sessions).filter_by(name=sessionname).one()
         
     session["sessionname"]=str(sessionname)
             
@@ -179,16 +179,16 @@ def create_newsession(sessionname, description, projectid, oldusers):
     
 # Define new TileSet
 def create_newtileset(tilesetname, thesession, type_of_tiles, datapath, creation_date):
-    newtileset = models.TileSet(name=tilesetname,
+    newtileset = models.TileSets(name=tilesetname,
                                 type_of_tiles = type_of_tiles,
                                 Dataset_path = datapath,
                                 creation_date=creation_date)
     
-    exist=db.session.query(models.TileSet.id).filter_by(name=tilesetname).scalar() is not None
+    exist=db.session.query(models.TileSets.id).filter_by(name=tilesetname).scalar() is not None
 
     if (not exist):
         # Last TileSet id +1
-        lasttileset=db.session.query(models.TileSet.id).order_by(models.TileSet.id.desc()).first()
+        lasttileset=db.session.query(models.TileSets.id).order_by(models.TileSets.id.desc()).first()
         if ( lasttileset ):
             newtileset.id=lasttileset.id+1
         else:
@@ -197,7 +197,7 @@ def create_newtileset(tilesetname, thesession, type_of_tiles, datapath, creation
         thesession.tile_sets.append(newtileset)
         db.session.commit()
     else:
-        newtileset=db.session.query(models.TileSet).filter_by(name=tilesetname).one()
+        newtileset=db.session.query(models.TileSets).filter_by(name=tilesetname).one()
     return newtileset,exist
 
 # Convert Tile fron json file structure to database object
@@ -293,13 +293,13 @@ def copy_connection(oldtileset,newtileset,newsessionname):
     #TODO : vncpassword from/to right user for connection
     if  (user_id != oldconnection.id_users) :
         flash("You can not access to this connection. You are not its owner.")
-        owner=db.session.query(models.User).filter_by(id=oldconnection.id_users).one().name
-        you=db.session.query(models.User).filter_by(id=user_id).one().name
+        owner=db.session.query(models.Users).filter_by(id=oldconnection.id_users).one().name
+        you=db.session.query(models.Users).filter_by(id=user_id).one().name
         logging.error("You (user "+you+") can not access to this connection owned by user "+owner)
         return redirect(url_for(".edittileset",message=message))
 
     creation_date=datetime.datetime.now()
-    newconnection = models.Connection(host_address=oldconnection.host_address,
+    newconnection = models.Connections(host_address=oldconnection.host_address,
                                       auth_type=oldconnection.auth_type,
                                       container=oldconnection.container,
                                       scheduler=oldconnection.scheduler,
@@ -307,7 +307,7 @@ def copy_connection(oldtileset,newtileset,newsessionname):
                                       id_users=user_id,
                                       creation_date= creation_date)
     
-    lastconnection=db.session.query(models.Connection.id).order_by(models.Connection.id.desc()).first()
+    lastconnection=db.session.query(models.Connections.id).order_by(models.Connections.id.desc()).first()
     if ( lastconnection ):
         newconnection.id=lastconnection.id+1
     else:
@@ -416,17 +416,17 @@ def launch_connection(theTS, theConnect, myhost_address, myauth_type, mycontaine
 # Define new session
 def save_session(oldsessionname, newsuffix, newdescription, alltiles):
     creation_date=datetime.datetime.now()
-    oldsession=db.session.query(models.Session).filter_by(name=oldsessionname).one()
+    oldsession=db.session.query(models.Sessions).filter_by(name=oldsessionname).one()
     projectid=oldsession.id_projects
     # TODO : max length of Session.name (=80) ?
     # mais parent with date may be too long
     #=> notion of heritage for session and tilsets in DB    
     newsessionname=session["sessionname"]+'_'+newsuffix
-    newsession = models.Session(name=newsessionname,
+    newsession = models.Sessions(name=newsessionname,
                                 description=newdescription,
                                 id_projects=projectid,
                                 creation_date=creation_date)
-    lastsession=db.session.query(models.Session.id).order_by(models.Session.id.desc()).first()
+    lastsession=db.session.query(models.Sessions.id).order_by(models.Sessions.id.desc()).first()
     if ( lastsession ):
         newsession.id=lastsession.id+1
     else:
@@ -517,7 +517,7 @@ def delelement(thistable, chosenElement, elementid):
         thiselement.delete()
 
 def remove_this_session(sessionid):
-    thissession=db.session.query(models.Session).filter_by(id=sessionid).scalar()
+    thissession=db.session.query(models.Sessions).filter_by(id=sessionid).scalar()
     # Suppress all link with any tileset
     for ts in thissession.tile_sets:
         thissession.tile_sets.remove(ts)
@@ -532,44 +532,44 @@ def remove_this_session(sessionid):
     logging.warning("in remove_this_session Link after commit "+str(db.session.query(models.t_many_users_has_many_sessions).filter_by(id_sessions=sessionid).all()))
     for link in db.session.query(models.t_many_users_has_many_sessions).filter_by(id_sessions=sessionid).all():
         link.delete()
-    delelement(models.Session, "session", sessionid)
+    delelement(models.Sessions, "session", sessionid)
     db.session.commit()
 
     
 def remove_this_project(projectid):
-    thisproject=db.session.query(models.Project).filter_by(id=projectid).scalar()
+    thisproject=db.session.query(models.Projects).filter_by(id=projectid).scalar()
 
     # Suppress all session of this project
-    project_sessions=db.session.query(models.Session).filter_by(id_projects=projectid).all()
+    project_sessions=db.session.query(models.Sessions).filter_by(id_projects=projectid).all()
     for thissession in project_sessions:
         remove_this_session(thissession.id)
 
-    delelement(models.Project, "project", projectid)
+    delelement(models.Projects, "project", projectid)
     db.session.commit()
 
 def remove_this_user(userid):
-    thisuser=db.session.query(models.User).filter_by(id=userid).one()
+    thisuser=db.session.query(models.Users).filter_by(id=userid).one()
 
     # Search connection wich have this user as owner
-    user_connections=db.session.query(models.Connection).filter_by(id_users=userid).all()
+    user_connections=db.session.query(models.Connections).filter_by(id_users=userid).all()
     for thisconnection in user_connections:
         # TODO : use remove_this_connection(oldtileset,idconnection,userid) to suppress tmp files in TVFiles
         # Possible to recover TileSet from connection.id ?
         flash("Suppress element connection number %d." % (thisconnection.id))
-        delelement(models.Connection, "connection", thisconnection.id)
+        delelement(models.Connections, "connection", thisconnection.id)
 
     # Search session where this user is present
-    user_session=db.session.query(models.Session).filter(models.Session.users.any(id=userid)).all()
+    user_session=db.session.query(models.Sessions).filter(models.Sessions.users.any(id=userid)).all()
     for thissession in user_session:
         thissession.users.remove(thisuser)
         
     # Search project wich have this user as owner
     # TODO : give the possibility to change owner of the project ?
-    user_project=db.session.query(models.Project).filter_by(id_users=userid).all()
+    user_project=db.session.query(models.Projects).filter_by(id_users=userid).all()
     for thisproject in user_project:
         remove_this_project(thisproject.id)
 
-    delelement(models.User, "user", userid)
+    delelement(models.Users, "user", userid)
         
 def remove_this_connection(oldtileset,idconnection,user_id):
     oldconnection=oldtileset.connection
@@ -672,7 +672,7 @@ def register():
         if (session["username"] == "Anonymous"):
             myform = BuildRegisterForm()()
         else:
-            User=db.session.query(models.User).filter_by(name=session["username"]).one()
+            User=db.session.query(models.Users).filter_by(name=session["username"]).one()
             myform = BuildRegisterForm(Username=User.name,
                                        Useremail=User.mail,
                                        Usercomp=User.compagny,
@@ -689,7 +689,7 @@ def register():
         #     showlogin=False
         #     return render_template("main_login.html", title="TiledViz register", form=myform)
         try:
-            exists = db.session.query(models.User.id).filter_by(name=myusername).scalar() is not None
+            exists = db.session.query(models.Users.id).filter_by(name=myusername).scalar() is not None
         except Exception:
             exists=False
         if exists:
@@ -711,7 +711,7 @@ def register():
                     return redirect("/login")
 
                 logging.warning("Renew password for user {}.".format(myusername))
-                User=db.session.query(models.User).filter_by(name=myusername).one()
+                User=db.session.query(models.Users).filter_by(name=myusername).one()
                 hashpass, salt=tvdb.passprotected(myform.password.data)
                 creation_date=datetime.datetime.now()
                 User.creation_date=str(creation_date)
@@ -726,8 +726,8 @@ def register():
                 else:
                     session["Admin"]=False
             else:
-                hashPassword,hashSalt=db.session.query(models.User.password,models.User.salt).filter_by(name=myusername).scalar()
-                testP=tvdb.testpassprotected(models.User,myusername,myform.password.data,hashPassword,hashSalt)
+                hashPassword,hashSalt=db.session.query(models.Users.password,models.Users.salt).filter_by(name=myusername).scalar()
+                testP=tvdb.testpassprotected(models.Users,myusername,myform.password.data,hashPassword,hashSalt)
                 if (testP):
                     logging.info("Correct password !")
                     session["username"] = myusername
@@ -758,7 +758,7 @@ def register():
             hashpass, salt=tvdb.passprotected(myform.password.data)
             
             creation_date=datetime.datetime.now()
-            user = models.User(name=str(myusername),
+            user = models.Users(name=str(myusername),
                                creation_date=str(creation_date),
                                mail=str(myform.email.data),
                                compagny=str(myform.compagny.data),
@@ -790,7 +790,7 @@ def register():
             # use an old project
             if exists:
                 #User already exists => go to session
-                # user=db.session.query(models.User.id).filter_by(name=session["username"]).one()
+                # user=db.session.query(models.Users.id).filter_by(name=session["username"]).one()
 
                 # if (len(projects) == 1):
                 #     logging.info("New user "+session["username"]+" : has been already invited in session .")
@@ -820,7 +820,7 @@ def login():
 
         try:
             myusername = myform.username.data
-            User=db.session.query(models.User).filter_by(name=myusername).one()
+            User=db.session.query(models.Users).filter_by(name=myusername).one()
         except:
             flash("Login rejected : '{}' for username does not exist.".format(myform.username.data))
             return redirect("/login")
@@ -829,7 +829,7 @@ def login():
         if exists:
             hashPassword=User.password
             hashSalt=User.salt
-            testP=tvdb.testpassprotected(models.User,myusername,myform.password.data,hashPassword,hashSalt)
+            testP=tvdb.testpassprotected(models.Users,myusername,myform.password.data,hashPassword,hashSalt)
             if (testP):
                 logging.warning('Correct password.')
                 session["username"] = myusername
@@ -993,13 +993,13 @@ def project():
     # All projects own by user
     printstr="{0:\xa0<"+projectl+"."+projectl+"}|\xa0{2:\xa0<"+datel+"."+datel+"}\xa0|\xa0{1:\xa0<"+descrl+"."+descrl+"}|\xa0{3:\xa0<"+descrl+"}"
     
-    projects = db.session.query(models.Project).filter_by(id_users=user_id).all()
+    projects = db.session.query(models.Projects).filter_by(id_users=user_id).all()
     myprojects=[]
     myprojects.append(('NoChoice',printstr.format("Project name","Description","Date and Time","All sessions")))
 
     try:
         for theproject in projects:
-            ListsessionsTheproject=db.session.query(models.Session.name).filter_by(id_projects=theproject.id)
+            ListsessionsTheproject=db.session.query(models.Sessions.name).filter_by(id_projects=theproject.id)
             allsessionsname=[ asessionTheproject.name for asessionTheproject in ListsessionsTheproject ]
             thedate=theproject.creation_date.isoformat().replace("T"," ")
             
@@ -1020,7 +1020,7 @@ def project():
         # TODO : Add test if the user is authorized to use this project ? ==> NO only own project
         if (myform.chosen_project.data=="NoChoice"):
             if (myform.projectname.data != ""):
-                project_id = db.session.query(models.Project.id).filter_by(name=myform.projectname.data).scalar()
+                project_id = db.session.query(models.Projects.id).filter_by(name=myform.projectname.data).scalar()
             else:
                 # Impossible to be here ?
                 logging.warning("You must create a new project or choose an old one.")
@@ -1035,7 +1035,7 @@ def project():
             if (myform.chosen_project.data == "NoChoice"):
                 session["projectname"]=myform.projectname.data
             else:
-                session["projectname"]=db.session.query(models.Project.name).filter_by(id=project_id).scalar()
+                session["projectname"]=db.session.query(models.Projects.name).filter_by(id=project_id).scalar()
             # test if the user is authorized to use this project ? ==> NO only own project ! or session with the user already invited
             logging.debug("Chosen project : "+str(session["projectname"]))
             if(myform.action_sessions.data == "create"):
@@ -1050,7 +1050,7 @@ def project():
             creation_date=datetime.datetime.now()
             screation_date=str(creation_date)
             logging.error("create project date "+screation_date)
-            project = models.Project(name=str(myform.projectname.data),
+            project = models.Projects(name=str(myform.projectname.data),
                                      creation_date=screation_date,
                                      id_users=user_id,
                                      description=myform.description.data) # DANGEROUS: TODO: clean string
@@ -1092,7 +1092,7 @@ def admin():
     logging.info("in administration page.")
 
     if (userAdmin):
-        allusers = db.session.query(models.User).all()
+        allusers = db.session.query(models.Users).all()
         logging.debug("All users :"+str([ theuser.name for theuser in allusers]))
 
         printstr="{0:\xa0<"+usernamel+"."+usernamel+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"
@@ -1122,7 +1122,7 @@ def admin():
                 )
             )
         
-        allprojects = db.session.query(models.Project).all()
+        allprojects = db.session.query(models.Projects).all()
         logging.debug("All projects :"+str([ theproject.name for theproject in allprojects]))
 
         printstr="{0:\xa0<"+projectl+"."+projectl+"}|\xa0{1:\xa0<"+usernamel+"."+usernamel+"}\xa0|\xa0{2:\xa0<"+datel+"."+datel+"}\xa0|\xa0{3:\xa0<"+descrl+"."+descrl+"}"
@@ -1132,7 +1132,7 @@ def admin():
         for thisproject in allprojects:
             thedate=thisproject.creation_date.isoformat().replace("T"," ")
             Desc=thisproject.description
-            #Owner=db.session.query(models.User.name).filter_by(id=thisproject.id_users).one()
+            #Owner=db.session.query(models.Users.name).filter_by(id=thisproject.id_users).one()
             listallprojects.append(
                 (str(thisproject.id),printstr.
                  format(str(thisproject.name),str(thisproject.user.name),
@@ -1141,7 +1141,7 @@ def admin():
             )
 
 
-        allsessions = db.session.query(models.Session).all()
+        allsessions = db.session.query(models.Sessions).all()
         logging.debug("All sessions :"+str([ thesession.name for thesession in allsessions]))
 
         printstr="{0:\xa0<"+sessionl+"."+sessionl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"
@@ -1158,7 +1158,7 @@ def admin():
                 )
             )
         
-    projects = db.session.query(models.Project).filter_by(id_users=user_id).all()
+    projects = db.session.query(models.Projects).filter_by(id_users=user_id).all()
     logging.debug("My projects :"+str([ theproject.name for theproject in projects]))
 
     printstr="{0:\xa0<"+projectl+"."+projectl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"
@@ -1179,7 +1179,7 @@ def admin():
     mysessions=[]
     try:
         for theproject in projects:
-            ListsessionsTheproject=db.session.query(models.Session.name).filter_by(id_projects=theproject.id).all()
+            ListsessionsTheproject=db.session.query(models.Sessions.name).filter_by(id_projects=theproject.id).all()
             [ mysessions.append((theproject.name,ListsessionTheproject)) for ListsessionTheproject in ListsessionsTheproject ]
     except:
         pass
@@ -1195,11 +1195,11 @@ def admin():
             listmysession.append(thissession)
             thedate="1970-01-01"
             try:
-                thedate=db.session.query(models.Session.creation_date).filter_by(name=str(thissession)).scalar().isoformat().replace("T"," ")
+                thedate=db.session.query(models.Sessions.creation_date).filter_by(name=str(thissession)).scalar().isoformat().replace("T"," ")
             except:
                 pass
-            SessDesc=db.session.query(models.Session).filter_by(name=thissession).scalar().description
-            thissessionid=db.session.query(models.Session.id).filter_by(name=str(thissession)).one()
+            SessDesc=db.session.query(models.Sessions).filter_by(name=thissession).scalar().description
+            thissessionid=db.session.query(models.Sessions.id).filter_by(name=str(thissession)).one()
             listmyprojectssession.append(
                 (str(thissessionid),printstr.
                  format(str(thissessions[0]),
@@ -1212,7 +1212,7 @@ def admin():
     # # All sessions this user has been invited to
     # listsessions=[]
 
-    # invite_sessions = db.session.query(models.Session.name).filter(models.Session.users.any(id=user_id)).all()
+    # invite_sessions = db.session.query(models.Sessions.name).filter(models.Sessions.users.any(id=user_id)).all()
     # printstr="{0:\xa0<"+sessionl+"."+sessionl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"        
     # listsessions.append(('NoChoice',printstr.format("Session name","Date and Time","Description")))
     # for thissession in invite_sessions:
@@ -1220,10 +1220,10 @@ def admin():
     #     if (thissession.name not in listmysession):
     #         thedate="1970-01-01"
     #         try:
-    #             thedate=db.session.query(models.Session.creation_date).filter_by(name=thissession.name).scalar().isoformat().replace("T"," ")
+    #             thedate=db.session.query(models.Sessions.creation_date).filter_by(name=thissession.name).scalar().isoformat().replace("T"," ")
     #         except:
     #             pass
-    #         SessDesc=db.session.query(models.Session).filter_by(name=thissession.name).scalar().description
+    #         SessDesc=db.session.query(models.Sessions).filter_by(name=thissession.name).scalar().description
     #         listsessions.append(
     #             (str(thissession.name),printstr.
     #              format(str(thissession.name),
@@ -1233,7 +1233,7 @@ def admin():
 
 
     # list all my Connections
-    connections = db.session.query(models.Connection).filter_by(id_users=user_id)
+    connections = db.session.query(models.Connections).filter_by(id_users=user_id)
     logging.debug("My connections :"+str([ theconnection.host_address for theconnection in connections]))
     
     printstr="{0:\xa0<"+connectionh+"."+connectionh+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0\xa0\xa0\xa0\xa0|\xa0{2:\xa0<"+datel+"."+datel+"}\xa0\xa0\xa0\xa0|\xa0{3:\xa0<"+datel+"."+datel+"}"
@@ -1255,7 +1255,7 @@ def admin():
     if (userAdmin):
         listallconnections=[]
         # list all Connections
-        allconnections = db.session.query(models.Connection)
+        allconnections = db.session.query(models.Connections)
         logging.debug("All connections :"+str([ theconnection.host_address for theconnection in allconnections]))
     
         printstr="{0:\xa0<"+usernamel+"."+usernamel+"}|\xa0"+\
@@ -1268,7 +1268,7 @@ def admin():
             insession=False
             if ("connection"+str(thisconnection.id) in session):
                 insession=True
-            theuser=db.session.query(models.User).filter_by(id=thisconnection.id_users).one().name
+            theuser=db.session.query(models.Users).filter_by(id=thisconnection.id_users).one().name
             listallconnections.append(
                 (str(thisconnection.id),printstr.
                  format(str(theuser),
@@ -1305,7 +1305,7 @@ def admin():
                     elementid=freetilesets[0]
                     logging.warning("Delete this %s %d : %s" % ("tileset",elementid,str(freetilesets[1])))
                     db.session.query(func.deltileset(freetilesets[0])).all()
-                    #delelement(models.TileSet, "tileset", freetilesets[0])
+                    #delelement(models.TileSets, "tileset", freetilesets[0])
 
         if ( myform.suppressSelected.data):            
             if (userAdmin):
@@ -1349,7 +1349,7 @@ def admin():
                 objects.append(chosenObject)
                 ids.append(elementid)
             
-                delelement(models.Project, chosenObject, elementid)
+                delelement(models.Projects, chosenObject, elementid)
 
             if (myform.chosen_project_session.data != "NoChoice"):
                 chosenObject="mysession"
@@ -1359,7 +1359,7 @@ def admin():
                 objects.append(chosenObject)
                 ids.append(elementid)
 
-                thissession=db.session.query(models.Session).filter_by(id=elementid).scalar()
+                thissession=db.session.query(models.Sessions).filter_by(id=elementid).scalar()
                 remove_this_session(elementid)
 
             # if (myform.chosen_session_invited.data != "NoChoice"):
@@ -1377,15 +1377,15 @@ def admin():
                 ids.append(elementid)
 
                 try:
-                    thisConnection=db.session.query(models.Connection).filter_by(id=elementid).one()
+                    thisConnection=db.session.query(models.Connections).filter_by(id=elementid).one()
                     user_id=thisConnection.id_users
-                    oldtileset=db.session.query(models.TileSet).filter_by(id_connections=elementid).one()
+                    oldtileset=db.session.query(models.TileSets).filter_by(id_connections=elementid).one()
                     if (oldtileset.connection.id==elementid):
                         remove_this_connection(oldtileset,elementid,user_id)
                     else:
-                        delelement(models.Connection, chosenObject, elementid)
+                        delelement(models.Connections, chosenObject, elementid)
                 except:
-                    delelement(models.Connection, chosenObject, elementid)
+                    delelement(models.Connections, chosenObject, elementid)
         
         if (myform.suppressAllMyConnections.data):
             flash("All my connections were suppressed {}".format(session["username"]))
@@ -1396,13 +1396,13 @@ def admin():
                 ids.append(thisconnection.id)
                 try:
                     user_id=thisconnection.id_users
-                    oldtileset=db.session.query(models.TileSet).filter_by(id_connections=thisconnection.id).one()
+                    oldtileset=db.session.query(models.TileSets).filter_by(id_connections=thisconnection.id).one()
                     if (oldtileset.connection.id==thisconnection.id):
                         remove_this_connection(oldtileset,thisconnection.id,user_id)
                     else:
-                        delelement(models.Connection, chosenObject, thisconnection.id)
+                        delelement(models.Connections, chosenObject, thisconnection.id)
                 except:
-                    delelement(models.Connection, chosenObject, thisconnection.id)
+                    delelement(models.Connections, chosenObject, thisconnection.id)
 
 
         if (userAdmin):
@@ -1416,15 +1416,15 @@ def admin():
                 ids.append(elementid)
 
                 try:
-                    thisConnection=db.session.query(models.Connection).filter_by(id=elementid).one()
+                    thisConnection=db.session.query(models.Connections).filter_by(id=elementid).one()
                     user_id=thisConnection.id_users
-                    oldtileset=db.session.query(models.TileSet).filter_by(id_connections=elementid).one()
+                    oldtileset=db.session.query(models.TileSets).filter_by(id_connections=elementid).one()
                     if (oldtileset.connection.id==elementid):
                         remove_this_connection(oldtileset,elementid,user_id)
                     else:
-                        delelement(models.Connection, chosenObject, elementid)
+                        delelement(models.Connections, chosenObject, elementid)
                 except:
-                    delelement(models.Connection, chosenObject, elementid)
+                    delelement(models.Connections, chosenObject, elementid)
 
         
             if (myform.suppressAllConnections.data):
@@ -1437,13 +1437,13 @@ def admin():
                     ids.append(thisconnection.id)
                     try:
                         user_id=thisconnection.id_users
-                        oldtileset=db.session.query(models.TileSet).filter_by(id_connections=thisconnection.id).one()
+                        oldtileset=db.session.query(models.TileSets).filter_by(id_connections=thisconnection.id).one()
                         if (oldtileset.connection.id==thisconnection.id):
                             remove_this_connection(oldtileset,thisconnection.id,user_id)
                         else:
-                            delelement(models.Connection, chosenObject, thisconnection.id)
+                            delelement(models.Connections, chosenObject, thisconnection.id)
                     except:
-                        delelement(models.Connection, chosenObject, thisconnection.id)
+                        delelement(models.Connections, chosenObject, thisconnection.id)
 
 
         db.session.commit()
@@ -1472,14 +1472,14 @@ def allmysessions():
     logging.info("in allsessions")
 
     # All projects own by user
-    projects = db.session.query(models.Project).filter_by(id_users=user_id)
+    projects = db.session.query(models.Projects).filter_by(id_users=user_id)
     logging.debug("My projects :"+str([ theproject.name for theproject in projects]))
     
     # All sessions own of those projects
     mysessions=[]
     try:
         for theproject in projects:
-            ListsessionsTheproject=db.session.query(models.Session.name).filter_by(id_projects=theproject.id)
+            ListsessionsTheproject=db.session.query(models.Sessions.name).filter_by(id_projects=theproject.id)
             [ mysessions.append((theproject.name,ListsessionTheproject)) for ListsessionTheproject in ListsessionsTheproject ]
     except:
         pass
@@ -1495,10 +1495,10 @@ def allmysessions():
             listmysession.append(thissession)
             thedate="1970-01-01"
             try:
-                thedate=db.session.query(models.Session.creation_date).filter_by(name=str(thissession)).scalar().isoformat().replace("T"," ")
+                thedate=db.session.query(models.Sessions.creation_date).filter_by(name=str(thissession)).scalar().isoformat().replace("T"," ")
             except:
                 pass
-            SessDesc=db.session.query(models.Session).filter_by(name=thissession).scalar().description
+            SessDesc=db.session.query(models.Sessions).filter_by(name=thissession).scalar().description
             listmyprojectssession.append(
                 (str(thissession),printstr.
                  format(str(thissessions[0]),
@@ -1510,7 +1510,7 @@ def allmysessions():
     # All sessions this user has been invited to
     listsessions=[]
 
-    invite_sessions = db.session.query(models.Session.name).filter(models.Session.users.any(id=user_id)).all()
+    invite_sessions = db.session.query(models.Sessions.name).filter(models.Sessions.users.any(id=user_id)).all()
     printstr="{0:\xa0<"+sessionl+"."+sessionl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"        
     listsessions.append(('NoChoice',printstr.format("Session name","Date and Time","Description")))
     for thissession in invite_sessions:
@@ -1518,10 +1518,10 @@ def allmysessions():
         if (thissession.name not in listmysession):
             thedate="1970-01-01"
             try:
-                thedate=db.session.query(models.Session.creation_date).filter_by(name=thissession.name).scalar().isoformat().replace("T"," ")
+                thedate=db.session.query(models.Sessions.creation_date).filter_by(name=thissession.name).scalar().isoformat().replace("T"," ")
             except:
                 pass
-            SessDesc=db.session.query(models.Session).filter_by(name=thissession.name).scalar().description
+            SessDesc=db.session.query(models.Sessions).filter_by(name=thissession.name).scalar().description
             listsessions.append(
                 (str(thissession.name),printstr.
                  format(str(thissession.name),
@@ -1549,9 +1549,9 @@ def allmysessions():
                   "You must choose a session in your projects or one you were invited on.")
             return redirect("/allsessions")
             
-        logging.debug("Which is session "+str(db.session.query(models.Session.id).filter_by(name=session["sessionname"]).scalar()))
-        its_project_id=db.session.query(models.Session).filter_by(name=session["sessionname"]).scalar().id_projects
-        session["projectname"]=db.session.query(models.Project).filter_by(id=its_project_id).scalar().name
+        logging.debug("Which is session "+str(db.session.query(models.Sessions.id).filter_by(name=session["sessionname"]).scalar()))
+        its_project_id=db.session.query(models.Sessions).filter_by(name=session["sessionname"]).scalar().id_projects
+        session["projectname"]=db.session.query(models.Projects).filter_by(id=its_project_id).scalar().name
         logging.debug("And have project id "+str(its_project_id)+" which is "+str(session["projectname"]))
         session["is_client_active"]=True
         if(myform.edit.data):
@@ -1577,10 +1577,10 @@ def oldsessions():
         flash("Old sessions : Must define a project first !")
         return redirect("/project")
         
-    Project = db.session.query(models.Project).filter_by(name=session["projectname"]).scalar()
+    Project = db.session.query(models.Projects).filter_by(name=session["projectname"]).scalar()
     project_id=Project.id
     project_desc=Project.description
-    querysessions = db.session.query(models.Session.name).filter_by(id_projects=project_id)
+    querysessions = db.session.query(models.Sessions.name).filter_by(id_projects=project_id)
     listsessions=[]
     for thissession in querysessions:
         logging.debug("Build listsessions "+str(thissession[0]))
@@ -1625,7 +1625,7 @@ def newsession():
             flash("New user for user {} in session {}".format(session["username"], myform.sessionname.data))
             return render_template("main_login.html", **(myrender()), title="New session TiledViz", form=myform)
         logging.info("in session")
-        id_projects=db.session.query(models.Project.id).filter_by(name=session["projectname"])
+        id_projects=db.session.query(models.Projects.id).filter_by(name=session["projectname"])
         sessionname=myform.sessionname.data
         newsession,exist=create_newsession(sessionname, myform.description.data, id_projects, myform.users)
         if (not exist):
@@ -1675,7 +1675,7 @@ def copysession():
 
     message=json.loads(request.args["message"])
     oldsessionname=message["oldsessionname"]
-    oldsession = db.session.query(models.Session).filter_by(name=oldsessionname).scalar()    
+    oldsession = db.session.query(models.Sessions).filter_by(name=oldsessionname).scalar()    
     myform = BuildEditsessionform(oldsession,edit=False)()
     if myform.validate_on_submit():
         logging.debug("copySessionForm : ")
@@ -1752,7 +1752,7 @@ def editsession():
         
     message=json.loads(request.args["message"])
     oldsessionname=message["oldsessionname"]
-    oldsession = db.session.query(models.Session).filter_by(name=oldsessionname).scalar()    
+    oldsession = db.session.query(models.Sessions).filter_by(name=oldsessionname).scalar()    
     myform = BuildEditsessionform(oldsession,edit=True)()
     if myform.validate_on_submit():
         logging.debug("editSessionForm : ")
@@ -1880,14 +1880,14 @@ def editsession():
             return redirect(url_for(".searchtileset",message=message))
         elif(theaction == "remove"):
             try:
-                thistileset=db.session.query(models.TileSet).filter_by(id=tilesetid).scalar()
+                thistileset=db.session.query(models.TileSets).filter_by(id=tilesetid).scalar()
                 logging.debug("TileSet for remove : "+str(thistileset))
                 oldsession.tile_sets.remove(thistileset)
                 db.session.commit()
             except Exception:
                 traceback.print_exc(file=sys.stderr)
                 
-                flash("Error remove tileset {}".format(db.session.query(models.TileSet).filter_by(id=tilesetid).scalar().name))
+                flash("Error remove tileset {}".format(db.session.query(models.TileSets).filter_by(id=tilesetid).scalar().name))
             message = '{"oldsessionname":"'+oldsessionname+'"}'
             return redirect(url_for(".editsession",message=message))
     return render_template("main_login.html", **(myrender()), title="Edit session TiledViz", form=myform, message=message)
@@ -1904,7 +1904,7 @@ def editnodes():
 
     message=json.loads(request.args["message"])
     oldsessionname=message["oldsessionname"]
-    ThisSession = db.session.query(models.Session).filter_by(name=oldsessionname).scalar()    
+    ThisSession = db.session.query(models.Sessions).filter_by(name=oldsessionname).scalar()    
 
     if (type(ThisSession) != type(None)):
             ListAllTileSet_ThisSession=ThisSession.tile_sets
@@ -1981,19 +1981,19 @@ def searchtileset():
         message=json.loads(request.args["message"].replace("'", '"'))
 
     oldsessionname=message["oldsessionname"]
-    oldsession = db.session.query(models.Session).filter_by(name=oldsessionname).scalar()    
+    oldsession = db.session.query(models.Sessions).filter_by(name=oldsessionname).scalar()    
 
-    querysessions= models.Session.query.filter(models.Session.users.any(name=session["username"])).all()
+    querysessions= models.Sessions.query.filter(models.Sessions.users.any(name=session["username"])).all()
 
     printstr="{0:\xa0<"+tilesetl+"."+tilesetl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"
 
     listtilesets=[]
     listtilesets.append(('NoChoice',printstr.format("Tileset name","Date and Time","Data Path")))
     for thissession in querysessions:
-        #thissession=db.session.query(models.Session).filter_by(id=thissessionid[0])
+        #thissession=db.session.query(models.Sessions).filter_by(id=thissessionid[0])
         for tileset in thissession.tile_sets:
             if ( tileset.name not in listtilesets ):
-                thedate=db.session.query(models.TileSet.creation_date).filter_by(name=tileset.name).scalar().isoformat().replace("T"," ")
+                thedate=db.session.query(models.TileSets.creation_date).filter_by(name=tileset.name).scalar().isoformat().replace("T"," ")
                 logging.warning("Compare thedate : %s %s" % (thedate, tileset.creation_date.isoformat().replace("T"," ")))
                 listtilesets.append((str(tileset.id),
                                      printstr.format(
@@ -2009,7 +2009,7 @@ def searchtileset():
             return redirect(url_for(".searchtileset",message=message))
         else:
             logging.warning("Out of forms, add tilesets :"+str(myform.chosen_tileset.data))
-            thisTS=db.session.query(models.TileSet).filter_by(id=myform.chosen_tileset.data).scalar()
+            thisTS=db.session.query(models.TileSets).filter_by(id=myform.chosen_tileset.data).scalar()
             logging.warning("For user : "+session["username"]+", add tilesets :"+str(thisTS.name))
             oldsession.tile_sets.append(thisTS)
             db.session.commit()
@@ -2034,7 +2034,7 @@ def configsession():
     message=json.loads(request.args["message"])
 
     sessionname=message["sessionname"]
-    thesession = db.session.query(models.Session).filter_by(name=sessionname).scalar()
+    thesession = db.session.query(models.Sessions).filter_by(name=sessionname).scalar()
 
     # Detect how the data of config has been inserted :        
     if ( session["sessionname"] in  jsontransfert):
@@ -2161,7 +2161,7 @@ def addtileset():
             connectionbool=True
 
         #print(session["sessionname"])
-        conn_session=db.session.query(models.Session).filter_by(name=session["sessionname"]).scalar()
+        conn_session=db.session.query(models.Sessions).filter_by(name=session["sessionname"]).scalar()
         creation_date=datetime.datetime.now()
         tilesetname=myform.name.data
         if ( myform.dataset_path.data ):
@@ -2270,7 +2270,7 @@ def copytileset():
     message=json.loads(request.args["message"])
     logging.warning("copytileset : "+str(message))
     oldtilesetid=message["oldtilesetid"]
-    oldtileset=db.session.query(models.TileSet).filter_by(id=oldtilesetid).scalar()
+    oldtileset=db.session.query(models.TileSets).filter_by(id=oldtilesetid).scalar()
 
     myform = BuildTilesSetForm(oldtileset,onlycopy=True)()
 
@@ -2286,7 +2286,7 @@ def copytileset():
 
         nbr_of_tiles = len(oldtileset.tiles)
         
-        sessioncopy=db.session.query(models.Session).filter_by(name=session["sessionname"]).scalar()
+        sessioncopy=db.session.query(models.Sessions).filter_by(name=session["sessionname"]).scalar()
         creation_date=datetime.datetime.now()
         tilesetname=myform.name.data
         newtileset, exist=create_newtileset(myform.name.data, sessioncopy, oldtileset.type_of_tiles, oldtileset.Dataset_path, creation_date)
@@ -2437,7 +2437,7 @@ def edittileset():
     logging.warning("edittileset : "+str(message))
 
     oldtilesetid=message["oldtilesetid"]
-    oldtileset=db.session.query(models.TileSet).filter_by(id=oldtilesetid).one()
+    oldtileset=db.session.query(models.TileSets).filter_by(id=oldtilesetid).one()
 
     # TODO : test if user is in a session with this tileset
     
@@ -2469,7 +2469,7 @@ def edittileset():
         # Try to get the old connection
         oldConnection_id=-1
         try:
-            oldconnection=db.session.query(models.Connection).filter_by(id=oldtileset.id_connections).one()
+            oldconnection=db.session.query(models.Connections).filter_by(id=oldtileset.id_connections).one()
             oldConnection_id=oldtileset.id_connections
             buildargs["editconnection"]=True
         
@@ -2791,7 +2791,7 @@ def vncconnection():
     idconnection=message["connectionid"]
     idtileset=message["oldtilesetid"]
     try:
-        oldconnection=db.session.query(models.Connection).filter_by(id=idconnection).first()
+        oldconnection=db.session.query(models.Connections).filter_by(id=idconnection).first()
     except:
         flash("This connection doesn't exist.")
         logging.error("This connection doesn't exist.")
@@ -2819,8 +2819,8 @@ def vncconnection():
     if (oldconnection):
         if  (user_id != oldconnection.id_users) :
             flash("You can not access to this connection. You are not its owner.")
-            owner=db.session.query(models.User).filter_by(id=oldconnection.id_users).one().name
-            you=db.session.query(models.User).filter_by(id=user_id).one().name
+            owner=db.session.query(models.Users).filter_by(id=oldconnection.id_users).one().name
+            you=db.session.query(models.Users).filter_by(id=user_id).one().name
             logging.error("You (user "+you+") can not access to this connection owned by user "+owner)
             message=request.args["message"]
             return redirect(url_for(".edittileset",message=message))
@@ -2920,12 +2920,12 @@ def addconnection():
         user_id=get_user_id("addconnection",session["username"])
 
         # Test if a connection is already attached few seconds ago for the tileset :
-        newtileset=db.session.query(models.TileSet).filter_by(id=message["oldtilesetid"]).one()
+        newtileset=db.session.query(models.TileSets).filter_by(id=message["oldtilesetid"]).one()
 
         if (type(newtileset.id_connections) != type(None)):
             logging.warning("New connection created :"+str(newtileset.id_connections))
             try:
-                oldConnection=db.session.query(models.Connection).filter_by(id=newtileset.id_connections).one()
+                oldConnection=db.session.query(models.Connections).filter_by(id=newtileset.id_connections).one()
                 olddate=oldConnection.creation_date
                 if ((creation_date-olddate).seconds < 3):
                     return
@@ -2937,7 +2937,7 @@ def addconnection():
         else:
             scheduler_filename=""
 
-        newConnection = models.Connection(host_address=myform.host_address.data,
+        newConnection = models.Connections(host_address=myform.host_address.data,
                                           auth_type=myform.auth_type.data,
                                           container=myform.container.data,
                                           scheduler=myform.scheduler.data,
@@ -2945,7 +2945,7 @@ def addconnection():
                                           id_users=user_id,
                                           creation_date= creation_date)
 
-        lastconnection=db.session.query(models.Connection.id).order_by(models.Connection.id.desc()).first()
+        lastconnection=db.session.query(models.Connections.id).order_by(models.Connections.id.desc()).first()
         if ( lastconnection ):
             newConnection.id=lastconnection.id+1
         else:
@@ -3135,7 +3135,7 @@ def editconnection():
         message=json.loads(request.args["message"].replace("'", '"'))
     
     oldtilesetid=message["oldtilesetid"]
-    oldtileset=db.session.query(models.TileSet).filter_by(id=oldtilesetid).one()
+    oldtileset=db.session.query(models.TileSets).filter_by(id=oldtilesetid).one()
 
     oldconnection=oldtileset.connection
     try:
@@ -3296,7 +3296,7 @@ def removeconnection():
         message=json.loads(request.args["message"].replace("'", '"'))
 
     oldtilesetid=message["oldtilesetid"]
-    oldtileset=db.session.query(models.TileSet).filter_by(id=oldtilesetid).one()
+    oldtileset=db.session.query(models.TileSets).filter_by(id=oldtilesetid).one()
 
     oldconnection=oldtileset.connection
     try:
@@ -3372,7 +3372,7 @@ def show_grid():
         # (usefulness? it's only a testing tool at this point')
         logging.info("[!] Change session room to " + psession)
         session["sessionname"]=psession
-        thesession = db.session.query(models.Session).filter_by(name=psession).scalar()
+        thesession = db.session.query(models.Sessions).filter_by(name=psession).scalar()
         if (type(thesession) != type(None)):
             project = session["projectname"]=thesession.project.name
         else:
@@ -3409,7 +3409,7 @@ def show_grid():
         pass
 
     # Build Session
-    ThisSession=db.session.query(models.Session).filter(models.Session.name == session["sessionname"]).first()
+    ThisSession=db.session.query(models.Sessions).filter(models.Sessions.name == session["sessionname"]).first()
 
     # Test if session is empty
     if (len(ThisSession.tile_sets) == 0):
@@ -3666,7 +3666,7 @@ def shareConfig(cdata):
         configJson=json.loads(cdata["Config"].replace("'", '"'));
         logging.info("Config: "+str(configJson))
         oldsessionname=session["sessionname"]
-        ThisSession = db.session.query(models.Session).filter_by(name=oldsessionname).scalar()    
+        ThisSession = db.session.query(models.Sessions).filter_by(name=oldsessionname).scalar()    
         oldconfig=ThisSession.config
         # Update modified config
         for section in configJson:
@@ -3784,7 +3784,7 @@ def ClickAction(cdata):
         actionid=int(action.replace("action", ""))
         command=str(actionid)+","+selections
         
-        oldtileset=db.session.query(models.TileSet).filter_by(name=TS).one()
+        oldtileset=db.session.query(models.TileSets).filter_by(name=TS).one()
         oldconnection=oldtileset.connection
         user_id=get_user_id("action_click",session["username"])
 
@@ -3800,7 +3800,7 @@ def ClickAction(cdata):
         logfun("actionid %d" % (actionid))
         myflush()
         if (actionid == 0):
-            ThisSession=db.session.query(models.Session).filter(models.Session.name == session["sessionname"]).first()
+            ThisSession=db.session.query(models.Sessions).filter(models.Sessions.name == session["sessionname"]).first()
             # save old nodes.json before get new
             out_nodes_json = os.path.join("/TiledViz/TVFiles", str(oldconnection.id_users), str(oldconnection.id),"nodes.json")
             mvDATE=datetime.datetime.now().isoformat().replace(":","-")
@@ -3839,7 +3839,7 @@ def ClickAction(cdata):
             try:
                 logging.warning("Update nodes for session %s" % (session["sessionname"]))
                 myflush()
-                ThisSession=db.session.query(models.Session).filter(models.Session.name == session["sessionname"]).first()
+                ThisSession=db.session.query(models.Sessions).filter(models.Sessions.name == session["sessionname"]).first()
                 # action0 == get new nodes.json file
                 time.sleep(timeAlive)
                 
@@ -4095,7 +4095,7 @@ def handle_join_with_invite_link(link):
     #TODO SECUR : test validity of the key
     
     #print("Session name :",session["sessionname"]," new_client_type :",str(new_client_type)," authent ",str(auth))
-    ThisSession=db.session.query(models.Session).filter(models.Session.name == session["sessionname"]).first()
+    ThisSession=db.session.query(models.Sessions).filter(models.Sessions.name == session["sessionname"]).first()
     #print("Session name :",session["sessionname"]," object :",str(ThisSession.name))
     if (ThisSession==None):
         flash_mess="Anonymous connection with unknown session : "+str(session["sessionname"])
