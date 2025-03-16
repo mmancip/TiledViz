@@ -275,7 +275,7 @@ def convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath):
 # => copy connection + config files +     vnctransfert=json.loads(session["connection"+str(idconnection)]) + session["connection"+str(idconnection)]
 # TODO message to connection user owner grid : "Are you OK to copy your connection for tileset.name ?"
 def copy_connection(oldtileset,newtileset,newsessionname):
-    oldconnection=oldtileset.connection        
+    oldconnection=oldtileset.connections        
     user_id=get_user_id("copy_connection",session["username"])
 
     message = '{"oldtilesetid":'+str(newtileset.id)+',"oldsessionname":"'+session["sessionname"]+'"}'
@@ -341,7 +341,7 @@ def copy_connection(oldtileset,newtileset,newsessionname):
 
 # Copy a mirror connection and tileset files
 def copy_tileset_connection(tileset,tileset1,sessionname ):
-    oldconnection=tileset.connection
+    oldconnection=tileset.connections
     if (oldconnection):
         copy_connection(tileset,tileset1,sessionname)
     user_id=get_user_id("copy_tileset_connection",session["username"])
@@ -572,7 +572,7 @@ def remove_this_user(userid):
     delelement(models.Users, "user", userid)
         
 def remove_this_connection(oldtileset,idconnection,user_id):
-    oldconnection=oldtileset.connection
+    oldconnection=oldtileset.connections
     oldtilesetid=oldtileset.id
     logging.warning("Remove connection of tileset %d" % (oldtilesetid))
 
@@ -1297,7 +1297,7 @@ def admin():
             if (myform.suprressfreetiles.data):
                 flash("All free tiles were suppressed.")
                 for freetile in db.session.query(models.t_freetiles).all():
-                    delelement(models.Tile, "tile", freetile[0])
+                    delelement(models.Tiles, "tile", freetile[0])
                 
             if (myform.suprressUnusedTilesets.data):
                 flash("All free tilesets were suppressed.\n You may suppress all free tiles now.")
@@ -1380,7 +1380,7 @@ def admin():
                     thisConnection=db.session.query(models.Connections).filter_by(id=elementid).one()
                     user_id=thisConnection.id_users
                     oldtileset=db.session.query(models.TileSets).filter_by(id_connections=elementid).one()
-                    if (oldtileset.connection.id==elementid):
+                    if (oldtileset.connections.id==elementid):
                         remove_this_connection(oldtileset,elementid,user_id)
                     else:
                         delelement(models.Connections, chosenObject, elementid)
@@ -1397,7 +1397,7 @@ def admin():
                 try:
                     user_id=thisconnection.id_users
                     oldtileset=db.session.query(models.TileSets).filter_by(id_connections=thisconnection.id).one()
-                    if (oldtileset.connection.id==thisconnection.id):
+                    if (oldtileset.connections.id==thisconnection.id):
                         remove_this_connection(oldtileset,thisconnection.id,user_id)
                     else:
                         delelement(models.Connections, chosenObject, thisconnection.id)
@@ -1419,7 +1419,7 @@ def admin():
                     thisConnection=db.session.query(models.Connections).filter_by(id=elementid).one()
                     user_id=thisConnection.id_users
                     oldtileset=db.session.query(models.TileSets).filter_by(id_connections=elementid).one()
-                    if (oldtileset.connection.id==elementid):
+                    if (oldtileset.connections.id==elementid):
                         remove_this_connection(oldtileset,elementid,user_id)
                     else:
                         delelement(models.Connections, chosenObject, elementid)
@@ -1438,7 +1438,7 @@ def admin():
                     try:
                         user_id=thisconnection.id_users
                         oldtileset=db.session.query(models.TileSets).filter_by(id_connections=thisconnection.id).one()
-                        if (oldtileset.connection.id==thisconnection.id):
+                        if (oldtileset.connections.id==thisconnection.id):
                             remove_this_connection(oldtileset,thisconnection.id,user_id)
                         else:
                             delelement(models.Connections, chosenObject, thisconnection.id)
@@ -1930,7 +1930,7 @@ def editnodes():
         nbr_of_tiles = nbr_of_tiles + nbtiles
 
         if (thistileset.type_of_tiles == "CONNECTION"):
-            oldconnection=thistileset.connection
+            oldconnection=thistileset.connections
             out_nodes_json = os.path.join("/TiledViz/TVFiles", str(oldconnection.id_users), str(oldconnection.id),"nodes.json")
             tiledata=[]
             if ( os.path.exists( out_nodes_json ) ):
@@ -2216,7 +2216,7 @@ def addtileset():
                     logging.error(''.join(traceback.format_tb(tb)))
                     return redirect(url_for(".addtileset",message=message))
 
-                newtile = models.Tile(title=title,
+                newtile = models.Tiles(title=title,
                                       comment=comment,
                                       tags=tags,
                                       source= {"name" : name,
@@ -2228,7 +2228,7 @@ def addtileset():
                                       pos_px_y= pos_px_y,
                                       IdLocation=IdLocation,
                                       creation_date= creation_date)
-                lasttile=db.session.query(models.Tile.id).order_by(models.Tile.id.desc()).first()
+                lasttile=db.session.query(models.Tiles.id).order_by(models.Tiles.id.desc()).first()
                 if (lasttile):
                     newtile.id=lasttile.id+1
                 else:
@@ -2357,18 +2357,18 @@ def save_tiles(oldtileset,nbr_of_tiles,connectionbool,urlbool,datapath,jsonTileS
         # # search if Tile already exists :
         # try:
         #     # unicity for (title, comment, tags) (url ?)
-        #     oldtile=db.session.query(models.Tile).filter_by(title=title,comment=comment).order_by(models.Tile.id.desc()).first()
+        #     oldtile=db.session.query(models.Tiles).filter_by(title=title,comment=comment).order_by(models.Tiles.id.desc()).first()
         
         #     # if (type(oldtile) == type(None)):
         #     #     logging.warning(str(i)+" tile type "+str(type(oldtile)))
         #     #     # search with url ? (if comment has changed)
         #     #     try:
-        #     #         oldtile=db.session.query(models.Tile).filter_by(title=title,source={"name":name,"url":url,"connection":ConnectionPort,"variable":variable}).order_by(models.Tile.id.desc()).first()
+        #     #         oldtile=db.session.query(models.Tiles).filter_by(title=title,source={"name":name,"url":url,"connection":ConnectionPort,"variable":variable}).order_by(models.Tiles.id.desc()).first()
         #     # => sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedFunction) operator does not exist: json = unknown
         #     # LINE 3: WHERE tiles.title = '001 ' AND tiles.source = '{"name": "001...
         #     #                                                     ^
         #     # HINT:  No operator matches the given name and argument types. You might need to add explicit type casts.
-        #     #         oldtile=db.session.query(models.Tile).filter_by(title=title,source=jsonify(name=name,url=url,connection=ConnectionPort,variable=variable)).order_by(models.Tile.id.desc()).first()
+        #     #         oldtile=db.session.query(models.Tiles).filter_by(title=title,source=jsonify(name=name,url=url,connection=ConnectionPort,variable=variable)).order_by(models.Tiles.id.desc()).first()
         #     # TypeError: Object of type Response is not JSON serializable
         #     #     except :
         #     #         raise AttributeError
@@ -2389,7 +2389,7 @@ def save_tiles(oldtileset,nbr_of_tiles,connectionbool,urlbool,datapath,jsonTileS
         # except AttributeError:
         # if not : insert at end of oldtileset.tiles ?
         if (True):
-            newtile = models.Tile(title=title,
+            newtile = models.Tiles(title=title,
                                   comment=comment,
                                   tags=tags,
                                   source= {"name" : name,
@@ -2401,7 +2401,7 @@ def save_tiles(oldtileset,nbr_of_tiles,connectionbool,urlbool,datapath,jsonTileS
                                   pos_px_y= pos_px_y,
                                   IdLocation=IdLocation,
                                   creation_date= creation_date)
-            lasttile=db.session.query(models.Tile.id).order_by(models.Tile.id.desc()).first()
+            lasttile=db.session.query(models.Tiles.id).order_by(models.Tiles.id.desc()).first()
             if ( lasttile ):
                 newtile.id=lasttile.id+1
             else:
@@ -3137,7 +3137,7 @@ def editconnection():
     oldtilesetid=message["oldtilesetid"]
     oldtileset=db.session.query(models.TileSets).filter_by(id=oldtilesetid).one()
 
-    oldconnection=oldtileset.connection
+    oldconnection=oldtileset.connections
     try:
         idconnection=oldconnection.id
     except:
@@ -3298,7 +3298,7 @@ def removeconnection():
     oldtilesetid=message["oldtilesetid"]
     oldtileset=db.session.query(models.TileSets).filter_by(id=oldtilesetid).one()
 
-    oldconnection=oldtileset.connection
+    oldconnection=oldtileset.connections
     try:
         idconnection=oldconnection.id
     except:
@@ -3573,7 +3573,7 @@ def show_grid():
  
         thistileset=ThisSession.tile_sets[ts]
         # Connection for this TS
-        tsconnection=thistileset.connection
+        tsconnection=thistileset.connections
 
         if (type(tsconnection) != type(None) and
             len(thistileset.config_files) > 0):
@@ -3695,7 +3695,7 @@ def handle_click_event(cdata):
     socketio.emit('receive_move', sdata, room=croom )
     tileid=tiles_data["nodes"][int(cdata["id"])]["dbid"]
     logging.debug("move id = "+cdata["id"]+" db id = "+str(tileid))
-    tile=db.session.query(models.Tile).filter_by(id=tileid).one()
+    tile=db.session.query(models.Tiles).filter_by(id=tileid).one()
     logging.debug("title = "+tile.title)
     logging.debug("old pos  = (%d,%d)" % (int(tile.pos_px_x),int(tile.pos_px_y)))
     tile.pos_px_x=int(cdata["posX"])
@@ -3785,7 +3785,7 @@ def ClickAction(cdata):
         command=str(actionid)+","+selections
         
         oldtileset=db.session.query(models.TileSets).filter_by(name=TS).one()
-        oldconnection=oldtileset.connection
+        oldconnection=oldtileset.connections
         user_id=get_user_id("action_click",session["username"])
 
         if (not oldconnection):
