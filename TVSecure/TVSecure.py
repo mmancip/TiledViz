@@ -744,8 +744,8 @@ class ConnectionDocker(threading.Thread):
         externPort=ConnectionPort+self.ConnectNum
         
         # Get connection and tileset informations :
-        self.ConnectionDB=session.query(models.Connection).filter(models.Connection.id == int(self.connectionId)).one()
-        self.TileSetDB=session.query(models.TileSet).filter_by(id=self.tilesetId).one()
+        self.ConnectionDB=session.query(models.Connections).filter(models.Connections.id == int(self.connectionId)).one()
+        self.TileSetDB=session.query(models.TileSets).filter_by(id=self.tilesetId).one()
         session.refresh(self.TileSetDB)
         self.updateScripts()
 
@@ -972,7 +972,8 @@ class ConnectionDocker(threading.Thread):
                     self.killTunnel()
                 elif callfunc == "reconnect":
                     if (not os.path.exists(os.path.join(self.dir_out,"nodes.json"))):
-                        self.get_nodesjson()                    
+                        self.get_nodesjson()
+                    logging.error("Never connect with no nodes.json ?")
                     self.connect()
                 elif (search_action.search(callfunc)):
                     logging.warning("Action detected "+str(callfunc))

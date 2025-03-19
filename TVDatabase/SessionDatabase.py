@@ -59,15 +59,15 @@ if __name__ == '__main__':
         print("Table: ", _t)
 
     print("Session id for sessionname = "+args.sessionNAME+" : ",
-          session.query(models.Session.id).filter_by(name=args.sessionNAME).scalar())
-    #session.query(models.User).join(models.User.username)
+          session.query(models.Sessions.id).filter_by(name=args.sessionNAME).scalar())
+    #session.query(models.Users).join(models.Users.username)
 
-    ThisSession=session.query(models.Session).filter(models.Session.name == args.sessionNAME).first()
+    ThisSession=session.query(models.Sessions).filter(models.Sessions.name == args.sessionNAME).first()
     # ThisTileSet_ThisSession=ThisSession.tile_sets[0]
     # print("First TileSet for this session "+sessionNAME+" : ", ThisTileSet_ThisSession.name)
 
-    # ThoseSession=session.query(models.Session).filter(models.Session.name == "Mandelbrot").first()
-    # ListAllTileSet_ThoseSession=session.query(models.Session).filter(models.Session.name == "Mandelbrot").first().tile_sets
+    # ThoseSession=session.query(models.Sessions).filter(models.Sessions.name == "Mandelbrot").first()
+    # ListAllTileSet_ThoseSession=session.query(models.Sessions).filter(models.Sessions.name == "Mandelbrot").first().tile_sets
     # print("All TileSets for this session 'Mandelbrot' : ",
     #       [ thistileset.name for thistileset in ListAllTileSet_ThoseSession ])
 
@@ -75,7 +75,7 @@ if __name__ == '__main__':
     print("All TileSets for this session "+args.sessionNAME+" : ",
           [ thistileset.name for thistileset in ListAllTileSet_ThisSession ])
 
-    JsonSession=tvdb.encode_session(args.sessionNAME,models.Session)
+    JsonSession=tvdb.encode_session(args.sessionNAME,models.Sessions)
 
     if ( args.enablejsonwrite ):
         try:

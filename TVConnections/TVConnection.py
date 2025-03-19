@@ -589,9 +589,9 @@ if __name__ == '__main__':
     connectionId=int(args.connectionId)
     logging.warning("Build connection number "+args.connectionId)
     
-    TVconnection=session.query(models.Connection).filter(models.Connection.id == connectionId).one()
+    TVconnection=session.query(models.Connections).filter(models.Connections.id == connectionId).one()
     logging.warning("From DB connection informations : "+str((TVconnection.auth_type,TVconnection.host_address,TVconnection.scheduler)))
-    TileSetDB=session.query(models.TileSet).filter_by(id_connections=args.connectionId).order_by(models.TileSet.id.desc()).first()
+    TileSetDB=session.query(models.TileSets).filter_by(id_connections=args.connectionId).order_by(models.TileSets.id.desc()).first()
     TileSet=TileSetDB.name
     
     # Default values for TileSet
@@ -609,7 +609,7 @@ if __name__ == '__main__':
         logging.warning("TileSet "+TileSet+" removed on server")
     
     # User not used
-    TVuser=session.query(models.User).filter(models.User.id==TVconnection.id_users).first().name
+    TVuser=session.query(models.Users).filter(models.Users.id==TVconnection.id_users).first().name
 
     session.close()
 

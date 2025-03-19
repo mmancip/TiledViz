@@ -43,10 +43,10 @@ if __name__ == '__main__':
     # for _t in metadata.tables:
     #     print("Table: ", _t)
 
-    testPassword,testSalt=session.query(models.User.password,models.User.salt).filter_by(name=args.usertest).one()
-    testP=tvdb.testpassprotected(models.User,args.usertest,args.passwordtest,testPassword,testSalt)
+    testPassword,testSalt=session.query(models.Users.password,models.Users.salt).filter_by(name=args.usertest).one()
+    testP=tvdb.testpassprotected(models.Users,args.usertest,args.passwordtest,testPassword,testSalt)
     if (testP):
-        dateVerified=session.query(models.User.dateverified).filter_by(name=args.usertest).one()[0]
+        dateVerified=session.query(models.Users.dateverified).filter_by(name=args.usertest).one()[0]
         print("Succes : User successfuly tested at %s." % (dateVerified) )
         #thedatetime=datetime.datetime.strptime(dateVerified, "%Y-%m-%d %H:%M:%S.%f")
         #thedatetime=datetime.date.fromisoformat(dateVerified)

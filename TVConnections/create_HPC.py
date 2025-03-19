@@ -60,13 +60,13 @@ if __name__ == '__main__':
     JsonSession=json.load(g)
     g.close()
 
-    ThisSession=session.query(models.Session).filter(models.Session.name == args.sessionNAME).first()
+    ThisSession=session.query(models.Sessions).filter(models.Sessions.name == args.sessionNAME).first()
     ListAllTileSet_ThisSession=ThisSession.tile_sets
     
     tileset=[ thistileset for thistileset in ListAllTileSet_ThisSession ]
-    #connection=session.query(models.Connection).filter(id==tileset[0].id_connections)
+    #connection=session.query(models.Connections).filter(id==tileset[0].id_connections)
     connection=tileset[0].connection
-    user=session.query(models.User).filter(models.User.id==connection.id_users).first().name
+    user=session.query(models.Users).filter(models.Users.id==connection.id_users).first().name
     print("Session : "+ThisSession.name+" \nTileSet : "+tileset[0].name+" \nConnection : "+connection.host_address+" \nUser : "+str(user))
     
     # Build proxy container
