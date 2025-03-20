@@ -3374,7 +3374,7 @@ def show_grid():
         session["sessionname"]=psession
         thesession = db.session.query(models.Sessions).filter_by(name=psession).scalar()
         if (type(thesession) != type(None)):
-            project = session["projectname"]=thesession.project.name
+            project = session["projectname"]=thesession.projects.name
         else:
             logging.warning("You must choose a valid session")
             flash("You didn't select a valid session in grid.")
@@ -3430,8 +3430,8 @@ def show_grid():
     logging.warning("All TileSet for session "+str(session["sessionname"])+" : "+str(session["tilesetnames"]))
 
     # JsonSession={"info": {"SessionName" : sessionNAME,
-    #               "ProjectName" : ThisSession.project.name,
-    #               "Users" : list(set([ThisSession.project.user.name]+
+    #               "ProjectName" : ThisSession.projects.name,
+    #               "Users" : list(set([ThisSession.projects.users.name]+
     #                                   [SessionUser.name for SessionUser in ThisSession.users]))},
     #              "tilesets": [ {"name":thistileset.name,
     #                     "Dataset_path":thistileset.Dataset_path,
@@ -4104,7 +4104,7 @@ def handle_join_with_invite_link(link):
         return redirect(url_for(".index"))
     
     try:
-        session["projectname"]=ThisSession.project.name
+        session["projectname"]=ThisSession.projects.name
     except:
         flash("Error with project of session "+str(ThisSession))
         logging.error("Error with project of session "+str(ThisSession))
