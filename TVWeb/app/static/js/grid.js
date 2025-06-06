@@ -315,13 +315,41 @@ $(document).ready( function(){
     });
     
     $('#getUrl').on("click", function(){
-	cdata ={"type":is_new_client_active, "session":my_session,"user": "todo username" }
-	console.log("get url clicked");
+        // Récupérer les valeurs des champs de la modale
+        var max_uses = parseInt($('#max_uses').val());
+        var invitee_name = $('#invitee_name').val();
+        
+        // Validation de max_uses
+        if (isNaN(max_uses) || max_uses < 1) {
+            $('#invite-error').text('Maximum uses must be a positive number').show();
+            return;
+        }
+        
+        // Validation du nom de l'invité pour les liens actifs
+        if (is_new_client_active && (!invitee_name || invitee_name.trim() === '')) {
+            $('#invite-error').text('Please enter the invitee\'s username for active links').show();
+            return;
+        }
+        
+        // Construction de l'objet à envoyer
+        cdata = {
+            "type": is_new_client_active,
+            "session": my_session,
+            "user": my_user,
+            "max_uses": max_uses,
+            "invitee_name": invitee_name
+        };
+        console.log("get url clicked", cdata);
 	socket.emit("get_link", cdata);
     });
     socket.on("get_link_back", function(sdata){
+        if (sdata.error) {
+            $('#invite-error').text(sdata.error).show();
+            return;
+        }
 	console.log("i am the new link", sdata["link"]);
 	$('#custom-url').val(sdata["link"]);
+        $('#invite-error').hide();
     });
   
     // http://davidzchen.com/tech/2016/01/19/bootstrap-copy-to-clipboard.html : ressource on copying things (like

@@ -64,6 +64,12 @@ TimeConnection=30
 # Boolean for admin page :
 really_delete=True
 
+# Link expired duree in seconds
+LinkExpiredAfterSec=240
+
+#Separation character for invite links:
+linkChar='*'
+
 # Logging
 logFormatter = logging.Formatter("%(asctime)s - %(threadName)s - %(levelname)s: %(message)s ")
 outHandler = logging.StreamHandler(sys.stdout)
@@ -609,10 +615,6 @@ def remove_this_connection(oldtileset,idconnection,user_id):
 
 def myrender():
     myargs={}
-    myargs["isadmin"]=False
-    if ("Admin" in session):
-        if (session["Admin"]):
-            myargs["isadmin"]=True
     
     myargs["notlogin"]=True
     myargs["username"]=""
@@ -621,6 +623,13 @@ def myrender():
         if (session["username"]!="Anonymous"):
             myargs["notlogin"]=False
     
+            User=db.session.query(models.Users).filter_by(name=session["username"]).one()
+            userAdmin=User.is_admin
+        else:
+            userAdmin=False
+    else:
+        userAdmin=False
+    myargs["isadmin"]=userAdmin
     return myargs
 
 # ====================================================================
@@ -720,11 +729,6 @@ def register():
                 User.dateverified=str(creation_date)
                 db.session.commit()
                 user_id=User.id
-                # TODO : create roles for users
-                if (user_id == 1):
-                    session["Admin"]=True
-                else:
-                    session["Admin"]=False
             else:
                 hashPassword,hashSalt=db.session.query(models.Users.password,models.Users.salt).filter_by(name=myusername).scalar()
                 testP=tvdb.testpassprotected(models.Users,myusername,myform.password.data,hashPassword,hashSalt)
@@ -733,11 +737,7 @@ def register():
                     session["username"] = myusername
                     session["is_client_active"]=True
                     user_id=get_user_id("login",session["username"])
-                    # TODO : create roles for users
-                    if (user_id == 1):
-                        session["Admin"]=True
-                    else:
-                        session["Admin"]=False
+
                     if (showknown):
                         flash(Markup("Correct Login for user {} remember_me={}".format(myform.username.data, myform.remember_me.data)))
                         showknown=False
@@ -765,20 +765,20 @@ def register():
                                manager=str(myform.manager.data),
                                salt=salt,
                                password=hashpass,
-                               dateverified=str(creation_date)) # DANGEROUS: TODO: clean string
+                               dateverified=str(creation_date),
+                               is_admin=False)
             db.session.add(user)
             db.session.commit()
-            logging.info("Commit new user.")
+            logging.warning("Commit new user.")
             session["username"] = myusername
             session["is_client_active"]=True
+            user=db.session.query(models.Users.id).filter_by(name=myusername).one()
+            if (user.id == 1):
+                user.is_admin=1
+                db.session.commit()
+                logging.warning("New user is Admin.")
+                
 
-        user_id=get_user_id("register",session["username"])
-        # TODO : create roles for users
-        if (user_id == 1):
-            session["Admin"]=True
-        else:
-            session["Admin"]=False
-            
         cookie_persistence = myform.remember_me.data
         logging.warning("[!] Cookie persistence set to %s"+str(cookie_persistence))
 
@@ -834,12 +834,12 @@ def login():
                 logging.warning('Correct password.')
                 session["username"] = myusername
                 session["is_client_active"]=True
-                user_id=get_user_id("login",session["username"])
-                # TODO : create roles for users
-                if (user_id == 1):
-                    session["Admin"]=True
-                else:
-                    session["Admin"]=False
+
+                # Check if there's a pending invite link
+                if "pending_invite_link" in session:
+                    link = session.pop("pending_invite_link")
+                    return redirect(url_for(".handle_join_with_invite_link", link=link))
+                
                 if ( myform.newuser.data ):
                     # Ask for new user finally
                     return redirect("/register")
@@ -875,7 +875,6 @@ def logout():
     # remove the username from the session if it is there
     session.pop('username', None)
     session.pop("is_client_active")
-    session.pop("Admin")
     return redirect(url_for('index'))
 
 @app.route('/test')
@@ -904,8 +903,6 @@ def savesession():
         if item in all_session:
             pass
         elif (item == 'csrf_token'):
-            pass
-        elif (item != "Admin"):
             pass
         else:
             all_session[item]=session[item]
@@ -964,8 +961,7 @@ def retreivesession():
                 if item in all_session:
                     pass
                 else:
-                    if (item != "Admin"):
-                        session[item]=session_data[item]
+                    session[item]=session_data[item]
 
             flash("Session cookie restored.")
             return redirect("/index")
@@ -1082,11 +1078,8 @@ def admin():
         flash("Admin page : User must login !")
         return redirect("/login")
 
-    # TODO : create roles for users
-    if (session["Admin"]):
-        userAdmin=True
-    else:
-        userAdmin=False
+    User=db.session.query(models.Users).filter_by(name=session["username"]).one()
+    userAdmin=User.is_admin
         
     message='{"username": '+session["username"]+'}'
     logging.info("in administration page.")
@@ -1122,6 +1115,19 @@ def admin():
                 )
             )
         
+        # Handle admin status changes
+        if request.method == 'POST':
+            if 'toggle_admin' in request.form:
+                user_id = request.form.get('user_id')
+                try:
+                    user = db.session.query(models.Users).filter_by(id=user_id).one()
+                    user.is_admin = not user.is_admin
+                    db.session.commit()
+                    flash(f"Admin status updated for user {user.name}")
+                except Exception as e:
+                    flash(f"Error updating admin status: {str(e)}")
+                return redirect(url_for('admin'))
+
         allprojects = db.session.query(models.Projects).all()
         logging.debug("All projects :"+str([ theproject.name for theproject in allprojects]))
 
@@ -1135,7 +1141,7 @@ def admin():
             #Owner=db.session.query(models.Users.name).filter_by(id=thisproject.id_users).one()
             listallprojects.append(
                 (str(thisproject.id),printstr.
-                 format(str(thisproject.name),str(thisproject.user.name),
+                 format(str(thisproject.name),str(thisproject.users.name),
                         thedate,Desc)
                 )
             )
@@ -4038,26 +4044,87 @@ def clean_rooms():
 def handle_invite_link_request(cdata):
     croom = cdata["session"]
     is_new_client_active = cdata["type"]
+    max_uses = cdata.get("max_uses", 1)
+    invitee_name = cdata.get("invitee_name", "")
+
+    # Validate max_uses
+    try:
+        max_uses = int(max_uses)
+        if max_uses < 1:
+            socketio.emit("get_link_back", {"error": "Maximum uses must be a positive number"}, room=croom)
+            return
+    except (ValueError, TypeError):
+        socketio.emit("get_link_back", {"error": "Invalid maximum uses value"}, room=croom)
+        return
+
+    # For active links, validate that the invitee exists
+    if is_new_client_active:
+        if not invitee_name:
+            socketio.emit("get_link_back", {"error": "Invitee name is required for active links"}, room=croom)
+            return
+            
+        # Check if the invitee exists in the database
+        invitee = db.session.query(models.Users).filter_by(name=invitee_name).first()
+        if not invitee:
+            socketio.emit("get_link_back", {"error": f"User {invitee_name} does not exist"}, room=croom)
+            return
+
     if (is_new_client_active):
         client_type="active"
     else:
         client_type="passive"
         
     try:
+        DEFAULT_URL=os.getenv("SERVER_NAME")+"."+os.getenv("DOMAIN")
         print (DEFAULT_URL)
-    except:
+    except Exception as e:
+        logging.error(f"Error default URL : {str(e)}")
         DEFAULT_URL = "0.0.0.0:5000"
 
     creation_date=datetime.datetime.now().isoformat()
-    # Waiting for database to store: session to join, is_new_client_active, screen type, login of the host user
-    #TODO : give only invited username (not owner username) 
+    
+    # Generate a unique key for the invitation
+    key = tvdb.passrandom(32)
+    try:
+        key = key.decode('utf-8')
+    except AttributeError:
+        pass  # key est déjà une str
+
+    # Créer la clé du lien (à stocker dans la base)
     if (client_type=="active"):
-        #TODO : save key and creation date
-        key=tvdb.passrandom(10)
-        sdata = {"link":"https://"+DEFAULT_URL+"/join/"+str(session["sessionname"])+"_"+client_type+"_"+session["username"]+"_"+str(creation_date)+"_"+str(key)}
+        link_key = f"{session['sessionname']}{linkChar}{client_type}{linkChar}{invitee_name}{linkChar}{creation_date}{linkChar}{key}"
     else:
-        #client_type="passive"
-        sdata = {"link":"https://"+DEFAULT_URL+"/join/"+str(session["sessionname"])+"_"+client_type+"_"+"Anonymous"+"_"+str(creation_date)+"_"+str(tvdb.passrandom(10))}
+        link_key = f"{session['sessionname']}{linkChar}{client_type}{linkChar}Anonymous{linkChar}{creation_date}{linkChar}{key}"
+
+    # Générer le lien complet à afficher à l'utilisateur
+    sdata = {
+        "link": f"https://{DEFAULT_URL}/join/{link_key}",
+        "max_uses": max_uses
+    }
+
+    # Store ONLY the key in the database
+    try:
+        ErrLink="Full link %s with session %s " % (sdata["link"],session["sessionname"])
+        flash(ErrLink)
+        logging.error(ErrLink)
+        invite_link = models.InviteLinks(
+            link=link_key,
+            host_user=session["username"],
+            host_project=session["projectname"],
+            type=is_new_client_active,
+            creation_date=datetime.datetime.now(),
+            max_uses=max_uses,
+            use_count=0,
+            id_sessions=db.session.query(models.Sessions.id).filter_by(name=session["sessionname"]).scalar(),
+            id_users=invitee.id if is_new_client_active else None
+        )
+        db.session.add(invite_link)
+        db.session.commit()
+    except Exception as e:
+        logging.error(f"Error storing invite link: {str(e)}")
+        db.session.rollback()
+        socketio.emit("get_link_back", {"error": "Failed to create invitation link"}, room=croom)
+        return
 
     socketio.emit("get_link_back" ,sdata,room=croom)
 
@@ -4066,38 +4133,76 @@ def handle_invite_link_request(cdata):
 @app.route("/join/<link>")
 def handle_join_with_invite_link(link):
     logging.warning("Handle join with invite link : "+link)
-    if "active" in link:
-        new_client_type = "active"
-        session["is_client_active"]=True
-    elif "passive" in link:
-        new_client_type = "passive"
-        session["is_client_active"]=False
-    else:
-        new_client_type = "unknown"
-        session["is_client_active"]=False
-        logging.error("Going to handle_join_with_invite_link function with error link : '"+str(link)+"'. New client with unknown type.")
-        return
     
-    session["sessionname"] = link.split("_"+new_client_type+"_")[0]
-    logging.warning("Find session :"+str(session["sessionname"])+" with active client "+str(session["is_client_active"]))
-    if "passive" in link:
-        auth = link.split("_"+new_client_type+"_")[1].split(".{")[0]
-    else:
-        auth = link.split("_"+new_client_type+"_")[1]
-    logging.info("authent : "+str(auth))
-    #TODO SECUR : Check invited username is login on if active user !!
-    session["username"]=auth.split("_")[0]
-    logging.info("username = "+str(session["username"]))
-    date=auth.split("_")[1]
-    logging.info("date = "+str(date))
-    key=auth.split("_")[2]
-    logging.info("security key :"+str(key))
-    #TODO SECUR : test validity of the key
+    # Parse the link components
+    link_parts = link.split(linkChar)
+    if len(link_parts) < 5:
+        flash("Invalid invitation link : wrong parts number %d in your link." % (len(link_parts)))
+        return redirect(url_for(".index"))
     
-    #print("Session name :",session["sessionname"]," new_client_type :",str(new_client_type)," authent ",str(auth))
-    ThisSession=db.session.query(models.Sessions).filter(models.Sessions.name == session["sessionname"]).first()
-    #print("Session name :",session["sessionname"]," object :",str(ThisSession.name))
-    if (ThisSession==None):
+    session_name = link_parts[0]
+    new_client_type = link_parts[1]
+    username = link_parts[2]
+    creation_date = link_parts[3]
+    key = link_parts[4]
+    hasgeom=False
+    if len(link_parts) == 6:
+        geom = link_parts[5]
+        hasgeom=True
+        logging.warning("Link with geom : %s " % (geom))
+        link=session_name+linkChar+new_client_type+linkChar+username+linkChar+creation_date+linkChar+key
+        
+    # Check if the invitation exists and is valid
+    invite_link = db.session.query(models.InviteLinks).filter_by(link=link).first()
+    if not invite_link:
+        flash("Invalid invitation link : not found in DB")
+        return redirect(url_for(".index"))
+        
+    # Check if the invitation has reached its maximum number of uses
+    if invite_link.use_count >= invite_link.max_uses:
+        flash("This invitation has reached its maximum number of uses")
+        delelement(models.InviteLinks, "link "+link, invite_link.id)
+        db.session.commit()
+        return redirect(url_for(".index"))
+
+    if (datetime.datetime.now() > invite_link.creation_date+datetime.timedelta(seconds=LinkExpiredAfterSec)):
+        #datetime.datetime.strptime(invite_link.creation_date,'%Y-%m-%d %H:%M:%S.%f')
+        flash("This invitation created at %s is older than expiration time after %d minutes" % (invite_link.creation_date,LinkExpiredAfterSec/60) )
+        delelement(models.InviteLinks, "link "+link, invite_link.id)
+        db.session.commit()
+        return redirect(url_for(".index"))
+
+    # For active links, check if the user is logged in and matches the invitee
+    if new_client_type == "active":
+        if "username" not in session:
+            # Store the link in session for after login
+            session["pending_invite_link"] = link
+            flash("You must be logged in to use this invitation link")
+            return redirect(url_for(".login"))
+            
+        # Verify that the logged-in user matches the invitee
+        if session["username"] != username:
+            flash("This invitation link is for a different user")
+            return redirect(url_for(".index"))
+            
+        # Verify that the user exists in the database
+        user = db.session.query(models.Users).filter_by(name=username).first()
+        if not user:
+            flash("Invalid user account : user not found")
+            return redirect(url_for(".index"))
+    
+    # Increment the use count
+    invite_link.use_count += 1
+    db.session.commit()
+    
+    # Set session variables
+    session["sessionname"] = session_name
+    session["is_client_active"] = (new_client_type == "active")
+    session["username"] = username
+    
+    # Get session details
+    ThisSession = db.session.query(models.Sessions).filter_by(name=session_name).first()
+    if not ThisSession:
         flash_mess="Anonymous connection with unknown session : "+str(session["sessionname"])
         logging.error(flash_mess)
         flash(flash_mess+". Please check your command line")
@@ -4106,17 +4211,23 @@ def handle_join_with_invite_link(link):
     try:
         session["projectname"]=ThisSession.projects.name
     except:
-        flash("Error with project of session "+str(ThisSession))
-        logging.error("Error with project of session "+str(ThisSession))
+        ErrLink="Error in link %s with project of session %s " % (link,ThisSession)
+        flash(ErrLink)
+        logging.error(ErrLink)
         return redirect(url_for(".index"))
         
+    session["geometry"]='{}'
     if "passive" in link:
-        str_my_geom="{"+link.split("_"+new_client_type+"_")[1].split(".{")[1]
-        my_geom=str_my_geom.replace('{','{"').replace(',',',"').replace('=','":')
-        logging.warning("str json my_geom "+str(my_geom))
-        session["geometry"]=my_geom
-    else:
-        session["geometry"]='{}'
+        if (hasgeom):
+            my_geom=geom.replace('{','{"').replace(',',',"').replace('=','":')
+            logging.warning("str json my_geom "+str(my_geom))
+            session["geometry"]=my_geom
+
+    # Check if the invitation has reached its maximum number of uses and will be deleted
+    if invite_link.use_count >= invite_link.max_uses:
+        delelement(models.InviteLinks, "link "+link, invite_link.id)
+        db.session.commit()
+        
     logging.warning("session after join before grid : "+str(session))
     return redirect('/grid')
     #return(redirect("/grid", project=room))
@@ -4224,4 +4335,22 @@ def TVerror():
     
 #     response = Response(resp.content, resp.status_code, headers)
 #     return response
+
+@app.route("/revoke_invite/<int:invite_id>", methods=["POST"])
+def revoke_invite(invite_id):
+    if "username" not in session:
+        return jsonify({"error": "User not logged in"}), 401
+        
+    invite_link = db.session.query(models.InviteLinks).filter_by(id=invite_id).first()
+    if not invite_link:
+        return jsonify({"error": "Invitation not found"}), 404
+        
+    # Check if the user has permission to revoke this invitation
+    if invite_link.host_user != session["username"]:
+        return jsonify({"error": "Not authorized to revoke this invitation"}), 403
+        
+    invite_link.is_revoked = True
+    db.session.commit()
+    
+    return jsonify({"message": "Invitation revoked successfully"})
 

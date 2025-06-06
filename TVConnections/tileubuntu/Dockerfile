@@ -1,7 +1,7 @@
 FROM ubuntu:18.04
 
-RUN cat /etc/resolv.conf  && echo "nameserver 8.8.8.8" >> /etc/resolv.conf \
- && echo "nameserver 8.8.4.4" >> /etc/resolv.conf && echo 1 && cat /etc/resolv.conf
+# RUN cat /etc/resolv.conf  && echo "nameserver 8.8.8.8" >> /etc/resolv.conf \
+#  && echo "nameserver 8.8.4.4" >> /etc/resolv.conf && echo 1 && cat /etc/resolv.conf
 
 RUN apt-get update && \
     apt-get install -y --fix-missing xvfb xterm xinit wmctrl icewm \
@@ -19,8 +19,8 @@ RUN sed -i -e 's&# deb-src &deb-src &' /etc/apt/sources.list && \
     apt-get update && \
     apt-get build-dep -y --fix-missing x11vnc
 
-RUN cd /usr/src && git clone https://github.com/LibVNC/x11vnc.git && \
-    cd x11vnc && autoreconf -fiv && ./configure && make install
+# RUN cd /usr/src && git clone https://github.com/LibVNC/x11vnc.git && \
+#     cd x11vnc && autoreconf -fiv && ./configure && make install
 
 RUN apt-get autoclean \
     && apt-get clean

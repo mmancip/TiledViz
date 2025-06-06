@@ -149,15 +149,27 @@
 	  <button id="passive_new_client" type="checkbox" class="btn btn-secondary">Passive</button>
 	</div>
       </div>
-      <!--Elements to put in there:
-	  CSS TODO
-	-->
+      
       <div class="row">
-	<button id="getUrl" class="btn btn-grey btn-primary">Generate link!</button>
+        <div class="form-group">
+          <label for="invitee_name">Invitee Name:</label>
+          <input type="text" class="form-control" id="invitee_name" placeholder="Enter invitee's username">
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="form-group">
+          <label for="max_uses">Maximum Uses:</label>
+          <input type="number" class="form-control" id="max_uses" min="1" value="1">
+        </div>
+      </div>
+      
+      <div class="row">
+        <button id="getUrl" class="btn btn-grey btn-primary">Generate invite link</button>
       </div>
       <form>
 	<div class="input-group">
-	  <input type=text class="form-control" placeholder="URL" id="custom-url">
+          <input type="text" class="form-control" placeholder="Invite link will appear here..." id="custom-url">
 	  <span class="input-group-btn">
 	    <button class="btn btn-default" type="button" id="copy-button"
 		    data-toggle="tooltip" data-placement="button"
@@ -167,6 +179,8 @@
 	  </span>
 	</div>
       </form>
+      
+      <div id="invite-error" class="alert alert-danger" style="display: none;"></div>
     </div>
     <div class="modal-footer">
       <button id="closeModal" type="button" class="btn btn-grey btn-primary" data-toggle="modal" data-target="#inviteModal">I’m done!</button>

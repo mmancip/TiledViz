@@ -3,7 +3,7 @@
 from flask_wtf import FlaskForm, recaptcha
 from flask_wtf.recaptcha import RecaptchaField
 import wtforms
-from wtforms import RadioField, SelectField, StringField, PasswordField, BooleanField, SubmitField, IntegerField, TextAreaField, SelectMultipleField, FieldList, FileField, MultipleFileField, widgets, HiddenField
+from wtforms import RadioField, SelectField, StringField, PasswordField, BooleanField, SubmitField, IntegerField, TextAreaField, SelectMultipleField, FieldList, FileField, MultipleFileField, widgets, HiddenField, DateField
 from wtforms.fields.html5 import SearchField
 from wtforms.widgets import core, html5
 from wtforms.validators import InputRequired, Email, Optional, EqualTo, NumberRange
@@ -517,3 +517,11 @@ def BuildRetreiveSessionForm():
     RetreiveSessionForm.submit = SubmitField("Next step")
 
     return RetreiveSessionForm
+
+class InviteForm(FlaskForm):
+    client_type = RadioField('Client Type',
+                           choices=[('active', 'Active'), ('passive', 'Passive')],
+                           default='active')
+    max_uses = IntegerField('Maximum Uses', validators=[NumberRange(min=1)], default=1)
+    submit = SubmitField('Generate Invitation Link')
+    cancel = SubmitField('Cancel')

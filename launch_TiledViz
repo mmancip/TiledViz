@@ -21,7 +21,8 @@ else
     read  -s passwordFlask;
 fi
 
-echo "pass : " $passwordFlask
+# echo "pass : " $passwordFlask
+echo "==== Running ... ===="
 python3 TVSecure/TVSecure.py --POSTGRES_HOST=${POSTGRES_HOST} --POSTGRES_IP=${POSTGRES_IP} --POSTGRES_PORT=${POSTGRES_PORT} \
 	--POSTGRES_DB=${POSTGRES_DB} --POSTGRES_USER=${POSTGRES_USER} --POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
 	--secretKey="$passwordFlask" 2>&1 \

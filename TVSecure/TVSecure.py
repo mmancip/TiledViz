@@ -68,6 +68,10 @@ if (configExist):
 
     # Maximum waiting for nodes.json before stoping container
     Mwait=int(config['TVSecure']['Mwait'])
+
+    # Firewall with NFT
+    FirewallT=True
+
 else:
     NbSecureConnection=59
     NbBitesLog="500k"
@@ -76,7 +80,14 @@ else:
     ActionPort=64040
     Swait=10
     Mwait=1800
+    FirewallT=False
 
+if FirewallT :
+    import signal
+    import nftables
+    nft = nftables.Nftables()
+    
+    
 nbLinesLogs=100
 timeAliveServ=0.5
 timeAliveConn=0.3
@@ -201,11 +212,22 @@ class FlaskDocker(threading.Thread):
 
         # postgres service
         self.postgresHost={POSTGRES_HOST:POSTGRES_IP}
-        # Flask external port
+        # Flask external port + Firewall
         self.flaskPORT={'443/tcp':('0.0.0.0',443),'80/tcp':('0.0.0.0',80),'5000/tcp':('0.0.0.0',5000)}
+        if FirewallT :
+            logging.warning("Add rules for %s" % (str(self.flaskPORT)))
+            nft.cmd("add rule ip filter TILEDVIZ tcp dport 443 accept")
+            nft.cmd("add rule ip filter TILEDVIZ tcp dport 80 accept")
+            nft.cmd("add rule ip filter TILEDVIZ tcp dport 5000 accept")
+            nft.cmd("add rule ip filter TILEDVIZ tcp dport " + str(ConnectionPort) + " accept")
+
         for i in range(NbSecureConnection): 
             self.flaskPORT[str(ConnectionPort+i)+'/tcp']=('0.0.0.0',ConnectionPort+i)
-
+            
+            if FirewallT :
+                # Firewall open ports
+                logging.warning("Add rule for port %d" % (ConnectionPort+i))
+                nft.cmd("add rule ip filter TILEDVIZ tcp dport " + str(ConnectionPort+i) + " accept")
         # healthcheckN=docker.types.Healthcheck(interval=50000000) #test=['NONE'])
 
         if (debug_Flask):
@@ -226,7 +248,7 @@ class FlaskDocker(threading.Thread):
                 environment=ENVFlask,
                 log_config=TVlogs,
                 detach=True) #auto_remove=True,
-#                healthcheck=healthcheckN,
+                #healthcheck=healthcheckN,
             
         except docker.errors.ContainerError:
             logging.error("The container exits with a non-zero exit code and detach is False.", exc_info=True)
@@ -447,6 +469,17 @@ class FlaskDocker(threading.Thread):
                             try:
                                 ConnectNum= theConnection["ThisConnection"].ConnectNum
                                 ConnectName=theConnection["ThisConnection"].name
+                                
+                                if FirewallT :
+                                    # remove jump connectiondock rule in TILEDVIZ chain
+                                    logging.warning("remove jump connectiondock rule in TILEDVIZ chain")
+                                    nft.set_handle_output("True")
+                                    rc, output, error = nft.cmd("list table ip filter")
+                                    matches = re.findall("jump " + ConnectName + " # handle [0-9]+",output)
+                                    handle_num = re.sub("jump " + ConnectName + " # handle ","", matches[0])
+                                    nft.cmd("delete rule ip filter TILEDVIZ handle " + handle_num)
+                                    nft.cmd("destroy chain ip filter " + ConnectName)
+
                                 logging.warning("Connection %s suppression : %d" % (ConnectName,ConnectNum))
                                 iquit=0
                                 while (not theConnection["ThisConnection"].hasQuit ):
@@ -581,6 +614,13 @@ class ConnectionDocker(threading.Thread):
         s.bind(("", 0));
         self.PORTssh=s.getsockname()[1]
         s.close()
+        if FirewallT :
+            # Create the ConnectionDocker's Firewall CHAIN
+            logging.warning("Create the ConnectionDocker's Firewall CHAIN")
+            nft.cmd("destroy chain ip filter " + str(self.name))
+            nft.cmd("add chain ip filter " + str(self.name))
+            nft.cmd("add rule ip filter " + str(self.name) + " tcp dport " + str(self.PORTssh) + " accept")
+            nft.cmd("add rule ip filter TILEDVIZ jump " + str(self.name))
                               
         VncVolume=docker.types.Mount(source=self.dir,target=self.home+"/.vnc",type='bind',read_only=False)
         XLocale=docker.types.Mount(source="/usr/share/X11/locale",target="/usr/share/X11/locale",type='bind')
@@ -624,6 +664,9 @@ class ConnectionDocker(threading.Thread):
                     self.listPorts.append(port)
                     listSock.insert(0,s)
                     self.listPortsTiles[str(port)+'/tcp']=('0.0.0.0',port);
+                    NFTcmd="add rule ip filter " + str(self.name) + " tcp dport " + str(port) + " accept"
+                    logging.warning(NFTcmd)
+                    nft.cmd(NFTcmd)
                 else:
                     logging.error("Build %d find again port %d ports list %s" % (t,port,str(self.listPorts)))
                     s.close()
@@ -649,7 +692,7 @@ class ConnectionDocker(threading.Thread):
                 ports=self.listPortsTiles,
                 devices=list_gpu_dev,
                 auto_remove=self.cont_auto_remove, detach=True)
-#                healthcheck=healthcheckN,
+                # healthcheck=healthcheckN,
 
         except docker.errors.ContainerError:
             logging.error("The container exits with a non-zero exit code and detach is False.", exc_info=True)
@@ -1213,6 +1256,12 @@ class ConnectionDocker(threading.Thread):
         except Exception as err:
             #logging.error("Error while stoping Connection docker "+str(self.ConnectionDB.id)+" : "+str(err), exc_info=True)
             pass
+        
+        if FirewallT :
+            # Close Firewall ports
+            NFTcmd="delete chain ip filter " + str(self.name)
+            logging.warning(NFTcmd)
+            nft.cmd(NFTcmd)
 
         logging.warning("End of quitConnection for "+self.name+", containers list :"+str(client.containers.list()))
         self.hasQuit=True
@@ -1315,6 +1364,14 @@ if __name__ == '__main__':
     rootLogger.addHandler(outHandler)
     #rootLogger.handlers[0].flush()
 
+    if FirewallT :
+        # Firewall policy
+        logging.warning("Firewall policy")
+        nft.cmd("destroy chain ip filter TILEDVIZ")
+        nft.cmd("add chain ip filter TILEDVIZ { type filter hook input priority 0 ; policy drop ; }")
+        nft.cmd("add rule ip filter TILEDVIZ ct state related,established accept")
+        nft.cmd("add rule ip filter TILEDVIZ tcp dport 22 accept")
+
     args = parse_args(sys.argv)
     #print("call args :",str(args))
 
@@ -1367,6 +1424,19 @@ if __name__ == '__main__':
     #     embed()
     # except:
     #     code.interact(banner="Hand to Flask :",local=dict(globals(), **locals()))
+
+    if FirewallT :
+        def signal_handler(sig, frame):
+            logging.error("destroy chain ip filter TILEDVIZ")
+            nft.cmd("destroy chain ip filter TILEDVIZ")
+            rc, output, error = nft.cmd("list table ip filter")
+            matches = re.findall(r'connectiondock[0-9]+',output)
+            print(matches)
+            for i in matches :
+                nft.cmd("destroy chain ip filter " + i)
+            sys.exit(0)
+
+        signal.signal(signal.SIGINT, signal_handler)
 
     while (FlaskDock.isalive()):
         time.sleep(30)

@@ -32,12 +32,12 @@ RUN dnf install -y  \
 	 xorg-x11-75dpi-fonts \
         && /bin/dbus-uuidgen --ensure
 
-RUN urpmi  -y  \
-	 gnu-free-fonts-compat-20120503-9 \
-	 gnu-free-mono-fonts-20120503-9 \
-	 gnu-free-sans-fonts-20120503-9 \
-	 gnu-free-serif-fonts-20120503-9 \
-         gnu-free-fonts-common-20120503-9
+# RUN urpmi  -y  \
+# 	 gnu-free-fonts-compat-20120503-9 \
+# 	 gnu-free-mono-fonts-20120503-9 \
+# 	 gnu-free-sans-fonts-20120503-9 \
+# 	 gnu-free-serif-fonts-20120503-9 \
+#          gnu-free-fonts-common-20120503-9
 	 
 RUN dnf install -y alsa-utils lib64fribidi0 xdg-utils wmctrl xdotool openssh-clients xwd netpbm
 RUN dnf --downloadonly --downloaddir=/tmp/cache install -y icewm-theme-oxygen-aya \

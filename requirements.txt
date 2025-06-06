@@ -7,5 +7,6 @@ pexpect
 sqlacodegen
 docker
 zenipy
-vext.gi
 python-prctl
+# vext.gi
+ansibleguy-nftables

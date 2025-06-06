@@ -71,12 +71,15 @@ CREATE TABLE public.users(
 	salt character(20) NOT NULL,
 	password character(128),
 	dateverified timestamp,
+	is_admin boolean DEFAULT false,
 	CONSTRAINT users_pkey PRIMARY KEY (id),
 	CONSTRAINT uniq_users UNIQUE (name)
 
 );
 -- ddl-end --
-COMMENT ON COLUMN public.users.manager IS 'Project manager';
+COMMENT ON COLUMN public.users.manager IS E'Project manager';
+-- ddl-end --
+COMMENT ON COLUMN public.users.is_admin IS E'Whether the user is an administrator';
 -- ddl-end --
 ALTER TABLE public.users OWNER TO tiledviz;
 -- ddl-end --
@@ -122,6 +125,8 @@ CREATE TABLE public.invite_links(
 	creation_date timestamp,
 	id_sessions integer,
 	id_users integer,
+	max_uses integer DEFAULT 1,
+	use_count integer DEFAULT 0,
 	CONSTRAINT invite_links_pkey PRIMARY KEY (id),
 	CONSTRAINT invite_links_link_key UNIQUE (link)
 
