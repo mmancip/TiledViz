@@ -4,7 +4,21 @@
 DATE=$(date +%F_%H-%M)
 export LOG=$HOME/.vnc/out_x11vnc_$DATE
 
-export myPORT=$(cat $HOME/.vnc/vncport)
+VNCPORT=$HOME/.vnc/vncport
+#Wait for vncport
+i=0
+while [ true ]; do
+    if [ -f $VNCPORT ]; then
+	break
+    fi
+    if [ $i -gt 100 ]; then
+	echo "Error getting $VNCPORT aafter 100s" |tee -a $LOG
+    else
+	i=$((i+1))
+	sleep 1
+    fi
+done
+export myPORT=$(cat $VNCPORT)
 echo "Free PORT for VNC $myPORT" |tee -a $LOG
 
 #myPORT=$((5910+$SINGULARITYID))

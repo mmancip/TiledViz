@@ -162,10 +162,12 @@ class FlaskDocker(threading.Thread):
                  POSTGRES_DB=POSTGRES_DB, POSTGRES_USER=POSTGRES_USER, POSTGRES_PASSWORD=POSTGRES_PASSWORD,
                  secretKey=secretKey ):
 
-        self.thread = threading.Thread(target=self.run, args=( POSTGRES_HOST, POSTGRES_IP, POSTGRES_PORT,
+        self.thread = threading.Thread(target=self.run, name="TVSecureServer",
+                                       args=( POSTGRES_HOST, POSTGRES_IP, POSTGRES_PORT,
                                                                POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD,
                                                                secretKey ))
         
+        logging.debug("After def thread.")
         threads["flaskdock"]=self.thread
         self.thread.start()
 
@@ -174,6 +176,7 @@ class FlaskDocker(threading.Thread):
             POSTGRES_DB=POSTGRES_DB, POSTGRES_USER=POSTGRES_USER, POSTGRES_PASSWORD=POSTGRES_PASSWORD,
             secretKey=secretKey ):
 
+        logging.debug("In thread "+threading.current_thread().name)
         self.oldtime=time.time()
 
         #socket.gethostbyname(socket.gethostname())
@@ -533,12 +536,15 @@ class ConnectionDocker(threading.Thread):
                  POSTGRES_HOST=POSTGRES_HOST, POSTGRES_IP=POSTGRES_IP, POSTGRES_PORT=POSTGRES_PORT,
                  POSTGRES_DB=POSTGRES_DB, POSTGRES_USER=POSTGRES_USER, POSTGRES_PASSWORD=POSTGRES_PASSWORD):
         threading.Thread.__init__(self)
-        self.thread = threading.Thread(target=self.run,args=(containerFlask, nbTiles, debug, ConnectNum,
+        logging.error("Thread Connection creation Num :"+str(ConnectNum))
+        self.threadName="TVConnect%s" % (ConnectNum)
+        self.thread = threading.Thread(target=self.run,name=self.threadName,
+                                       args=(containerFlask, nbTiles, debug, ConnectNum,
                                                              POSTGRES_HOST, POSTGRES_IP, POSTGRES_PORT,
                                                              POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD,))
         self.thread.start()
         time.sleep(5)
-        logging.warning("Thread Connection creation :"+str(self.thread))
+        logging.warning("Thread Connection creation : %s with name %s" % (str(self.thread),self.threadName))
         threads[self.name]=self.thread
         #threading.Thread.__init__(self, target=self.run_forever)
 
@@ -565,7 +571,7 @@ class ConnectionDocker(threading.Thread):
         self.websockifyPID=-1
         
         self.call_list=[]
-        
+        logging.warning("Name of thread : %s " % (threading.current_thread().name))
         logging.warning("Connection creation :"+self.name)
         self.dir='/tmp/'+self.name
         if (not os.path.isdir(self.dir)): os.mkdir(self.dir)
@@ -602,21 +608,24 @@ class ConnectionDocker(threading.Thread):
             
         # Ports for tiles
         self.listPortsTiles={str(self.PORTssh)+'/tcp':('0.0.0.0',self.PORTssh)};
-        listPorts=[self.PORTssh]
+        self.listPorts=[self.PORTssh]
         listSock=[]
+
         for t in range(self.nbTiles):
             already=True
+
             while (already):
                 s=socket.socket();
                 s.bind(("", 0));
                 port=s.getsockname()[1]
-                if (not port in listPorts):
+
+                if (not port in self.listPorts):
                     already=False
-                    listPorts.append(port)
+                    self.listPorts.append(port)
                     listSock.insert(0,s)
                     self.listPortsTiles[str(port)+'/tcp']=('0.0.0.0',port);
                 else:
-                    logging.error("Build %d find again port %d ports list %s" % (t,port,str(listPorts)))
+                    logging.error("Build %d find again port %d ports list %s" % (t,port,str(self.listPorts)))
                     s.close()
                 time.sleep(0.1)
         logging.warning("Build connection with "+str(self.nbTiles)+" ports : "+str(self.listPortsTiles))
@@ -973,7 +982,7 @@ class ConnectionDocker(threading.Thread):
                 elif callfunc == "reconnect":
                     if (not os.path.exists(os.path.join(self.dir_out,"nodes.json"))):
                         self.get_nodesjson()
-                    logging.error("Never connect with no nodes.json ?")
+                    logging.warning("After get nodes.json.")
                     self.connect()
                 elif (search_action.search(callfunc)):
                     logging.warning("Action detected "+str(callfunc))
@@ -991,6 +1000,7 @@ class ConnectionDocker(threading.Thread):
 
                 time.sleep(timeAliveConn)
                 #logging.debug("Container loop.")
+            time.sleep(timeAliveConn)
 
         
     def get_nodesjson(self):
@@ -1298,8 +1308,8 @@ if __name__ == '__main__':
     fileHandler.setFormatter(logFormatter)
     rootLogger.addHandler(fileHandler)
     outHandler = logging.StreamHandler(sys.stdout)
-    outLevel=logging.DEBUG
-    #=logging.WARNING
+    outLevel=logging.WARNING
+    #=logging.DEBUG
     outHandler.setLevel(outLevel)
     outHandler.setFormatter(logFormatter)
     rootLogger.addHandler(outHandler)
@@ -1313,6 +1323,34 @@ if __name__ == '__main__':
     args.__dict__['port']=args.POSTGRES_PORT
     args.__dict__['databasename']=args.POSTGRES_DB
     metadata, conn, engine, pool, session = tvdb.SQLconnector(args)
+    
+    # Hack to see thread names in htop
+    try:
+        import prctl
+        def set_thread_name(name):
+            logging.debug("For thread "+threading.current_thread().name+ " give name %s " % (name))
+            prctl.set_name(name)
+
+        def _thread_name_hack(self):
+            set_thread_name(self.name)
+            logging.debug("For thread "+threading.current_thread().name+ " hack name %s " % (self.name))
+            try:
+                self._bootstrap_inner()
+            except:
+                if self._daemonic and _sys is None:
+                    return
+                raise
+            #threading.Thread.__bootstrap_original(self)
+            logging.debug("For thread "+threading.current_thread().name+ " end of hack name %s " % (self.name))
+
+        # threading.Thread._bootstrap_original = threading.Thread._bootstrap
+        threading.Thread._bootstrap = _thread_name_hack
+                                
+    except ImportError:
+        loggin.debug('No python-prctl module. No thread names')
+        def set_thread_name(name): pass
+        
+    logging.debug("Before FlaskDock.")            
     
     FlaskDock= FlaskDocker(POSTGRES_HOST=args.POSTGRES_HOST,
                            POSTGRES_IP=args.POSTGRES_IP,

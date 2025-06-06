@@ -26,7 +26,7 @@ myPORT=$(. /etc/bash.bashrc; python3 -c "import socket; s=socket.socket(); s.bin
 echo $myPORT > $HOME/.vnc/vncport
 echo "Free PORT for x11vnc : $myPORT" >> $HOME/.vnc/out_tunnel_ssh
 
-COMMANDssh="ssh -T -N -nf -R \*:${PORTvnc}:localhost:${myPORT} ${OPTIONS} -p ${TiledvizConnectionPort} myuser@${TiledvizHost}"
+COMMANDssh="ssh -o ForwardX11=no -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -T -N -nf -R \*:${PORTvnc}:localhost:${myPORT} ${OPTIONS} -p ${TiledvizConnectionPort} myuser@${TiledvizHost}"
 echo $COMMANDssh >> $HOME/.vnc/out_tunnel_ssh
 
 ${COMMANDssh} 2>&1 >> $HOME/.vnc/out_tunnel_ssh

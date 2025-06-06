@@ -205,6 +205,28 @@ def Run_dockers():
     stateVM=(state == 0)
     return stateVM
 
+# Launch singularitys
+def Run_singularitys():
+    COMMAND="bash -c \""+os.path.join(TILESINGULARITYS_DIR,"launch_singularitys")+" "+REF_CAS+" "+GPU_FILE+" "+SSH_FRONTEND+":"+SSH_IP+" "+TILEDVIZ_DIR+" "+TILESINGULARITYS_DIR+\
+             " TileSetPort "+UserFront+"@"+Frontend+" "+OPTIONS+\
+             " > "+os.path.join(JOBPath,"output_launch")+" 2>&1 \"" 
+
+    # logging.warning("\nCommand singularitys : "+COMMAND)
+    # logging.warning("\nclient.send_server("+LaunchTS+' '+COMMAND)
+    # logging.warning("\nstate=client.get_OK()")
+    # logging.warning("\nlogging.warning('Out of launch singularity : '+ str(state))")
+    # logging.warning("\nsys.stdout.flush()")
+    # try:
+    #     code.interact(banner="Before launch_singularity :",local=dict(globals(), **locals()))
+    # except SystemExit:
+    #     pass
+    client.send_server(LaunchTS+' '+COMMAND)
+    state=client.get_OK()
+    logging.warning("Out of launch singularity : "+ str(state))
+    sys.stdout.flush()
+    stateVM=(state == 0)
+    return stateVM
+
 # Build nodes.json file from new dockers list
 def build_nodes_file():
     logging.warning("Build nodes.json file from new dockers list.")
@@ -312,13 +334,13 @@ def share_ssh_key_docker():
     # TODO : secure that action ?
     totbyte=0
     filesize=os.path.getsize(sshKeyPath)
-    connectionkey=os.path.join(Home,".ssh/id_rsa_connection")
+    connectionkey=os.path.join(Home,".ssh/id_ed_connection")
     os.system("cp "+sshKeyPath+".pub "+os.path.join(Home,".ssh/authorized_keys"))
     packet_id_length=MSGsize-200
     with open(sshKeyPath,'rb') as privatek:
         l = '\\\"'+str(privatek.read(packet_id_length).replace(b"\n",b""),"utf-8")+'\\\"'
         COMMANDid=ExecuteTS+' bash -c "echo '+l+' > '+connectionkey+'; chmod 600 '+connectionkey+'"'
-        logging.warning("Send id_rsa with %s." % (COMMANDid) )
+        logging.warning("Send id_ed with %s." % (COMMANDid) )
         client.send_server(COMMANDid)
         state=client.get_OK()
         stateVM=stateVM and (state == 0)
@@ -328,7 +350,7 @@ def share_ssh_key_docker():
             if (rest > packet_id_length ):
                 l = '\\\"'+str(privatek.read(packet_id_length).replace(b"\n",b""),"utf-8")+'\\\"'
                 COMMANDid=ExecuteTS+' bash -c "echo '+l+' >> '+connectionkey+'"'
-                logging.warning("Send id_rsa with %s." % (COMMANDid) )
+                logging.warning("Send id_ed with %s." % (COMMANDid) )
                 client.send_server(COMMANDid)
                 state=client.get_OK()
                 stateVM=stateVM and (state == 0)
@@ -336,27 +358,27 @@ def share_ssh_key_docker():
                 if (rest > 0):
                     l = '\\\"'+str(privatek.read(rest).replace(b"\n",b""),"utf-8")+'\\\"'
                     COMMANDid=ExecuteTS+' bash -c "echo '+l+' >> '+connectionkey+'"'
-                    logging.warning("Send id_rsa with %s." % (COMMANDid) )
+                    logging.warning("Send id_ed with %s." % (COMMANDid) )
                     client.send_server(COMMANDid)
                     state=client.get_OK()
                     stateVM=stateVM and (state == 0)
                 break
-    logging.warning("Out of id_rsa : "+ str(stateVM))
+    logging.warning("Out of id_ed : "+ str(stateVM))
     COMMANDid=ExecuteTS+' bash -c "sed -e \\\"s&KEY-----&KEY-----\\\\n&\\\" -e \\\"s&-----END&\\\\n-----END&\\\" -i '+connectionkey+'"'
-    logging.warning("Send id_rsa with %s." % (COMMANDid) )
+    logging.warning("Send id_ed with %s." % (COMMANDid) )
     client.send_server(COMMANDid)
     state=client.get_OK()
     stateVM=stateVM and (state == 0)
     with open(sshKeyPath+'.pub','rb') as publick:
         l = '\\\"'+str(publick.read().replace(b"\n",b""),"utf-8")+'\\\"'
         COMMANDid=ExecuteTS+' bash -c "echo '+l+' > '+connectionkey+'.pub"'
-        logging.warning("Send id_rsa.pub with %s." % (COMMANDid) )
+        logging.warning("Send id_ed.pub with %s." % (COMMANDid) )
         client.send_server(COMMANDid)
         state=client.get_OK()
         stateVM=stateVM and (state == 0)
-    logging.warning("Out of id_rsa.pub : "+ str(stateVM))
+    logging.warning("Out of id_ed.pub : "+ str(stateVM))
     if (not stateVM):
-        logging.error("!! Error send id_rsa.!!")
+        logging.error("!! Error send id_ed.!!")
     return stateVM
 
 # share ssh key on home for singularity
@@ -364,24 +386,24 @@ def share_ssh_key_singularity():
     stateVM=True
 
     # Share ssh connection keys whith tiles
-    connectionkey=os.path.join(HomeFront,".ssh/id_rsa_connection")
+    connectionkey=os.path.join(HomeFront,".ssh/id_ed_connection")
     os.system("cp "+sshKeyPath+".pub "+os.path.join(Home,".ssh/authorized_keys"))
-    send_file_server(client,TileSet,os.path.join(Home,".ssh"), "id_rsa_"+Frontend, JOBPath)
-    COMMANDid=LaunchTS+' bash -c "mv '+os.path.join(JOBPath,"id_rsa_"+Frontend)+' '+connectionkey+'; chmod 600 '+connectionkey+'"'
-    logging.warning("Send id_rsa with \"%s\"." % (COMMANDid) )
+    send_file_server(client,TileSet,os.path.join(Home,".ssh"), "id_ed_"+Frontend, JOBPath)
+    COMMANDid=LaunchTS+' bash -c "mv '+os.path.join(JOBPath,"id_ed_"+Frontend)+' '+connectionkey+'; chmod 600 '+connectionkey+'"'
+    logging.warning("Send id_ed with \"%s\"." % (COMMANDid) )
     client.send_server(COMMANDid)
     state=client.get_OK()
     stateVM=stateVM and (state == 0)
 
-    send_file_server(client,TileSet,os.path.join(Home,".ssh"), "id_rsa_"+Frontend+".pub", JOBPath)
-    COMMANDid=LaunchTS+' bash -c "mv '+os.path.join(JOBPath,"id_rsa_"+Frontend+".pub")+' '+connectionkey+".pub"+'; chmod 666 '+connectionkey+".pub"+'"'
-    logging.warning("Send id_rsa with \"%s\"." % (COMMANDid) )
+    send_file_server(client,TileSet,os.path.join(Home,".ssh"), "id_ed_"+Frontend+".pub", JOBPath)
+    COMMANDid=LaunchTS+' bash -c "mv '+os.path.join(JOBPath,"id_ed_"+Frontend+".pub")+' '+connectionkey+".pub"+'; chmod 666 '+connectionkey+".pub"+'"'
+    logging.warning("Send id_ed with \"%s\"." % (COMMANDid) )
     client.send_server(COMMANDid)
     state=client.get_OK()
     stateVM=stateVM and (state == 0)
-    logging.warning("Out of id_rsa.pub : "+ str(stateVM))
+    logging.warning("Out of id_ed.pub : "+ str(stateVM))
     if (not stateVM):
-        logging.error("!! Error send id_rsa.!!")
+        logging.error("!! Error send id_ed.!!")
     return stateVM
 
 share_ssh_key=share_ssh_key_docker
@@ -392,7 +414,7 @@ def launch_tunnel_docker():
     logging.warning("TilesScriptsPath : %s" % (TilesScriptsPath))
     stateVM=True
     
-    connectionkey="/home/myuser/.ssh/id_rsa_connection"
+    connectionkey="/home/myuser/.ssh/id_ed_connection"
 
     with open("listPortsTiles.pickle", 'rb') as file_pi:
         listPortsTilesIE=pickle.load(file_pi)
@@ -423,7 +445,7 @@ def launch_tunnel_singularity():
     logging.warning("Frontend Home in anatomist_job: "+HomeFront)
     stateVM=True
 
-    connectionkey=os.path.join(HomeFront,".ssh/id_rsa_connection")
+    connectionkey=os.path.join(HomeFront,".ssh/id_ed_connection")
     
     with open("listPortsTiles.pickle", 'rb') as file_pi:
         listPortsTilesIE=pickle.load(file_pi)
@@ -650,23 +672,12 @@ if __name__ == '__main__':
 
         if (resp != 'n'):
             
-            sshKeyPath=os.path.join(Home,".ssh","id_rsa_"+Frontend)
+            sshKeyPath=os.path.join(Home,".ssh","id_ed_"+Frontend)
             
             if (TVconnection.auth_type == "ssh" and not OK_Key):
-                cmdgen="ssh-keygen -b 1024 -t rsa -N '' -f /home/"+user+"/.ssh/id_rsa_"+Frontend
+                cmdgen="ssh-keygen -t ed25519 -N '' -f /home/"+user+"/.ssh/id_ed_"+Frontend
                 childgen=pexpect.spawn(cmdgen)
-                childgen.expect('Generating public/private rsa key pair.')
-                # childgen.expect('Your identification has been saved in /home/'+user+'/.ssh/id_rsa_'+Frontend+'.')
-                # childgen.expect('Your public key has been saved in /home/'+user+'/.ssh/id_rsa.pub_'+Frontend+'.')
-                # childgen.expect('The key fingerprint is:')
-                # sha_re=re.compile(r"SHA256:.* "+user+"@.*")
-                # childgen.expect(sha_re)
-                # childgen.expect('The key\'s randomart image is:')
-                # childgen.expect('\+---[RSA 1024]----\+')
-                # rsa_re=re.compile(r"\|.*\|")
-                # for i in xrange(9):
-                #     childgen.expect(rsa_re)
-                # childgen.expect('\+----[SHA256]-----\+')
+                childgen.expect('Generating public/private ed25519 key pair.')
                 childgen.expect(pexpect.EOF)
                 childgen.close(force=True)
                 logging.warning("ssh key for this connection OK.")

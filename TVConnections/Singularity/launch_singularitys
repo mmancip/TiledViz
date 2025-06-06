@@ -69,7 +69,7 @@ while [ $i -le ${NUM} ]; do
 	   BEG="'"
 	   END="'"
        else
-	   HOSTCOMMAND="ssh -x $LOGNAME@${realhost}"
+	   HOSTCOMMAND="ssh -T -o ForwardX11=no -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no  $LOGNAME@${realhost}"
 	   # Nvidia or Nouveau driver
 	   TestNVIDIA[${realhost},${NVIDIAGPU}]=$( $HOSTCOMMAND bash -c "'[[ -e $GPUfile ]] && echo true || echo false'" )
 	   
@@ -98,9 +98,10 @@ while [ $i -le ${NUM} ]; do
    
    i0=$(printf "%03d" $i)
    SINGULARITYID=${i0}
-   HOSTCOMMAND="$HOSTCOMMAND ${DEVICESCOMM} SINGULARITYID=${SINGULARITYID} bash -c $BEG"
+   HOSTCOMMAND="$HOSTCOMMAND ${DEVICESCOMM} SINGULARITYID=${SINGULARITYID} HOMEo=${HOME} HOME=/tmpdir/${USER} bash -c $BEG"
 
    SINGULARITY="$HOSTCOMMAND singularity"
+   # with debugging -d "
 
    SINGULARITYDIR=$(basename ${SINGULARITY_NAME}| sed -e 's/\.sif//')_${DATE}_${i0}
    mkdir ${DIR}/${SINGULARITYDIR}
@@ -115,7 +116,6 @@ while [ $i -le ${NUM} ]; do
    #     #' --ip='${domain}'.'$((i+init_IP-1))
    # fi
 
-   
    echo "${SINGULARITY} exec ${DEVICES} \
        --bind ${DIR}/${SINGULARITYDIR}:${HOME}/.vnc:rw,${DIR}/${SINGULARITYDIR}/tmp:/tmp:rw,${TILEDVIZ_DIR}:/TiledViz:ro,${TILESINGULARITYS_path}:/opt/TiledViz:ro,${HOME}:/home/myuser:rw${OPTIONS} \
         ${SINGULARITY_NAME} ${TILESINGULARITYS_path}/script_icewm  $SINGULARITYID ${DISPLAY} ${SINGULARITYOPTIONS} 2>&1 |tee -a ${DIR}/${SINGULARITYDIR}/stdout $END" > ${DIR}/${SINGULARITYDIR}/call_singularity-run
@@ -131,6 +131,35 @@ while [ $i -le ${NUM} ]; do
    i=$(( i + 1 ))
 done
 sleep 5
+
+i=1
+while [ $i -le ${NUM} ]; do
+   HOSTCOMMAND=""
+   if [[ -f ${GPU_FILE} ]]; then
+       line=$( sed -n "$i p" ${GPU_FILE} )
+       realhost=${line% *}
+       echo $realhost
+       thishost=$( echo ${realhost}  | sed -e 's/-/_/g' )
+       echo $thishost
+       if [ ${realhost} == $( hostname ) -o ${realhost} == "localhost" ]; then
+	   HOSTCOMMAND=
+       else
+	   HOSTCOMMAND="ssh -T -o ForwardX11=no -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no  $LOGNAME@${realhost}"
+       fi
+   fi
+   i0=$(printf "%03d" $i)
+   SINGULARITYDIR=$(basename ${SINGULARITY_NAME} | sed -e 's/\.sif//')_${DATE}_${i0}
+   DetectThisSingularity=$($HOSTCOMMAND pgrep -f "'TileClient.py $i0'")
+
+   #TODO : improve detection or delete this test.
+   if [ X$DetectThisSingularity == X"" ]; then
+       echo "Try again ${DIR}/${SINGULARITYDIR}/call_singularity-run"
+       #${DIR}/${SINGULARITYDIR}/call_singularity-run > ./${SINGULARITYDIR}_stdout_1 2>&1 &
+       sleep 1
+   fi
+
+   i=$(( i + 1 ))
+done
 
 count=0
 while [ true ]; do

@@ -50,6 +50,7 @@ while [ $i -le ${NUM} ]; do
 	   HOSTCOMMAND="ssh $LOGNAME@${realhost}"
        fi
        export HOSTCOMMAND${thishost}="${HOSTCOMMAND}"
+       ${HOSTCOMMAND} killall Xvfb
    fi
    SINGULARITYNUM=${SINGULARITYDIR}
    # ${HOSTCOMMAND} bash -c '"singularity instance list |grep \"'${SINGULARITYDIR}'\" "'

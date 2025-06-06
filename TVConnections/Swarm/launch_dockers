@@ -53,7 +53,7 @@ while [ $i -le ${NUM} ]; do
 	   else
 	       TestNVIDIA[${realhost},${NVIDIAGPU}]=false
 	   fi
-	   if ( ${TestNVIDIA[[${realhost},${NVIDIAGPU}]} ); then
+	   if ( ${TestNVIDIA[${realhost},${NVIDIAGPU}]} ); then
 	       DEVICES=" -e NVIDIA_DRIVER_CAPABILITIES=graphics,utility,compute --device=$GPUfile:/dev/nvidia0 --device=/dev/nvidiactl"
 	       #--gpus='\"device=${NVIDIAGPU}\"'
 	   else

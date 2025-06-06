@@ -1,0 +1,25 @@
+#!/bin/bash
+#NUM DOCKER connectiondock##
+NUM=$1
+
+COMMANDCON="docker exec -it -u myuser connectiondock$NUM "
+#tunnel to host
+# $COMMANDCON
+OUTSSH=$( $COMMANDCON bash -c "cd \$HOME; sed -e 's@0\\.3@0.1@' -e 's@connect[0-9]*@$USER@' .vnc/tunnel_flask " |tail -1 )
+# ( change 172.17.0.3 => 172.17.0.1)
+
+# grep vnc PORT (perhaps already used on host)
+PORT=$(echo $OUTSSH |grep "0\.1" |sed -e "s|.*0\.0\.0\.0:\([0-9]*\):.*|\1|")
+
+# get passwd
+PASSVNC=$($COMMANDCON bash -c 'x11vnc -showrfbauth $HOME/.vnc/passwd |tail -1| sed -e "s@.*pass: \([[:alpha:]]*\)@\1@" ')
+PASSVNC=$(echo $PASSVNC|tr -d "\r")
+echo PASS="${PASSVNC}"
+
+# Open ssh tunnel
+$COMMANDCON $OUTSSH
+
+set -vx
+# use vnc client on host with correct PORT:
+vncviewer -Fullscreen -FullscreenSystemKeys -FullScreenAllMonitors=0 -AutoSelect=0 -MenuKey F11 localhost:$PORT
+#-passwd "$PASSVNC" 

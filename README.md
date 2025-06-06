@@ -81,3 +81,12 @@ Change level (from WARNING to DEBUG) interactively :
 
 Size of server log:
 > docker inspect --format='{{.LogPath}}' flaskdock | xargs sudo du -sh
+
+11. ssh version
+Switch to ed25519.
+
+As per the release notes for OpenSSH 7.6:
+
+Refuse RSA keys <1024 bits in length and improve reporting for keys that do not meet this requirement.
+
+So it's likely that the key you're trying to import is too short (weak). Your best bet is to generate a new key.

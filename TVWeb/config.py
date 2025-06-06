@@ -19,7 +19,7 @@ class Config(object):
 
     #ENV='development'
     ENV='production'
-    DEBUG=True
+    DEBUG=False
 
     DOMAIN=os.getenv("DOMAIN")
     SERVERN=os.getenv("SERVER_NAME")
