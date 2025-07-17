@@ -894,7 +894,7 @@ class ConnectionDocker(threading.Thread):
         
         # Connect to TVConnection in connectionDocker to send actions commands.
         self.actionPort=ActionPort+self.ConnectNum
-        search_docker0_ip="ip -4 addr show docker0 | grep -Po 'inet \K[\d.]+'"
+        search_docker0_ip="ip -4 addr show docker0 | grep -Po 'inet \\K[\\d.]+'"
         p=subprocess.Popen(search_docker0_ip, shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)        
         output, errs = p.communicate()
         ipdocker0=output.decode('utf-8').replace('\n','')
