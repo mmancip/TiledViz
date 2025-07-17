@@ -6,7 +6,7 @@ import datetime
 import json
 import hashlib, binascii
 import random
-import crypt
+#import crypt
 
 from sqlalchemy.engine.url import make_url
 from sqlalchemy import create_engine
