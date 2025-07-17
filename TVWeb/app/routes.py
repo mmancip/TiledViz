@@ -774,7 +774,7 @@ def register():
             session["is_client_active"]=True
             user=db.session.query(models.Users.id).filter_by(name=myusername).one()
             if (user.id == 1):
-                user.is_admin=1
+                user.is_admin=True
                 db.session.commit()
                 logging.warning("New user is Admin.")
                 
@@ -2766,11 +2766,11 @@ def edittileset():
     
     return render_template("edittileset.html", **(myrender()), title="Edit TileSet TiledViz", form=myform, message=message)
 
-# # 
-# def linkrandom(nbchar):
-#     ALPHABET = "B6P8VbhZoGp9JYd0.uLCsAT4DX%F1xqIUSyQMniNgje5_~3crvlHR-7W2f!=kEtmazwKO$"
-#     mystring=''.join(random.choice(ALPHABET) for i in range(nbchar)).encode('utf-8')
-#     return mystring
+# Special random function for link keys
+def linkrandom(nbchar):
+    ALPHABET = "B6P8VbhZoGp9JYd0uLCsAT4DXF1xqIUSyQMniNgje5_~3crvlHR-7W2f=kEtmazwKO"
+    mystring=''.join(random.choice(ALPHABET) for i in range(nbchar)).encode('utf-8')
+    return mystring
 
 # Build iframe with noVNC (in template/noVNC ?) inside a comeback html script to be abble to go back with new message
 # Then kill connection link
@@ -4084,7 +4084,7 @@ def handle_invite_link_request(cdata):
     creation_date=datetime.datetime.now().isoformat()
     
     # Generate a unique key for the invitation
-    key = tvdb.passrandom(32)
+    key = linkrandom(32)
     try:
         key = key.decode('utf-8')
     except AttributeError:
@@ -4106,7 +4106,7 @@ def handle_invite_link_request(cdata):
     try:
         ErrLink="Full link %s with session %s " % (sdata["link"],session["sessionname"])
         flash(ErrLink)
-        logging.error(ErrLink)
+        logging.warning(ErrLink)
         invite_link = models.InviteLinks(
             link=link_key,
             host_user=session["username"],
