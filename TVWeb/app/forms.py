@@ -457,17 +457,17 @@ def BuildConnectionsForm(oldconnection=None,json_tiles_text=None):
                                                    validators=[Optional()],default=None)
 
     
-    #### liste A REVOIR  (cf TVConnection.py)
-    ConnectionForm.auth_type = HiddenField(default=auth_type)
-    # ConnectionForm.auth_type = RadioField(label='Authentication type',
-    #                                       description='Connection to the machine :',
-    #                                       choices=[("ssh","Direct ssh connection"),
-    #                                                ("rebound","ssh through a gateway"),
+    # Connection with ssh rebounds
+    #ConnectionForm.auth_type = HiddenField(default=auth_type)
+    ConnectionForm.auth_type = RadioField(label='Authentication type',
+                                          description='Connection to the machine :',
+                                          choices=[("ssh","Direct ssh connection"),
+                                                   ("rebound","ssh through gateway(s)")
+                                          ],
+                                          default=auth_type,
+                                          validators=[Optional()])
+    #,
     #                                                ("persistent","define ssh connection an save it.")
-    #                                       ],
-    #                                       default=auth_type,
-    #                                       widget=[HiddenInput()],
-    #                                       validators=[Optional()])
 
     ConnectionForm.container = HiddenField(default=container)
     # ConnectionForm.container = StringField("Type of backend use on the machine to launch containers", default=container, validators=[InputRequired()])
@@ -480,11 +480,9 @@ def BuildConnectionsForm(oldconnection=None,json_tiles_text=None):
     #                                                ("loadleveler","Loadleveler scheduler.")
     #                                       ],
     #                                       default=scheduler,
-    #                                       widget=[HiddenInput()],
     #                                       validators=[Optional()])
     ConnectionForm.scheduler_file = HiddenField(default=None)
     # ConnectionForm.scheduler_file = FileField("Script to launch CONTAINERs on remote machine (required for connection) : ",
-    #                                           widget=HiddenInput(),
     #                                           validators=[Optional()])
     # ConnectionForm.scheduler_text = TextAreaField("Edit here script to launch CONTAINERs on remote machine.",validators=[Optional()])
 
