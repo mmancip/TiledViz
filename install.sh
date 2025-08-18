@@ -4,19 +4,33 @@
 docker ps -a
 
 # Build Virtualenv for TVSecure
-echo "==== Build Virtualenv for TVSecure ===="
-export DATE=$(date +%F_%H-%M-%S)
-echo "DATE=$DATE"
-mkdir TiledVizEnv_${DATE}
-python3 -m venv TiledVizEnv_${DATE}
-source TiledVizEnv_${DATE}/bin/activate
+if [ X"$1" == X"" ]; then
+    echo "==== Build Virtualenv for TVSecure ===="
+    export DATE=$(date +%F_%H-%M-%S)
+    echo "DATE=$DATE"
+    mkdir TiledVizEnv_${DATE}
+    python3 -m venv TiledVizEnv_${DATE}
+    source TiledVizEnv_${DATE}/bin/activate
 
-echo "==== Copy TiledViz env in .cache ===="
-[ ! -d $HOME/.cache ] && mkdir $HOME/.cache
-sed -e "s&DATE=.*&DATE=$DATE&" envTiledViz > $HOME/.cache/envTiledViz
-chmod 600 $HOME/.cache/envTiledViz
-ls -la $HOME/.cache/envTiledViz
-source $HOME/.cache/envTiledViz
+    echo "==== Copy TiledViz env in .cache ===="
+    [ ! -d $HOME/.cache ] && mkdir $HOME/.cache
+    sed -e "s&DATE=.*&DATE=$DATE&" envTiledViz > $HOME/.cache/envTiledViz
+    chmod 600 $HOME/.cache/envTiledViz
+
+    ls -la $HOME/.cache/envTiledViz
+    source $HOME/.cache/envTiledViz
+else
+    OLDENV=$(find . -maxdepth 1 -type d -name "TiledVizEnv_*" |tail -1)
+    export DATE_ENV=$(echo $OLDENV |sed -e 's&\./TiledVizEnv_&&')
+    source $OLDENV/bin/activate
+
+    ls -la $HOME/.cache/envTiledViz
+    source $HOME/.cache/envTiledViz
+    if [ ${DATE_ENV} != ${DATE} ]; then
+	echo "Error restart install : DATEs not equal ${DATE_ENV} != ${DATE}."
+	exit 1
+    fi
+fi
 
 echo "===== Enable FirewallT Tiledviz ====="
 # Améliorer clean input ?
