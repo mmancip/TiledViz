@@ -8,10 +8,12 @@ export POSTGRES_DB=$3
 export POSTGRES_USER=$4
 export POSTGRES_PASSWORD="$5"
 export flaskhost=$6
-shift 6
+export SMTP_PASSWORD="$7"
+shift 7
 export SECRET_KEY="$@"
+
 echo "Start flask :  $SECRET_KEY"
-sqlacodegen postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB} --outfile=/TiledViz/TVWeb/app/models.py 
+sqlacodegen "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?host=${POSTGRES_HOST}" --outfile=/TiledViz/TVWeb/app/models.py 
 
 cd /TiledViz/TVWeb
 pwd

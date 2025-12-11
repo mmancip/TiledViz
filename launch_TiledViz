@@ -25,7 +25,7 @@ fi
 echo "==== Running ... ===="
 python3 TVSecure/TVSecure.py --POSTGRES_HOST=${POSTGRES_HOST} --POSTGRES_IP=${POSTGRES_IP} --POSTGRES_PORT=${POSTGRES_PORT} \
 	--POSTGRES_DB=${POSTGRES_DB} --POSTGRES_USER=${POSTGRES_USER} --POSTGRES_PASSWORD=${POSTGRES_PASSWORD} \
-	--secretKey="$passwordFlask" 2>&1 \
+	--secretKey="$passwordFlask" --SMTP_PASSWORD=${SMTP_PASSWORD} 2>&1 \
     | grep -v "DEBUG:urllib3.*" | grep -v " :running" \
     | sed -e "s%TVSecure \([0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9],[0-9][0-9][0-9]\) \- Thread\-\([0-9]*\) .* HTTP/1.1\" 200 None%\1 \2%" | grep -v " 1 " | grep -v 404
 echo "Exit :" $?

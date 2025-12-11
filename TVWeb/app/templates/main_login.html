@@ -24,9 +24,9 @@
 		</div>
     {% endif %}
   {% endwith %}
+		{% from 'bootstrap5/form.html' import render_form %}
+		{{ render_form(form) }}
 
-		{% import "bootstrap/wtf.html" as wtf %}
-		{{ wtf.quick_form(form, button_map={"submit":"primary"}, id="login-form") }}
 		<div class="row text-center">
 			<a href="{{ url_for('index')}}">
 				<button type="button" class="btn btn-primary btn-block btn-lg">Back to home page</button>

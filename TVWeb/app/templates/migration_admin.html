@@ -1,0 +1,279 @@
+{% extends "base_main_template.html" %}
+
+    {% block content %}
+    <style>
+        .dark-theme {
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        .dark-card {
+            background-color: #2d2d2d;
+            border: 1px solid #404040;
+            color: #ffffff;
+        }
+        .dark-card-header {
+            background-color: #3d3d3d;
+            border-bottom: 1px solid #404040;
+            color: #ffffff;
+        }
+        .dark-text-muted {
+            color: #b0b0b0 !important;
+        }
+        .dark-alert-success {
+            background-color: #1e4d2b;
+            border-color: #2d5a3d;
+            color: #d4edda;
+        }
+        .dark-alert-warning {
+            background-color: #4d3a1e;
+            border-color: #5a4d2d;
+            color: #fff3cd;
+        }
+        .dark-alert-danger {
+            background-color: #4d1e1e;
+            border-color: #5a2d2d;
+            color: #f8d7da;
+        }
+        .dark-alert-info {
+            background-color: #1e3d4d;
+            border-color: #2d4d5a;
+            color: #d1ecf1;
+        }
+        .dark-btn-primary {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+        .dark-btn-info {
+            background-color: #0dcaf0;
+            border-color: #0dcaf0;
+            color: #000;
+        }
+        .dark-btn-danger {
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+        .dark-border-primary {
+            border-color: #0d6efd !important;
+        }
+        .dark-border-info {
+            border-color: #0dcaf0 !important;
+        }
+        .dark-border-danger {
+            border-color: #dc3545 !important;
+        }
+        .dark-text-primary {
+            color: #0d6efd !important;
+        }
+        .dark-text-info {
+            color: #0dcaf0 !important;
+        }
+        .dark-text-danger {
+            color: #dc3545 !important;
+        }
+        .dark-text-success {
+            color: #198754 !important;
+        }
+        .dark-text-warning {
+            color: #ffc107 !important;
+        }
+        code {
+            background-color: #404040;
+            color: #ff6b6b;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+    </style>
+    
+    <div class="container-fluid dark-theme">
+        <div class="row">
+            <div class="col-12">
+                <h2 class="text-white"><i class="fas fa-database"></i> Migration Management</h2>
+                <p class="dark-text-muted">Manage database migrations for project ownership system</p>
+            </div>
+        </div>
+    
+        <!-- Migration Status -->
+        <div class="row mb-4">
+            <div class="col-12">
+                
+                <div class="card-header dark-card-header">
+                    <h5 class="text-white"><i class="fas fa-info-circle"></i> Migration Status</h5>
+                </div>
+                    <div class="card-body">
+                        {% if status %}
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <h3 class="dark-text-primary">{{ status.total_projects_with_owners }}</h3>
+                                        <p class="dark-text-muted">Total Projects with Owners</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <h3 class="dark-text-success">{{ status.migrated_projects }}</h3>
+                                        <p class="dark-text-muted">Migrated Projects</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <h3 class="dark-text-warning">{{ status.unmigrated_projects }}</h3>
+                                        <p class="dark-text-muted">Unmigrated Projects</p>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        {% if status.migration_complete %}
+                                        <h3 class="dark-text-success"><i class="fas fa-check-circle"></i></h3>
+                                        <p class="dark-text-success">Migration Complete</p>
+                                        {% else %}
+                                        <h3 class="dark-text-warning"><i class="fas fa-exclamation-triangle"></i></h3>
+                                        <p class="dark-text-warning">Migration Needed</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-triangle"></i> Unable to retrieve migration status
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+        <!-- Validation Status -->
+        {% if validation %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card dark-card">
+                    <div class="card-header dark-card-header">
+                        <h5><i class="fas fa-shield-alt"></i> Data Validation</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if validation.is_valid %}
+                            <div class="alert dark-alert-success">
+                                <i class="fas fa-check-circle"></i> <strong>Data validation passed!</strong> All data is consistent.
+                            </div>
+                        {% else %}
+                            <div class="alert dark-alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i> <strong>Data validation issues detected:</strong>
+                                <ul class="mb-0 mt-2">
+                                    {% if validation.orphaned_members > 0 %}
+                                        <li>{{ validation.orphaned_members }} orphaned project members</li>
+                                    {% endif %}
+                                    {% if validation.projects_without_owner_membership > 0 %}
+                                        <li>{{ validation.projects_without_owner_membership }} projects without owner membership</li>
+                                    {% endif %}
+                                    {% if validation.projects_with_multiple_owners > 0 %}
+                                        <li>{{ validation.projects_with_multiple_owners }} projects with multiple owners</li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    
+        <!-- Migration Actions -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card dark-card">
+                    <div class="card-header dark-card-header">
+                        <h5 class="text-white"><i class="fas fa-tools"></i> Migration Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="card border-primary dark-card border-primary">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title dark-text-primary">Run Migration</h5>
+                                        <p class="card-text dark-text-muted">Migrate project owners from projects.id_users to project_members table</p>
+                                        <form method="POST" class="d-inline">
+                                            <input type="hidden" name="action" value="run_migration">
+                                            <button type="submit" class="btn btn-primary dark-btn-primary" 
+                                                    onclick="return confirm('Are you sure you want to run the migration?')">
+                                                <i class="fas fa-play"></i> Run Migration
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="card border-info dark-card border-info">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title dark-text-info">Validate Data</h5>
+                                        <p class="card-text dark-text-muted">Check data consistency and validate migration results</p>
+                                        <form method="POST" class="d-inline">
+                                            <input type="hidden" name="action" value="validate_migration">
+                                            <button type="submit" class="btn btn-info dark-btn-info">
+                                                <i class="fas fa-search"></i> Validate
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="card border-danger dark-card border-danger">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title dark-text-danger">Rollback Migration</h5>
+                                        <p class="card-text dark-text-muted">Remove all owner memberships (WARNING: This will remove ALL owner memberships)</p>
+                                        <form method="POST" class="d-inline">
+                                            <input type="hidden" name="action" value="rollback_migration">
+                                            <button type="submit" class="btn btn-danger dark-btn-danger" 
+                                                    onclick="return confirm('WARNING: This will remove ALL owner memberships. Are you absolutely sure?')">
+                                                <i class="fas fa-undo"></i> Rollback
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+        <!-- Information -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card dark-card">
+                    <div class="card-header dark-card-header">
+                        <h5 class="text-white"><i class="fas fa-info-circle"></i> Migration Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="text-white">What does this migration do?</h6>
+                        <ul class="text-white">
+                            <li>Migrates project owners from the old <code>projects.id_users</code> field to the new <code>project_members</code> table</li>
+                            <li>Creates owner membership records with <code>role_type='owner'</code></li>
+                            <li>Maintains backward compatibility by keeping the old fields</li>
+                            <li>Is idempotent - can be run multiple times safely</li>
+                        </ul>
+                        
+                        <h6 class="mt-3 text-white">When is migration needed?</h6>
+                        <ul class="text-white">
+                            <li>When upgrading from version</li>
+                            <li>When projects exist with <code>id_users</code> but no corresponding <code>project_members</code> record</li>
+                        </ul>
+                        
+                        <h6 class="mt-3 text-white">Safety features:</h6>
+                        <ul class="text-white">
+                            <li>Automatic validation after migration</li>
+                            <li>Detailed logging of all operations</li>
+                            <li>Rollback capability (use with caution)</li>
+                            <li>Checks for data consistency</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endblock %}
+    
+
+
+    
+    

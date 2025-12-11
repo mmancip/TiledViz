@@ -37,7 +37,7 @@ RUN dnf install -y  \
 	 xorg-x11-75dpi-fonts \
         && /bin/dbus-uuidgen --ensure
 
-RUN dnf install -y alsa-utils lib64fribidi0 xdg-utils wmctrl openssh-server openssh-clients xwd netpbm gettext
+RUN dnf install -y alsa-utils lib64fribidi0 xdg-utils wmctrl openssh-server openssh-clients sshpass xwd netpbm gettext
 RUN dnf --downloadonly --downloaddir=/tmp/cache install -y icewm-theme-oxygen-aya \
     && ls -la /tmp/cache \
     && rpm -ip /tmp/cache/icewm-theme-oxygen-aya*.rpm --nodeps \

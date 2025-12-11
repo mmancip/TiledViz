@@ -7,7 +7,7 @@ monkey.patch_all()
 from flask import Flask
 from flask_socketio import SocketIO
 from flask_sqlalchemy import SQLAlchemy
-from flask_bootstrap import Bootstrap
+from flask_bootstrap import Bootstrap5
 from flask_wtf.csrf import CSRFProtect
                     
 from gevent.pywsgi import WSGIServer
@@ -50,7 +50,7 @@ app.config.from_object(Config) # There are given the secret key and other app se
 
 logging.debug("Flask App config for TiledViz : "+str(app.config))
 
-bootstrap = Bootstrap(app)
+bootstrap = Bootstrap5(app)
 
 #import ssl
 #ssl.PROTOCOL_SSLv23 = ssl.PROTOCOL_TLSv1
@@ -63,6 +63,10 @@ socketio = SocketIO(app,async_mode=async_mode,ssl_context=(os.getenv('SSLpublic'
 csrf = CSRFProtect(app)
 
 db = SQLAlchemy(app)
+
+# Initialize Flask-Mail
+from app.email_utils import init_mail
+mail = init_mail(app)
 
 logging.warning("Flask-SocketIO server for TiledViz up and running")
 

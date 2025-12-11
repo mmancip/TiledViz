@@ -8,7 +8,6 @@ echo "===== 1 List and close active containers ====="
 docker container ls -a --filter=name=$postgresNAME && docker container ls -a -q --filter=name=$postgresNAME |xargs docker rm -f -v
 
 echo "===== 2 PostgreSQL container ====="
-#PostgresDock=postgres:11.18-alpine
 PostgresDock=postgres:13.21-alpine
 
 if ( ! docker images --filter "reference=${PostgresDock}" >/dev/null ); then
@@ -18,8 +17,11 @@ fi
 
 docker run -v $(pwd)/TVDatabase/postgresql/data:/var/lib/postgresql/data -p ${POSTGRES_PORT}:5432 -e PGPORT=${POSTGRES_PORT}  -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_DB=$POSTGRES_DB -e POSTGRES_PASSWORD="$POSTGRES_PASSWORD" --name=$postgresNAME ${PostgresDock} &
 sleep 5
+source $HOME/.cache/envTiledViz
 
-source  $HOME/.cache/envTiledViz
+# Update POSTGRES_HOST with the actual container IP
+export POSTGRES_HOST=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $postgresNAME)
+
 source ${PythonVENV}/bin/activate
 
 if ( $installX11 ); then
@@ -29,12 +31,8 @@ else
     echo
     echo "Do you want to restore from a PostgreSQL dump file ? Please give the path to file or empty string if not"
     read pathtodump;
-    if [ X$pathtodump == X ]; then
-	pathtodump="None"
-    fi
 fi
-if [ $pathtodump == "None" ]; then
-
+if [ X$pathtodump == X ]; then
     echo "===== 3 Patch TiledViz DB definition =====" 
 
     replpass=$( echo $POSTGRES_PASSWORD | sed -e "s|\&|\\\&|g" )

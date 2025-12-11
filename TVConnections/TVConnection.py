@@ -28,7 +28,6 @@ TiledVizPath='/TiledViz'
 
 TilesScriptsPath='/opt'
 
-
 sys.path.append(os.path.abspath(TiledVizPath+'/TVDatabase'))
 from TVDb import tvdb
 from TVDb import models
@@ -52,6 +51,9 @@ ActionPort=int(config['TVSecure']['ActionPort'])
 
 # Message fix size for data transfert through socket
 MSGsize=int(config['sock']['MSGsize'])
+
+# Key name for this connection built in main :
+sshKeyName=""
 
 # Usefull fuction for debugging CASE script:
 def cat_between(b,e,f):
@@ -253,6 +255,7 @@ def kill_all_containers():
     stateVM=True
     client.send_server(LaunchTS+" "+COMMANDStop)
     print("Out of COMMANDStop.")
+    sys.stdout.flush()
     # state=client.get_OK()
     # print("Out of COMMANDStop : "+ str(state))
     # stateVM=(state == 0)
@@ -334,7 +337,7 @@ def share_ssh_key_docker():
     # TODO : secure that action ?
     totbyte=0
     filesize=os.path.getsize(sshKeyPath)
-    connectionkey=os.path.join(Home,".ssh/id_ed_connection")
+    connectionkey=os.path.join(Home,".ssh/"+sshKeyName)
     os.system("cp "+sshKeyPath+".pub "+os.path.join(Home,".ssh/authorized_keys"))
     packet_id_length=MSGsize-200
     with open(sshKeyPath,'rb') as privatek:
@@ -386,17 +389,17 @@ def share_ssh_key_singularity():
     stateVM=True
 
     # Share ssh connection keys whith tiles
-    connectionkey=os.path.join(HomeFront,".ssh/id_ed_connection")
+    connectionkey=os.path.join(HomeFront,".ssh/"+sshKeyName)
     os.system("cp "+sshKeyPath+".pub "+os.path.join(Home,".ssh/authorized_keys"))
-    send_file_server(client,TileSet,os.path.join(Home,".ssh"), "id_ed_"+Frontend, JOBPath)
-    COMMANDid=LaunchTS+' bash -c "mv '+os.path.join(JOBPath,"id_ed_"+Frontend)+' '+connectionkey+'; chmod 600 '+connectionkey+'"'
+    send_file_server(client,TileSet,os.path.join(Home,".ssh"), sshKeyName, JOBPath)
+    COMMANDid=LaunchTS+' bash -c "mv '+os.path.join(JOBPath,sshKeyName)+' '+connectionkey+'; chmod 600 '+connectionkey+'"'
     logging.warning("Send id_ed with \"%s\"." % (COMMANDid) )
     client.send_server(COMMANDid)
     state=client.get_OK()
     stateVM=stateVM and (state == 0)
 
-    send_file_server(client,TileSet,os.path.join(Home,".ssh"), "id_ed_"+Frontend+".pub", JOBPath)
-    COMMANDid=LaunchTS+' bash -c "mv '+os.path.join(JOBPath,"id_ed_"+Frontend+".pub")+' '+connectionkey+".pub"+'; chmod 666 '+connectionkey+".pub"+'"'
+    send_file_server(client,TileSet,os.path.join(Home,".ssh"), sshKeyName+".pub", JOBPath)
+    COMMANDid=LaunchTS+' bash -c "mv '+os.path.join(JOBPath,sshKeyName+".pub")+' '+connectionkey+".pub"+'; chmod 666 '+connectionkey+".pub"+'"'
     logging.warning("Send id_ed with \"%s\"." % (COMMANDid) )
     client.send_server(COMMANDid)
     state=client.get_OK()
@@ -414,7 +417,7 @@ def launch_tunnel_docker():
     logging.warning("TilesScriptsPath : %s" % (TilesScriptsPath))
     stateVM=True
     
-    connectionkey="/home/myuser/.ssh/id_ed_connection"
+    connectionkey="/home/myuser/.ssh/"+sshKeyName
 
     with open("listPortsTiles.pickle", 'rb') as file_pi:
         listPortsTilesIE=pickle.load(file_pi)
@@ -445,7 +448,7 @@ def launch_tunnel_singularity():
     logging.warning("Frontend Home in anatomist_job: "+HomeFront)
     stateVM=True
 
-    connectionkey=os.path.join(HomeFront,".ssh/id_ed_connection")
+    connectionkey=os.path.join(HomeFront,".ssh/"+sshKeyName)
     
     with open("listPortsTiles.pickle", 'rb') as file_pi:
         listPortsTilesIE=pickle.load(file_pi)
@@ -612,9 +615,15 @@ if __name__ == '__main__':
     logging.warning("Build connection number "+args.connectionId)
     
     TVconnection=session.query(models.Connections).filter(models.Connections.id == connectionId).one()
-    logging.warning("From DB connection informations : "+str((TVconnection.auth_type,TVconnection.host_address,TVconnection.scheduler)))
+    auth_type=TVconnection.auth_type
+
+    logging.warning("From DB connection informations : "+str((auth_type,TVconnection.host_address,TVconnection.scheduler)))
     TileSetDB=session.query(models.TileSets).filter_by(id_connections=args.connectionId).order_by(models.TileSets.id.desc()).first()
     TileSet=TileSetDB.name
+
+    DATE=re.sub(r'\..*','',datetime.datetime.isoformat(datetime.datetime.now(),sep='_').replace(":","-"))
+
+    myhostname=os.getenv('HOSTNAME', os.getenv('COMPUTERNAME', platform.node())).split('.')[0]
     
     # Default values for TileSet
     CreateTS='create TS='+TileSet+' Nb='+str(1)
@@ -628,8 +637,23 @@ if __name__ == '__main__':
         # Remove TileSet in TileServer
         RemoveTS='remove TS='+TileSet
         client.send_server(RemoveTS)
+
+        # Clean key :
+        if (auth_type == "ssh" or auth_frontend):
+            CleanKeyFrontend = "ssh -o ForwardX11=no -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+'@localhost bash -cvx \'\"sed -i.'+DATE+' /'+myhostname+'/d ~/.ssh/authorized_keys; rm .ssh/'+sshKeyName+'* \"\''
+            logging.warning(CleanKeyFrontend)
+            #logging.debug(CleanKeyFrontend)
+            os.system(CleanKeyFrontend)
+        
+        if (auth_type == "rebound"):
+            for iFront in reversed(range(NbFrontendTo)):
+                CleanKeyFrontend = "ssh -o ForwardX11=no -i "+sshKeyPath+" "+lUserFront[iFront]+"@"+lFrontend[iFront]+' bash -cvx \'\"sed -i.'+DATE+' /'+myhostname+'/d ~/.ssh/authorized_keys; rm .ssh/'+sshKeyName+'* \"\''
+                logging.warning(CleanKeyFrontend)
+                #logging.debug(CleanKeyFrontend)
+                os.system(CleanKeyFrontend)
+        # On localhost (no need) "ssh-keygen -R "+Frontend+" -f ~/.ssh/known_hosts"
         logging.warning("TileSet "+TileSet+" removed on server")
-    
+        
     # User not used
     TVuser=session.query(models.Users).filter(models.Users.id==TVconnection.id_users).first().name
 
@@ -637,25 +661,88 @@ if __name__ == '__main__':
 
     NbFrontendTo=0
     NbFrontendFrom=0
-    # choices=[("ssh","Direct ssh connection"),
-    #          ("rebound","ssh through a gateway"),
-    #          ("persistent","define ssh connection an save it.")
-    if (TVconnection.auth_type == "rebound"):
-        NbFrontendTo = input("Give the number of frontends to go to the HPC frontend (0 if direct connectio) :")
-        NbFrontendFrom = input("Give the number of gateways to go back from HPC nodes to the Flask server (1 if they need to rebound from the HPC frontend) :")
+    if (auth_type == "rebound"):
+        NbFrontendTo = int(input("Give the number of gateways to go to the HPC frontend (0 if direct connection - ssh auth_type option) : "))
+        # TODO
+        #NbFrontendFrom = int(input("Give the number of gateways to go back from HPC nodes to the Flask server (1 if they need to rebound from the HPC frontend) :"))
+
+
+    # Define Key name and local path
+    Frontend = TVconnection.host_address
+    sshKeyName="id_ed_"+Frontend+'_'+myhostname
+    sshKeyPath=os.path.join(Home,".ssh",sshKeyName)
+    
     NOT_CONNECTED=True
     OK_Key=False
     while NOT_CONNECTED:
 
-        if (TVconnection.auth_type == "rebound"):
-            #TODO
-            pass
-        elif (TVconnection.auth_type == "ssh"):
-            Frontend = TVconnection.host_address
-            logging.warning("Distant machine frontend : "+Frontend)
+        if (auth_type == "rebound"):
+
+            if (NbFrontendTo == 0):
+                auth_type="ssh"
+            
+        if (auth_type == "rebound"):
+            lFrontend=[]
+            lUserFront=[]
+            lPassword=[]
+
+            # Build ssh config chain to HPC Frontend
+            #Only Config on Connection container
+            sshconfig="\nStrictHostKeyChecking no\n"
+            config_init="Config for connection for TileSet %s at date %s " % (TileSet, DATE)
+            sshconfig+="\n#---- "+config_init+"\n"
+
+            for iFront in range(NbFrontendTo):
+                while True:
+                    try:
+                        nFront = input("Enter the remote machine name number %d \n" % (iFront+1))
+                        nFront = nFront.encode('ascii').decode()
+                        break
+                    except UnicodeDecodeError:
+                        logging.error("Error : only ascii chars are available.")
+
+                lFrontend.append(nFront)
+                    
+                while True:
+                    try:
+                        UserFront = input("Enter your remote machine number %d user name \n" % (iFront+1))
+                        UserFront = UserFront.encode('ascii').decode()
+                        break
+                    except UnicodeDecodeError:
+                        logging.error("Error : only ascii chars are available.")
+
+                lUserFront.append(UserFront)
+                
+                # Add if to ssh chain
+                # First machine is on internet
+                if (iFront > 0):
+                    sshconfig +="\n"
+                    sshconfig +="Host "+lFrontend[iFront]+"\n"
+                    sshconfig +="     User "+lUserFront[iFront]+"\n"
+                    sshconfig +="     IdentityFile ~/.ssh/"+sshKeyName+"\n"
+                    sshconfig +="     IdentitiesOnly yes"+"\n"
+                    sshconfig +="     ProxyJump "+lUserFront[iFront-1]+'@'+lFrontend[iFront-1]+"\n"
+                else:
+                    sshconfig +="\n"
+                    sshconfig +="Host "+lFrontend[iFront]+"\n"
+                    sshconfig +="     User "+lUserFront[iFront]+"\n"
+                    sshconfig +="     IdentityFile ~/.ssh/"+sshKeyName+"\n"
+                    sshconfig +="     IdentitiesOnly yes"+"\n"
+                    
+                while True:
+                    try:
+                        Password = getpass("Enter your password for this machine %d for user %s :\n" % (iFront+1, UserFront))
+                        break
+                    except UnicodeDecodeError:
+                        logging.error("Error : only ascii chars are available.")
+
+                lPassword.append(Password)
+
+        if (auth_type == "ssh" or auth_type == "rebound"):
+            logging.warning("Remote machine frontend : "+Frontend)
             while True:
                 try:
-                    UserFront = input("Enter your distant machine user name \n")
+                    UserFront = input("Enter your remote machine user name \n")
                     UserFront = UserFront.encode('ascii').decode()
                     break
                 except UnicodeDecodeError:
@@ -666,30 +753,148 @@ if __name__ == '__main__':
                     break
                 except UnicodeDecodeError:
                     logging.error("Error : only ascii chars are available.")
-                    
+
+        if (auth_type == "rebound"):
+
+            lFrontend.append(Frontend)
+            lUserFront.append(UserFront)
+            lPassword.append(Password)
+
+            # Write ssh config chain to HPC frontend
+            sshconfig +="\n"
+            sshconfig +="Host "+Frontend+"\n"
+            sshconfig +="     User "+UserFront+"\n"
+            sshconfig +="     IdentityFile ~/.ssh/"+sshKeyName+"\n"
+            sshconfig +="     IdentitiesOnly yes"+"\n"
+            sshconfig +="     ProxyJump "+lUserFront[NbFrontendTo-1]+'@'+lFrontend[NbFrontendTo-1]+"\n"
+            config_end="End config for connection for TileSet %s at date %s" % (TileSet, DATE)
+            sshconfig +="\n#---- "+config_end+"\n"
+
+            # Copy to the end of .ssh/config
+            sshconfigname=".ssh/config"
+            with open(sshconfigname,"w+") as sshconfigf:
+                sshconfigf.write(str(sshconfig))
+            os.system('chmod 600 '+sshconfigname)
+            
         # After connection save (test save/restore container)
         resp=input("Hit enter or save connection data now of 'n' to change remote login/password.\n")
 
         if (resp != 'n'):
-            
-            sshKeyPath=os.path.join(Home,".ssh","id_ed_"+Frontend)
-            
-            if (TVconnection.auth_type == "ssh" and not OK_Key):
-                cmdgen="ssh-keygen -t ed25519 -N '' -f /home/"+user+"/.ssh/id_ed_"+Frontend
+
+            if (not OK_Key):
+                cmdgen="ssh-keygen -t ed25519 -N '' -f "+sshKeyPath
                 childgen=pexpect.spawn(cmdgen)
                 childgen.expect('Generating public/private ed25519 key pair.')
                 childgen.expect(pexpect.EOF)
                 childgen.close(force=True)
                 logging.warning("ssh key for this connection OK.")
+                os.system("cp -f "+sshKeyPath+".pub .ssh/authorized_keys")
                 OK_Key=True
-                
-            if (TVconnection.auth_type == "ssh"):
-                cmdcopy="ssh-copy-id -f -o ForwardX11=no -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i "+sshKeyPath+".pub "+UserFront+"@"+Frontend
-                #cmdcopy="bash -c 'ssh-copy-id -f -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i "+sshKeyPath+".pub "+UserFront+"@"+Frontend+ " 2>&1 $HOME/.vnc/out_copy_id'"                
+
+            # extract config files for ssh
+            if (os.path.exists("config.tar")):
+                os.system("tar xf config.tar")
+            # On can add a rebound.sh executed on the connection container to build rebound chain
+            if (os.path.exists("rebound.sh")):
+                os.system("bash -c 'chmod u+x rebound.sh; ./rebound.sh 2>&1 > .vnc/out_rebound'")
+
+            auth_frontend=False
+            if (auth_type == "rebound"):
+                lCONNECTED=[]
+                for iFront in range(NbFrontendTo):
+                    cmdcopy="ssh-copy-id -f -o ForwardX11=no -o StrictHostKeyChecking=no -i "+sshKeyPath+" "+lUserFront[iFront]+"@"+lFrontend[iFront]
+                    #-o UserKnownHostsFile=/dev/null
+                    logging.warning("ssh-copy-id command :"+cmdcopy)
+                    childcopy=pexpect.spawn(cmdcopy)
+                    #out1=childcopy.expect('.*')
+                    expindex=childcopy.expect([lUserFront[iFront]+"@"+lFrontend[iFront]+"\'s password: ", ".*Password: ",pexpect.EOF, pexpect.TIMEOUT])
+                    if (expindex == 0 or expindex == 1 ):
+                        outpass = childcopy.sendline(lPassword[iFront])
+                        if outpass < len(lPassword[iFront]):
+                            Password = getpass("Wrong password for "+lUserFront[iFront]+"@"+lFrontend[iFront]+". Try again enter your password for this user :\n")
+                            childcopy.close(force=True)
+                        else:
+                            expindex=childcopy.expect([pexpect.EOF, pexpect.TIMEOUT])
+                            if (expindex != 0):
+                                try:
+                                    logging.error("Error respond from server : "+str(childcopy.before,"utf-8"))
+                                except:
+                                    logging.error("Error respond from server. "+str(expindex))
+                            else:
+                                logging.warning("ssh authorized key copied on the server.")
+                            childcopy.close(force=True)
+                            if (childcopy.exitstatus == 0):
+                                lCONNECTED.append(True)
+                            else:
+                                lCONNECTED.append(False)
+                    else:
+                        try:
+                            logging.error("Error with copy id "+str(expindex))
+                            logging.error("Spawn output : |"+str(childcopy.before,"utf-8")+"|")
+                            if (expindex == 3):
+                                logging.warning("after TIMEOUT ")
+                            else:
+                                logging.warning("after "+str(childcopy.after,"utf-8"))
+                            logging.warning("existstatus : ",childcopy.exitstatus, " signalestatus : ",childcopy.signalstatus)
+                        except:                        
+                            logging.warning("ssh authorized key copied on the server after password.")
+                    
+                        try:
+                            logging.error("load interact prompt to test by hand :")
+                            code.interact(banner="Try connection :",local=dict(globals(), **locals()))
+                        except SystemExit:
+                            pass
+                        childcopy.close(force=True)
+                        if (childcopy.exitstatus == 0):
+                            NOT_CONNECTED=False
+                    cmdcopy="scp -p -o ForwardX11=no -o StrictHostKeyChecking=no -i "+sshKeyPath+" "+sshKeyPath+" "+lUserFront[iFront]+"@"+lFrontend[iFront]+":.ssh/"
+                    # -o UserKnownHostsFile=/dev/null
+                    childcopy=pexpect.spawn(cmdcopy)
+                    expindex=childcopy.expect([lUserFront[iFront]+"@"+lFrontend[iFront]+"\'s password: ", ".*Password: ",pexpect.EOF, pexpect.TIMEOUT])
+                    if (expindex == 2):
+                        logging.warning("ssh private key copied on the server %s." % (lFrontend[iFront]))
+                    elif( expindex == 0 or expindex == 1 ):
+                        logging.warning("Problem : ssh authorized key NOT copied on the server %s." % (lFrontend[iFront]))
+                        outpass = childcopy.sendline(lPassword[iFront])
+                        expindex=childcopy.expect([pexpect.EOF, pexpect.TIMEOUT])
+                        if (expindex != 0):
+                            try:
+                                logging.error("Error respond from server : "+str(childcopy.before,"utf-8"))
+                            except:
+                                logging.error("Error respond from server. "+str(expindex))
+                            else:
+                                logging.warning("ssh private key copied on the server after password.")
+                    childcopy.close(force=True)
+
+                    cmdcopy="scp -p -o ForwardX11=no -o StrictHostKeyChecking=no -i "+sshKeyPath+" "+sshKeyPath+".pub "+lUserFront[iFront]+"@"+lFrontend[iFront]+":.ssh/"
+                    #-o UserKnownHostsFile=/dev/null
+                    childcopy=pexpect.spawn(cmdcopy)
+                    expindex=childcopy.expect([lUserFront[iFront]+"@"+lFrontend[iFront]+"\'s password: ", ".*Password: ",pexpect.EOF, pexpect.TIMEOUT])
+                    if (expindex == 2):
+                        logging.warning("ssh public key copied on the server %s." % (lFrontend[iFront]))
+                    elif( expindex == 0 or expindex == 1 ):
+                        logging.warning("Problem : ssh authorized key NOT copied on the server %s." % (lFrontend[iFront]))
+                        outpass = childcopy.sendline(lPassword[iFront])
+                        expindex=childcopy.expect([pexpect.EOF, pexpect.TIMEOUT])
+                        if (expindex != 0):
+                            try:
+                                logging.error("Error respond from server : "+str(childcopy.before,"utf-8"))
+                            except:
+                                logging.error("Error respond from server. "+str(expindex))
+                            else:
+                                logging.warning("ssh public key copied on the server after password.")
+                    childcopy.close(force=True)
+
+                auth_frontend=True
+
+            if (auth_type == "ssh" or auth_frontend):
+                cmdcopy="ssh-copy-id -f -o ForwardX11=no -o StrictHostKeyChecking=no -i "+sshKeyPath+" "+UserFront+"@"+Frontend
+                # -o UserKnownHostsFile=/dev/null
+                #cmdcopy="bash -c 'ssh-copy-id -f -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i "+sshKeyPath+" "+UserFront+"@"+Frontend+ " 2>&1 $HOME/.vnc/out_copy_id'"                
                 logging.warning("ssh-copy-id command :"+cmdcopy)
                 childcopy=pexpect.spawn(cmdcopy)
                 #out1=childcopy.expect('.*')
-                expindex=childcopy.expect([UserFront+"@"+Frontend+"\'s password: ", ".*Password: ",pexpect.EOF, pexpect.TIMEOUT])
+                expindex=childcopy.expect([UserFront+"@"+Frontend+"\'s password: ", ".*Password: ",pexpect.EOF, pexpect.TIMEOUT]+[lUserFront[iFront]+"@"+lFrontend[iFront]+"\'s password: " for iFront in range(NbFrontendTo)])
                 if (expindex == 0 or expindex == 1 ):
                     outpass = childcopy.sendline(Password)
                     if outpass < len(Password):
@@ -699,7 +904,7 @@ if __name__ == '__main__':
                         expindex=childcopy.expect([pexpect.EOF, pexpect.TIMEOUT])
                         if (expindex != 0):
                             try:
-                                logging.error("Error respond from server : "+str(childcopy.buffer,"utf-8"))
+                                logging.error("Error respond from server : "+str(childcopy.before,"utf-8"))
                             except:
                                 logging.error("Error respond from server. "+str(expindex))
                         else:                        
@@ -709,12 +914,12 @@ if __name__ == '__main__':
                             NOT_CONNECTED=False
                 else:
                     try:
-                        logging.error("Error with copy id "+str(expindex))
-                        logging.error("buffer : |"+childcopy.buffer.decode("utf-8")+"|")
+                        logging.error("Error with copy id %d" % (expindex))
+                        logging.error("Spawn output : |"+str(childcopy.before,"utf-8")+"|")
                         if (expindex == 3):
                             logging.warning("after TIMEOUT ")
                         else:
-                            logging.warning("after "+childcopy.after.decode("utf-8"))
+                            logging.warning("after "+str(childcopy.after,"utf-8"))
                         logging.warning("existstatus : ",childcopy.exitstatus, " signalestatus : ",childcopy.signalstatus)
                     except:                        
                         logging.warning("ssh key copied on the server.")
@@ -727,6 +932,9 @@ if __name__ == '__main__':
                     childcopy.close(force=True)
                     if (childcopy.exitstatus == 0):
                         NOT_CONNECTED=False
+
+    if (auth_type == "rebound"):
+        del lPassword
 
     # Get free local PORT for ssh to Frontend TileServer
     import socket;
@@ -775,10 +983,9 @@ if __name__ == '__main__':
     # logging.warning("Bye !")
     #time.sleep(10)
 
-    DATE=re.sub(r'\..*','',datetime.datetime.isoformat(datetime.datetime.now(),sep='_').replace(":","-"))
     JOBPath=os.path.join(TiledVizConfPath,TileSet+'_'+DATE)
 
-    if (TVconnection.auth_type == "ssh"):
+    if (auth_type == "ssh"):
         WorkdirFrontend = "ssh -o ForwardX11=no -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+"@localhost mkdir "+JOBPath
         logging.debug(WorkdirFrontend)
         os.system(WorkdirFrontend)
@@ -930,28 +1137,22 @@ if __name__ == '__main__':
         c.InteractiveShellEmbed.confirm_exit = False
         #c.InteractiveShellEmbed.color_info=False
         IPython.embed(config=c)
-                
+
     # Execute launch file
     try:
         COMMANDStop="echo 'error script "+filename+"'"
         exec(compile(open(filename, "rb").read(), filename, 'exec'), globals(), locals())
         #filename.job(globals(), locals())
-    except SystemExit:
-        # Clean key :
-        if (TVconnection.auth_type == "ssh"):
-            myhostname=os.getenv('HOSTNAME', os.getenv('COMPUTERNAME', platform.node())).split('.')[0]
-            CleanKeyFrontend = "ssh -o ForwardX11=no -i "+sshKeyPath+" -p "+sshPORT+" "+UserFront+'@localhost bash -c \'\"sed -i.'+DATE+' /'+myhostname+'/d ~/.ssh/authorized_keys\"\''
-            logging.debug(CleanKeyFrontend)
-            os.system(CleanKeyFrontend)
-        # On localhost (no need) "ssh-keygen -R "+Frontend+" -f ~/.ssh/known_hosts"
     except :
-        # stop containers
-        kill_all_containers()
         traceback.print_exc(file=sys.stderr)
         #myglobals=globals()
         #code.interact(local=locals())
+
         pass
 
+    # If any, stop containers and remove TileSet and ssh chain
+    kill_all_containers()
+    
     # close connection with server. 
     client.close()
 

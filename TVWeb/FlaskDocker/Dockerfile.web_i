@@ -5,7 +5,7 @@ FROM python:3.10
 # Update python3, install pip3, netstat, virtualenv
 ENV DEBIAN_FRONTEND teletype
 RUN apt-get update && apt-get install -y apt-utils
-RUN apt-get install -y python3-pip net-tools openssh-server nginx socat  && pip3 install --upgrade virtualenv
+RUN apt-get install -y python3-pip net-tools acl openssh-server nginx socat  && pip3 install --upgrade virtualenv
 
 COPY ./ /TiledViz
 
@@ -19,13 +19,25 @@ RUN sed -e 's/#GatewayPorts .*/GatewayPorts yes/' -i /etc/ssh/sshd_config; \
     /bin/bash -c "source /flask_venv/bin/activate ; \
                   export LC_ALL=C.UTF-8 ; \
                   export LANG=C.UTF-8 ; \
-		  pip3 install --pre sqlacodegen ; \
-		  pip3 install -r /TiledViz/TVWeb/requirements.txt ;"
+		  pip3 install -r /TiledViz/TVWeb/requirements.txt ;\
+		  pip3 cache purge ;"
 
 ENV SERVER_NAME _SERVER_NAME_
 ENV DOMAIN _DOMAIN_
 ENV SSLpublic _SSLpublic_
 ENV SSLprivate _SSLprivate_
+
+# SMTP Configuration
+ENV SMTP_SERVER _SMTP_SERVER_
+ENV SMTP_PORT _SMTP_PORT_
+ENV SMTP_USE_SSL _SMTP_USE_SSL_
+ENV SMTP_USE_TLS _SMTP_USE_TLS_
+ENV SMTP_USERNAME _SMTP_USERNAME_
+ENV FROM_EMAIL _FROM_EMAIL_
+# IMAP Configuration
+ENV IMAP_SERVER _IMAP_SERVER_
+ENV IMAP_PORT _IMAP_PORT_
+
 
 HEALTHCHECK --interval=5m --timeout=10s --retries=1 CMD curl --fail https://_SERVER_NAME_._DOMAIN_/test || exit 1
 
@@ -33,4 +45,4 @@ HEALTHCHECK --interval=5m --timeout=10s --retries=1 CMD curl --fail https://_SER
 
 ENTRYPOINT ["/TiledViz/TVWeb/FlaskDocker/start_docker_web.sh"]
 
-CMD ["localhost", "6431", "TiledViz", "tiledviz", "m_test/@03", "flaskhost", "1002", "1002", "I-am-a-wonderful-unicorn"]
+CMD ["localhost", "6431", "TiledViz", "tiledviz", "m_test/@03", "flaskhost", "1002", "1002", "m_smtp_p@sw0rd", "I-am-a-wonderful-unicorn"]

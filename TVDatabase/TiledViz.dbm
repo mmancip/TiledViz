@@ -3,9 +3,11 @@
 CAUTION: Do not modify this file unless you know what you are doing.
  Unexpected results may occur if the code is changed deliberately.
 -->
-<dbmodel pgmodeler-ver="1.0.6" use-changelog="false" last-position="0,0" last-zoom="1" max-obj-count="12"
-	 default-owner="postgres"
-	 layers="Default,Default layer"
+<dbmodel pgmodeler-ver="1.2.0" use-changelog="false" max-obj-count="36"
+	 gen-disabled-objs-code="false" show-sys-schemas-rects="true"
+	 last-position="548,0" last-zoom="1" scene-rect="0,0,2262.9,1653.12"
+	 default-schema="public" default-owner="postgres"
+	 layers="Default layer"
 	 active-layers="0"
 	 layer-name-colors="#000000"
 	 layer-rect-colors="#b4b4b4"
@@ -13,244 +15,94 @@ CAUTION: Do not modify this file unless you know what you are doing.
 <role name="tiledviz"
  superuser="true"
  createdb="true"
+ replication="true"
  createrole="true"
  inherit="true"
  login="true"
- password="m_test/@03">
+ bypassrls="true"
+ password="********"
+ sql-disabled="true">
 </role>
 
-<database name="TiledViz" encoding="UTF8" template="template0" lc-collate="en_US.utf-8" lc-ctype="en_US.utf-8" is-template="false" allow-conns="true">
+<database name="TiledViz" encoding="UTF8" lc-collate="en_US.utf8" lc-ctype="en_US.utf8" is-template="false" allow-conns="true">
 	<role name="tiledviz"/>
 	<tablespace name="pg_default"/>
 </database>
 
-<schema name="public" layers="0" rect-visible="true" fill-color="#e1e1e1" sql-disabled="true">
+<schema name="public" layers="0" rect-visible="true" fill-color="#e1e1e1" name-color="#000000" sql-disabled="true">
 </schema>
 
-<sequence name="projects_id_seq" cycle="false" start="1" increment="1" min-value="1" max-value="9223372036854775807" cache="1">
+<function name="add_owner_to_project_members"
+		window-func="false"
+		returns-setof="false"
+		behavior-type="CALLED ON NULL INPUT"
+		function-type="VOLATILE"
+		security-type="SECURITY INVOKER"
+		parallel-type="PARALLEL UNSAFE"
+		execution-cost="100"
+		row-amount="0">
 	<schema name="public"/>
 	<role name="tiledviz"/>
-</sequence>
+	<language name="plpgsql"/>
+	<return-type>
+	<type name="trigger" length="0"/>
+	</return-type>
+	<definition> <![CDATA[BEGIN
+  INSERT INTO project_members (project_id, user_id, role_type)
+  VALUES (NEW.id, NEW.id_users, 'owner');
+  RETURN NEW;
+END;]]> </definition>
+</function>
 
-<sequence name="users_id_seq" cycle="false" start="1" increment="1" min-value="1" max-value="9223372036854775807" cache="1">
+<function name="delm2mfreetilesets"
+		window-func="false"
+		returns-setof="false"
+		behavior-type="CALLED ON NULL INPUT"
+		function-type="VOLATILE"
+		security-type="SECURITY INVOKER"
+		parallel-type="PARALLEL UNSAFE"
+		execution-cost="100"
+		row-amount="0">
 	<schema name="public"/>
 	<role name="tiledviz"/>
-</sequence>
+	<language name="plpgsql"/>
+	<return-type>
+	<type name="integer" length="0"/>
+	</return-type>
+	<definition> <![CDATA[DECLARE nb integer;
+BEGIN
+	nb := (SELECT COUNT(*) FROM freetilesets);
+	DELETE FROM many_tiles_has_many_tile_sets
+	WHERE id_tile_sets IN (SELECT id FROM freetilesets);
+	RETURN  nb;
+END;]]> </definition>
+</function>
 
-<table name="users" layers="0" collapse-mode="2" max-obj-count="10" z-value="0">
+<function name="deltileset"
+		window-func="false"
+		returns-setof="false"
+		behavior-type="CALLED ON NULL INPUT"
+		function-type="VOLATILE"
+		security-type="SECURITY INVOKER"
+		parallel-type="PARALLEL UNSAFE"
+		execution-cost="100"
+		row-amount="0">
 	<schema name="public"/>
 	<role name="tiledviz"/>
-	<position x="300" y="40"/>
-	<column name="id" not-null="true" sequence="public.users_id_seq">
+	<language name="plpgsql"/>
+	<return-type>
+	<type name="void" length="0"/>
+	</return-type>
+	<parameter name="idts">
 		<type name="integer" length="0"/>
-	</column>
-	<column name="name" not-null="true">
-		<type name="character varying" length="80"/>
-	</column>
-	<column name="creation_date">
-		<type name="timestamp" length="0"/>
-	</column>
-	<column name="mail">
-		<type name="character varying" length="80"/>
-	</column>
-	<column name="compagny">
-		<type name="character varying" length="0"/>
-	</column>
-	<column name="manager">
-		<type name="character varying" length="80"/>
-		<comment> <![CDATA[Project manager]]> </comment>
-	</column>
-	<column name="salt" not-null="true">
-		<type name="character" length="20"/>
-	</column>
-	<column name="password">
-		<type name="character" length="128"/>
-	</column>
-	<column name="dateverified">
-		<type name="timestamp" length="0"/>
-	</column>
-	<constraint name="users_pkey" type="pk-constr" table="public.users">
-		<columns names="id" ref-type="src-columns"/>
-	</constraint>
-	<constraint name="uniq_users" type="uq-constr" table="public.users">
-		<columns names="name" ref-type="src-columns"/>
-	</constraint>
-</table>
-
-<table name="projects" layers="0" collapse-mode="2" max-obj-count="6" z-value="0">
-	<schema name="public"/>
-	<role name="tiledviz"/>
-	<position x="40" y="340"/>
-	<column name="id" not-null="true" sequence="public.projects_id_seq">
-		<type name="integer" length="0"/>
-	</column>
-	<column name="name" not-null="true">
-		<type name="character varying" length="80"/>
-	</column>
-	<column name="creation_date">
-		<type name="timestamp" length="0"/>
-	</column>
-	<column name="description">
-		<type name="character varying" length="120"/>
-	</column>
-	<constraint name="projects_pkey" type="pk-constr" table="public.projects">
-		<columns names="id" ref-type="src-columns"/>
-	</constraint>
-	<constraint name="uniq_project" type="uq-constr" table="public.projects">
-		<columns names="name" ref-type="src-columns"/>
-	</constraint>
-
-	<customidxs object-type="column">
-		<object name="id_users" index="1"/>
-	</customidxs>
-
-	<customidxs object-type="constraint">
-		<object name="users_fk" index="1"/>
-	</customidxs>
-</table>
-
-<sequence name="invite_links_id_seq" cycle="false" start="1" increment="1" min-value="1" max-value="9223372036854775807" cache="1">
-	<schema name="public"/>
-	<role name="tiledviz"/>
-</sequence>
-
-<table name="invite_links" layers="0" collapse-mode="2" max-obj-count="9" z-value="0">
-	<schema name="public"/>
-	<role name="tiledviz"/>
-	<position x="1060" y="40"/>
-	<column name="id" not-null="true" sequence="public.invite_links_id_seq">
-		<type name="integer" length="0"/>
-	</column>
-	<column name="link" not-null="true">
-		<type name="character varying" length="200"/>
-	</column>
-	<column name="host_user" not-null="true">
-		<type name="character varying" length="80"/>
-	</column>
-	<column name="host_project" not-null="true">
-		<type name="character varying" length="80"/>
-	</column>
-	<column name="type">
-		<type name="boolean" length="0"/>
-	</column>
-	<column name="creation_date">
-		<type name="timestamp" length="0"/>
-	</column>
-	<constraint name="invite_links_pkey" type="pk-constr" table="public.invite_links">
-		<columns names="id" ref-type="src-columns"/>
-	</constraint>
-	<constraint name="invite_links_link_key" type="uq-constr" table="public.invite_links">
-		<columns names="link" ref-type="src-columns"/>
-	</constraint>
-
-	<customidxs object-type="column">
-		<object name="id_sessions" index="6"/>
-		<object name="id_users" index="7"/>
-	</customidxs>
-
-	<customidxs object-type="constraint">
-		<object name="sessions_fk" index="2"/>
-		<object name="users_fk" index="3"/>
-	</customidxs>
-</table>
-
-<sequence name="sessions_id_seq" cycle="false" start="1" increment="1" min-value="1" max-value="9223372036854775807" cache="1">
-	<schema name="public"/>
-	<role name="tiledviz"/>
-</sequence>
-
-<table name="sessions" layers="0" collapse-mode="2" max-obj-count="9" z-value="0">
-	<schema name="public"/>
-	<role name="tiledviz"/>
-	<position x="580" y="460"/>
-	<column name="id" not-null="true" sequence="public.sessions_id_seq">
-		<type name="integer" length="0"/>
-	</column>
-	<column name="name" not-null="true">
-		<type name="character varying" length="80"/>
-	</column>
-	<column name="creation_date">
-		<type name="timestamp" length="0"/>
-	</column>
-	<column name="description">
-		<type name="character varying" length="120"/>
-	</column>
-	<column name="Number_of_active_users">
-		<type name="smallint" length="0"/>
-		<comment> <![CDATA[Number of users actively connected to this sessions]]> </comment>
-	</column>
-	<column name="timeout">
-		<type name="integer" length="0"/>
-		<comment> <![CDATA[Set the timeout (in seconds) after which a session is disactivated (Number_of_active_users is 0) while no socket is still connected.]]> </comment>
-	</column>
-	<column name="config">
-		<type name="json" length="0"/>
-		<comment> <![CDATA[configuration of the grid for this session]]> </comment>
-	</column>
-	<constraint name="sessions_pkey" type="pk-constr" table="public.sessions">
-		<columns names="id" ref-type="src-columns"/>
-	</constraint>
-	<constraint name="uniq_session" type="uq-constr" table="public.sessions">
-		<columns names="name" ref-type="src-columns"/>
-	</constraint>
-
-	<customidxs object-type="column">
-		<object name="id_projects" index="2"/>
-	</customidxs>
-
-	<customidxs object-type="constraint">
-		<object name="projects_fk" index="1"/>
-	</customidxs>
-</table>
-
-<sequence name="connections_id_seq" cycle="false" start="1" increment="1" min-value="1" max-value="9223372036854775807" cache="1">
-	<schema name="public"/>
-	<role name="tiledviz"/>
-</sequence>
-
-<table name="connections" layers="0" collapse-mode="2" max-obj-count="12" z-value="0">
-	<schema name="public"/>
-	<role name="tiledviz"/>
-	<position x="1120" y="420"/>
-	<column name="id" not-null="true" sequence="public.connections_id_seq">
-		<type name="integer" length="0"/>
-	</column>
-	<column name="creation_date">
-		<type name="timestamp" length="0"/>
-	</column>
-	<column name="host_address">
-		<type name="character varying" length="60"/>
-	</column>
-	<column name="auth_type">
-		<type name="character varying" length="10"/>
-	</column>
-	<column name="container">
-		<type name="character varying" length="100"/>
-	</column>
-	<column name="scheduler">
-		<type name="character varying" length="15"/>
-	</column>
-	<column name="scheduler_file">
-		<type name="character varying" length="30"/>
-	</column>
-	<column name="config_files">
-		<type name="json" length="0"/>
-	</column>
-	<column name="connection_vnc" default-value="0">
-		<type name="smallint" length="0"/>
-	</column>
-	<constraint name="connections_pkey" type="pk-constr" table="public.connections">
-		<columns names="id" ref-type="src-columns"/>
-	</constraint>
-
-	<customidxs object-type="column">
-		<object name="id_users" index="5"/>
-	</customidxs>
-
-	<customidxs object-type="constraint">
-		<object name="users_fk" index="1"/>
-	</customidxs>
-</table>
+	</parameter>
+	<definition> <![CDATA[BEGIN
+	DELETE FROM many_tiles_has_many_tile_sets WHERE id_tile_sets = $1;
+	DELETE FROM many_sessions_has_many_tile_sets WHERE id_tile_sets = $1;
+	DELETE FROM connections WHERE id = ( SELECT id_connections FROM tile_sets WHERE id = $1);
+	DELETE FROM tile_sets WHERE id = $1;
+END;]]> </definition>
+</function>
 
 <sequence name="tiles_id_seq" cycle="false" start="1" increment="1" min-value="1" max-value="9223372036854775807" cache="1">
 	<schema name="public"/>
@@ -260,7 +112,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 <table name="tiles" layers="0" collapse-mode="2" max-obj-count="14" z-value="0">
 	<schema name="public"/>
 	<role name="tiledviz"/>
-	<position x="1120" y="720"/>
+	<position x="50" y="50"/>
 	<column name="id" not-null="true" sequence="public.tiles_id_seq">
 		<type name="integer" length="0"/>
 	</column>
@@ -289,6 +141,9 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	<column name="tags">
 		<type name="json" length="0"/>
 	</column>
+	<column name="id_connections">
+		<type name="integer" length="0"/>
+	</column>
 	<column name="creation_date">
 		<type name="timestamp" length="0"/>
 	</column>
@@ -298,14 +153,155 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	<constraint name="tiles_pkey" type="pk-constr" table="public.tiles">
 		<columns names="id" ref-type="src-columns"/>
 	</constraint>
+</table>
 
-	<customidxs object-type="column">
-		<object name="id_connections" index="9"/>
-	</customidxs>
+<function name="listtileset"
+		window-func="false"
+		returns-setof="true"
+		behavior-type="CALLED ON NULL INPUT"
+		function-type="VOLATILE"
+		security-type="SECURITY INVOKER"
+		parallel-type="PARALLEL UNSAFE"
+		execution-cost="100"
+		row-amount="1000">
+	<schema name="public"/>
+	<role name="tiledviz"/>
+	<language name="plpgsql"/>
+	<return-type>
+	<type name="public.tiles" length="0"/>
+	</return-type>
+	<parameter name="idts">
+		<type name="integer" length="0"/>
+	</parameter>
+	<definition> <![CDATA[BEGIN
+	RETURN QUERY ( SELECT *  FROM tiles t
+  	WHERE (t.id IN ( SELECT tmt.id_tiles FROM many_tiles_has_many_tile_sets tmt WHERE id_tile_sets = $1)));
+END;]]> </definition>
+</function>
 
-	<customidxs object-type="constraint">
-		<object name="connections_fk" index="1"/>
-	</customidxs>
+<function name="viewtileset"
+		window-func="false"
+		returns-setof="false"
+		behavior-type="CALLED ON NULL INPUT"
+		function-type="VOLATILE"
+		security-type="SECURITY INVOKER"
+		parallel-type="PARALLEL UNSAFE"
+		execution-cost="100"
+		row-amount="0">
+	<schema name="public"/>
+	<role name="tiledviz"/>
+	<language name="plpgsql"/>
+	<return-type>
+	<type name="void" length="0"/>
+	</return-type>
+	<parameter name="idts">
+		<type name="integer" length="0"/>
+	</parameter>
+	<definition> <![CDATA[BEGIN
+	DROP VIEW IF EXISTS thistileset;
+	CREATE VIEW thistileset AS ( SELECT listtileset($1) );
+END;]]> </definition>
+</function>
+
+<sequence name="connections_id_seq" cycle="false" start="1" increment="1" min-value="1" max-value="9223372036854775807" cache="1">
+	<schema name="public"/>
+	<role name="tiledviz"/>
+</sequence>
+
+<table name="connections" layers="0" collapse-mode="2" max-obj-count="12" z-value="0">
+	<schema name="public"/>
+	<role name="tiledviz"/>
+	<position x="425" y="50"/>
+	<column name="id" not-null="true" sequence="public.connections_id_seq">
+		<type name="integer" length="0"/>
+	</column>
+	<column name="creation_date">
+		<type name="timestamp" length="0"/>
+	</column>
+	<column name="host_address">
+		<type name="character varying" length="60"/>
+	</column>
+	<column name="auth_type">
+		<type name="character varying" length="10"/>
+	</column>
+	<column name="container">
+		<type name="character varying" length="100"/>
+	</column>
+	<column name="id_users" not-null="true">
+		<type name="integer" length="0"/>
+	</column>
+	<column name="scheduler">
+		<type name="character varying" length="15"/>
+	</column>
+	<column name="scheduler_file">
+		<type name="character varying" length="30"/>
+	</column>
+	<column name="config_files">
+		<type name="json" length="0"/>
+	</column>
+	<column name="connection_vnc" default-value="0">
+		<type name="smallint" length="0"/>
+	</column>
+	<constraint name="connections_pkey" type="pk-constr" table="public.connections">
+		<columns names="id" ref-type="src-columns"/>
+	</constraint>
+</table>
+
+<table name="many_tiles_has_many_tile_sets" layers="0" collapse-mode="2" max-obj-count="3" z-value="0">
+	<schema name="public"/>
+	<role name="tiledviz"/>
+	<position x="825" y="50"/>
+	<column name="id_tiles" not-null="true">
+		<type name="integer" length="0"/>
+	</column>
+	<column name="id_tile_sets" not-null="true">
+		<type name="integer" length="0"/>
+	</column>
+	<constraint name="many_tiles_has_many_tile_sets_pk" type="pk-constr" table="public.many_tiles_has_many_tile_sets">
+		<columns names="id_tiles,id_tile_sets" ref-type="src-columns"/>
+	</constraint>
+</table>
+
+<view name="freetiles" layers="0" collapse-mode="2" max-obj-count="2" z-value="0">
+	<schema name="public"/>
+	<role name="tiledviz"/>
+	<position x="550" y="1050"/>
+	<reference object="public.tiles" type="table" ref-name="tiles" use-signature="true"/>
+	<reference object="public.many_tiles_has_many_tile_sets" type="table" ref-name="many_tiles_has_many_tile_sets" use-signature="true"/>
+	<simplecol name="id" type="integer"/>
+	<simplecol name="title" type="character varying(80)"/>
+	<definition> <![CDATA[ SELECT t.id,
+    t.title
+   FROM tiles t
+  WHERE (NOT (t.id IN ( SELECT tmt.id_tiles
+           FROM many_tiles_has_many_tile_sets tmt)));]]> </definition>
+</view>
+
+<relationship name="rel_freetiles_tiles" type="reltv" layers="0"
+	 custom-color="#865409"
+	 src-table="public.freetiles"
+	 dst-table="public.tiles"
+	 src-required="false" dst-required="false"/>
+
+<relationship name="rel_freetiles_many_tiles_has_many_tile_sets" type="reltv" layers="0"
+	 custom-color="#9e72d5"
+	 src-table="public.freetiles"
+	 dst-table="public.many_tiles_has_many_tile_sets"
+	 src-required="false" dst-required="false"/>
+
+<table name="many_sessions_has_many_tile_sets" layers="0" collapse-mode="2" max-obj-count="3" z-value="0">
+	<schema name="public"/>
+	<role name="tiledviz"/>
+	<position x="1275" y="50"/>
+	<column name="id_sessions" not-null="true">
+		<type name="integer" length="0"/>
+	</column>
+	<column name="id_tile_sets" not-null="true">
+		<type name="integer" length="0"/>
+	</column>
+	<constraint name="many_sessions_has_many_tile_sets_pk" type="pk-constr" table="public.many_sessions_has_many_tile_sets">
+		<columns names="id_sessions,id_tile_sets" ref-type="src-columns"/>
+	</constraint>
 </table>
 
 <sequence name="tile_sets_id_seq" cycle="false" start="1" increment="1" min-value="1" max-value="9223372036854775807" cache="1">
@@ -316,7 +312,7 @@ CAUTION: Do not modify this file unless you know what you are doing.
 <table name="tile_sets" layers="0" collapse-mode="2" max-obj-count="10" z-value="0">
 	<schema name="public"/>
 	<role name="tiledviz"/>
-	<position x="520" y="760"/>
+	<position x="1750" y="50"/>
 	<column name="id" not-null="true" sequence="public.tile_sets_id_seq">
 		<type name="integer" length="0"/>
 	</column>
@@ -330,6 +326,9 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	<column name="Dataset_path">
 		<type name="character varying" length="100"/>
 		<comment> <![CDATA[Path of  the database for this tile_set.]]> </comment>
+	</column>
+	<column name="id_connections">
+		<type name="integer" length="0"/>
 	</column>
 	<column name="creation_date">
 		<type name="timestamp" length="0"/>
@@ -346,15 +345,454 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	<constraint name="tile_sets_pkey" type="pk-constr" table="public.tile_sets">
 		<columns names="id" ref-type="src-columns"/>
 	</constraint>
+	<constraint name="tile_sets_uq" type="uq-constr" table="public.tile_sets">
+		<columns names="id_connections" ref-type="src-columns"/>
+	</constraint>
+</table>
 
-	<customidxs object-type="column">
-		<object name="id_connections" index="4"/>
-	</customidxs>
+<view name="freetilesets" layers="0" collapse-mode="2" max-obj-count="2" z-value="0">
+	<schema name="public"/>
+	<role name="tiledviz"/>
+	<position x="850" y="1050"/>
+	<reference object="public.many_sessions_has_many_tile_sets" type="table" ref-name="many_sessions_has_many_tile_sets" use-signature="true"/>
+	<reference object="public.tile_sets" type="table" ref-name="tile_sets" use-signature="true"/>
+	<simplecol name="id" type="integer"/>
+	<simplecol name="name" type="character varying(80)"/>
+	<definition> <![CDATA[ SELECT ts.id,
+    ts.name
+   FROM tile_sets ts
+  WHERE (NOT (ts.id IN ( SELECT smt.id_tile_sets
+           FROM many_sessions_has_many_tile_sets smt)));]]> </definition>
+</view>
 
-	<customidxs object-type="constraint">
-		<object name="connections_fk" index="1"/>
-		<object name="tile_sets_uq" index="2"/>
-	</customidxs>
+<relationship name="rel_freetilesets_tile_sets" type="reltv" layers="0"
+	 custom-color="#4aecc4"
+	 src-table="public.freetilesets"
+	 dst-table="public.tile_sets"
+	 src-required="false" dst-required="false"/>
+
+<relationship name="rel_freetilesets_many_sessions_has_many_tile_sets" type="reltv" layers="0"
+	 custom-color="#4992be"
+	 src-table="public.freetilesets"
+	 dst-table="public.many_sessions_has_many_tile_sets"
+	 src-required="false" dst-required="false"/>
+
+<sequence name="invite_links_id_seq" cycle="false" start="1" increment="1" min-value="1" max-value="9223372036854775807" cache="1">
+	<schema name="public"/>
+	<role name="tiledviz"/>
+</sequence>
+
+<table name="invite_links" layers="0" collapse-mode="2" max-obj-count="18" z-value="0">
+	<schema name="public"/>
+	<role name="tiledviz"/>
+	<position x="50" y="500"/>
+	<column name="id" not-null="true" sequence="public.invite_links_id_seq">
+		<type name="integer" length="0"/>
+	</column>
+	<column name="link" not-null="true">
+		<type name="character varying" length="200"/>
+	</column>
+	<column name="host_user" not-null="true">
+		<type name="character varying" length="80"/>
+	</column>
+	<column name="host_project" not-null="true">
+		<type name="character varying" length="80"/>
+	</column>
+	<column name="type">
+		<type name="boolean" length="0"/>
+	</column>
+	<column name="creation_date">
+		<type name="timestamp" length="0"/>
+	</column>
+	<column name="expiration_date">
+		<type name="timestamp" length="0"/>
+		<comment> <![CDATA[Date after which the invite link expires]]> </comment>
+	</column>
+	<column name="is_revoked" default-value="false">
+		<type name="boolean" length="0"/>
+		<comment> <![CDATA[Whether the invite link has been revoked]]> </comment>
+	</column>
+	<column name="message">
+		<type name="character varying" length="500"/>
+		<comment> <![CDATA[Custom message to be sent with the invitation]]> </comment>
+	</column>
+	<column name="target_email">
+		<type name="character varying" length="80"/>
+		<comment> <![CDATA[Email address of the invited user]]> </comment>
+	</column>
+	<column name="group_name">
+		<type name="character varying" length="80"/>
+		<comment> <![CDATA[Name of the group if this is a group invitation]]> </comment>
+	</column>
+	<column name="id_sessions">
+		<type name="integer" length="0"/>
+	</column>
+	<column name="id_users">
+		<type name="integer" length="0"/>
+	</column>
+	<column name="max_uses" default-value="1">
+		<type name="integer" length="0"/>
+		<comment> <![CDATA[Maximum number of times this invite link can be used]]> </comment>
+	</column>
+	<column name="use_count" default-value="0">
+		<type name="integer" length="0"/>
+		<comment> <![CDATA[Number of times this invite link has been used]]> </comment>
+	</column>
+	<constraint name="invite_links_link_key" type="uq-constr" table="public.invite_links">
+		<columns names="link" ref-type="src-columns"/>
+	</constraint>
+	<constraint name="invite_links_pkey" type="pk-constr" table="public.invite_links">
+		<columns names="id" ref-type="src-columns"/>
+	</constraint>
+</table>
+
+<table name="many_users_has_many_sessions" layers="0" collapse-mode="2" max-obj-count="3" z-value="0">
+	<schema name="public"/>
+	<role name="tiledviz"/>
+	<position x="500" y="500"/>
+	<column name="id_users" not-null="true">
+		<type name="integer" length="0"/>
+	</column>
+	<column name="id_sessions" not-null="true">
+		<type name="integer" length="0"/>
+	</column>
+	<constraint name="many_users_has_many_sessions_pk" type="pk-constr" table="public.many_users_has_many_sessions">
+		<columns names="id_users,id_sessions" ref-type="src-columns"/>
+	</constraint>
+</table>
+
+<table name="project_members" layers="0" collapse-mode="2" max-obj-count="7" z-value="0">
+	<schema name="public"/>
+	<role name="tiledviz"/>
+	<position x="950" y="500"/>
+	<column name="project_id" not-null="true">
+		<type name="integer" length="0"/>
+		<comment> <![CDATA[Reference to projects table]]> </comment>
+	</column>
+	<column name="user_id" not-null="true">
+		<type name="integer" length="0"/>
+		<comment> <![CDATA[Reference to users table]]> </comment>
+	</column>
+	<column name="role_type" not-null="true" default-value="'viewer'">
+		<type name="character varying" length="20"/>
+		<comment> <![CDATA[Role of the user in this project]]> </comment>
+	</column>
+	<column name="joined_at" default-value="CURRENT_TIMESTAMP">
+		<type name="timestamp" length="0"/>
+		<comment> <![CDATA[When the user joined the project]]> </comment>
+	</column>
+	<column name="id_users">
+		<type name="integer" length="0"/>
+	</column>
+	<column name="id_projects">
+		<type name="integer" length="0"/>
+	</column>
+	<constraint name="valid_member_role" type="ck-constr" table="public.project_members">
+			<expression> <![CDATA[((role_type)::text = ANY (ARRAY[('owner'::character varying)::text, ('admin'::character varying)::text, ('editor'::character varying)::text, ('viewer'::character varying)::text, ('guest'::character varying)::text]))]]> </expression>
+	</constraint>
+	<constraint name="project_members_pkey" type="pk-constr" table="public.project_members">
+		<columns names="project_id,user_id" ref-type="src-columns"/>
+	</constraint>
+</table>
+
+<sequence name="projects_id_seq" cycle="false" start="1" increment="1" min-value="1" max-value="9223372036854775807" cache="1">
+	<schema name="public"/>
+	<role name="tiledviz"/>
+</sequence>
+
+<table name="projects" layers="0" collapse-mode="2" max-obj-count="7" z-value="0">
+	<schema name="public"/>
+	<role name="tiledviz"/>
+	<position x="1425" y="500"/>
+	<column name="id" not-null="true" sequence="public.projects_id_seq">
+		<type name="integer" length="0"/>
+	</column>
+	<column name="id_users">
+		<type name="integer" length="0"/>
+	</column>
+	<column name="name" not-null="true">
+		<type name="character varying" length="80"/>
+	</column>
+	<column name="creation_date">
+		<type name="timestamp" length="0"/>
+	</column>
+	<column name="description">
+		<type name="character varying" length="120"/>
+	</column>
+	<column name="role_type" not-null="true">
+		<type name="character varying" length="20"/>
+		<comment> <![CDATA[Type de rôle dans le projet]]> </comment>
+	</column>
+	<constraint name="valid_role_type" type="ck-constr" table="public.projects">
+			<expression> <![CDATA[((role_type)::text = ANY (ARRAY[('owner'::character varying)::text, ('admin'::character varying)::text, ('editor'::character varying)::text, ('viewer'::character varying)::text, ('guest'::character varying)::text]))]]> </expression>
+	</constraint>
+	<constraint name="projects_pkey" type="pk-constr" table="public.projects">
+		<columns names="id" ref-type="src-columns"/>
+	</constraint>
+	<constraint name="uniq_project" type="uq-constr" table="public.projects">
+		<columns names="name" ref-type="src-columns"/>
+	</constraint>
+</table>
+
+<sequence name="users_id_seq" cycle="false" start="1" increment="1" min-value="1" max-value="9223372036854775807" cache="1">
+	<schema name="public"/>
+	<role name="tiledviz"/>
+</sequence>
+
+<table name="users" layers="0" collapse-mode="2" max-obj-count="13" z-value="0">
+	<schema name="public"/>
+	<role name="tiledviz"/>
+	<position x="1875" y="500"/>
+	<column name="id" not-null="true" sequence="public.users_id_seq">
+		<type name="integer" length="0"/>
+	</column>
+	<column name="name" not-null="true">
+		<type name="character varying" length="80"/>
+	</column>
+	<column name="creation_date">
+		<type name="timestamp" length="0"/>
+	</column>
+	<column name="mail">
+		<type name="character varying" length="80"/>
+	</column>
+	<column name="compagny">
+		<type name="character varying" length="0"/>
+	</column>
+	<column name="manager">
+		<type name="character varying" length="80"/>
+		<comment> <![CDATA[Project manager]]> </comment>
+	</column>
+	<column name="salt" not-null="true">
+		<type name="character" length="20"/>
+	</column>
+	<column name="password">
+		<type name="character" length="128"/>
+	</column>
+	<column name="dateverified">
+		<type name="timestamp" length="0"/>
+	</column>
+	<column name="is_admin" default-value="false">
+		<type name="boolean" length="0"/>
+		<comment> <![CDATA[Whether the user is an administrator]]> </comment>
+	</column>
+	<column name="is_verified" not-null="true" default-value="False">
+		<type name="boolean" length="0"/>
+	</column>
+	<constraint name="uniq_users" type="uq-constr" table="public.users">
+		<columns names="name" ref-type="src-columns"/>
+	</constraint>
+	<constraint name="users_pkey" type="pk-constr" table="public.users">
+		<columns names="id" ref-type="src-columns"/>
+	</constraint>
+</table>
+
+<view name="project_members_detailed" layers="0" collapse-mode="2" max-obj-count="3" z-value="0">
+	<schema name="public"/>
+	<role name="tiledviz"/>
+	<position x="1150" y="1050"/>
+	<reference object="public.project_members" type="table" ref-name="project_members" use-signature="true"/>
+	<reference object="public.projects" type="table" ref-name="projects" use-signature="true"/>
+	<reference object="public.users" type="table" ref-name="users" use-signature="true"/>
+	<simplecol name="project_id" type="integer"/>
+	<simplecol name="project_name" type="character varying(80)"/>
+	<simplecol name="user_id" type="integer"/>
+	<simplecol name="user_name" type="character varying(80)"/>
+	<simplecol name="user_email" type="character varying(80)"/>
+	<simplecol name="role_type" type="character varying(20)"/>
+	<simplecol name="joined_at" type="timestamp"/>
+	<simplecol name="role_priority" type="integer"/>
+	<definition> <![CDATA[ SELECT pm.project_id,
+    p.name AS project_name,
+    pm.user_id,
+    u.name AS user_name,
+    u.mail AS user_email,
+    pm.role_type,
+    pm.joined_at,
+        CASE
+            WHEN ((pm.role_type)::text = 'owner'::text) THEN 1
+            WHEN ((pm.role_type)::text = 'admin'::text) THEN 2
+            WHEN ((pm.role_type)::text = 'editor'::text) THEN 3
+            WHEN ((pm.role_type)::text = 'viewer'::text) THEN 4
+            WHEN ((pm.role_type)::text = 'guest'::text) THEN 5
+            ELSE 6
+        END AS role_priority
+   FROM ((project_members pm
+     JOIN projects p ON ((pm.project_id = p.id)))
+     JOIN users u ON ((pm.user_id = u.id)))
+  ORDER BY pm.project_id,
+        CASE
+            WHEN ((pm.role_type)::text = 'owner'::text) THEN 1
+            WHEN ((pm.role_type)::text = 'admin'::text) THEN 2
+            WHEN ((pm.role_type)::text = 'editor'::text) THEN 3
+            WHEN ((pm.role_type)::text = 'viewer'::text) THEN 4
+            WHEN ((pm.role_type)::text = 'guest'::text) THEN 5
+            ELSE 6
+        END, u.name;]]> </definition>
+</view>
+
+<relationship name="rel_project_members_detailed_project_members" type="reltv" layers="0"
+	 custom-color="#f8088c"
+	 src-table="public.project_members_detailed"
+	 dst-table="public.project_members"
+	 src-required="false" dst-required="false"/>
+
+<relationship name="rel_project_members_detailed_projects" type="reltv" layers="0"
+	 custom-color="#014304"
+	 src-table="public.project_members_detailed"
+	 dst-table="public.projects"
+	 src-required="false" dst-required="false"/>
+
+<relationship name="rel_project_members_detailed_users" type="reltv" layers="0"
+	 custom-color="#807b81"
+	 src-table="public.project_members_detailed"
+	 dst-table="public.users"
+	 src-required="false" dst-required="false"/>
+
+<view name="project_owners_detailed" layers="0" collapse-mode="2" max-obj-count="3" z-value="0">
+	<schema name="public"/>
+	<role name="tiledviz"/>
+	<position x="1525" y="1050"/>
+	<reference object="public.project_members" type="table" ref-name="project_members" use-signature="true"/>
+	<reference object="public.projects" type="table" ref-name="projects" use-signature="true"/>
+	<reference object="public.users" type="table" ref-name="users" use-signature="true"/>
+	<simplecol name="project_id" type="integer"/>
+	<simplecol name="project_name" type="character varying(80)"/>
+	<simplecol name="description" type="character varying(120)"/>
+	<simplecol name="project_created" type="timestamp"/>
+	<simplecol name="owner_id" type="integer"/>
+	<simplecol name="owner_name" type="character varying(80)"/>
+	<simplecol name="owner_email" type="character varying(80)"/>
+	<simplecol name="owner_company" type="character varying"/>
+	<simplecol name="ownership_date" type="timestamp"/>
+	<simplecol name="ownership_status" type="text"/>
+	<definition> <![CDATA[ SELECT p.id AS project_id,
+    p.name AS project_name,
+    p.description,
+    p.creation_date AS project_created,
+    u.id AS owner_id,
+    u.name AS owner_name,
+    u.mail AS owner_email,
+    u.compagny AS owner_company,
+    pm.joined_at AS ownership_date,
+        CASE
+            WHEN (pm.user_id IS NULL) THEN 'NO OWNER'::text
+            ELSE 'HAS OWNER'::text
+        END AS ownership_status
+   FROM ((projects p
+     LEFT JOIN project_members pm ON (((p.id = pm.project_id) AND ((pm.role_type)::text = ('owner'::character varying)::text))))
+     LEFT JOIN users u ON ((pm.user_id = u.id)))
+  ORDER BY
+        CASE
+            WHEN (pm.user_id IS NULL) THEN 'NO OWNER'::text
+            ELSE 'HAS OWNER'::text
+        END DESC, p.name;]]> </definition>
+</view>
+
+<relationship name="rel_project_owners_detailed_project_members" type="reltv" layers="0"
+	 custom-color="#5ced61"
+	 src-table="public.project_owners_detailed"
+	 dst-table="public.project_members"
+	 src-required="false" dst-required="false"/>
+
+<relationship name="rel_project_owners_detailed_projects" type="reltv" layers="0"
+	 custom-color="#9f60c6"
+	 src-table="public.project_owners_detailed"
+	 dst-table="public.projects"
+	 src-required="false" dst-required="false"/>
+
+<relationship name="rel_project_owners_detailed_users" type="reltv" layers="0"
+	 custom-color="#025284"
+	 src-table="public.project_owners_detailed"
+	 dst-table="public.users"
+	 src-required="false" dst-required="false"/>
+
+<view name="project_owners_summary" layers="0" collapse-mode="2" max-obj-count="3" z-value="0">
+	<schema name="public"/>
+	<role name="tiledviz"/>
+	<position x="50" y="1425"/>
+	<reference object="public.project_members" type="table" ref-name="project_members" use-signature="true"/>
+	<reference object="public.projects" type="table" ref-name="projects" use-signature="true"/>
+	<reference object="public.users" type="table" ref-name="users" use-signature="true"/>
+	<simplecol name="project_id" type="integer"/>
+	<simplecol name="project_name" type="character varying(80)"/>
+	<simplecol name="creation_date" type="timestamp"/>
+	<simplecol name="owner_id" type="integer"/>
+	<simplecol name="owner_name" type="character varying(80)"/>
+	<simplecol name="owner_email" type="character varying(80)"/>
+	<simplecol name="ownership_date" type="timestamp"/>
+	<definition> <![CDATA[ SELECT p.id AS project_id,
+    p.name AS project_name,
+    p.creation_date,
+    u.id AS owner_id,
+    u.name AS owner_name,
+    u.mail AS owner_email,
+    pm.joined_at AS ownership_date
+   FROM ((projects p
+     LEFT JOIN project_members pm ON (((p.id = pm.project_id) AND ((pm.role_type)::text = ('owner'::character varying)::text))))
+     LEFT JOIN users u ON ((pm.user_id = u.id)))
+  ORDER BY p.name;]]> </definition>
+</view>
+
+<relationship name="rel_project_owners_summary_project_members" type="reltv" layers="0"
+	 custom-color="#0de178"
+	 src-table="public.project_owners_summary"
+	 dst-table="public.project_members"
+	 src-required="false" dst-required="false"/>
+
+<relationship name="rel_project_owners_summary_projects" type="reltv" layers="0"
+	 custom-color="#c185b6"
+	 src-table="public.project_owners_summary"
+	 dst-table="public.projects"
+	 src-required="false" dst-required="false"/>
+
+<relationship name="rel_project_owners_summary_users" type="reltv" layers="0"
+	 custom-color="#e7d804"
+	 src-table="public.project_owners_summary"
+	 dst-table="public.users"
+	 src-required="false" dst-required="false"/>
+
+<sequence name="sessions_id_seq" cycle="false" start="1" increment="1" min-value="1" max-value="9223372036854775807" cache="1">
+	<schema name="public"/>
+	<role name="tiledviz"/>
+</sequence>
+
+<table name="sessions" layers="0" collapse-mode="2" max-obj-count="9" z-value="0">
+	<schema name="public"/>
+	<role name="tiledviz"/>
+	<position x="50" y="1050"/>
+	<column name="id" not-null="true" sequence="public.sessions_id_seq">
+		<type name="integer" length="0"/>
+	</column>
+	<column name="name" not-null="true">
+		<type name="character varying" length="80"/>
+	</column>
+	<column name="id_projects" not-null="true">
+		<type name="integer" length="0"/>
+	</column>
+	<column name="creation_date">
+		<type name="timestamp" length="0"/>
+	</column>
+	<column name="description">
+		<type name="character varying" length="120"/>
+	</column>
+	<column name="Number_of_active_users">
+		<type name="smallint" length="0"/>
+		<comment> <![CDATA[Number of users actively connected to this sessions]]> </comment>
+	</column>
+	<column name="timeout">
+		<type name="integer" length="0"/>
+		<comment> <![CDATA[Set the timeout (in seconds) after which a session is disactivated (Number_of_active_users is 0) while no socket is still connected.]]> </comment>
+	</column>
+	<column name="config">
+		<type name="json" length="0"/>
+		<comment> <![CDATA[configuration of the grid for this session]]> </comment>
+	</column>
+	<constraint name="sessions_pkey" type="pk-constr" table="public.sessions">
+		<columns names="id" ref-type="src-columns"/>
+	</constraint>
+	<constraint name="uniq_session" type="uq-constr" table="public.sessions">
+		<columns names="name" ref-type="src-columns"/>
+	</constraint>
 </table>
 
 <sequence name="sockets_id_seq" cycle="false" start="1" increment="1" min-value="1" max-value="9223372036854775807" cache="1">
@@ -362,100 +800,273 @@ CAUTION: Do not modify this file unless you know what you are doing.
 	<role name="tiledviz"/>
 </sequence>
 
-<relationship name="many_users_has_many_sessions" type="relnn" layers="0"
-	 src-col-pattern="{sc}_{st}" dst-col-pattern="{sc}_{dt}"
-	 pk-pattern="{gt}_pk" uq-pattern="{gt}_uq"
-	 src-fk-pattern="{st}_fk" dst-fk-pattern="{dt}_fk"
-	 pk-col-pattern="id"
-	 custom-color="#2ee7f1"
-	 src-table="public.users"
-	 dst-table="public.sessions"
-	 src-required="false" dst-required="false"
-	 table-name="many_users_has_many_sessions"/>
+<index name="idx_project_members_composite" table="public.project_members"
+	 concurrent="false" unique="false" fast-update="false" buffering="false" nulls-not-distinct="false"
+	 index-type="btree" factor="90">
+		<idxelement use-sorting="false">
+			<column name="project_id"/>
+		</idxelement>
+		<idxelement use-sorting="false">
+			<column name="user_id"/>
+		</idxelement>
+		<idxelement use-sorting="false">
+			<column name="role_type"/>
+		</idxelement>
+</index>
 
-<relationship name="projects_has_many_sessions" type="rel1n" layers="0"
-	 src-col-pattern="{sc}_{st}"
-	 pk-pattern="{dt}_pk" uq-pattern="{dt}_uq"
-	 src-fk-pattern="{st}_fk"
-	 custom-color="#3cb5ef"
-	 src-table="public.projects"
-	 dst-table="public.sessions"
-	 src-required="true" dst-required="false"/>
+<index name="idx_project_members_project" table="public.project_members"
+	 concurrent="false" unique="false" fast-update="false" buffering="false" nulls-not-distinct="false"
+	 index-type="btree" factor="90">
+		<idxelement use-sorting="false">
+			<column name="project_id"/>
+		</idxelement>
+</index>
 
-<relationship name="many_tiles_has_many_tile_sets" type="relnn" layers="0"
-	 src-col-pattern="{sc}_{st}" dst-col-pattern="{sc}_{dt}"
-	 pk-pattern="{gt}_pk" uq-pattern="{gt}_uq"
-	 src-fk-pattern="{st}_fk" dst-fk-pattern="{dt}_fk"
-	 pk-col-pattern="id"
-	 custom-color="#8f769d"
+<index name="idx_project_members_project_role" table="public.project_members"
+	 concurrent="false" unique="false" fast-update="false" buffering="false" nulls-not-distinct="false"
+	 index-type="btree" factor="90">
+		<idxelement use-sorting="false">
+			<column name="project_id"/>
+		</idxelement>
+		<idxelement use-sorting="false">
+			<column name="role_type"/>
+		</idxelement>
+</index>
+
+<index name="idx_project_members_role" table="public.project_members"
+	 concurrent="false" unique="false" fast-update="false" buffering="false" nulls-not-distinct="false"
+	 index-type="btree" factor="90">
+		<idxelement use-sorting="false">
+			<column name="role_type"/>
+		</idxelement>
+	<predicate> <![CDATA[role_type::text = ANY (ARRAY['owner'::text, 'admin'::text])]]> </predicate>
+</index>
+
+<index name="idx_project_members_user" table="public.project_members"
+	 concurrent="false" unique="false" fast-update="false" buffering="false" nulls-not-distinct="false"
+	 index-type="btree" factor="90">
+		<idxelement use-sorting="false">
+			<column name="user_id"/>
+		</idxelement>
+</index>
+
+<index name="uq_project_owner" table="public.project_members"
+	 concurrent="false" unique="true" fast-update="false" buffering="false" nulls-not-distinct="false"
+	 index-type="btree" factor="90">
+		<idxelement use-sorting="false">
+			<column name="project_id"/>
+		</idxelement>
+	<predicate> <![CDATA[role_type::text = 'owner'::text]]> </predicate>
+</index>
+
+<trigger name="trg_add_owner_to_project_members" firing-type="AFTER" per-line="true" constraint="false"
+	 ins-event="true" del-event="false" upd-event="false" trunc-event="false"
+	 table="public.projects">
+		<function signature="public.add_owner_to_project_members()"/>
+</trigger>
+
+<constraint name="connections_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="SET NULL" ref-table="public.connections" table="public.tiles">
+	<columns names="id_connections" ref-type="src-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="users_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="RESTRICT" ref-table="public.users" table="public.connections">
+	<columns names="id_users" ref-type="src-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="tile_sets_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="RESTRICT" ref-table="public.tile_sets" table="public.many_tiles_has_many_tile_sets">
+	<columns names="id_tile_sets" ref-type="src-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="tiles_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="RESTRICT" ref-table="public.tiles" table="public.many_tiles_has_many_tile_sets">
+	<columns names="id_tiles" ref-type="src-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="sessions_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="RESTRICT" ref-table="public.sessions" table="public.many_sessions_has_many_tile_sets">
+	<columns names="id_sessions" ref-type="src-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="tile_sets_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="RESTRICT" ref-table="public.tile_sets" table="public.many_sessions_has_many_tile_sets">
+	<columns names="id_tile_sets" ref-type="src-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="connections_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="SET NULL" ref-table="public.connections" table="public.tile_sets">
+	<columns names="id_connections" ref-type="src-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="sessions_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="SET NULL" ref-table="public.sessions" table="public.invite_links">
+	<columns names="id_sessions" ref-type="src-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="users_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="SET NULL" ref-table="public.users" table="public.invite_links">
+	<columns names="id_users" ref-type="src-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="sessions_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="RESTRICT" ref-table="public.sessions" table="public.many_users_has_many_sessions">
+	<columns names="id_sessions" ref-type="src-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="users_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="RESTRICT" ref-table="public.users" table="public.many_users_has_many_sessions">
+	<columns names="id_users" ref-type="src-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="project_members_project_fk" type="fk-constr" comparison-type="MATCH SIMPLE"
+	 upd-action="CASCADE" del-action="CASCADE" ref-table="public.projects" table="public.project_members">
+	<columns names="project_id" ref-type="src-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="project_members_user_fk" type="fk-constr" comparison-type="MATCH SIMPLE"
+	 upd-action="NO ACTION" del-action="NO ACTION" ref-table="public.users" table="public.project_members">
+	<columns names="user_id" ref-type="src-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="projects_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="CASCADE" ref-table="public.projects" table="public.project_members">
+	<columns names="id_projects" ref-type="src-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="users_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="CASCADE" ref-table="public.users" table="public.project_members">
+	<columns names="id_users" ref-type="src-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="users_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="SET NULL" ref-table="public.users" table="public.projects">
+	<columns names="id_users" ref-type="src-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
+</constraint>
+
+<constraint name="projects_fk" type="fk-constr" comparison-type="MATCH FULL"
+	 upd-action="CASCADE" del-action="RESTRICT" ref-table="public.projects" table="public.sessions">
+	<columns names="id_projects" ref-type="src-columns"/>
+	<columns names="id" ref-type="dst-columns"/>
+</constraint>
+
+<relationship name="rel_tiles_connections" type="relfk" layers="0"
+	 custom-color="#23338a"
 	 src-table="public.tiles"
-	 dst-table="public.tile_sets"
-	 src-required="false" dst-required="false"
-	 table-name="many_tiles_has_many_tile_sets"/>
-
-<relationship name="sessions_has_many_invite_links" type="rel1n" layers="0"
-	 src-col-pattern="{sc}_{st}"
-	 pk-pattern="{dt}_pk" uq-pattern="{dt}_uq"
-	 src-fk-pattern="{st}_fk"
-	 custom-color="#e36080"
-	 src-table="public.sessions"
-	 dst-table="public.invite_links"
+	 dst-table="public.connections" reference-fk="connections_fk"
 	 src-required="false" dst-required="false"/>
 
-<relationship name="connections_has_many_tiles" type="rel1n" layers="0"
-	 src-col-pattern="{sc}_{st}"
-	 pk-pattern="{dt}_pk" uq-pattern="{dt}_uq"
-	 src-fk-pattern="{st}_fk"
-	 custom-color="#cc0000"
+<relationship name="rel_connections_users" type="relfk" layers="0"
+	 custom-color="#d9a11a"
 	 src-table="public.connections"
-	 dst-table="public.tiles"
+	 dst-table="public.users" reference-fk="users_fk"
+	 src-required="false" dst-required="true"/>
+
+<relationship name="rel_many_tiles_has_many_tile_sets_tile_sets" type="relfk" layers="0"
+	 custom-color="#3b9119"
+	 src-table="public.many_tiles_has_many_tile_sets"
+	 dst-table="public.tile_sets" reference-fk="tile_sets_fk"
+	 src-required="false" dst-required="true"/>
+
+<relationship name="rel_many_tiles_has_many_tile_sets_tiles" type="relfk" layers="0"
+	 custom-color="#649074"
+	 src-table="public.many_tiles_has_many_tile_sets"
+	 dst-table="public.tiles" reference-fk="tiles_fk"
+	 src-required="false" dst-required="true"/>
+
+<relationship name="rel_many_sessions_has_many_tile_sets_sessions" type="relfk" layers="0"
+	 custom-color="#58c787"
+	 src-table="public.many_sessions_has_many_tile_sets"
+	 dst-table="public.sessions" reference-fk="sessions_fk"
+	 src-required="false" dst-required="true"/>
+
+<relationship name="rel_many_sessions_has_many_tile_sets_tile_sets" type="relfk" layers="0"
+	 custom-color="#1d09f9"
+	 src-table="public.many_sessions_has_many_tile_sets"
+	 dst-table="public.tile_sets" reference-fk="tile_sets_fk"
+	 src-required="false" dst-required="true"/>
+
+<relationship name="rel_tile_sets_connections" type="relfk" layers="0"
+	 custom-color="#477697"
+	 src-table="public.tile_sets"
+	 dst-table="public.connections" reference-fk="connections_fk"
 	 src-required="false" dst-required="false"/>
 
-<relationship name="tile_sets_has_one_connections" type="rel11" layers="0"
-	 src-col-pattern="{sc}_{st}"
-	 pk-pattern="{dt}_pk" uq-pattern="{dt}_uq"
-	 src-fk-pattern="{st}_fk"
-	 custom-color="#a7adef"
-	 src-table="public.connections"
-	 dst-table="public.tile_sets"
+<relationship name="rel_invite_links_sessions" type="relfk" layers="0"
+	 custom-color="#c2cec3"
+	 src-table="public.invite_links"
+	 dst-table="public.sessions" reference-fk="sessions_fk"
 	 src-required="false" dst-required="false"/>
 
-<relationship name="users_has_many_invite_links" type="rel1n" layers="0"
-	 src-col-pattern="{sc}_{st}"
-	 pk-pattern="{dt}_pk" uq-pattern="{dt}_uq"
-	 src-fk-pattern="{st}_fk"
-	 custom-color="#dfaa6d"
-	 src-table="public.users"
-	 dst-table="public.invite_links"
+<relationship name="rel_invite_links_users" type="relfk" layers="0"
+	 custom-color="#12165c"
+	 src-table="public.invite_links"
+	 dst-table="public.users" reference-fk="users_fk"
 	 src-required="false" dst-required="false"/>
 
-<relationship name="users_has_many_projects" type="rel1n" layers="0"
-	 src-col-pattern="{sc}_{st}"
-	 pk-pattern="{dt}_pk" uq-pattern="{dt}_uq"
-	 src-fk-pattern="{st}_fk"
-	 custom-color="#5041f1"
-	 src-table="public.users"
-	 dst-table="public.projects"
+<relationship name="rel_many_users_has_many_sessions_sessions" type="relfk" layers="0"
+	 custom-color="#7a0f02"
+	 src-table="public.many_users_has_many_sessions"
+	 dst-table="public.sessions" reference-fk="sessions_fk"
+	 src-required="false" dst-required="true"/>
+
+<relationship name="rel_many_users_has_many_sessions_users" type="relfk" layers="0"
+	 custom-color="#d4c608"
+	 src-table="public.many_users_has_many_sessions"
+	 dst-table="public.users" reference-fk="users_fk"
+	 src-required="false" dst-required="true"/>
+
+<relationship name="rel_project_members_projects" type="relfk" layers="0"
+	 custom-color="#cf14ef"
+	 src-table="public.project_members"
+	 dst-table="public.projects" reference-fk="project_members_project_fk"
+	 src-required="false" dst-required="true"/>
+
+<relationship name="rel_project_members_users" type="relfk" layers="0"
+	 custom-color="#b73f12"
+	 src-table="public.project_members"
+	 dst-table="public.users" reference-fk="project_members_user_fk"
+	 src-required="false" dst-required="true"/>
+
+<relationship name="rel_project_members_projects1" type="relfk" layers="0"
+	 custom-color="#d623aa"
+	 src-table="public.project_members"
+	 dst-table="public.projects" reference-fk="projects_fk"
 	 src-required="false" dst-required="false"/>
 
-<relationship name="users_has_many_connections" type="rel1n" layers="0"
-	 src-col-pattern="{sc}_{st}"
-	 pk-pattern="{dt}_pk" uq-pattern="{dt}_uq"
-	 src-fk-pattern="{st}_fk"
-	 custom-color="#06749e"
-	 src-table="public.users"
-	 dst-table="public.connections"
-	 src-required="true" dst-required="false"/>
+<relationship name="rel_project_members_users1" type="relfk" layers="0"
+	 custom-color="#a2ed8b"
+	 src-table="public.project_members"
+	 dst-table="public.users" reference-fk="users_fk"
+	 src-required="false" dst-required="false"/>
 
-<relationship name="many_sessions_has_many_tile_sets" type="relnn" layers="0"
-	 src-col-pattern="{sc}_{st}" dst-col-pattern="{sc}_{dt}"
-	 pk-pattern="{gt}_pk" uq-pattern="{gt}_uq"
-	 src-fk-pattern="{st}_fk" dst-fk-pattern="{dt}_fk"
-	 pk-col-pattern="id"
-	 custom-color="#bee334"
+<relationship name="rel_projects_users" type="relfk" layers="0"
+	 custom-color="#dda6d2"
+	 src-table="public.projects"
+	 dst-table="public.users" reference-fk="users_fk"
+	 src-required="false" dst-required="false"/>
+
+<relationship name="rel_sessions_projects" type="relfk" layers="0"
+	 custom-color="#d0d821"
 	 src-table="public.sessions"
-	 dst-table="public.tile_sets"
-	 src-required="false" dst-required="false"
-	 table-name="many_sessions_has_many_tile_sets"/>
+	 dst-table="public.projects" reference-fk="projects_fk"
+	 src-required="false" dst-required="true"/>
 
 </dbmodel>

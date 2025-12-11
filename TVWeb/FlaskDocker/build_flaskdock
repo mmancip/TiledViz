@@ -3,7 +3,23 @@
 date +%F_%H-%M-%S
 mv TVDatabase/postgresql $HOME/tmp
 source $HOME/.cache/envTiledViz
-sed -e "s&_SERVER_NAME_&$SERVER_NAME&"  -e "s&_DOMAIN_&$DOMAIN&" -e "s&_SSLpublic_&$SSLpublic&" -e "s&_SSLprivate_&$SSLprivate&" TVWeb/FlaskDocker/Dockerfile.web_i > TVWeb/FlaskDocker/Dockerfile.web
+
+# Replace placeholders in Dockerfile and nginx config
+sed -e "s&_SERVER_NAME_&$SERVER_NAME&" \
+    -e "s&_DOMAIN_&$DOMAIN&" \
+    -e "s&_SSLpublic_&$SSLpublic&" \
+    -e "s&_SSLprivate_&$SSLprivate&" \
+    -e "s&_NTP_&$NTP&"  \
+    -e "s&_SMTP_SERVER_&$SMTP_SERVER&" \
+    -e "s&_SMTP_PORT_&$SMTP_PORT&" \
+    -e "s&_SMTP_USE_TLS_&$SMTP_USE_TLS&" \
+    -e "s&_SMTP_USE_SSL_&$SMTP_USE_SSL&" \
+    -e "s&_SMTP_USERNAME_&$SMTP_USERNAME&" \
+    -e "s&_SMTP_PASSWORD_&$SMTP_PASSWORD&" \
+    -e "s&_FROM_EMAIL_&$FROM_EMAIL&" \
+    -e "s&_IMAP_SERVER_&$IMAP_SERVER&" \
+    -e "s&_IMAP_PORT_&$IMAP_PORT&" \
+    TVWeb/FlaskDocker/Dockerfile.web_i > TVWeb/FlaskDocker/Dockerfile.web
 sed -e "s&DNSservername&$SERVER_NAME&"  -e "s&_DOMAIN_&$DOMAIN&" -e "s&_SSLpublic_&$SSLpublic&" -e "s&_SSLprivate_&$SSLprivate&" TVWeb/nginx/nginx.conf_i > TVWeb/nginx/nginx.conf
 docker buildx build -t flaskimage -f TVWeb/FlaskDocker/Dockerfile.web .
 mv $HOME/tmp/postgresql  TVDatabase

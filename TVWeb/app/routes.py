@@ -11,12 +11,17 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func
-import requests
+#import requests
+
+from bs4 import BeautifulSoup
+import lxml
 
 from app import app, socketio, db
 
 from app.forms import BuildRegisterForm, BuildLoginForm, BuildNewProjectForm, BuildAllProjectSessionForm, BuildOldProjectForm, BuildNewSessionForm, BuildTilesSetForm, BuildEditsessionform, BuildOldTileSetForm, BuildConfigSessionForm, BuildConnectionsForm, BuildRetreiveSessionForm, BuildAdminForm
 
+# Import email utilities
+from app.email_utils import generate_verification_token, send_verification_email, verify_token, delete_sent_email
 
 import app.models as models # DB management
 import json, os, pprint
@@ -66,6 +71,11 @@ really_delete=True
 
 # Link expired duree in seconds
 LinkExpiredAfterSec=240
+
+# A global list for roles in projects
+valid_roles = ['owner', 'editor', 'viewer']
+valid_manage_members=["owner"]
+valid_manage_project=['owner', 'editor']
 
 #Separation character for invite links:
 linkChar='*'
@@ -128,7 +138,12 @@ connectionh=str(min(40,models.Connections.host_address.type.length))
 datel=str(19)
 descrl=str(min(62,models.Projects.description.type.length))
 
-
+class FormUser():
+    __slots__=["data","iseditor"]
+    def __init__(self,data,iseditor):
+        self.data=data
+        self.iseditor=iseditor
+        
 # Global functions : creation, copy and delete DB elements
 
 def myflush():
@@ -144,18 +159,500 @@ def get_user_id(fun,username):
         return redirect(url_for("login"))
     return user[0]
 
+# Project Member Management Utility Functions
+
+def get_user_projects(user_id):
+    """
+    Get all projects for a user with their roles
+    Returns a list of tuples: (project, role_type)
+    """
+    try:
+        projects_query = db.session.query(
+            models.Projects,
+            models.ProjectMembers.role_type
+        ).join(
+            models.ProjectMembers, 
+            models.Projects.id == models.ProjectMembers.project_id
+        ).filter(
+            models.ProjectMembers.user_id == user_id
+        )
+        
+        return projects_query.all()
+    except Exception as e:
+        logging.error(f"Error getting user projects: {str(e)}")
+        return []
+
+def is_project_owner(project_id, user_id):
+    """
+    Check if user is owner of the project
+    """
+    try:
+        membership = db.session.query(models.ProjectMembers).filter_by(
+            project_id=project_id,
+            user_id=user_id,
+            role_type='owner'
+        ).first()
+        return membership is not None
+    except Exception as e:
+        logging.error(f"Error checking project ownership: {str(e)}")
+        return False
+
+def can_manage_project(project_id, user_id):
+    """
+    Check if user can manage the project (owner or editor)
+    """
+    try:
+        membership = db.session.query(models.ProjectMembers).filter_by(
+            project_id=project_id,
+            user_id=user_id
+        ).first()
+        return membership and membership.role_type in valid_manage_project
+    except Exception as e:
+        logging.error(f"Error checking project management permissions: {str(e)}")
+        return False
+
+
+def can_edit_project(project_id, user_id):
+    """
+    Alias helper for edit-level permissions on a project.
+    Editing is allowed for roles: owner, admin, editor.
+    """
+    return can_manage_project(project_id, user_id)
+def can_access_project(project_id, user_id):
+    """
+    Check if user can access the project (any role including viewer and guest)
+    """
+    try:
+        membership = db.session.query(models.ProjectMembers).filter_by(
+            project_id=project_id,
+            user_id=user_id
+        ).first()
+        return membership is not None
+    except Exception as e:
+        logging.error(f"Error checking project access permissions: {str(e)}")
+        return False
+
+def get_project_members(project_id):
+    """
+    Get all members of a project with their details
+    """
+    try:
+        from sqlalchemy.orm import joinedload
+        
+        members = db.session.query(models.ProjectMembers).options(
+            joinedload(models.ProjectMembers.user)
+        ).filter(
+            models.ProjectMembers.project_id == project_id
+        ).order_by(
+            models.ProjectMembers.role_type,
+            models.ProjectMembers.user_id
+        ).all()
+        
+        return members
+    except Exception as e:
+        logging.error(f"Error getting project members: {str(e)}")
+        return []
+
+def add_project_member(project_id, user_id, role_type='viewer'):
+    """
+    Add a user as member to a project
+    """
+    try:
+        # Check if user is already a member
+        existing_member = db.session.query(models.ProjectMembers).filter_by(
+            project_id=project_id,
+            user_id=user_id
+        ).first()
+        
+        if existing_member:
+            return False, "User is already a member of this project"
+        
+        # Validate role type
+        if role_type not in valid_roles:
+            return False, f"Invalid role type. Must be one of: {', '.join(valid_roles)}"
+        
+        # Create new member
+        new_member = models.ProjectMembers(
+            project_id=project_id,
+            user_id=user_id,
+            role_type=role_type
+        )
+        
+        db.session.add(new_member)
+        db.session.commit()
+        
+        return True, "Member added successfully"
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error adding project member: {str(e)}")
+        return False, f"Error adding member: {str(e)}"
+
+def remove_project_member(project_id, user_id):
+    """
+    Remove a user from a project
+    """
+    try:
+        member = db.session.query(models.ProjectMembers).filter_by(
+            project_id=project_id,
+            user_id=user_id
+        ).first()
+        
+        if not member:
+            return False, "User is not a member of this project"
+        
+        # Prevent removal of the last owner
+        if member.role_type == 'owner':
+            owner_count = db.session.query(models.ProjectMembers).filter_by(
+                project_id=project_id,
+                role_type='owner'
+            ).count()
+            
+            if owner_count <= 1:
+                return False, "Cannot remove the last owner of a project"
+        
+        db.session.delete(member)
+        db.session.commit()
+        
+        return True, "Member removed successfully"
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error removing project member: {str(e)}")
+        return False, f"Error removing member: {str(e)}"
+
+def update_member_role(project_id, user_id, new_role):
+    """
+    Update a member's role in a project
+    """
+    try:
+        member = db.session.query(models.ProjectMembers).filter_by(
+            project_id=project_id,
+            user_id=user_id
+        ).first()
+        
+        if not member:
+            return False, "User is not a member of this project"
+        
+        # Validate role type
+        if new_role not in valid_roles:
+            return False, f"Invalid role type. Must be one of: {', '.join(valid_roles)}"
+        
+        # Prevent changing role of the last owner
+        if member.role_type == 'owner' and new_role != 'owner':
+            owner_count = db.session.query(models.ProjectMembers).filter_by(
+                project_id=project_id,
+                role_type='owner'
+            ).count()
+            
+            if owner_count <= 1:
+                return False, "Cannot change role of the last owner"
+        
+        member.role_type = new_role
+        db.session.commit()
+        
+        return True, "Member role updated successfully"
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error updating member role: {str(e)}")
+        return False, f"Error updating role: {str(e)}"
+
+def transfer_project_ownership(project_id, current_user_id, new_owner_id):
+    """
+    Transfer project ownership to another user
+    """
+    try:
+        # Validate current user is owner
+        if not is_project_owner(project_id, current_user_id):
+            return False, "Only the project owner can transfer ownership"
+        
+        # Validate new owner exists
+        new_owner = db.session.query(models.Users).filter_by(id=new_owner_id).first()
+        if not new_owner:
+            return False, "New owner user not found"
+        
+        # Validate new owner is already a member
+        new_owner_membership = db.session.query(models.ProjectMembers).filter_by(
+            project_id=project_id,
+            user_id=new_owner_id
+        ).first()
+        
+        if not new_owner_membership:
+            return False, "The new owner must be a member of the project first"
+        
+        # Prevent self-transfer
+        if current_user_id == new_owner_id:
+            return False, "Cannot transfer ownership to yourself"
+        
+        # Prevent duplicate owners
+        if new_owner_membership.role_type == 'owner':
+            return False, "The selected user is already an owner of this project"
+        
+        # Perform ownership transfer
+        current_user_membership = db.session.query(models.ProjectMembers).filter_by(
+            project_id=project_id,
+            user_id=current_user_id
+        ).first()
+        
+        new_owner_membership.role_type = 'owner'     # Promote new owner
+        
+        # Update the project's id_users field to reflect the new owner
+        project = db.session.query(models.Projects).filter_by(id=project_id).first()
+        if project:
+            project.id_users = new_owner_id
+        
+        db.session.commit()
+        
+        return True, "Ownership transferred successfully"
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error transferring ownership: {str(e)}")
+        return False, f"Error transferring ownership: {str(e)}"
+
+def get_available_users_for_project(project_id):
+    """
+    Get users who are not yet members of the project
+    """
+    try:
+        # Get current member IDs
+        current_member_ids = db.session.query(models.ProjectMembers.user_id).filter_by(
+            project_id=project_id
+        ).subquery()
+        
+        # Get available users
+        # TODO
+        #SAWarning: Coercing Subquery object into a select() for use in IN();
+        # please pass a select() construct explicitly
+        #  ~models.Users.id.in_(current_member_ids)
+        available_users = db.session.query(models.Users).filter(
+            ~models.Users.id.in_(current_member_ids)
+        ).order_by(models.Users.name).all()
+        
+        return available_users
+    except Exception as e:
+        logging.error(f"Error getting available users: {str(e)}")
+        return []
+
+def sync_user_to_project_and_session(user_id, project_id, session_id, role_type='guest'):
+    """
+    Synchronize user membership between project and session
+    - Add user to project_members if not already a member
+    - Add user to many_users_has_many_sessions if not already in session
+    """
+    try:
+        # Check if user is already a project member
+        existing_member = db.session.query(models.ProjectMembers).filter_by(
+            project_id=project_id,
+            user_id=user_id
+        ).first()
+        
+        if not existing_member:
+            # Add user as project member with specified role
+            new_member = models.ProjectMembers(
+                project_id=project_id,
+                user_id=user_id,
+                role_type=role_type
+            )
+            db.session.add(new_member)
+            logging.info(f"Added user {user_id} as {role_type} to project {project_id}")
+        
+        # Check if user is already in session
+        existing_session_user = db.session.query(models.t_many_users_has_many_sessions).filter_by(
+            id_users=user_id,
+            id_sessions=session_id
+        ).first()
+        
+        if not existing_session_user:
+            # Add user to session
+            session_user = models.t_many_users_has_many_sessions.insert().values(
+                id_users=user_id,
+                id_sessions=session_id
+            )
+            db.session.execute(session_user)
+            logging.info(f"Added user {user_id} to session {session_id}")
+        
+        db.session.commit()
+        return True, "User synchronized successfully"
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error synchronizing user to project and session: {str(e)}")
+        return False, f"Error synchronizing user: {str(e)}"
+
+def validate_session_project_consistency(session_id):
+    """
+    Validate that all users in a session are members of the project
+    Returns list of inconsistencies found
+    """
+    try:
+        # Get the session and its project
+        session_obj = db.session.query(models.Sessions).filter_by(id=session_id).first()
+        if not session_obj:
+            return [f"Session {session_id} not found"]
+        
+        project_id = session_obj.id_projects
+        if not project_id:
+            return [f"Session {session_id} has no associated project"]
+        
+        # Get all users in the session
+        session_users = db.session.query(models.t_many_users_has_many_sessions).filter_by(
+            id_sessions=session_id
+        ).all()
+        
+        inconsistencies = []
+        
+        for session_user in session_users:
+            user_id = session_user.id_users
+            
+            # Check if user is a project member
+            is_project_member = db.session.query(models.ProjectMembers).filter_by(
+                project_id=project_id,
+                user_id=user_id
+            ).first()
+            
+            if not is_project_member:
+                user = db.session.query(models.Users).filter_by(id=user_id).first()
+                user_name = user.name if user else f"User ID {user_id}"
+                inconsistencies.append(f"User {user_name} (ID: {user_id}) is in session but not a project member")
+        
+        return inconsistencies
+        
+    except Exception as e:
+        logging.error(f"Error validating session-project consistency: {str(e)}")
+        return [f"Error during validation: {str(e)}"]
+
+def fix_session_project_inconsistencies(session_id, default_role='guest'):
+    """
+    Fix inconsistencies by adding session users as project members with default role
+    """
+    try:
+        inconsistencies = validate_session_project_consistency(session_id)
+        if not inconsistencies:
+            return True, "No inconsistencies found"
+        
+        # Get the session and its project
+        session_obj = db.session.query(models.Sessions).filter_by(id=session_id).first()
+        project_id = session_obj.id_projects
+        
+        fixed_count = 0
+        for inconsistency in inconsistencies:
+            if "is in session but not a project member" in inconsistency:
+                # Extract user ID from the inconsistency message
+                import re
+                match = re.search(r'User .+ \(ID: (\d+)\)', inconsistency)
+                if match:
+                    user_id = int(match.group(1))
+                    
+                    # Add user as project member
+                    new_member = models.ProjectMembers(
+                        project_id=project_id,
+                        user_id=user_id,
+                        role_type=default_role
+                    )
+                    db.session.add(new_member)
+                    fixed_count += 1
+        
+        if fixed_count > 0:
+            db.session.commit()
+            return True, f"Fixed {fixed_count} inconsistencies by adding users as project members"
+        else:
+            return False, "No inconsistencies could be automatically fixed"
+            
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error fixing session-project inconsistencies: {str(e)}")
+        return False, f"Error fixing inconsistencies: {str(e)}"
+
+def role_project(oldproject,user_obj):
+    membership = db.session.query(models.ProjectMembers).filter_by(
+        project_id=oldproject.id, user_id=user_obj.id
+    ).first() if user_obj and oldproject else None
+    role_type = membership.role_type if membership else None
+    can_manage_members = role_type in valid_manage_members
+    can_edit_session = role_type in valid_manage_project
+    return can_edit_session, can_manage_members, role_type, membership
+
+def role_session(oldsession,user_obj):
+    membership = db.session.query(models.ProjectMembers).filter_by(
+        project_id=oldsession.id_projects, user_id=user_obj.id
+    ).first() if user_obj and oldsession else None
+    role_type = membership.role_type if membership else None
+    can_manage_members = role_type in valid_manage_members
+    can_edit_session = role_type in valid_manage_project
+    return can_edit_session, can_manage_members, role_type, membership
+
+def can_create_invite_links(user_id, project_id):
+    """
+    Check if a user can create invitation links for a project
+    Returns (can_create, reason)
+    """
+    try:
+        # Check if user is a project member
+        membership = db.session.query(models.ProjectMembers).filter_by(
+            project_id=project_id,
+            user_id=user_id
+        ).first()
+        
+        if not membership:
+            return False, "User is not a project member"
+        
+        # Check role permissions (restrict to owner)
+        if membership.role_type in valid_manage_members:
+            return True, f"User has {membership.role_type} role"
+        else:
+            return False, f"Role '{membership.role_type}' cannot create invitation links"
+            
+    except Exception as e:
+        logging.error(f"Error checking invite permissions: {str(e)}")
+        return False, f"Error checking permissions: {str(e)}"
+
 # copy users in Session
 def copy_users_session(newsession,oldusers):
     if ( len(oldusers) > 0 ):
         # register only known oldusers
         for newuser in oldusers:
             thisuserq=db.session.query(models.Users).filter_by(name=newuser.data)
-            if db.session.query(thisuserq.exists()).scalar():
-                user=thisuserq.one()
+            userexists=db.session.query(thisuserq.exists())
+            if userexists.first():
+                user=thisuserq.first()
                 # don't register a user two times
                 if (user not in newsession.users):
+                    logging.debug("This user not in the list : {}. We add her.him.".format(user.name))
                     newsession.users.append(user)
                     db.session.commit()
+
+                iseditor=newuser.iseditor
+                projectsession=newsession.projects
+                projectmembers=db.session.query(models.ProjectMembers).filter_by(project_id=projectsession.id).all()
+                a_member=db.session.query(models.ProjectMembers).filter_by(project_id=projectsession.id,user_id=user.id)
+                is_already_a_member=a_member.count()
+                if (is_already_a_member == 1 and iseditor):
+                    hisrole=a_member[0].role_type
+                    if (not (hisrole=='owner' or hisrole=='editor')):
+                        logging.debug("For project %s %d user %s's role %s will be upgrading for editor."
+                                        % (projectsession.name,projectsession.id,user.name,hisrole))
+                        a_member[0].role_type="editor"
+                        db.session.commit()
+                else:
+                    if (iseditor):
+                        hisrole="editor"
+                    else:
+                        hisrole="viewer"
+                    new_member = models.ProjectMembers(
+                        project_id=projectsession.id,
+                        user_id=user.id,
+                        role_type=hisrole
+                    )
+                    logging.warning("For project %s %d user %s will be added as project member with role %s"
+                                        % (projectsession.name,projectsession.id,user.name,hisrole))
+                    db.session.add(new_member)
+                    db.session.commit()
+            else:
+                errorstr="This user doesn't exists : {}. We can't add him.".format(newuser.data)
+                flash(errorstr)
+                logging.warning(errorstr)
 
 # Define new session
 def create_newsession(sessionname, description, projectid, oldusers):
@@ -176,6 +673,17 @@ def create_newsession(sessionname, description, projectid, oldusers):
         db.session.commit()
         copy_users_session(newsession,oldusers)
         db.session.commit()
+        
+        # Validate consistency after session creation
+        inconsistencies = validate_session_project_consistency(newsession.id)
+        if inconsistencies:
+            logging.warning(f"Found inconsistencies in newly created session {newsession.name}: {inconsistencies}")
+            # Try to fix inconsistencies automatically
+            fix_success, fix_message = fix_session_project_inconsistencies(newsession.id, default_role='viewer')
+            if fix_success:
+                logging.info(f"Fixed session inconsistencies: {fix_message}")
+            else:
+                logging.error(f"Failed to fix session inconsistencies: {fix_message}")
     else:
         newsession=db.session.query(models.Sessions).filter_by(name=sessionname).one()
         
@@ -441,12 +949,32 @@ def save_session(oldsessionname, newsuffix, newdescription, alltiles):
 
     oldusers=oldsession.users
     for user in oldusers:
-        newsession.users.append(user)
-        db.session.commit()
+        # Use sync function to ensure consistency between project and session
+        sync_success, sync_message = sync_user_to_project_and_session(
+            user_id=user.id,
+            project_id=newsession.id_projects,
+            session_id=newsession.id,
+            role_type='viewer'  # Default role for users copied to sessions
+        )
+        if not sync_success:
+            logging.warning(f"Failed to sync user {user.name} to copied session {newsession.name}: {sync_message}")
+        else:
+            logging.info(f"Successfully synced user {user.name} to copied session {newsession.name}")
 
     newsession.config = oldsession.config
     flag_modified(newsession,"config")
     db.session.commit()
+    
+    # Validate consistency after session copy
+    inconsistencies = validate_session_project_consistency(newsession.id)
+    if inconsistencies:
+        logging.warning(f"Found inconsistencies in copied session {newsession.name}: {inconsistencies}")
+        # Try to fix inconsistencies automatically
+        fix_success, fix_message = fix_session_project_inconsistencies(newsession.id, default_role='viewer')
+        if fix_success:
+            logging.info(f"Fixed copied session inconsistencies: {fix_message}")
+        else:
+            logging.error(f"Failed to fix copied session inconsistencies: {fix_message}")
 
     logging.warning("All tilesets :"+str([ ts.name for ts in oldsession.tile_sets]))
 
@@ -543,15 +1071,34 @@ def remove_this_session(sessionid):
 
     
 def remove_this_project(projectid):
-    thisproject=db.session.query(models.Projects).filter_by(id=projectid).scalar()
+    """
+    Remove a project and all its associated data
+    """
+    try:
+        thisproject = db.session.query(models.Projects).filter_by(id=projectid).first()
+        if not thisproject:
+            logging.warning(f"Project {projectid} not found for deletion")
+            return False
 
-    # Suppress all session of this project
-    project_sessions=db.session.query(models.Sessions).filter_by(id_projects=projectid).all()
-    for thissession in project_sessions:
-        remove_this_session(thissession.id)
+        # Suppress all sessions of this project
+        project_sessions = db.session.query(models.Sessions).filter_by(id_projects=projectid).all()
+        for thissession in project_sessions:
+            remove_this_session(thissession.id)
 
-    delelement(models.Projects, "project", projectid)
-    db.session.commit()
+        # Remove all project members
+        db.session.query(models.ProjectMembers).filter_by(project_id=projectid).delete()
+        
+        # Remove the project itself
+        delelement(models.Projects, "project", projectid)
+        db.session.commit()
+        
+        logging.info(f"Project {projectid} and all associated data removed successfully")
+        return True
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error removing project {projectid}: {str(e)}")
+        return False
 
 def remove_this_user(userid):
     thisuser=db.session.query(models.Users).filter_by(id=userid).one()
@@ -615,7 +1162,6 @@ def remove_this_connection(oldtileset,idconnection,user_id):
 
 def myrender():
     myargs={}
-    
     myargs["notlogin"]=True
     myargs["username"]=""
     if ("username" in session):
@@ -623,8 +1169,18 @@ def myrender():
         if (session["username"]!="Anonymous"):
             myargs["notlogin"]=False
     
-            User=db.session.query(models.Users).filter_by(name=session["username"]).one()
-            userAdmin=User.is_admin
+            User=db.session.query(models.Users).filter_by(name=session["username"]).one_or_none()
+            if User is None:
+                # User doesn't exist in database anymore (cookie corrupted or user deleted)
+                # Clear the session and treat as Anonymous
+                logging.warning(f"User '{session['username']}' in session doesn't exist in database. Clearing session.")
+                session.pop("username", None)
+                session.pop("is_client_active", None)
+                myargs["username"]="Anonymous"
+                myargs["notlogin"]=True
+                userAdmin=False
+            else:
+                userAdmin=User.is_admin
         else:
             userAdmin=False
     else:
@@ -634,7 +1190,7 @@ def myrender():
 
 # ====================================================================
 # Index/home page
-@app.route('/', methods=['GET', 'POST']) # decorators for routes ; all these ones will lead to index
+@app.route('/', methods=['GET', 'POST']) # decorators for routes ; all these ones will lead to index
 @app.route('/index', methods=['GET', 'POST'])
 @app.route('/home', methods=['GET', 'POST'])
 def index():
@@ -730,14 +1286,13 @@ def register():
                 db.session.commit()
                 user_id=User.id
             else:
-                hashPassword,hashSalt=db.session.query(models.Users.password,models.Users.salt).filter_by(name=myusername).scalar()
+                hashPassword,hashSalt=db.session.query(models.Users.password,models.Users.salt).filter_by(name=myusername)
                 testP=tvdb.testpassprotected(models.Users,myusername,myform.password.data,hashPassword,hashSalt)
                 if (testP):
                     logging.info("Correct password !")
                     session["username"] = myusername
                     session["is_client_active"]=True
                     user_id=get_user_id("login",session["username"])
-
                     if (showknown):
                         flash(Markup("Correct Login for user {} remember_me={}".format(myform.username.data, myform.remember_me.data)))
                         showknown=False
@@ -758,6 +1313,8 @@ def register():
             hashpass, salt=tvdb.passprotected(myform.password.data)
             
             creation_date=datetime.datetime.now()
+            
+            # Create the user first
             user = models.Users(name=str(myusername),
                                creation_date=str(creation_date),
                                mail=str(myform.email.data),
@@ -766,103 +1323,133 @@ def register():
                                salt=salt,
                                password=hashpass,
                                dateverified=str(creation_date),
+                               is_verified=False,  # User not verified yet
                                is_admin=False)
             db.session.add(user)
             db.session.commit()
             logging.warning("Commit new user.")
-            session["username"] = myusername
-            session["is_client_active"]=True
-            user=db.session.query(models.Users.id).filter_by(name=myusername).one()
-            if (user.id == 1):
-                user.is_admin=True
-                db.session.commit()
-                logging.warning("New user is Admin.")
-                
-
-        cookie_persistence = myform.remember_me.data
-        logging.warning("[!] Cookie persistence set to %s"+str(cookie_persistence))
-
-        logging.debug("Project Choice :"+myform.choice_project.data)
-        if(myform.choice_project.data == "create"):
-            logging.info("Go to create new project for user "+session["username"]+".")
-            return redirect("/project")
-        else:
-            # use an old project
-            if exists:
-                #User already exists => go to session
-                # user=db.session.query(models.Users.id).filter_by(name=session["username"]).one()
-
-                # if (len(projects) == 1):
-                #     logging.info("New user "+session["username"]+" : has been already invited in session .")
-                return redirect("/allsessions")
+            
+            # Get real user ID and generate token
+            user_id = user.id
+            token = generate_verification_token(user_id)
+            
+            # Send verification email with correct token
+            email_sent = send_verification_email(
+                user_email=myform.email.data,
+                username=myusername,
+                token=token
+            )
+            
+            if email_sent:
+                logging.warning("Verification email sent to {}".format(myform.email.data))
+                flash("Registration successful! Please check your email and click the verification link to activate your account.")
             else:
-                # or Request an invite link from another connected user and use it !
-                logging.info("New user "+session["username"]+" : create a new project or ask for invite_link.")
-                flash("New user {} registred : please create a new project or ask another user for an invite_link.".format(session["username"]))
+                # Email failed, remove the created user
+                db.session.delete(user)
+                db.session.commit()
+                logging.error("Failed to send verification email to {}. User deleted.".format(myform.email.data))
+                flash("Registration failed: Unable to send verification email. Please check your email address and try again.")
                 return render_template("main_login.html", **(myrender()), 
                     title="TiledViz register", 
                     form=myform)
+            
+            # Set admin if first user
+            if (user_id == 1):
+                user.is_admin=True
+                user.is_verified=True  # First user is auto-verified
+                db.session.commit()
+                logging.warning("New user is Admin and auto-verified.")
+                # Auto-login first user
+                session["username"] = myusername
+                session["is_client_active"]=True
+            else:
+                # Don't auto-login new users - they need to verify email first
+                logging.info("New user {} needs to verify email before login.".format(myusername))
+        cookie_persistence = myform.remember_me.data
+        logging.warning("[!] Cookie persistence set to %s" % (str(cookie_persistence)))
+
+        logging.debug("Project Choice :"+myform.choice_project.data)
+       
+        # Check if user is logged in (only first user or existing users)
+        if "username" in session and session["username"] != "Anonymous":
+            if(myform.choice_project.data == "create"):
+                logging.info("Go to create new project for user "+session["username"]+".")
+                return redirect("/project")
+            else:
+                if exists:
+                    return redirect("/allsessions")
+                else:
+                    logging.info("New user "+session["username"]+" : create a new project or ask for invite_link.")
+                    flash("New user {} registred : please create a new project or ask another user for an invite_link.".format(session["username"]))
+                    return render_template("main_login.html", **(myrender()), 
+                        title="TiledViz register", 
+                        form=myform)
+        else:
+            # New user not logged in - redirect to login
+            flash("Please login as {} avec have clicked on received email on {}.".format(myform.username.data,myform.email.data))
+            return redirect("/login")
     return render_template("main_login.html", **(myrender()), title="TiledViz register", form=myform)
+
 
 # OR Login
 @app.route('/login', methods=["GET", "POST"])
 def login():
-    try:
-        myform = BuildLoginForm(session)()
-    except:
-        session["username"]="Anonymous"
-        myform = BuildLoginForm(session)()
-        
+    if ("username" not in session):
+        session["username"] = "Anonymous"
+    if ("username" in session):
+        if (session["username"] == "Anonymous"):
+            pass  # On laisse passer, on veut afficher le formulaire de login
+        else:
+            User = db.session.query(models.Users).filter_by(name=session["username"]).first()
+            if User:
+                exists = User.id is not None
+                if exists:
+                    hashPassword = User.password
+                    hashSalt = User.salt
+                    myform = BuildLoginForm(session)()
+                    myusername = myform.username.data if hasattr(myform, 'username') else session["username"]
+                    mypassword = myform.password.data if hasattr(myform, 'password') else None
+                    if mypassword and tvdb.testpassprotected(models.Users, myusername, mypassword, hashPassword, hashSalt):
+                        logging.warning('Correct password.')
+                        session["username"] = myusername
+                        session["is_client_active"] = True
+                        # Check if there's a pending invite link
+                        if "pending_invite_link" in session:
+                            link = session.pop("pending_invite_link")
+                            return redirect(url_for(".handle_join_with_invite_link", link=link))
+                        if (myform.newuser.data):
+                            return redirect("/register")
+                        if(myform.choice_project.data == "create"):
+                            return redirect("/project")
+                        elif (myform.choice_project.data == "modify"):
+                            return redirect("/oldsessions")
+                        else:
+                            logging.warning("After login page choice : " + myform.choice_project.data + " project.")
+    myform = BuildLoginForm(session)()
     if myform.validate_on_submit():
-        logging.warning("Login : session = "+str(session))
-        # flash(Markup("Login requested for user {} remember_me={}".
-        #              format(myform.username.data, myform.remember_me.data)))
-
-        try:
-            myusername = myform.username.data
-            User=db.session.query(models.Users).filter_by(name=myusername).one()
-        except:
-            flash("Login rejected : '{}' for username does not exist.".format(myform.username.data))
-            return redirect("/login")
-        exists = User.id is not None
-        
-        if exists:
-            hashPassword=User.password
-            hashSalt=User.salt
-            testP=tvdb.testpassprotected(models.Users,myusername,myform.password.data,hashPassword,hashSalt)
-            if (testP):
-                logging.warning('Correct password.')
+        myusername = myform.username.data
+        mypassword = myform.password.data
+        user = db.session.query(models.Users).filter_by(name=myusername).first()
+        if user:
+            if tvdb.testpassprotected(models.Users, myusername, mypassword, user.password, user.salt):
+                # Check if user email is verified
+                if not user.is_verified:
+                    flash("Your email address has not been verified yet. Please check your email and click the verification link.")
+                    return render_template("main_login.html", **(myrender()), title="TiledViz login", form=myform)
+                
                 session["username"] = myusername
-                session["is_client_active"]=True
-
+                session["is_client_active"] = True
                 # Check if there's a pending invite link
                 if "pending_invite_link" in session:
                     link = session.pop("pending_invite_link")
                     return redirect(url_for(".handle_join_with_invite_link", link=link))
-                
-                if ( myform.newuser.data ):
-                    # Ask for new user finally
-                    return redirect("/register")
-                if(myform.choice_project.data == "create"):
-                    # Go to project page now
-                    return redirect("/project")
-                elif (myform.choice_project.data == "modify"):
-                    return redirect("/oldsessions")
-                else:
-                    logging.warning("After login page choice : " + myform.choice_project.data + " project.")
-                    # Want to use a project now :
-                    # 1. list (user/ ?) (own ?) projects/session for user
-                    # 2. ask a invite links from another user ?
-
-                    # ==> list users'project and all (active ?) session with user connected
-                    return redirect("/allsessions")
+                return redirect("/allsessions")
             else:
-                flash("Invalid Password user {}".format(myform.username.data))
-                return render_template("main_login.html", **(myrender()), title="Invalid Password : Login TiledViz", form=myform)
+                flash("Invalid password")
         else:
-            flash("Unknown user {}".format(myform.username.data))
-            return render_template("main_login.html", **(myrender()), title="Unknown user : Login TiledViz", form=myform)
-    return render_template("main_login.html", **(myrender()), title="Login TiledViz", form=myform)
+            flash("Invalid username")
+    return render_template("main_login.html", **(myrender()), title="TiledViz login", form=myform)
+
 
 @app.route('/logout')
 def logout():
@@ -986,75 +1573,142 @@ def project():
     else:
         return redirect("/login")
 
-    # All projects own by user
+    # All projects for user using improved utility function
     printstr="{0:\xa0<"+projectl+"."+projectl+"}|\xa0{2:\xa0<"+datel+"."+datel+"}\xa0|\xa0{1:\xa0<"+descrl+"."+descrl+"}|\xa0{3:\xa0<"+descrl+"}"
     
-    projects = db.session.query(models.Projects).filter_by(id_users=user_id).all()
+    # Get all projects where user is a member (any role)
+    user_projects = get_user_projects(user_id)
+    
     myprojects=[]
     myprojects.append(('NoChoice',printstr.format("Project name","Description","Date and Time","All sessions")))
 
     try:
-        for theproject in projects:
-            ListsessionsTheproject=db.session.query(models.Sessions.name).filter_by(id_projects=theproject.id)
+        for project, role_type in user_projects:
+            ListsessionsTheproject=db.session.query(models.Sessions.name).filter_by(id_projects=project.id)
             allsessionsname=[ asessionTheproject.name for asessionTheproject in ListsessionsTheproject ]
-            thedate=theproject.creation_date.isoformat().replace("T"," ")
+            thedate=project.creation_date.isoformat().replace("T"," ") if project.creation_date else "Unknown"
             
-            myprojects.append((str(theproject.id),
+            # Add role information to the display
+            project_display_name = f"{project.name} ({role_type})"
+            
+            myprojects.append((str(project.id),
                                printstr.format(
-                                     theproject.name,
-                                     theproject.description,
+                                     project_display_name,
+                                     project.description or "",
                                      thedate,
                                      str(allsessionsname))
                                ))
-    except:
+    except Exception as e:
+        logging.error(f"Error loading user projects: {str(e)}")
         pass
     
     myform = BuildNewProjectForm(myprojects)()
+
+    # UI filtering: adapt action choices based on selected project role
+    try:
+        # Determine selected project id (if any) and user's role for it
+        selected_val = myform.chosen_project.data
+        selected_project_id = None
+        try:
+            if selected_val and selected_val != "NoChoice":
+                selected_project_id = int(selected_val)
+        except Exception:
+            selected_project_id = None
+
+        if selected_project_id:
+            role = db.session.query(models.ProjectMembers.role_type).filter_by(
+                project_id=selected_project_id,
+                user_id=user_id
+            ).scalar()
+            can_edit_role = role in ["owner", "admin", "editor"]
+            if not can_edit_role:
+                myform.action_sessions.choices = [("use","Use an existing session for the grid")]
+                myform.action_sessions.default = "use"
+    except Exception:
+        pass
     if myform.validate_on_submit():
         logging.info("in project")
         
-        # TODO : Add test if the user is authorized to use this project ? ==> NO only own project
         if (myform.chosen_project.data=="NoChoice"):
             if (myform.projectname.data != ""):
                 project_id = db.session.query(models.Projects.id).filter_by(name=myform.projectname.data).scalar()
             else:
-                # Impossible to be here ?
                 logging.warning("You must create a new project or choose an old one.")
                 flash("You must create a new project or choose an old one.")
                 return redirect("/project")
             
         else:
             project_id = int(myform.chosen_project.data)
+        
         exists = project_id is not None
         logging.debug("Project exists "+str(exists)+" id : "+str(project_id))
+        
         if exists:
+            # Check if user has access to this project
+            if not can_access_project(project_id, user_id):
+                flash("You don't have permission to access this project!")
+                return redirect("/project")
+                
             if (myform.chosen_project.data == "NoChoice"):
                 session["projectname"]=myform.projectname.data
             else:
                 session["projectname"]=db.session.query(models.Projects.name).filter_by(id=project_id).scalar()
-            # test if the user is authorized to use this project ? ==> NO only own project ! or session with the user already invited
+
+            oldproject=db.session.query(models.Projects).filter_by(id=project_id).scalar()
+            # Permission: only owner may manage members (add users)
+            try:
+                current_user_obj = db.session.query(models.Users).filter_by(name=session["username"]).first()
+                can_edit_session, can_manage_members, role_type, membership = role_project(oldproject,current_user_obj)
+            except Exception:
+                can_manage_members = False
+                can_edit_session = False
+                
             logging.debug("Chosen project : "+str(session["projectname"]))
+            # Route behavior depends on role: only editors+ can create/modify
+            user_can_edit = can_manage_project(project_id, user_id)
             if(myform.action_sessions.data == "create"):
-                logging.debug("Create new session ")
-                flash("Create new session for user {}".format(session["username"]))
-                return redirect("/newsession")
+                if (can_edit_session):
+                    logging.warning("Create new session ")
+                    flash("Create new session for user {}".format(session["username"]))
+                    return redirect("/newsession")
+                else:
+                    sentence="You don't have permission to create new session on this project!"
+                    logging.warning(sentence)
+                    flash(sentence)
+                    return redirect("/project")
             else:
-                logging.debug("Use old sessions ")
+                logging.debug("Use old sessions (view)")
                 flash("Use an old session for user {}".format(session["username"]))
                 return redirect("/oldsessions")
         elif (myform.chosen_project.data=="NoChoice"):
             creation_date=datetime.datetime.now()
             screation_date=str(creation_date)
             logging.error("create project date "+screation_date)
-            project = models.Projects(name=str(myform.projectname.data),
-                                     creation_date=screation_date,
-                                     id_users=user_id,
-                                     description=myform.description.data) # DANGEROUS: TODO: clean string
-            db.session.add(project)
-            db.session.commit()
-            session["projectname"]=myform.projectname.data
-            logging.debug("Project created : create new session ")
-            return redirect("/newsession")
+            
+            try:
+                project = models.Projects(name=str(myform.projectname.data),
+                                         creation_date=screation_date,
+                                         id_users=user_id,
+                                         description=myform.description.data)
+                db.session.add(project)
+                db.session.flush()  # Get the project ID
+                
+                # Create the owner membership record using utility function
+                success, message = add_project_member(project.id, user_id, 'owner')
+                if not success:
+                    db.session.rollback()
+                    flash(f"Error creating project: {message}")
+                    return redirect("/project")
+                
+                session["projectname"]=myform.projectname.data
+                logging.debug("Project created : create new session ")
+                return redirect("/newsession")
+                
+            except Exception as e:
+                db.session.rollback()
+                logging.error(f"Error creating project: {str(e)}")
+                flash(f"Error creating project: {str(e)}")
+                return redirect("/project")
         else:
             logging.error("Error for chosen project.")
             return redirect("/project")            
@@ -1080,6 +1734,9 @@ def admin():
 
     User=db.session.query(models.Users).filter_by(name=session["username"]).one()
     userAdmin=User.is_admin
+    if not userAdmin:
+        flash("You must be an administrator to access this page.")
+        return redirect("/")
         
     message='{"username": '+session["username"]+'}'
     logging.info("in administration page.")
@@ -1114,7 +1771,7 @@ def admin():
                         thedate,Desc)
                 )
             )
-        
+
         # Handle admin status changes
         if request.method == 'POST':
             if 'toggle_admin' in request.form:
@@ -1128,42 +1785,55 @@ def admin():
                     flash(f"Error updating admin status: {str(e)}")
                 return redirect(url_for('admin'))
 
-        allprojects = db.session.query(models.Projects).all()
-        logging.debug("All projects :"+str([ theproject.name for theproject in allprojects]))
+    allprojects = db.session.query(models.Projects).all()
+    logging.debug("All projects :"+str([ theproject.name for theproject in allprojects]))
 
-        printstr="{0:\xa0<"+projectl+"."+projectl+"}|\xa0{1:\xa0<"+usernamel+"."+usernamel+"}\xa0|\xa0{2:\xa0<"+datel+"."+datel+"}\xa0|\xa0{3:\xa0<"+descrl+"."+descrl+"}"
-        listallprojects=[]
-        listallprojects.append(('NoChoice',printstr.format("Project name","Owner","Date and Time","Description")))
+    printstr="{0:\xa0<"+projectl+"."+projectl+"}|\xa0{1:\xa0<"+usernamel+"."+usernamel+"}\xa0|\xa0{2:\xa0<"+datel+"."+datel+"}\xa0|\xa0{3:\xa0<"+descrl+"."+descrl+"}"
+    listallprojects=[]
+    listallprojects.append(('NoChoice',printstr.format("Project name","Owner","Date and Time","Description")))
 
-        for thisproject in allprojects:
-            thedate=thisproject.creation_date.isoformat().replace("T"," ")
-            Desc=thisproject.description
-            #Owner=db.session.query(models.Users.name).filter_by(id=thisproject.id_users).one()
-            listallprojects.append(
-                (str(thisproject.id),printstr.
-                 format(str(thisproject.name),str(thisproject.users.name),
-                        thedate,Desc)
-                )
-            )
-
-
-        allsessions = db.session.query(models.Sessions).all()
-        logging.debug("All sessions :"+str([ thesession.name for thesession in allsessions]))
-
-        printstr="{0:\xa0<"+sessionl+"."+sessionl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"
-        listallsessions=[]
-        listallsessions.append(('NoChoice',printstr.format("Session name","Date and Time","Description")))
-
-        for thissession in allsessions:
-            thedate=thissession.creation_date.isoformat().replace("T"," ")
-            Desc=thissession.description
-            listallsessions.append(
-                (str(thissession.id),printstr.
-                 format(str(thissession.name),
-                        thedate,Desc)
-                )
-            )
+    for thisproject in allprojects:
+        thedate=thisproject.creation_date.isoformat().replace("T"," ")
+        Desc=thisproject.description
         
+        # Get owner via project_members
+        owner_member = db.session.query(models.ProjectMembers).filter(
+            models.ProjectMembers.project_id == thisproject.id,
+            models.ProjectMembers.role_type == 'owner'
+        ).first()
+        
+        owner_name = 'Unknown'
+        if owner_member and owner_member.user:
+            owner_name = owner_member.user.name
+        elif thisproject.id_users:  # Fallback on old relation
+            old_owner = db.session.query(models.Users).filter_by(id=thisproject.id_users).first()
+            if old_owner:
+                owner_name = old_owner.name
+            
+        listallprojects.append(
+            (str(thisproject.id),printstr.
+             format(str(thisproject.name), owner_name, thedate, Desc)
+            )
+        )
+
+
+    allsessions = db.session.query(models.Sessions).all()
+    logging.debug("All sessions :"+str([ thesession.name for thesession in allsessions]))
+
+    printstr="{0:\xa0<"+sessionl+"."+sessionl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"
+    listallsessions=[]
+    listallsessions.append(('NoChoice',printstr.format("Session name","Date and Time","Description")))
+
+    for thissession in allsessions:
+        thedate=thissession.creation_date.isoformat().replace("T"," ")
+        Desc=thissession.description
+        listallsessions.append(
+            (str(thissession.id),printstr.
+             format(str(thissession.name),
+                    thedate,Desc)
+            )
+        )
+    
     projects = db.session.query(models.Projects).filter_by(id_users=user_id).all()
     logging.debug("My projects :"+str([ theproject.name for theproject in projects]))
 
@@ -1542,6 +2212,20 @@ def allmysessions():
         return redirect(url_for(".index"))
 
     myform = BuildAllProjectSessionForm(listmyprojectssession,listsessions)()
+
+    # UI filtering: hide edit button if user has no edit rights on any project
+    try:
+        has_edit_rights = db.session.query(models.ProjectMembers).filter(
+            models.ProjectMembers.user_id == user_id,
+            models.ProjectMembers.role_type.in_(["owner","admin","editor"])
+        ).count() > 0
+        if not has_edit_rights and hasattr(myform, 'edit'):
+            try:
+                myform.edit.render_kw = {"style": "display:none"}
+            except Exception:
+                pass
+    except Exception:
+        pass
     if myform.validate_on_submit():
         if (myform.chosen_project_session.data != "NoChoice"):
             logging.debug("Chosen project session "+str(myform.chosen_project_session.data))
@@ -1561,6 +2245,10 @@ def allmysessions():
         logging.debug("And have project id "+str(its_project_id)+" which is "+str(session["projectname"]))
         session["is_client_active"]=True
         if(myform.edit.data):
+            # Back-end guard: only owner/admin/editor may access edit view
+            if not can_manage_project(its_project_id, user_id):
+                flash("You don't have permission to edit sessions in this project.")
+                return redirect("/grid")
             logging.debug("go to edit old session : "+session["sessionname"])
             message = '{"oldsessionname":"'+session["sessionname"]+'"}'
             return redirect(url_for(".editsession",message=message))
@@ -1582,6 +2270,17 @@ def oldsessions():
     if (not "projectname" in session):
         flash("Old sessions : Must define a project first !")
         return redirect("/project")
+
+    # Validate user access to the project and restrict actions for viewer/guest
+    try:
+        Project = db.session.query(models.Projects).filter_by(name=session["projectname"]).first()
+        user_id=get_user_id("OldSessionsPerm",session["username"])
+        if not Project or not can_access_project(Project.id, user_id):
+            flash("You don't have permission to access this project.")
+            return redirect("/project")
+        user_can_edit = can_manage_project(Project.id, user_id)
+    except Exception:
+        user_can_edit = False
         
     Project = db.session.query(models.Projects).filter_by(name=session["projectname"]).scalar()
     project_id=Project.id
@@ -1594,7 +2293,16 @@ def oldsessions():
     oldproject={"name":session["projectname"],
                 "description":project_desc}
     logging.debug("Old project : "+str(oldproject["name"])+" list old sessions :"+str(listsessions))
-    myform = BuildOldProjectForm(oldproject, listsessions)()
+
+    # Permission: only owner may manage members (add users)
+    try:
+        current_user_obj = db.session.query(models.Users).filter_by(name=session["username"]).first()
+        can_edit_session, can_manage_members, role_type, membership = role_project(Project,current_user_obj)
+    except Exception:
+        can_manage_members = False
+        can_edit_session = False
+
+    myform = BuildOldProjectForm(oldproject, listsessions, session)()
     if myform.validate_on_submit():
         session["sessionname"]=myform.chosen_session.data
         if(myform.from_session.data=="use"):
@@ -1602,10 +2310,16 @@ def oldsessions():
             session["is_client_active"]=True
             return redirect("/grid")
         elif(myform.from_session.data=="edit"):
+            if not user_can_edit:
+                flash("You don't have permission to edit sessions in this project.")
+                return redirect("/oldsessions")
             logging.debug("go to edit old session : "+myform.chosen_session.data)
             message = '{"oldsessionname":"'+myform.chosen_session.data+'"}'
             return redirect(url_for(".editsession",message=message))
         elif(myform.from_session.data=="copy"):
+            if not user_can_edit:
+                flash("You don't have permission to copy sessions in this project.")
+                return redirect("/oldsessions")
             logging.debug("go to copy old session : "+myform.chosen_session.data)
             message = '{"oldsessionname":"'+myform.chosen_session.data+'"}'
             return redirect(url_for(".copysession",message=message))
@@ -1622,6 +2336,17 @@ def newsession():
     else:
         flash("Create new sessions : User must login !")
         return redirect("/login")
+
+    # Permission guard: only owner/admin/editor may create a session in the current project
+    try:
+        user_id=get_user_id("NewSessionPerm",session["username"])
+        Project = db.session.query(models.Projects).filter_by(name=session.get("projectname")).first()
+        if not Project or not can_manage_project(Project.id, user_id):
+            flash("You don't have permission to create sessions for this project.")
+            return redirect("/project")
+    except Exception:
+        flash("Unable to validate permissions for creating a session.")
+        return redirect("/project")
 
     # New or session manager (copy, invite_link a list of connected users ?)
     myform = BuildNewSessionForm()() 
@@ -1682,9 +2407,25 @@ def copysession():
     message=json.loads(request.args["message"])
     oldsessionname=message["oldsessionname"]
     oldsession = db.session.query(models.Sessions).filter_by(name=oldsessionname).scalar()    
-    myform = BuildEditsessionform(oldsession,edit=False)()
+    # Permission: only owner may manage members (add users)
+    try:
+        current_user_obj = db.session.query(models.Users).filter_by(name=session["username"]).first()
+        can_edit_session, can_manage_members, role_type, membership = role_session(oldsession,current_user_obj)
+    except Exception:
+        can_manage_members = False
+        can_edit_session = False
+        role_type="viewer"
+        
+    if (can_edit_session):
+        flash("User {} don't have rights to copy session {} with role {}".format(session["username"], myform.sessionname.data, role_type))
+        return redirect("/oldsessions")
+
+    session["can_manage_members"]=can_manage_members
+    session["can_edit_session"]=can_edit_session
+    myform = BuildEditsessionform(oldsession,session,edit=False)()
     if myform.validate_on_submit():
         logging.debug("copySessionForm : ")
+        # TODO : multiple
         if myform.add_users.data:
             myform.users.append_entry()
             message = '{"oldsessionname":"'+session["sessionname"]+'"}'
@@ -1692,7 +2433,19 @@ def copysession():
             # TODO !! => send invitation to new users ?
             return render_template("main_login.html", **(myrender()), title="Copy session TiledViz", form=myform)
 
-        newsession,exist=create_newsession(myform.sessionname.data, myform.description.data, oldsession.id_projects, myform.users)
+        list_users=[]
+        i=0
+        for newuser in myform.users:
+            soup=BeautifulSoup(str(newuser),'lxml')
+            outsoup=soup.find_all("input")
+            outfind=[ input.get("value") for input in outsoup ]
+            outchecked=[ input.get("checked") for input in outsoup ]
+            if (len(outfind) > 0):
+                logging.debug("myform.users : %s %s" % (str(outfind[0]),str(outchecked[1] == "")))
+                thisuser=FormUser(data=outfind[0],iseditor=(outchecked[1]==""))
+                list_users.append(thisuser)
+                
+        newsession,exist=create_newsession(myform.sessionname.data, myform.description.data, oldsession.id_projects, list_users)
 
         if (not exist):
             nbts=len(oldsession.tile_sets)
@@ -1703,6 +2456,18 @@ def copysession():
                 # if user has not change session.name, it can't be created.
                 db.session.add(newsession)
                 db.session.commit()
+                
+                # Validate consistency after session copy
+                inconsistencies = validate_session_project_consistency(newsession.id)
+                if inconsistencies:
+                    logging.warning(f"Found inconsistencies in copied session {newsession.name}: {inconsistencies}")
+                    # Try to fix inconsistencies automatically
+                    fix_success, fix_message = fix_session_project_inconsistencies(newsession.id, default_role='viewer')
+                    if fix_success:
+                        logging.info(f"Fixed copied session inconsistencies: {fix_message}")
+                    else:
+                        logging.error(f"Failed to fix copied session inconsistencies: {fix_message}")
+                        
             except Exception:
                 traceback.print_exc(file=sys.stderr)
             
@@ -1759,9 +2524,30 @@ def editsession():
     message=json.loads(request.args["message"])
     oldsessionname=message["oldsessionname"]
     oldsession = db.session.query(models.Sessions).filter_by(name=oldsessionname).scalar()    
-    myform = BuildEditsessionform(oldsession,edit=True)()
+    # Permission: only owner may manage members (add users)
+    try:
+        current_user_obj = db.session.query(models.Users).filter_by(name=session["username"]).first()
+        can_edit_session, can_manage_members, role_type, membership = role_session(oldsession,current_user_obj)
+    except Exception:
+        can_manage_members = False
+        can_edit_session = False
+
+    session["can_manage_members"]=can_manage_members
+    session["can_edit_session"]=can_edit_session
+    
+    myform = BuildEditsessionform(oldsession,session,edit=True)()
     if myform.validate_on_submit():
+        # Redirect to project member management (owner/admin only)
+        if hasattr(myform, 'manage_members') and myform.manage_members.data:
+            if not can_manage_members:
+                message = '{"oldsessionname":"'+oldsessionname+'"}'
+                flash("Only owners or admins can manage project members.")
+                return render_template("main_login.html", **(myrender()), title="Edit session TiledViz", form=myform, can_manage_members=can_manage_members)
+            return redirect(url_for('.project_members', project_id=oldsession.id_projects))
         logging.debug("editSessionForm : ")
+
+        if (myform.editusers.data):
+            return redirect(url_for('project_members', project_id=oldsession.projects.id)) 
 
         # - PCA -
         #   |_ my form contains the form the edition tileset
@@ -1828,28 +2614,47 @@ def editsession():
                         
             db.session.commit()
 
-        if myform.add_users.data:
-            myform.users.append_entry()
-            message = '{"oldsessionname":"'+oldsessionname+'"}'
-            flash("New user avaible for user {} in session {}".format(session["username"], myform.sessionname.data))
-            # TODO !! => send invitation to new users ?
-            return render_template("main_login.html", **(myrender()), title="Edit session TiledViz", form=myform)
+        if ("add_users" in myform):
+            if myform.add_users.data:
+                myform.users.append_entry()
+                message = '{"oldsessionname":"'+oldsessionname+'"}'
+                flash("New user avaible for user {} in session {}".format(session["username"], myform.sessionname.data))
+                # TODO !! => send invitation to new users ? => just a mail to give the notif
+                return render_template("main_login.html", **(myrender()), title="Edit session TiledViz", form=myform)
 
         if (myform.sessionname.data != oldsessionname):
             message = '{"oldsessionname":"'+oldsessionname+'"}'
             flash("You must NOT change session name to edit session {}".format(oldsessionname))
             return render_template("main_login.html", **(myrender()), title="Edit session TiledViz", form=myform, message=message)
 
-        oldsession.description=str(myform.description.data)
-        creation_date=datetime.datetime.now()
-        oldsession.creation_date=str(creation_date)
-        db.session.commit()
+        if can_edit_session:
+            oldsession.description=str(myform.description.data)
+            creation_date=datetime.datetime.now()
+            oldsession.creation_date=str(creation_date)
+            db.session.commit()
         session["sessionname"]=oldsessionname
 
-        copy_users_session(oldsession,myform.users)
-        db.session.commit()
+        if ("users" in myform):
+            list_users=[]
+            i=0
+            logging.debug("myform.users : %s" % str(myform.users))
+            for newuser in myform.users:
+                soup=BeautifulSoup(str(newuser),'lxml')
+                outsoup=soup.find_all("input")
+                outfind=[ input.get("value") for input in outsoup ]
+                outchecked=[ input.get("checked") for input in outsoup ]
+                if (len(outfind[0]) > 0):
+                    logging.debug("myform.users : %s %s" % (str(outfind[0]),str(outchecked[1] == "")))
+                    thisuser=FormUser(data=outfind[0],iseditor=(outchecked[1]==""))
+                    list_users.append(thisuser)
 
-        if myform.Session_config.data:
+            ok_list_users="Owner %s add users %s to the session %s" % (session["username"],str(list_users),oldsessionname)
+            logging.debug("ok_list_users : %s " % ok_list_users)
+
+            copy_users_session(oldsession,list_users)
+            db.session.commit()
+
+        if myform.Session_config.data and can_edit_session:
             message = '{"sessionname":"'+oldsessionname+'"}'
             return redirect(url_for(".configsession",message=message))
 
@@ -1860,14 +2665,14 @@ def editsession():
             try:    
                 tilesetid=int(myform.tilesetchoice.data)
                 message = '{"oldtilesetid":'+str(tilesetid)+'}'
-            except :
+            except Exception:
                 #traceback.print_exc(file=sys.stderr)
-                if ( theaction != "search" and theaction != "copy" and theaction != "create" and theaction != "useold" and not myform.edit.data):
+                if ( theaction not in ["search","copy","create","useold"] and not (hasattr(myform,'edit') and myform.edit.data)):
                     logging.debug("You must check a tileset for this action {}".format(theaction))
                     flash("You must check a tileset for this action {}".format(theaction))
-                    message = '{"oldsessionname":'+oldsessionname+'}'
+                    message = '{"oldsessionname":"'+oldsessionname+'"}'
                     return redirect(url_for(".editsession",message=message))
-            if(myform.edit.data):
+            if(hasattr(myform,'edit') and myform.edit.data and can_edit_session):
                 logging.debug("message before edittileset "+str(message))
                 return redirect(url_for(".edittileset",message=message))
         
@@ -1875,16 +2680,16 @@ def editsession():
         if(theaction == "useold"):
             session["is_client_active"]=True
             return redirect("/grid")
-        elif (theaction == "create"):
+        elif (theaction == "create") and can_edit_session:
             flash("Tileset requested for user {} in session {}".format(session["username"],session["sessionname"]))
             message='{"username":"'+session["username"]+'","sessionname":"'+session["sessionname"]+'"}'
             return redirect(url_for(".addtileset",message=message))
-        elif(theaction == "copy"):
+        elif(theaction == "copy") and can_edit_session:
             return redirect(url_for(".copytileset",message=message))
-        elif(theaction == "search"):
+        elif(theaction == "search") and can_edit_session:
             message = '{"oldsessionname":"'+session["sessionname"]+'"}'
             return redirect(url_for(".searchtileset",message=message))
-        elif(theaction == "remove"):
+        elif(theaction == "remove") and can_edit_session:
             try:
                 thistileset=db.session.query(models.TileSets).filter_by(id=tilesetid).scalar()
                 logging.debug("TileSet for remove : "+str(thistileset))
@@ -1896,6 +2701,11 @@ def editsession():
                 flash("Error remove tileset {}".format(db.session.query(models.TileSets).filter_by(id=tilesetid).scalar().name))
             message = '{"oldsessionname":"'+oldsessionname+'"}'
             return redirect(url_for(".editsession",message=message))
+        else:
+            # For view-only users trying non-authorized actions
+            if not can_edit_session:
+                flash("You have view-only permissions on this project.")
+                return render_template("main_login.html", **(myrender()), title="Edit session TiledViz", form=myform, message='{"oldsessionname":"'+oldsessionname+'"}')
     return render_template("main_login.html", **(myrender()), title="Edit session TiledViz", form=myform, message=message)
 
 # Use json editor for session nodes.json
@@ -1911,6 +2721,21 @@ def editnodes():
     message=json.loads(request.args["message"])
     oldsessionname=message["oldsessionname"]
     ThisSession = db.session.query(models.Sessions).filter_by(name=oldsessionname).scalar()    
+
+    # Permissions: only owner/editor can edit nodes
+    try:
+        current_user_obj = db.session.query(models.Users).filter_by(name=session["username"]).first()
+        membership = db.session.query(models.ProjectMembers).filter_by(
+            project_id=ThisSession.id_projects, user_id=current_user_obj.id
+        ).first() if current_user_obj and ThisSession else None
+        role_type = membership.role_type if membership else None
+        can_edit_nodes = role_type in valid_manage_project
+    except Exception:
+        can_edit_nodes = False
+
+    if not can_edit_nodes:
+        flash("You do not have permission to edit nodes in this project.")
+        return redirect("/grid")
 
     if (type(ThisSession) != type(None)):
             ListAllTileSet_ThisSession=ThisSession.tile_sets
@@ -1988,6 +2813,17 @@ def searchtileset():
 
     oldsessionname=message["oldsessionname"]
     oldsession = db.session.query(models.Sessions).filter_by(name=oldsessionname).scalar()    
+
+
+    # Guard: edit permission required on owning project to add tilesets from search
+    try:
+        user_id=get_user_id("SearchTileSetPerm",session["username"])
+        if not oldsession or not can_manage_project(oldsession.id_projects, user_id):
+            flash("You don't have permission to modify tilesets for this project.")
+            return redirect("/allsessions")
+    except Exception:
+        flash("Unable to validate permissions for tileset search.")
+        return redirect("/allsessions")
 
     querysessions= models.Sessions.query.filter(models.Sessions.users.any(name=session["username"])).all()
 
@@ -2117,6 +2953,17 @@ def addtileset():
         flash("Add TileSet : User must login !")
         return redirect("/login")
     if ( not "sessionname" in session ):
+        return redirect("/allsessions")
+
+    # Guard: user must be allowed to edit the project owning the session
+    try:
+        ThisSession = db.session.query(models.Sessions).filter_by(name=session["sessionname"]).first()
+        user_id=get_user_id("AddTileSetPerm",session["username"])
+        if not ThisSession or not can_manage_project(ThisSession.id_projects, user_id):
+            flash("You don't have permission to add tilesets in this project.")
+            return redirect("/allsessions")
+    except Exception:
+        flash("Unable to validate permissions for tileset creation.")
         return redirect("/allsessions")
 
     myform = BuildTilesSetForm()()
@@ -2271,6 +3118,17 @@ def copytileset():
         flash("Copy TileSet : User must login !")
         return redirect("/login")
     if ( not "sessionname" in session ):
+        return redirect("/allsessions")
+
+    # Guard: edit permission required on owning project
+    try:
+        ThisSession = db.session.query(models.Sessions).filter_by(name=session["sessionname"]).first()
+        user_id=get_user_id("CopyTileSetPerm",session["username"])
+        if not ThisSession or not can_manage_project(ThisSession.id_projects, user_id):
+            flash("You don't have permission to copy tilesets in this project.")
+            return redirect("/allsessions")
+    except Exception:
+        flash("Unable to validate permissions for tileset copy.")
         return redirect("/allsessions")
 
     message=json.loads(request.args["message"])
@@ -2446,6 +3304,16 @@ def edittileset():
     oldtileset=db.session.query(models.TileSets).filter_by(id=oldtilesetid).one()
 
     # TODO : test if user is in a session with this tileset
+    # Guard: edit permission required on owning project
+    try:
+        ThisSession = db.session.query(models.Sessions).filter_by(name=session["sessionname"]).first()
+        user_id=get_user_id("EditTileSetPerm",session["username"])
+        if not ThisSession or not can_manage_project(ThisSession.id_projects, user_id):
+            flash("You don't have permission to edit tilesets in this project.")
+            return redirect("/allsessions")
+    except Exception:
+        flash("Unable to validate permissions for tileset edition.")
+        return redirect("/allsessions")
     
     # Detect how the data of tileset has been inserted :
     buildargs={}
@@ -2910,6 +3778,17 @@ def addconnection():
     message["TimeConnection"]=TimeConnection
     
     logging.debug("ConnectionForm built."+str(message))
+
+    # Guard: edit permission required on owning project
+    try:
+        ThisSession = db.session.query(models.Sessions).filter_by(name=session.get("sessionname")).first()
+        user_id=get_user_id("AddConnectionPerm",session["username"])
+        if not ThisSession or not can_manage_project(ThisSession.id_projects, user_id):
+            flash("You don't have permission to manage connections in this project.")
+            return redirect("/allsessions")
+    except Exception:
+        flash("Unable to validate permissions for connection management.")
+        return redirect("/allsessions")
     
     if myform.validate_on_submit():
         logging.info("in addconnection")
@@ -3131,6 +4010,17 @@ def editconnection():
     else:
         flash("Edit connection : User must login !")
         return redirect("/login")
+
+    # Guard: edit permission required on owning project
+    try:
+        ThisSession = db.session.query(models.Sessions).filter_by(name=session.get("sessionname")).first()
+        user_id=get_user_id("EditConnectionPerm",session["username"])
+        if not ThisSession or not can_manage_project(ThisSession.id_projects, user_id):
+            flash("You don't have permission to edit connections in this project.")
+            return redirect("/allsessions")
+    except Exception:
+        flash("Unable to validate permissions for connection edition.")
+        return redirect("/allsessions")
 
     try:
         message=json.loads(request.args["message"])
@@ -3380,7 +4270,9 @@ def show_grid():
         session["sessionname"]=psession
         thesession = db.session.query(models.Sessions).filter_by(name=psession).scalar()
         if (type(thesession) != type(None)):
-            project = session["projectname"]=thesession.projects.name
+
+            project = session["projectname"] = thesession.projects.name
+
         else:
             logging.warning("You must choose a valid session")
             flash("You didn't select a valid session in grid.")
@@ -3626,6 +4518,18 @@ def show_grid():
     help_path="doc/user_doc_" + lang + "_" + colorTheme + ".html";
     logging.info("helpPath ="+str(help_path))
 
+    # Compute project role for template (owner only see invite button)
+    try:
+        current_user_obj = db.session.query(models.Users).filter_by(name=session["username"]).first()
+        membership = None
+        if current_user_obj and ThisSession:
+            membership = db.session.query(models.ProjectMembers).filter_by(
+                project_id=ThisSession.id_projects, user_id=current_user_obj.id
+            ).first()
+        project_role = membership.role_type if membership else None
+    except Exception:
+        project_role = None
+
     return render_template("grid_template.html",
                            user=session["username"],
                            title="TiledViz on "+project,
@@ -3635,6 +4539,7 @@ def show_grid():
                            json_geom=psgeom,
                            participants=part_nbr,
                            is_client_active=session["is_client_active"],
+                           project_role=project_role,
                            json_data=tiles_data,
                            json_actions=tiles_actions,
                            json_config=TheConfig,
@@ -4047,6 +4952,48 @@ def handle_invite_link_request(cdata):
     max_uses = cdata.get("max_uses", 1)
     invitee_name = cdata.get("invitee_name", "")
 
+    # SECURITY CHECK: Verify user is logged in and has permission to create invites
+    if "username" not in session or session["username"] == "Anonymous":
+        socketio.emit("get_link_back", {"error": "You must be logged in to create invitation links"}, room=croom)
+        return
+    
+    # SECURITY CHECK: Verify user is a member of the project
+    if "projectname" not in session or "sessionname" not in session:
+        socketio.emit("get_link_back", {"error": "Invalid session context"}, room=croom)
+        return
+    
+    # Get current user
+    current_user = db.session.query(models.Users).filter_by(name=session["username"]).first()
+    if not current_user:
+        socketio.emit("get_link_back", {"error": "User not found"}, room=croom)
+        return
+    
+    # Get session and project
+    session_obj = db.session.query(models.Sessions).filter_by(name=session["sessionname"]).first()
+    if not session_obj:
+        socketio.emit("get_link_back", {"error": "Session not found"}, room=croom)
+        return
+    
+    project_id = session_obj.id_projects
+    if not project_id:
+        socketio.emit("get_link_back", {"error": "Session has no associated project"}, room=croom)
+        return
+    
+    # SECURITY CHECK: Verify user is a project member with appropriate permissions
+    user_membership = db.session.query(models.ProjectMembers).filter_by(
+        project_id=project_id,
+        user_id=current_user.id
+    ).first()
+    
+    if not user_membership:
+        socketio.emit("get_link_back", {"error": "You must be a project member to create invitation links"}, room=croom)
+        return
+    
+    # SECURITY CHECK: Only owners can create invites
+    if user_membership.role_type not in valid_manage_members:
+        socketio.emit("get_link_back", {"error": f"Insufficient permissions. Your role '{user_membership.role_type}' cannot create invitation links"}, room=croom)
+        return
+
     # Validate max_uses
     try:
         max_uses = int(max_uses)
@@ -4070,18 +5017,16 @@ def handle_invite_link_request(cdata):
             return
 
     if (is_new_client_active):
-        client_type="active"
+        client_type = "active"
     else:
-        client_type="passive"
+        client_type = "passive"
         
     try:
-        DEFAULT_URL=os.getenv("SERVER_NAME")+"."+os.getenv("DOMAIN")
-        print (DEFAULT_URL)
-    except Exception as e:
-        logging.error(f"Error default URL : {str(e)}")
+        print(DEFAULT_URL)
+    except:
         DEFAULT_URL = "0.0.0.0:5000"
 
-    creation_date=datetime.datetime.now().isoformat()
+    creation_date = datetime.datetime.now().isoformat()
     
     # Generate a unique key for the invitation
     key = linkrandom(32)
@@ -4089,9 +5034,9 @@ def handle_invite_link_request(cdata):
         key = key.decode('utf-8')
     except AttributeError:
         pass  # key est déjà une str
-
+    
     # Créer la clé du lien (à stocker dans la base)
-    if (client_type=="active"):
+    if (client_type == "active"):
         link_key = f"{session['sessionname']}{linkChar}{client_type}{linkChar}{invitee_name}{linkChar}{creation_date}{linkChar}{key}"
     else:
         link_key = f"{session['sessionname']}{linkChar}{client_type}{linkChar}Anonymous{linkChar}{creation_date}{linkChar}{key}"
@@ -4128,11 +5073,9 @@ def handle_invite_link_request(cdata):
 
     socketio.emit("get_link_back" ,sdata,room=croom)
 
-# ====================================================================
-# Invite link management
 @app.route("/join/<link>")
 def handle_join_with_invite_link(link):
-    logging.warning("Handle join with invite link : "+link)
+    logging.warning("Handle join with invite link : " + link)
     
     # Parse the link components
     link_parts = link.split(linkChar)
@@ -4151,7 +5094,7 @@ def handle_join_with_invite_link(link):
         hasgeom=True
         logging.warning("Link with geom : %s " % (geom))
         link=session_name+linkChar+new_client_type+linkChar+username+linkChar+creation_date+linkChar+key
-        
+    
     # Check if the invitation exists and is valid
     invite_link = db.session.query(models.InviteLinks).filter_by(link=link).first()
     if not invite_link:
@@ -4171,8 +5114,9 @@ def handle_join_with_invite_link(link):
         delelement(models.InviteLinks, "link "+link, invite_link.id)
         db.session.commit()
         return redirect(url_for(".index"))
-
+    
     # For active links, check if the user is logged in and matches the invitee
+    user = None
     if new_client_type == "active":
         if "username" not in session:
             # Store the link in session for after login
@@ -4210,11 +5154,26 @@ def handle_join_with_invite_link(link):
     
     try:
         session["projectname"]=ThisSession.projects.name
+        project_id = ThisSession.projects.id
     except:
         ErrLink="Error in link %s with project of session %s " % (link,ThisSession)
         flash(ErrLink)
         logging.error(ErrLink)
         return redirect(url_for(".index"))
+    
+    # Synchronize user to project and session if it's an active link
+    if new_client_type == "active" and user:
+        sync_success, sync_message = sync_user_to_project_and_session(
+            user_id=user.id,
+            project_id=project_id,
+            session_id=ThisSession.id,
+            role_type='guest'  # Default role for invited users
+        )
+        if not sync_success:
+            logging.warning(f"Failed to synchronize user {user.name}: {sync_message}")
+            flash(f"Warning: {sync_message}")
+        else:
+            logging.info(f"Successfully synchronized user {user.name} to project and session")
         
     session["geometry"]='{}'
     if "passive" in link:
@@ -4227,7 +5186,6 @@ def handle_join_with_invite_link(link):
     if invite_link.use_count >= invite_link.max_uses:
         delelement(models.InviteLinks, "link "+link, invite_link.id)
         db.session.commit()
-        
     logging.warning("session after join before grid : "+str(session))
     return redirect('/grid')
     #return(redirect("/grid", project=room))
@@ -4353,4 +5311,594 @@ def revoke_invite(invite_id):
     db.session.commit()
     
     return jsonify({"message": "Invitation revoked successfully"})
+
+# Manage project members
+@app.route('/project_members/<int:project_id>/members', methods=["GET", "POST"])
+def project_members(project_id):
+    if ("username" not in session or session["username"] == "Anonymous"):
+        return redirect("/login")
+    
+    user_id = get_user_id("Project Members", session["username"])
+    
+    # Check if project exists
+    project = db.session.query(models.Projects).filter_by(id=project_id).first()
+    if not project:
+        flash("Project not found!")
+        return redirect("/project")
+    
+    # Check if user has permission to manage this project (owner)
+    if not can_manage_project(project_id, user_id):
+        flash("You don't have permission to manage members for this project!")
+        return redirect("/project")
+    
+    # Get all current project members using utility function
+    current_members = get_project_members(project_id)
+    
+    # Get all available users for adding using utility function
+    available_users = get_available_users_for_project(project_id)
+    
+    # Handle form submissions
+    if request.method == "POST":
+        if 'add_member' in request.form:
+            new_user_id = request.form.get('user_id')
+            new_role = request.form.get('role_type')
+            
+            if new_user_id and new_role:
+                success, message = add_project_member(project_id, int(new_user_id), new_role)
+                flash(message)
+                if success:
+                    # Refresh the page to show updated member list
+                    return redirect(url_for('project_members', project_id=project_id))
+                    
+        elif 'remove_member' in request.form:
+            member_id = request.form.get('member_id')
+            if member_id:
+                success, message = remove_project_member(project_id, int(member_id))
+                flash(message)
+                if success:
+                    # Refresh the page to show updated member list
+                    return redirect(url_for('project_members', project_id=project_id))
+                    
+        elif 'change_role' in request.form:
+            member_id = request.form.get('member_id')
+            new_role = request.form.get('new_role')
+            
+            if member_id and new_role:
+                success, message = update_member_role(project_id, int(member_id), new_role)
+                flash(message)
+                if success:
+                    # Refresh the page to show updated member list
+                    return redirect(url_for('project_members', project_id=project_id))
+                    
+        elif 'transfer_ownership' in request.form:
+            new_owner_id = request.form.get('new_owner_id')
+            if new_owner_id:
+                success, message = transfer_project_ownership(project_id, user_id, int(new_owner_id))
+                flash(message)
+                if success:
+                    # Refresh the page to show updated member list
+                    return redirect(url_for('project_members', project_id=project_id))
+        
+        # Redirect to refresh the page
+        return redirect(url_for('project_members', project_id=project_id))
+    
+    # Get updated member list for display
+    current_members = get_project_members(project_id)
+    
+    return render_template(
+        "project_members.html",
+        project=project,
+        username=session["username"],
+        current_members=current_members,
+        available_users=available_users,
+        title=f"Manage Members - {project.name}"
+    )
+
+# API endpoint for ownership transfer with comprehensive validation
+@app.route('/api/project/<int:project_id>/transfer-ownership', methods=['POST'])
+def transfer_ownership_api(project_id):
+    """
+    API endpoint for transferring project ownership with comprehensive validation
+    """
+    if "username" not in session or session["username"] == "Anonymous":
+        return jsonify({"error": "Authentication required"}), 401
+    
+    user_id = get_user_id("Transfer Ownership", session["username"])
+    
+    try:
+        data = request.get_json()
+        if not data or 'new_owner_id' not in data:
+            return jsonify({"error": "new_owner_id is required"}), 400
+        
+        new_owner_id = data['new_owner_id']
+        
+        # Use utility function for ownership transfer
+        success, message = transfer_project_ownership(project_id, user_id, new_owner_id)
+        
+        if success:
+            # Get new owner details for response
+            new_owner = db.session.query(models.Users).filter_by(id=new_owner_id).first()
+            return jsonify({
+                "message": message,
+                "new_owner": {
+                    "id": new_owner.id,
+                    "name": new_owner.name
+                },
+                "previous_owner": {
+                    "id": user_id,
+                    "name": session["username"]
+                }
+            }), 200
+        else:
+            return jsonify({"error": message}), 400
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error in ownership transfer API: {str(e)}")
+        return jsonify({"error": "Internal server error during ownership transfer"}), 500
+
+# API endpoint to check ownership constraints
+@app.route('/api/project/<int:project_id>/ownership-constraints', methods=['GET'])
+def check_ownership_constraints(project_id):
+    """
+    API endpoint to check ownership constraints and business rules
+    """
+    if "username" not in session or session["username"] == "Anonymous":
+        return jsonify({"error": "Authentication required"}), 401
+    
+    user_id = get_user_id("Check Ownership Constraints", session["username"])
+    
+    try:
+        # Validate project exists
+        project = db.session.query(models.Projects).filter_by(id=project_id).first()
+        if not project:
+            return jsonify({"error": "Project not found"}), 404
+        
+        # Get current user's membership
+        user_membership = db.session.query(models.ProjectMembers).filter_by(
+            project_id=project_id, 
+            user_id=user_id
+        ).first()
+        
+        if not user_membership:
+            return jsonify({"error": "User is not a member of this project"}), 403
+        
+        # Count owners
+        owner_count = db.session.query(models.ProjectMembers).filter_by(
+            project_id=project_id, 
+            role_type='owner'
+        ).count()
+        
+        # Get all members for ownership transfer options
+        all_members = db.session.query(models.ProjectMembers).filter_by(
+            project_id=project_id
+        ).all()
+        
+        # Filter members who can receive ownership (not already owners)
+        eligible_members = []
+        for member in all_members:
+            if member.role_type != 'owner' and member.user_id != user_id:
+                user_info = db.session.query(models.Users).filter_by(id=member.user_id).first()
+                if user_info:
+                    eligible_members.append({
+                        "id": member.user_id,
+                        "name": user_info.name,
+                        "role": member.role_type
+                    })
+        
+        return jsonify({
+            "is_owner": user_membership.role_type == 'owner',
+            "owner_count": owner_count,
+            "is_last_owner": owner_count <= 1 and user_membership.role_type == 'owner',
+            "can_transfer_ownership": user_membership.role_type == 'owner' and len(eligible_members) > 0,
+            "eligible_for_ownership_transfer": eligible_members,
+            "constraints": {
+                "cannot_remove_last_owner": owner_count <= 1,
+                "must_be_member_to_receive_ownership": True,
+                "cannot_transfer_to_self": True,
+                "cannot_transfer_to_existing_owner": True
+            }
+        }), 200
+        
+    except Exception as e:
+        logging.error(f"Error checking ownership constraints: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
+
+# Display user projects with management options
+@app.route('/my-projects', methods=["GET"])
+def my_projects():
+    if ("username" not in session or session["username"] == "Anonymous"):
+        return redirect("/login")
+    
+    user_id = get_user_id("My Projects", session["username"])
+    
+    # Get all user projects using utility function
+    user_projects = get_user_projects(user_id)
+    
+    # Organize projects by role
+    projects_by_role = {
+        'owned': [],
+        'member': []
+    }
+    
+    # Categorize projects by role
+    for project, role_type in user_projects:
+        project_data = {
+            'project': project,
+            'role': role_type,
+            'can_manage': role_type in valid_manage_members
+        }
+        
+        if role_type == 'owner':
+            projects_by_role['owned'].append(project_data)
+        else:
+            projects_by_role['member'].append(project_data)
+    
+    return render_template(
+        "my_projects.html",
+        projects_by_role=projects_by_role,
+        username=session["username"],
+        title="My Projects"
+    )
+
+
+# Migration management routes
+@app.route('/admin/migration', methods=['GET', 'POST'])
+def migration_admin():
+    """Admin interface for managing database migrations"""
+    if ("username" not in session or session["username"] == "Anonymous"):
+        return redirect("/login")
+    
+    user_id = get_user_id("Migration Admin", session["username"])
+    User = db.session.query(models.Users).filter_by(name=session["username"]).one()
+    
+    if not User.is_admin:
+        flash("You must be an administrator to access this page.")
+        return redirect("/")
+    
+    from app.migration import migrate_project_owners, check_migration_status, validate_migration, rollback_migration, get_orphaned_projects
+    
+    # Handle migration actions
+    if request.method == "POST":
+        action = request.form.get('action')
+        
+        if action == 'run_migration':
+            if migrate_project_owners():
+                flash("Migration completed successfully!")
+            else:
+                flash("Migration failed! Check logs for details.")
+                
+        elif action == 'validate_migration':
+            validation = validate_migration()
+            if validation and validation['is_valid']:
+                flash("Migration validation passed - data is consistent!")
+            else:
+                flash(f"Migration validation failed: {validation}")
+                
+        elif action == 'rollback_migration':
+            if rollback_migration():
+                flash("Migration rollback completed!")
+            else:
+                flash("Migration rollback failed! Check logs for details.")
+    
+    # Get current status
+    status = check_migration_status()
+    validation = validate_migration()
+    orphaned_projects = get_orphaned_projects()
+    
+    return render_template(
+        "migration_admin.html",
+        status=status,
+        validation=validation,
+        orphaned_projects=orphaned_projects,
+        title="Migration Management"
+    )
+
+@app.route('/admin/consistency', methods=['GET', 'POST'])
+def consistency_admin():
+    """
+    Admin interface for session-project consistency management
+    """
+    if ("username" not in session or session["username"] == "Anonymous"):
+        return redirect("/login")
+    
+    user_id = get_user_id("Consistency Admin", session["username"])
+    User = db.session.query(models.Users).filter_by(name=session["username"]).one()
+    
+    if not User.is_admin:
+        flash("You must be an administrator to access this page.")
+        return redirect("/")
+    
+    sessions_data = []
+    if request.method == 'GET':
+        # Get all sessions with their consistency status
+        sessions = db.session.query(models.Sessions).all()
+        for session_obj in sessions:
+            inconsistencies = validate_session_project_consistency(session_obj.id)
+            sessions_data.append({
+                'id': session_obj.id,
+                'name': session_obj.name,
+                'project_name': session_obj.projects.name if session_obj.projects else 'No Project',
+                'inconsistencies': inconsistencies,
+                'is_consistent': len(inconsistencies) == 0
+            })
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        session_id = request.form.get('session_id')
+        
+        if action == 'validate_session' and session_id:
+            inconsistencies = validate_session_project_consistency(int(session_id))
+            if inconsistencies:
+                flash(f"Found {len(inconsistencies)} inconsistencies in session {session_id}")
+                for inc in inconsistencies:
+                    flash(inc)
+            else:
+                flash(f"Session {session_id} is consistent with its project")
+                
+        elif action == 'fix_session' and session_id:
+            success, message = fix_session_project_inconsistencies(int(session_id))
+            if success:
+                flash(message)
+            else:
+                flash(f"Error: {message}")
+                
+        elif action == 'validate_all':
+            # Validate all sessions
+            sessions = db.session.query(models.Sessions).all()
+            total_inconsistencies = 0
+            inconsistent_sessions = 0
+            
+            for session_obj in sessions:
+                inconsistencies = validate_session_project_consistency(session_obj.id)
+                if inconsistencies:
+                    inconsistent_sessions += 1
+                    total_inconsistencies += len(inconsistencies)
+                    flash(f"Session '{session_obj.name}' (ID: {session_obj.id}): {len(inconsistencies)} inconsistencies")
+                    for inc in inconsistencies:
+                        flash(f"  - {inc}")
+            
+            if total_inconsistencies == 0:
+                flash("All sessions are consistent with their projects!")
+            else:
+                flash(f"Found {total_inconsistencies} inconsistencies across {inconsistent_sessions} sessions")
+                
+        elif action == 'fix_all':
+            # Fix all inconsistencies
+            sessions = db.session.query(models.Sessions).all()
+            total_fixed = 0
+            fixed_sessions = 0
+            
+            for session_obj in sessions:
+                success, message = fix_session_project_inconsistencies(session_obj.id)
+                if success and "Fixed" in message:
+                    # Extract number from message
+                    import re
+                    match = re.search(r'Fixed (\d+)', message)
+                    if match:
+                        fixed_count = int(match.group(1))
+                        total_fixed += fixed_count
+                        if fixed_count > 0:
+                            fixed_sessions += 1
+                            flash(f"Session '{session_obj.name}': {message}")
+            
+            if total_fixed > 0:
+                flash(f"Successfully fixed {total_fixed} inconsistencies across {fixed_sessions} sessions")
+            else:
+                flash("No inconsistencies found to fix")
+    
+    return render_template('admin_consistency.html', 
+                         title="Consistency Admin",
+                         sessions=sessions_data,
+                         **myrender())
+
+
+@app.route('/project/<int:project_id>/invite', methods=['GET', 'POST'])
+def project_invite(project_id):
+    """
+    Project invitation management interface
+    """
+    if ("username" not in session or session["username"] == "Anonymous"):
+        return redirect("/login")
+    
+    # Get current user
+    current_user = db.session.query(models.Users).filter_by(name=session["username"]).first()
+    if not current_user:
+        flash("User not found")
+        return redirect("/")
+    
+    # Check if user can create invites for this project (owner only)
+    can_create, reason = can_create_invite_links(current_user.id, project_id)
+    if not can_create:
+        flash(f"Access denied: {reason}")
+        return redirect("/")
+    
+    # Get project details
+    project = db.session.query(models.Projects).filter_by(id=project_id).first()
+    if not project:
+        flash("Project not found")
+        return redirect("/")
+    
+    # Get project sessions
+    sessions = db.session.query(models.Sessions).filter_by(id_projects=project_id).all()
+    
+    # Get existing invite links for this project
+    invite_links = db.session.query(models.InviteLinks).filter_by(
+        host_project=project.name
+    ).order_by(models.InviteLinks.creation_date.desc()).all()
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'create_invite':
+            session_id = request.form.get('session_id')
+            invitee_name = request.form.get('invitee_name', '').strip()
+            max_uses = request.form.get('max_uses', 1)
+            invite_type = request.form.get('invite_type', 'passive')
+            
+            try:
+                max_uses = int(max_uses)
+                if max_uses < 1:
+                    flash("Maximum uses must be a positive number")
+                    return redirect(url_for('.project_invite', project_id=project_id))
+            except (ValueError, TypeError):
+                flash("Invalid maximum uses value")
+                return redirect(url_for('.project_invite', project_id=project_id))
+            
+            # Validate session belongs to project
+            session_obj = db.session.query(models.Sessions).filter_by(
+                id=session_id, 
+                id_projects=project_id
+            ).first()
+            if not session_obj:
+                flash("Invalid session for this project")
+                return redirect(url_for('.project_invite', project_id=project_id))
+            
+            # For active invites, validate invitee exists
+            if invite_type == 'active':
+                if not invitee_name:
+                    flash("Invitee name is required for active invitations")
+                    return redirect(url_for('.project_invite', project_id=project_id))
+                
+                invitee = db.session.query(models.Users).filter_by(name=invitee_name).first()
+                if not invitee:
+                    flash(f"User '{invitee_name}' does not exist")
+                    return redirect(url_for('.project_invite', project_id=project_id))
+            else:
+                invitee_name = "Anonymous"
+            
+            # Create invitation link
+            creation_date = datetime.datetime.now().isoformat()
+            key = linkrandom(32)
+            try:
+                key = key.decode('utf-8')
+            except AttributeError:
+                pass
+            
+            link_key = f"{session_obj.name}{linkChar}{invite_type}{linkChar}{invitee_name}{linkChar}{creation_date}{linkChar}{key}"
+            
+            try:
+                invite_link = models.InviteLinks(
+                    link=link_key,
+                    host_user=current_user.name,
+                    host_project=project.name,
+                    type=(invite_type == 'active'),
+                    creation_date=datetime.datetime.now(),
+                    max_uses=max_uses,
+                    use_count=0,
+                    id_sessions=session_id,
+                    id_users=invitee.id if invite_type == 'active' else None
+                )
+                db.session.add(invite_link)
+                db.session.commit()
+                
+                full_link = f"https://{DEFAULT_URL}/join/{link_key}"
+                flash(f"Invitation link created successfully: {full_link}")
+                
+            except Exception as e:
+                db.session.rollback()
+                logging.error(f"Error creating invite link: {str(e)}")
+                flash("Failed to create invitation link")
+        
+        elif action == 'revoke_invite':
+            invite_id = request.form.get('invite_id')
+            invite_link = db.session.query(models.InviteLinks).filter_by(
+                id=invite_id,
+                host_project=project.name
+            ).first()
+            
+            if invite_link:
+                invite_link.is_revoked = True
+                db.session.commit()
+                flash("Invitation link revoked successfully")
+            else:
+                flash("Invitation link not found")
+        
+        return redirect(url_for('.project_invite', project_id=project_id))
+    
+    return render_template('project_invite.html',
+                         title=f"Invite Users - {project.name}",
+                         project=project,
+                         sessions=sessions,
+                         invite_links=invite_links,
+                         **myrender())
+
+# Email Verification Routes
+@app.route('/verify-email/<token>')
+def verify_email(token):
+    """Verify user email with JWT token"""
+    try:
+        # Verify the token
+        data = verify_token(token, app.secret_key)
+        if data is None:
+            flash('Invalid or expired verification link.', 'error')
+            return redirect('/register')
+        
+        user_id = data.get('confirm_id')
+        if not user_id:
+            flash('Invalid verification link.', 'error')
+            return redirect('/register')
+        
+        # Find user and verify email
+        user = db.session.query(models.Users).filter_by(id=user_id).first()
+        if not user:
+            flash('User not found.', 'error')
+            return redirect('/register')
+        
+        if user.is_verified:
+            flash('User already verified. You can login.',"success")
+            return redirect('/login')
+        
+        # Mark user as verified
+        user.is_verified = True
+        user.dateverified = datetime.datetime.now()
+        db.session.commit()
+        
+        # Delete the sent email from IMAP (only if user has email)
+        if user.mail:
+            delete_sent_email("TiledViz - Email Verification", user.mail)
+        
+        flash('Email verified successfully! You can now log in.', 'success')
+        return redirect('/login')
+        
+    except Exception as e:
+        logging.error(f"Error verifying email: {e}")
+        flash('An error occurred during verification. Please try again.', 'error')
+        return redirect('/register')
+
+@app.route('/resend-verification', methods=['GET', 'POST'])
+def resend_verification():
+    """Resend verification email"""
+    if request.method == 'POST':
+        email = request.form.get('email')
+        if not email:
+            flash('Please enter your email address.', 'error')
+            return render_template('resend_verification.html', **myrender())
+        
+        # Find user
+        user = db.session.query(models.Users).filter_by(mail=email).first()
+        if not user:
+            flash('No account found with this email address.', 'error')
+            return render_template('resend_verification.html', **myrender())
+        
+        if user.is_verified:
+            flash('This email is already verified. You can log in.', 'info')
+            return redirect('/login')
+        
+        # Generate new token and send email
+        token = generate_verification_token(user.id)
+        email_sent = send_verification_email(
+            user_email=user.mail,
+            username=user.name,
+            token=token
+        )
+        
+        if email_sent:
+            flash('Verification email sent! Please check your inbox.', 'success')
+        else:
+            flash('Failed to send verification email. Please try again later.', 'error')
+        
+        return redirect('/login')
+    
+    return render_template('resend_verification.html', **myrender())
 

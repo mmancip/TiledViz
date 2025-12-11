@@ -352,17 +352,16 @@ $(document).ready( function(){
         $('#invite-error').hide();
     });
   
-    // http://davidzchen.com/tech/2016/01/19/bootstrap-copy-to-clipboard.html : ressource on copying things (like
-    // this cute URL) to clipboard
     // TODO: get user input on best way to share URL: mail? copy/paste? QR code?
     //$('#copy-button').tooltip();
     $('#copy-button').on("click", function(){
 	var input = document.querySelector("#custom-url");
 	input.setSelectionRange(0, input.value.length + 1);
 	try {
-	    var success = document.execCommand("copy");
+	    var success = navigator.clipboard ? navigator.clipboard.writeText(input.value) : document.execCommand("copy");
 	    if (success) {
 		console.log("copy success");
+		$('#invite-error').text('Copy done!').removeClass("alert-danger").show();
 	    } else {
 		console.log("copy error");
 	    }

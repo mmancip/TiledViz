@@ -49,6 +49,7 @@ echo "==== Get noVNC ===="
 pushd TVWeb
 git clone https://github.com/novnc/noVNC.git noVNC
 cd noVNC
+git checkout v1.4.0
 patch -p0 < ../patch_ui
 cd ..
 cp vnc_multi.html noVNC
@@ -57,7 +58,7 @@ cp rfb_multi.js noVNC/core
 #patch -p0 < patch_devices_noVNC 
 popd
 
-echo "==== Get noVNC ===="
+echo "==== Get websockify ===="
 pushd TVConnections
 git clone https://github.com/novnc/websockify
 popd
@@ -68,7 +69,7 @@ if ( $installX11 ); then
     password=$(python3 -c "import zenipy; password=zenipy.zenipy.password(title='PostgreSQL password',text='Please give a password for your postgresql DB : (no '@' or '/' !)', width=450, height=120, timeout=None); print(str(password))")
 else
     echo "Please give a password for your postgresql DB : (no '@' or '/' !)"
-    read -s password;
+    read -s password
 fi
 replpass=$( echo $password | sed -e "s|\&|\\\&|g" )
 sed -e "s|your_postgres_password|$replpass|" -i $HOME/.cache/envTiledViz
@@ -97,7 +98,17 @@ DOMAIN=${webline[${#webline[*]}-2]}.${webline[${#webline[*]}-1]}
 if ( $installX11 ); then
     SSLpublic=$(python3 -c "import zenipy; myssl=zenipy.zenipy.password(title='SSL PUBLIC key path',text='Please give the PUBLIC SSL key PATH.', width=450, height=120, timeout=None); print(str(myssl))")
     SSLprivate=$(python3 -c "import zenipy; myssl=zenipy.zenipy.password(title='SSL PRIVATE key path',text='Please give the PRIVATE SSL key PATH.', width=450, height=120, timeout=None); print(str(myssl))")
-    SMTP=$(python3 -c "import zenipy; myserver=zenipy.zenipy.password(title='SMTP server address',text='Please give your SMTP server address - the outgoing mail server.', width=450, height=120, timeout=None); print(str(myserver))")
+    SMTP_SERVER=$(python3 -c "import zenipy; myserver=zenipy.zenipy.password(title='SMTP server address',text='Please give your SMTP server address - the outgoing mail server.', width=450, height=120, timeout=None); print(str(myserver))")
+    SMTP_PORT=$(python3 -c "import zenipy; myport=zenipy.zenipy.password(title='SMTP server PORT',text='Please give your SMTP server address - for the outgoing mail server.', width=450, height=120, timeout=None); print(str(myport))")
+    SMTP_USE_SSL=$(python3 -c "import zenipy; myssl=zenipy.zenipy.password(title='SMTP server SSL option',text='Please give your SSL option - for the outgoing mail server.', width=450, height=120, timeout=None); print(str(myssl))")
+    SMTP_USE_TLS=$(python3 -c "import zenipy; mytls=zenipy.zenipy.password(title='SMTP server TLS option',text='Please give your TLS option - for the outgoing mail server.', width=450, height=120, timeout=None); print(str(mytls))")
+    SMTP_USERNAME=$(python3 -c "import zenipy; myuser=zenipy.zenipy.password(title='SMTP user name',text='Please give your user name - for the outgoing mail server.', width=450, height=120, timeout=None); print(str(myuser))")
+    SMTP_PASSWORD=$(python3 -c "import zenipy; mypass=zenipy.zenipy.password(title='SMTP password',text='Please give your password - for the outgoing mail server.', width=450, height=120, timeout=None); print(str(mypass))")
+    FROM_EMAIL=$(python3 -c "import zenipy; myuser=zenipy.zenipy.password(title='TiledViz email',text='Please give this TiledViz email - for the outgoing mail server.', width=450, height=120, timeout=None); print(str(myuser))")
+    IMAP_SERVER=$(python3 -c "import zenipy; myserver=zenipy.zenipy.password(title='IMAP server address',text='Please give your IMAP server address - the ingoing mail server.', width=450, height=120, timeout=None); print(str(myserver))")
+    IMAP_PORT=$(python3 -c "import zenipy; myport=zenipy.zenipy.password(title='IMAP server PORT',text='Please give your IMAP server address - for the ingoing mail server.', width=450, height=120, timeout=None); print(str(myport))")
+
+
     NTP=$(python3 -c "import zenipy; myserver=zenipy.zenipy.password(title='NTP server address',text='Please give your NTP server address - the time server.', width=450, height=120, timeout=None); print(str(myserver))")
 else
     echo "Please give the PUBLIC SSL key PATH."
@@ -106,12 +117,43 @@ else
     read SSLprivate;
 
     echo "Please give your SMTP server address - the outgoing mail server."
-    read SMTP;
+    read SMTP_SERVER;
+    echo "Please give your SMTP PORT address - for the outgoing mail server."
+    read SMTP_PORT;
+    echo "Please give your SMTP SSL option - for the outgoing mail server."
+    read SMTP_USE_SSL;
+    echo "Please give your SMTP TLS option - for the outgoing mail server."
+    read SMTP_USE_TLS;
+    echo "Please give your SMTP user name - for the outgoing mail server."
+    read SMTP_USERNAME;
+    echo "Please give your SMTP password - for the outgoing mail server."
+    read SMTP_PASSWORD;
+    echo "Please give this TiledViz email - for the outgoing mail server."
+    read FROM_EMAIL;
+    echo "Please give your IMAP server address - the ingoing mail server."
+    read IMAP_SERVER;
+    echo "Please give your IMAP PORT address - for the ingoing mail server."
+    read IMAP_PORT;
+
     echo "Please give your NTP server address - the time server."
     read NTP;
 fi
 
-sed -e "s&DNSservername&$SERVER_NAME&"  -e "s&_DOMAIN_&$DOMAIN&" -e "s&_SSLpublic_&$SSLpublic&" -e "s&_SSLprivate_&$SSLprivate&" -e "s&_NTP_&$NTP&"  -e "s&_SMTP_&$SMTP&" -i $HOME/.cache/envTiledViz
+sed -e "s&_SERVER_NAME_&$SERVER_NAME&" \
+    -e "s&_DOMAIN_&$DOMAIN&" \
+    -e "s&_SSLpublic_&$SSLpublic&" \
+    -e "s&_SSLprivate_&$SSLprivate&" \
+    -e "s&_NTP_&$NTP&"  \
+    -e "s&_SMTP_SERVER_&$SMTP_SERVER&" \
+    -e "s&_SMTP_PORT_&$SMTP_PORT&" \
+    -e "s&_SMTP_USE_TLS_&$SMTP_USE_TLS&" \
+    -e "s&_SMTP_USE_SSL_&$SMTP_USE_SSL&" \
+    -e "s&_SMTP_USERNAME_&$SMTP_USERNAME&" \
+    -e "s&_SMTP_PASSWORD_&$SMTP_PASSWORD&" \
+    -e "s&_FROM_EMAIL_&$FROM_EMAIL&" \
+    -e "s&_IMAP_SERVER_&$IMAP_SERVER&" \
+    -e "s&_IMAP_PORT_&$IMAP_PORT&" \
+    -i $HOME/.cache/envTiledViz
 
 echo "==== Build Docker images ===="
 echo "===== build connection Docker ====="

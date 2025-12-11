@@ -1,0 +1,530 @@
+{% extends "base_main_template.html" %}
+
+{% block additional_scripts_css %}
+<style>
+    .card {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+        border: 2px solid #e9ecef;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .card-header {
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .table {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+    }
+    
+    .table th {
+        background-color: #f8f9fa !important;
+        color: #495057 !important;
+        border-color: #dee2e6 !important;
+    }
+    
+    .table td {
+        border-color: #dee2e6 !important;
+        color: #333333 !important;
+    }
+    
+    .form-control, .form-select {
+        background-color: #ffffff !important;
+        color: #333333 !important;
+        border: 2px solid #ced4da !important;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #80bdff !important;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+    }
+    
+    .btn {
+        font-weight: 600;
+        text-shadow: none;
+    }
+    
+    .alert {
+        border: 2px solid #e9ecef;
+        background-color: #ffffff !important;
+        color: #333333 !important;
+    }
+    
+    .text-muted {
+        color: #6c757d !important;
+    }
+    
+    h1, h2, h3, h4, h5, h6, p, label {
+        color: #333333 !important;
+    }
+    
+    .badge {
+        font-size: 0.9em;
+        padding: 0.5em 0.8em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">
+                        <i class="fas fa-users me-2"></i>
+                        Manage Members - {{ project.name }}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5 class="text-dark">Project Information</h5>
+                            <p class="text-dark"><strong>Name:</strong> {{ project.name }}</p>
+                            <p class="text-dark"><strong>Description:</strong> {{ project.description or 'No description' }}</p>
+                            <p class="text-dark"><strong>Created:</strong> {{ project.creation_date.strftime('%Y-%m-%d %H:%M:%S') if project.creation_date else 'Unknown' }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="{{ url_for('project') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Projects
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Current Members Section -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-user-check me-2"></i>
+                                Current Members ({{ current_members|length }})
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if current_members %}
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>User</th>
+                                                <th>Email</th>
+                                                <th>Role</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for member in current_members %}
+                                            <tr>
+                                                <td>
+                                                    <strong>{{ member.user.name }}</strong>
+                                                    {% if member.user.is_admin %}
+                                                        <span class="badge bg-warning text-dark ms-2">System Admin</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>{{ member.user.mail or 'No email' }}</td>
+                                                <td>
+                                                    {% if member.role_type == 'owner' %}
+                                                        <span class="badge bg-danger">Owner</span>
+                                                    {% elif member.role_type == 'admin' %}
+                                                        <span class="badge bg-warning text-dark">Admin</span>
+                                                    {% elif member.role_type == 'editor' %}
+                                                        <span class="badge bg-primary">Editor</span>
+                                                    {% elif member.role_type == 'viewer' %}
+                                                        <span class="badge bg-info">Viewer</span>
+                                                    {% elif member.role_type == 'guest' %}
+                                                        <span class="badge bg-secondary">Guest</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if member.role_type != 'owner' %}
+                                                        <!-- Change Role Dropdown -->
+                                                        <div class="dropdown d-inline-block me-2">
+                                                            <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                                Change Role
+                                                            </button>
+                                                            <ul class="dropdown-menu">
+                                                                <li><a class="dropdown-item" href="#" onclick="changeRole({{ member.user_id }}, 'admin')">Admin</a></li>
+                                                                <li><a class="dropdown-item" href="#" onclick="changeRole({{ member.user_id }}, 'editor')">Editor</a></li>
+                                                                <li><a class="dropdown-item" href="#" onclick="changeRole({{ member.user_id }}, 'viewer')">Viewer</a></li>
+                                                                <li><a class="dropdown-item" href="#" onclick="changeRole({{ member.user_id }}, 'guest')">Guest</a></li>
+                                                            </ul>
+                                                        </div>
+                                                        
+                                                        <!-- Remove Member Button -->
+                                                        <form method="POST" class="d-inline-block" onsubmit="return confirm('Are you sure you want to remove this member?')">
+                                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            
+
+                                                            <input type="hidden" name="remove_member" value="1">
+                                                            <input type="hidden" name="member_id" value="{{ member.user_id }}">
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                                <i class="fas fa-user-minus me-1"></i>Remove
+                                                            </button>
+                                                        </form>
+                                                    {% else %}
+                                                        <!-- Owner Actions -->
+                                                        <div class="dropdown d-inline-block">
+                                                            <button class="btn btn-sm btn-outline-warning dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                                                <i class="fas fa-crown me-1"></i>Owner Actions
+                                                            </button>
+                                                            <ul class="dropdown-menu">
+                                                                <li><a class="dropdown-item" href="#" onclick="showTransferOwnershipModal({{ member.user_id }}, '{{ member.user.name }}')">
+                                                                    <i class="fas fa-exchange-alt me-2"></i>Transfer Ownership
+                                                                </a></li>
+                                                            </ul>
+                                                        </div>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    No members found for this project.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Ownership Management Section -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0">
+                                <i class="fas fa-crown me-2"></i>
+                                Ownership Management
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <h6><i class="fas fa-info-circle me-2"></i>Current Ownership Status</h6>
+                                    <p class="mb-2">This section allows project owners to transfer ownership to other members.</p>
+                                    <div class="alert alert-info">
+                                        <strong>Note:</strong> Only project owners can transfer ownership. The transfer is permanent and cannot be undone.
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <button class="btn btn-warning" onclick="showOwnershipInfo()">
+                                        <i class="fas fa-question-circle me-2"></i>Learn More
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add New Member Section -->
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-user-plus me-2"></i>
+                                Add New Member
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% if available_users %}
+                                <form method="POST">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-5">
+                                            <label for="user_id" class="form-label">Select User</label>
+                                            <select class="form-select" id="user_id" name="user_id" required>
+                                                <option value="">Choose a user...</option>
+                                                {% for user in available_users %}
+                                                <option value="{{ user.id }}">
+                                                    {{ user.name }} {% if user.mail %}({{ user.mail }}){% endif %}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label for="role_type" class="form-label">Assign Role</label>
+                                            <select class="form-select" id="role_type" name="role_type" required>
+                                                <option value="">Choose a role...</option>
+                                                <option value="admin">Admin - Full project management</option>
+                                                <option value="editor">Editor - Can modify content</option>
+                                                <option value="viewer">Viewer - Read-only access</option>
+                                                <option value="guest">Guest - Limited access</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label">&nbsp;</label>
+                                            <button type="submit" name="add_member" class="btn btn-success w-100">
+                                                <i class="fas fa-plus me-2"></i>Add
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                                
+                                <div class="mt-3">
+                                    <h6>Role Descriptions:</h6>
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <span class="badge bg-danger">Owner</span>
+                                            <small class="d-block text-muted">Full control, can transfer ownership</small>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <span class="badge bg-warning text-dark">Admin</span>
+                                            <small class="d-block text-muted">Manage members and settings</small>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <span class="badge bg-primary">Editor</span>
+                                            <small class="d-block text-muted">Create and modify content</small>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <span class="badge bg-info">Viewer</span>
+                                            <small class="d-block text-muted">Read-only access</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-4">
+                                    <div class="alert alert-warning border-warning">
+                                        <h5><i class="fas fa-crown me-2"></i>Ownership Management</h5>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <h6><i class="fas fa-shield-alt me-2"></i>Ownership Rules:</h6>
+                                                <ul class="mb-0">
+                                                    <li><strong>Minimum Owner:</strong> Each project must have at least one owner</li>
+                                                    <li><strong>Transfer Rights:</strong> Only owners can transfer ownership to other members</li>
+                                                    <li><strong>Last Owner Protection:</strong> The last owner cannot be removed from the project</li>
+                                                    <li><strong>Irreversible:</strong> Ownership transfer is permanent and cannot be undone</li>
+                                                </ul>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <h6><i class="fas fa-exclamation-triangle me-2"></i>Important Notes:</h6>
+                                                <ul class="mb-0">
+                                                    <li>After transferring ownership, you will become an admin</li>
+                                                    <li>Only existing project members can receive ownership</li>
+                                                    <li>Ownership transfer requires explicit confirmation</li>
+                                                    <li>All ownership changes are logged for audit purposes</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    All users are already members of this project.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Transfer Ownership Modal -->
+<div class="modal fade" id="transferOwnershipModal" tabindex="-1" aria-labelledby="transferOwnershipModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h4 class="modal-title" id="transferOwnershipModalLabel">
+                    <i class="fas fa-crown me-2"></i>Transfer Project Ownership
+                </h4>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger border-danger">
+                    <h5><i class="fas fa-exclamation-triangle me-2"></i>Critical Action Warning</h5>
+                    <p class="mb-0"><strong>This action will permanently transfer full ownership of the project to another member.</strong> You will become an admin after the transfer and will lose all owner privileges.</p>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="card border-primary">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0"><i class="fas fa-user me-2"></i>Current Owner</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-0"><strong id="currentOwnerName"></strong></p>
+                                <small class="text-muted">Will become Admin after transfer</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-success">
+                            <div class="card-header bg-success text-white">
+                                <h6 class="mb-0"><i class="fas fa-user-plus me-2"></i>New Owner</h6>
+                            </div>
+                            <div class="card-body">
+                                <form id="transferOwnershipForm">
+                                    <select class="form-select" id="newOwnerSelect" required>
+                                        <option value="">Choose a member...</option>
+                                        {% for member in current_members %}
+                                            {% if member.role_type != 'owner' %}
+                                            <option value="{{ member.user_id }}">
+                                                {{ member.user.name }} ({{ member.role_type|title }})
+                                            </option>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-info-circle me-2"></i>What happens after transfer:</h6>
+                    <ul class="mb-0">
+                        <li>You will lose all owner privileges and become an admin</li>
+                        <li>The new owner will have full control over the project</li>
+                        <li>This action cannot be undone</li>
+                        <li>All project settings and permissions will be transferred</li>
+                    </ul>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="confirmTransfer" required>
+                        <label class="form-check-label" for="confirmTransfer">
+                            <strong>I understand the consequences and confirm that I want to transfer ownership</strong>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmTransferBtn" disabled>
+                    <i class="fas fa-exchange-alt me-2"></i>Transfer Ownership
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden form for role changes -->
+<form id="roleChangeForm" method="POST" style="display: none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+    <input type="hidden" name="change_role" value="1">
+    <input type="hidden" name="member_id" id="changeRoleMemberId">
+    <input type="hidden" name="new_role" id="changeRoleNewRole">
+</form>
+
+<!-- Hidden form for ownership transfer -->
+<form id="ownershipTransferForm" method="POST" style="display: none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <input type="hidden" name="transfer_ownership" value="1">
+    <input type="hidden" name="new_owner_id" id="newOwnerId">
+</form>
+
+<script>
+function changeRole(userId, newRole) {
+    if (confirm(`Are you sure you want to change this user's role to ${newRole}?`)) {
+        document.getElementById('changeRoleMemberId').value = userId;
+        document.getElementById('changeRoleNewRole').value = newRole;
+        document.getElementById('roleChangeForm').submit();
+    }
+}
+
+function showTransferOwnershipModal(currentOwnerId, currentOwnerName) {
+    // Set the current owner name in the modal
+    document.getElementById('currentOwnerName').textContent = currentOwnerName;
+    
+    // Reset the form
+    document.getElementById('newOwnerSelect').value = '';
+    document.getElementById('confirmTransfer').checked = false;
+    document.getElementById('confirmTransferBtn').disabled = true;
+    
+    // Show the modal
+    var modal = new bootstrap.Modal(document.getElementById('transferOwnershipModal'));
+    modal.show();
+}
+
+function showOwnershipInfo() {
+    alert('Ownership Transfer Information:\n\n' +
+          '• Only project owners can transfer ownership\n' +
+          '• The new owner must already be a project member\n' +
+          '• After transfer, you will become an admin\n' +
+          '• This action is permanent and cannot be undone\n' +
+          '• All project permissions will be transferred\n\n' +
+          'To transfer ownership, use the "Owner Actions" button in the members table.');
+}
+
+// Enable/disable transfer button based on form completion
+document.addEventListener('DOMContentLoaded', function() {
+    const newOwnerSelect = document.getElementById('newOwnerSelect');
+    const confirmTransfer = document.getElementById('confirmTransfer');
+    const confirmTransferBtn = document.getElementById('confirmTransferBtn');
+    
+    function updateTransferButton() {
+        const isFormValid = newOwnerSelect.value && confirmTransfer.checked;
+        confirmTransferBtn.disabled = !isFormValid;
+    }
+    
+    newOwnerSelect.addEventListener('change', updateTransferButton);
+    confirmTransfer.addEventListener('change', updateTransferButton);
+    
+    // Handle transfer confirmation
+    confirmTransferBtn.addEventListener('click', function() {
+        const newOwnerId = newOwnerSelect.value;
+        const newOwnerName = newOwnerSelect.options[newOwnerSelect.selectedIndex].text;
+        
+        if (confirm(`Are you absolutely sure you want to transfer ownership to ${newOwnerName}?\n\nThis action cannot be undone.`)) {
+            document.getElementById('newOwnerId').value = newOwnerId;
+            document.getElementById('ownershipTransferForm').submit();
+        }
+    });
+    
+    // Check ownership constraints on page load
+    checkOwnershipConstraints();
+});
+
+// Function to check ownership constraints via API
+function checkOwnershipConstraints() {
+    const projectId = {{ project.id }};
+    
+    fetch(`/api/project/${projectId}/ownership-constraints`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Error checking ownership constraints:', data.error);
+                return;
+            }
+            
+            // Update UI based on constraints
+            updateUIForConstraints(data);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+}
+
+function updateUIForConstraints(constraints) {
+    // Hide transfer ownership options if user cannot transfer
+    if (!constraints.can_transfer_ownership) {
+        const transferButtons = document.querySelectorAll('[onclick*="showTransferOwnershipModal"]');
+        transferButtons.forEach(button => {
+            button.style.display = 'none';
+        });
+    }
+    
+    // Show warning if this is the last owner
+    if (constraints.is_last_owner) {
+        const ownerRows = document.querySelectorAll('tr');
+        ownerRows.forEach(row => {
+            const roleCell = row.querySelector('.badge.bg-danger');
+            if (roleCell && roleCell.textContent.trim() === 'Owner') {
+                const actionsCell = row.querySelector('td:last-child');
+                if (actionsCell) {
+                    const warning = document.createElement('div');
+                    warning.className = 'alert alert-warning alert-sm mt-2';
+                    warning.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Last owner - cannot be removed';
+                    actionsCell.appendChild(warning);
+                }
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

@@ -25,7 +25,18 @@ class Config(object):
     SERVERN=os.getenv("SERVER_NAME")
     SERVER_NAME=SERVERN+"."+DOMAIN
     PORT=443
-    
+
+    # set default button sytle and size, will be overwritten by macro parameters
+    BOOTSTRAP_BTN_STYLE='primary'
+    BOOTSTRAP_BTN_SIZE='sm'
+
+    # set default icon title of table actions
+    BOOTSTRAP_TABLE_VIEW_TITLE='Read'
+    BOOTSTRAP_TABLE_EDIT_TITLE='Update'
+    BOOTSTRAP_TABLE_DELETE_TITLE='Remove'
+    BOOTSTRAP_TABLE_NEW_TITLE='Create'
+
+
 # TESTING=False
 # PROPAGATE_EXCEPTIONS=None
 # PRESERVE_CONTEXT_ON_EXCEPTION=None

@@ -1,0 +1,58 @@
+{% extends "base_main_template.html" %}
+
+{% block title %}Resend Verification Email{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="text-center">Resend Verification Email</h3>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-envelope fa-3x text-primary"></i>
+                    </div>
+                    <p class="text-center">
+                        Enter your email address and we'll send you a new verification link.
+                    </p>
+                    
+                    {% with messagesF = get_flashed_messages() %}
+                        {% if messagesF %}
+                        <div class="alert alert-warning alert-dismissible show">
+                            {% for messageF in messagesF %}
+                            {{ messageF }}
+                            <button type="button" class="btn-close float-end"
+                                data-bs-dismiss="alert" aria-label="Close"></button>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    {% endwith %}
+                    
+                    <form method="POST" action="/resend-verification">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email Address</label>
+                            <input type="email" class="form-control" id="email" name="email" 
+                                   placeholder="your.email@example.com" required>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i> Send Verification Email
+                            </button>
+                            <a href="/login" class="btn btn-secondary">
+                                <i class="fas fa-sign-in-alt"></i> Back to Login
+                            </a>
+                            <a href="/register" class="btn btn-outline-primary">
+                                <i class="fas fa-user-plus"></i> Register New Account
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

@@ -3,10 +3,10 @@
 from flask_wtf import FlaskForm, recaptcha
 from flask_wtf.recaptcha import RecaptchaField
 import wtforms
-from wtforms import RadioField, SelectField, StringField, PasswordField, BooleanField, SubmitField, IntegerField, TextAreaField, SelectMultipleField, FieldList, FileField, MultipleFileField, widgets, HiddenField, DateField
-from wtforms.fields.html5 import SearchField
-from wtforms.widgets import core, html5
-from wtforms.validators import InputRequired, Email, Optional, EqualTo, NumberRange
+from wtforms import RadioField, SelectField, StringField, PasswordField, BooleanField, SubmitField, IntegerField, TextAreaField, \
+    SelectMultipleField, FieldList, FileField, MultipleFileField, widgets, HiddenField, DateField, SearchField, FormField, Form
+from wtforms.widgets import core
+from wtforms.validators import InputRequired, Email, Optional, EqualTo, NumberRange, ReadOnly, Length
 
 import markupsafe
 
@@ -38,16 +38,18 @@ class mySelect(object):
             kwargs['required'] = True
 
         suggestion_list=[]
-        for val, label, selected in field.iter_choices():
+        for val, label, selected, _ in field.iter_choices():
             suggestion_list.append(val)
             suggestion_list.append(label)
-        html = ['<select %s style="width:1300px; font-family: monospace;">' % core.html_params(name=field.name, **kwargs)]
+        html = ['<select %s style="width:1300px">' % core.html_params(name=field.name, **kwargs)]
+        #; font-family: monospace;
                 
-        for val, label, selected in field.iter_choices():
+        for val, label, selected, _ in field.iter_choices():
             html.append(self.render_option(val, label, selected))
         html.append('</select>')
 
-        html.append('</br><div id=search_'+field.id+'><label for=filter>Search in all your list :&emsp;</label>')
+        html.append('</br><div id=search_'+field.id+'>'+field.description+'</br>')
+        html.append('<label for=filter_'+field.id+'>Search in all your list and press Go :&emsp;</label></br>')
         html.append('<input id=filter_'+field.id+' type=text class="ui-autocomplete-input" autocomplete="off" style="width:1000px;" >&emsp;')
         html.append('<button class="btn btn-default" type="button" id="Valid_'+field.id+'">Go</button>')
         html.append('</div>')
@@ -75,7 +77,7 @@ class mySelect(object):
         html.append('     $("#'+field.id+'").val(suggestion_list'+field.id+'[ioption]);\n')
         html.append('     })\n')
         html.append('</script>')
-        return core.HTMLString(''.join(html))
+        return markupsafe.Markup(''.join(html))
 
     @classmethod
     def render_option(cls, value, label, selected, **kwargs):
@@ -86,11 +88,20 @@ class mySelect(object):
         options = dict(kwargs, value=value)
         if selected:
             options['selected'] = True
-        return core.HTMLString('<option %s>%s</option>' % (core.html_params(**options), markupsafe.escape(label)))
+        return markupsafe.Markup('<option %s>%s</option>' % (core.html_params(**options), markupsafe.escape(label)))
 
 class myFixedSelectField(SelectField):
     widget = mySelect(multiple=False)
 
+class UserField(Form):
+    label=""
+    username = StringField('Username',
+                           validators=[Optional(),
+                                       Length(min=6,max=16,
+                                              message=('not too short (<6), not too long (>16)...'))
+                                       ])
+    iseditor = BooleanField("Role editor",default=False,
+                            validators=[Optional()])
 
 def BuildRegisterForm(Username=None,Useremail=None,Usercomp=None,Usermanager=None):
     class RegisterForm(FlaskForm):
@@ -115,13 +126,19 @@ def BuildLoginForm(session):
     class LoginForm(FlaskForm):
         # recaptcha = RecaptchaField()
         pass
-    LoginForm.username = StringField("Username", default=session["username"],validators=[InputRequired()])
+    try:
+        default_username = session.get("username", "Anonymous")
+    except Exception:
+        default_username = "Anonymous"
+    LoginForm.username = StringField("Username", default=default_username,validators=[InputRequired()])
     LoginForm.password = PasswordField("Password", validators=[InputRequired()])
     LoginForm.remember_me = BooleanField("Remember me")
     LoginForm.newuser = BooleanField("Change password ?")
-    LoginForm.choice_project = RadioField(description="Action with the project :",choices=[("create","Create a new one ?"),
-                                                               ("connect","Connect to an existing one ?")],
-                                default="connect")
+    LoginForm.choice_project = RadioField(
+        label="Action with the project :",
+        choices=[("create","Create a new one ?"), ("connect","Connect to an existing one ?")],
+        default="connect"
+    )
     LoginForm.submit = SubmitField("Next step")
     return LoginForm
 
@@ -131,10 +148,11 @@ def BuildNewProjectForm(listprojects):
     NewProjectForm.projectname = StringField("New Project name", validators=[Optional()])
     NewProjectForm.description = StringField("Description of this project", validators=[Optional()])
     NewProjectForm.chosen_project=myFixedSelectField(description='Or choose one of your old projects in this list (with its sessions) :',choices=listprojects,validators=[Optional()])
+     
+    choices=[("use","Use an existing session for the grid"),
+             ("create","Create new session")]
     NewProjectForm.action_sessions = RadioField(description="Action with the sessions of this project :",default="create",
-                                 choices=[("use","Use an existing session for the grid"),
-                                          ("modify","modify an existing session"),
-                                          ("create","Create new session")],
+                                 choices=choices,
                                  validators=[Optional()])
     NewProjectForm.submit = SubmitField("Next step")
     return NewProjectForm
@@ -188,17 +206,25 @@ def BuildAllProjectSessionForm(list_myprojects_sessions,list_invite_sessions):
     AllProjectSessionForm.submit = SubmitField("Next step")
     return AllProjectSessionForm
 
-def BuildOldProjectForm(thisproject,listsessions):
+# TODO
+
+def BuildOldProjectForm(thisproject,listsessions, session):
     class OldProjectForm(FlaskForm):
         pass
-    
+
+    can_manage_members=session.get("can_manage_members",False)
+    can_edit_session=session.get("can_edit_session",False)
+    if (can_edit_session):
+        choices=[("use","Use a session"),
+                 ("copy","Duplicate a session")]
+    else:
+        choices=[("use","Use a session")]
+        
     OldProjectForm.projectname=StringField(label="Project name", default=thisproject["name"],validators=[Optional()])
     OldProjectForm.description=StringField(label="Description of this project", default=thisproject["description"],validators=[Optional()])
     OldProjectForm.from_session = RadioField(label='Action on session (required)',
                                              description='Choose which action with old session you want :',
-                                             choices=[("use","Use a session"),
-                                                      ("edit","Edit a session"),
-                                                      ("copy","Duplicate a session")],
+                                             choices=choices,
                                              default='use',
                                              validators=[InputRequired()])
     OldProjectForm.chosen_session=RadioField(label='List of sessions for project '+thisproject["name"]+' :',choices=listsessions)
@@ -211,13 +237,15 @@ def BuildNewSessionForm():
     NewSessionForm.submit1 = SubmitField("Next step")
     NewSessionForm.sessionname = StringField("Session name", validators=[InputRequired()])
     NewSessionForm.description = StringField("Description of this session", validators=[InputRequired()])
-    NewSessionForm.users = FieldList(description="Others users",unbound_field=StringField("user", validators=[Optional()]),min_entries=5,max_entries=10)
+    NewSessionForm.users = FieldList(description="Add users",
+                                      unbound_field=FormField(UserField),
+                                      min_entries=5,max_entries=10)
     NewSessionForm.add_users = SubmitField('Add more users')
     NewSessionForm.Session_config = SubmitField("Edit configuration of the session")
     NewSessionForm.submit = SubmitField("Next step")
     return NewSessionForm
 
-def BuildEditsessionform(oldsession=None,edit=True):
+def BuildEditsessionform(oldsession, session, edit=True):
     class editsessionform(FlaskForm):
         pass
     editsessionform.submit1 = SubmitField("Next step")
@@ -229,6 +257,8 @@ def BuildEditsessionform(oldsession=None,edit=True):
     # Make the PCA by default
     has_pca = "NO" 
 
+    can_manage_members=session.get("can_manage_members",False)
+    can_edit_session=session.get("can_edit_session",False)
 
     # - PCA - 
     # Add a field : number of wanted clusters
@@ -238,14 +268,22 @@ def BuildEditsessionform(oldsession=None,edit=True):
     json_tiles_nbClusters = 2  
 
     if (len(ListAllTileSet_ThisSession) > 0):
+        if can_edit_session:
+            valid=[Optional()]
+        else:
+            valid=[ReadOnly()]
         editsessionform.tilesetchoice = RadioField(label='listtilesets',
                                                    description='List all tilesets for this session',
                                                    choices=ListAllTileSet_ThisSession,
                                                    default=ListAllTileSet_ThisSession[0][0],
-                                                   validators=[Optional()])
+                                                   validators=valid)
         
+        if can_edit_session:
+            valid=[Optional()]
+        else:
+            valid=[ReadOnly()]
         if edit:
-            editsessionform.edit = SubmitField("Edit selected tileset.")
+            editsessionform.edit = SubmitField("View or edit selected tileset.")
             editsessionform.tilesetaction = RadioField(label='tilesetaction',
                                                        description='Choose to create and add a new tileset or just use all existing ones.',
                                                        choices=[("create","Add a new tileset."),
@@ -254,7 +292,8 @@ def BuildEditsessionform(oldsession=None,edit=True):
                                                                 ("remove","Remove an old tileset in Session."),
                                                                 ("useold","Use existing tilesets and go to grid.")],
                                                        default='useold',
-                                                       validators=[Optional()])
+                                                       render_kw={'label_class': 'text-decoration-underline', 'radio_class': 'text-decoration-none'},
+                                                       validators=valid)
         else:
             editsessionform.tilesetaction = RadioField(label='tilesetaction',
                                                        description='Choose to create and add a new tileset or just use all existing ones.',
@@ -263,54 +302,68 @@ def BuildEditsessionform(oldsession=None,edit=True):
                                                                 ("search","Search another tileset for Session."),
                                                                 ("useold","Use existing tilesets and go to grid.")],
                                                        default='useold',
-                                                       validators=[Optional()])
+                                                       render_kw={'label_class': 'text-decoration-underline', 'radio_class': 'text-decoration-none'},
+                                                       validators=valid)
             
-        ListAllUsers_ThisSession=[ thisuser.name for thisuser in oldsession.users]
-        editsessionform.users = FieldList(description="Others users",
-                                          unbound_field=StringField("user", validators=[Optional()]),
-                                          default=ListAllUsers_ThisSession,
-                                          min_entries=5,max_entries=10)
-
         # - PCA - 
-        # Add the number of cluster field
         editsessionform.has_pca = RadioField(label='- Principal Component Analysis :',
-                                                description='Would you like to perform automatically Principal Component Analysis (PCA) on all your tilesets? <br/>\
-                                                            This option will perform clustering and thus add tags corresponding to groups.',
-                                                choices=[("YES","yes"),
-                                                         ("NO","no")
-                                                ],
-                                                default=has_pca,
-                                                validators=[Optional()])
-
+                                             description='Would you like to perform automatically Principal Component Analysis (PCA) on all your tilesets? <br/>\
+                                             This option will perform clustering and thus add tags corresponding to groups.',
+                                             choices=[("YES","yes"),
+                                                      ("NO","no")
+                                                      ],
+                                             default=has_pca,
+                                             validators=valid)
+                
         """
-        editsessionform.json_tiles_nbClusters = IntegerField("Number of wanted clusters ", default=json_tiles_nbClusters,
+            # Add the number of cluster field
+            editsessionform.json_tiles_nbClusters = IntegerField("Number of wanted clusters ", default=json_tiles_nbClusters,
                                             validators = [NumberRange(min=2)])
-        
-        editsessionform.tilesetchoice = RadioField(label='listtilesetsforpca',
+                
+            editsessionform.tilesetchoice = RadioField(label='listtilesetsforpca',
                                                    description='List of tilesets for this session : check all the desired ones ',
                                                    choices=ListAllTileSet_ThisSession,
                                                    default=ListAllTileSet_ThisSession[0][0],
                                                    validators=[Optional()])
-        """
 
-        
+        """
     else:
+        if can_edit_session:
+            valid=[Optional()]
+        else:
+            valid=[ReadOnly()]
         if edit:
             editsessionform.tilesetaction = RadioField(label='tilesetaction',
                                                        description='No old tilesets. Create a first tileset.',
                                                        choices=[("create","Add a new tileset."),
                                                                 ("search","Search another tileset for Session.")],
                                                        default='create',
-                                                       validators=[Optional()])
-        ListAllUsers_ThisSession=[ thisuser.name for thisuser in oldsession.users]
-        editsessionform.users = FieldList(description="Others users",
-                                          unbound_field=StringField("user", validators=[Optional()]),
-                                          default=ListAllUsers_ThisSession,
-                                          min_entries=5,max_entries=10)
-        editsessionform.has_pca=HiddenField("no PCA if no TileSet.",default=False)
+                                                       validators=valid)
+        # - PCA - Hidden
+        editsessionform.has_pca=HiddenField("no PCA if no TileSet.",default=False,validators=valid)
+    
+    myproject=oldsession.projects
+    myUsers=oldsession.users
+    printstr="{0:\xa0<20.20}\xa0|\xa0{1:\xa0<18.18}"
+    ListAllUsers_ThisSession=[('NoChoice',printstr.format("User name","role"))]
+    for user in myUsers:
+        for projm in user.project_members_:
+            if projm.project_id == myproject.id:
+                ListAllUsers_ThisSession.append((user.id,printstr.format(user.name,projm.role_type)))
+    labelUsers='All users in this session and their roles : '
+    editsessionform.allusers=myFixedSelectField(label=labelUsers,
+                                                choices=ListAllUsers_ThisSession,
+                                                validators=[Optional()])
+
+    editsessionform.editusers = SubmitField("Edit users in project members page.")
+
+    if can_manage_members:
+        editsessionform.users = FieldList(label="Add new users : ",
+                                      unbound_field=FormField(UserField),
+                                      min_entries=2,max_entries=10)
+        editsessionform.add_users = SubmitField('Add more users')
         
     editsessionform.Session_config = SubmitField("Edit configuration of the session")
-    editsessionform.add_users = SubmitField('Add more users')
     editsessionform.submit = SubmitField("Next step")
     return editsessionform
 
@@ -457,17 +510,17 @@ def BuildConnectionsForm(oldconnection=None,json_tiles_text=None):
                                                    validators=[Optional()],default=None)
 
     
-    #### liste A REVOIR  (cf TVConnection.py)
-    ConnectionForm.auth_type = HiddenField(default=auth_type)
-    # ConnectionForm.auth_type = RadioField(label='Authentication type',
-    #                                       description='Connection to the machine :',
-    #                                       choices=[("ssh","Direct ssh connection"),
-    #                                                ("rebound","ssh through a gateway"),
+    # Connection with ssh rebounds
+    #ConnectionForm.auth_type = HiddenField(default=auth_type)
+    ConnectionForm.auth_type = RadioField(label='Authentication type',
+                                          description='Connection to the machine :',
+                                          choices=[("ssh","Direct ssh connection"),
+                                                   ("rebound","ssh through gateway(s)")
+                                          ],
+                                          default=auth_type,
+                                          validators=[Optional()])
+    #,
     #                                                ("persistent","define ssh connection an save it.")
-    #                                       ],
-    #                                       default=auth_type,
-    #                                       widget=[HiddenInput()],
-    #                                       validators=[Optional()])
 
     ConnectionForm.container = HiddenField(default=container)
     # ConnectionForm.container = StringField("Type of backend use on the machine to launch containers", default=container, validators=[InputRequired()])
@@ -480,11 +533,9 @@ def BuildConnectionsForm(oldconnection=None,json_tiles_text=None):
     #                                                ("loadleveler","Loadleveler scheduler.")
     #                                       ],
     #                                       default=scheduler,
-    #                                       widget=[HiddenInput()],
     #                                       validators=[Optional()])
     ConnectionForm.scheduler_file = HiddenField(default=None)
     # ConnectionForm.scheduler_file = FileField("Script to launch CONTAINERs on remote machine (required for connection) : ",
-    #                                           widget=HiddenInput(),
     #                                           validators=[Optional()])
     # ConnectionForm.scheduler_text = TextAreaField("Edit here script to launch CONTAINERs on remote machine.",validators=[Optional()])
 

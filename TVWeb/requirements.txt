@@ -3,10 +3,10 @@ psycopg2-binary
 flask-socketio
 gevent
 gevent-websocket
-WTForms==2.3.3
+WTForms
 flask-wtf
 flask-sqlalchemy
-flask-bootstrap
+Bootstrap-Flask
 sqlacodegen
 flask-sqlacodegen
 flask-cors
@@ -20,3 +20,6 @@ scikit-learn
 pandas
 kneed
 configparser
+Flask-Mail
+pyjwt
+lxml

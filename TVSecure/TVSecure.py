@@ -69,8 +69,8 @@ if (configExist):
     # Maximum waiting for nodes.json before stoping container
     Mwait=int(config['TVSecure']['Mwait'])
 
-    # Firewall with NFT
-    FirewallT=True
+    # Firewall with NFT (best way to convert bool string in python bool
+    FirewallT=json.loads(config['TVSecure']['FirewallT'].lower())
 
 else:
     NbSecureConnection=59
@@ -99,14 +99,14 @@ debug_Flask=False
 
 #sys.path.append(os.path.abspath('./'))
 
-POSTGRES_HOST="postgres"
-POSTGRES_IP="172.17.0.2"
-POSTGRES_PORT="6431"
-POSTGRES_USER="tiledviz"
-POSTGRES_DB="TiledViz"
-POSTGRES_PASSWORD="m_test/@03"
+POSTGRES_HOST='postgres'
+POSTGRES_IP='172.17.0.2'
+POSTGRES_PORT='6431'
+POSTGRES_USER='tiledviz'
+POSTGRES_DB='TiledViz'
+POSTGRES_PASSWORD='m_test/@03'
 secretKey="my Preci0us secr_t key for t&sts."
-
+SMTP_PASSWORD="m_smtp_p@sw0rd"
 flaskaddr=os.getenv('SERVER_NAME')+"."+os.getenv('DOMAIN')
 
 client = docker.from_env()
@@ -127,13 +127,15 @@ def parse_args(argv):
                         help='POSTGRES_PASSWORD (default: "'+POSTGRES_PASSWORD+'")')
     parser.add_argument('--secretKey', default=secretKey,
                         help='secretKey (default: "'+secretKey+'")')
+    parser.add_argument('--SMTP_PASSWORD', default='"'+SMTP_PASSWORD+'"',
+                        help='SMTP_PASSWORD (default: "'+SMTP_PASSWORD+'")')
     args = parser.parse_args(argv[1:])
     return args
 
 TVvolume=docker.types.Mount(target='/TiledViz',source=os.getenv('PWD'),type='bind',read_only=False)
 
-SSLpath=os.path.dirname(os.getenv('SSLpublic'))
-TVssl=docker.types.Mount(target=SSLpath,source=SSLpath,type='bind',read_only=True)
+SSLpath=os.path.dirname(os.path.dirname(os.getenv('SSLpublic')))
+TVssl=docker.types.Mount(target=SSLpath,source=SSLpath,type='bind',read_only=False)
 
 flaskc={"max-size": NbBitesLog, "max-file": "3"}
 TVlogs=docker.types.LogConfig(type=docker.types.LogConfig.types.JSON, config=flaskc)
@@ -171,12 +173,14 @@ class FlaskDocker(threading.Thread):
     def __init__(self,
                  POSTGRES_HOST=POSTGRES_HOST, POSTGRES_IP=POSTGRES_IP, POSTGRES_PORT=POSTGRES_PORT,
                  POSTGRES_DB=POSTGRES_DB, POSTGRES_USER=POSTGRES_USER, POSTGRES_PASSWORD=POSTGRES_PASSWORD,
-                 secretKey=secretKey ):
+                 SMTP_PASSWORD=SMTP_PASSWORD,
+                 secretKey=secretKey):
 
         self.thread = threading.Thread(target=self.run, name="TVSecureServer",
                                        args=( POSTGRES_HOST, POSTGRES_IP, POSTGRES_PORT,
                                                                POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD,
-                                                               secretKey ))
+                                                               SMTP_PASSWORD,
+                                                               secretKey))
         
         logging.debug("After def thread.")
         threads["flaskdock"]=self.thread
@@ -185,13 +189,14 @@ class FlaskDocker(threading.Thread):
     def run(self,
             POSTGRES_HOST=POSTGRES_HOST, POSTGRES_IP=POSTGRES_IP, POSTGRES_PORT=POSTGRES_PORT,
             POSTGRES_DB=POSTGRES_DB, POSTGRES_USER=POSTGRES_USER, POSTGRES_PASSWORD=POSTGRES_PASSWORD,
+            SMTP_PASSWORD=SMTP_PASSWORD,
             secretKey=secretKey ):
 
         logging.debug("In thread "+threading.current_thread().name)
         self.oldtime=time.time()
 
         #socket.gethostbyname(socket.gethostname())
-        self.commandFlask=[POSTGRES_HOST,POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, flaskaddr, str(os.getuid()),str(os.getgid()), secretKey]
+        self.commandFlask=[POSTGRES_HOST,POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, flaskaddr, str(os.getuid()),str(os.getgid()), SMTP_PASSWORD, secretKey]
         
         # Si on passe secretKey et password comme secret (seulement comme services dans un swarm!), on doit modifier TVWeb/FlaskDocker/launch_flask
         # pgpassword=client.secrets.create(name="POSTGRES_PASSWORD",data=POSTGRES_PASSWORD)
@@ -664,9 +669,10 @@ class ConnectionDocker(threading.Thread):
                     self.listPorts.append(port)
                     listSock.insert(0,s)
                     self.listPortsTiles[str(port)+'/tcp']=('0.0.0.0',port);
-                    NFTcmd="add rule ip filter " + str(self.name) + " tcp dport " + str(port) + " accept"
-                    logging.warning(NFTcmd)
-                    nft.cmd(NFTcmd)
+                    if FirewallT :
+                        NFTcmd="add rule ip filter " + str(self.name) + " tcp dport " + str(port) + " accept"
+                        logging.warning(NFTcmd)
+                        nft.cmd(NFTcmd)
                 else:
                     logging.error("Build %d find again port %d ports list %s" % (t,port,str(self.listPorts)))
                     s.close()
@@ -1371,7 +1377,8 @@ if __name__ == '__main__':
         nft.cmd("add chain ip filter TILEDVIZ { type filter hook input priority 0 ; policy drop ; }")
         nft.cmd("add rule ip filter TILEDVIZ ct state related,established accept")
         nft.cmd("add rule ip filter TILEDVIZ tcp dport 22 accept")
-
+        nft.cmd("add rule ip filter TILEDVIZ tcp dport 2222 accept")
+        
     args = parse_args(sys.argv)
     #print("call args :",str(args))
 
@@ -1404,7 +1411,7 @@ if __name__ == '__main__':
         threading.Thread._bootstrap = _thread_name_hack
                                 
     except ImportError:
-        loggin.debug('No python-prctl module. No thread names')
+        logging.debug('No python-prctl module. No thread names')
         def set_thread_name(name): pass
         
     logging.debug("Before FlaskDock.")            
@@ -1415,6 +1422,7 @@ if __name__ == '__main__':
                            POSTGRES_DB=args.POSTGRES_DB,
                            POSTGRES_USER=args.POSTGRES_USER,
                            POSTGRES_PASSWORD=args.POSTGRES_PASSWORD,
+                           SMTP_PASSWORD=args.SMTP_PASSWORD,
                            secretKey=args.secretKey)
     time.sleep(4)
     #FlaskDock.getLog(35)

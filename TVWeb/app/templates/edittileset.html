@@ -24,8 +24,8 @@
 		</div>
     {% endif %}
   {% endwith %}
-		{% import "bootstrap/wtf.html" as wtf %}
-		{{ wtf.quick_form(form, button_map={"submit":"primary"}, id="login-form") }}
+		{% from 'bootstrap5/form.html' import render_form %}
+		{{ render_form(form) }}
 		<script type="text/javascript">
 		  jQuery(document).ready(function() {
 		      $("#editjson").after("<br />");

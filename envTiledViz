@@ -10,12 +10,23 @@ export POSTGRES_IP=${POSTGRES_HOST}
 export POSTGRES_PASSWORD="your_postgres_password"
 export passwordDB="$POSTGRES_PASSWORD"
 
-export SERVER_NAME=DNSservername
+export SERVER_NAME=_SERVER_NAME_
 export DOMAIN=_DOMAIN_
 export SSLpublic=_SSLpublic_
 export SSLprivate=_SSLprivate_
 
-export SMTPserver=_SMTP_
+export SMTP_SERVER=_SMTP_SERVER_
+export SMTPserver=_SMTP_SERVER_
+export SMTP_PORT=_SMTP_PORT_
+export SMTP_USE_SSL=true
+export SMTP_USE_TLS=true
+export SMTP_USERNAME=_SMTP_USERNAME_
+export SMTP_PASSWORD="_SMTP_PASSWORD_"
+export FROM_EMAIL=_FROM_EMAIL_
+
+export IMAP_SERVER=_IMAP_SERVER_
+export IMAP_PORT=_IMAP_PORT_
+
 export NTPserver=_NTP_
 
 # Install with X11

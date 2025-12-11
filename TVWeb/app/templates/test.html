@@ -1,14 +1,18 @@
+{# Test template for TiledViz server #}
 {% extends "base_test.html" %}
 
 {% block title %}
-    <title>Test TiledViz server</title>
+<title>TiledViz Server Test</title>
 {% endblock %}
 
 {% block body %}
-<body>
-  <h3>
-    Test TiledViz server.
-  </h3>
-</body>
+{# Main content of the test page #}
+<div style="padding: 20px; font-family: Arial, sans-serif;">
+    <h1>TiledViz Server Test</h1>
+    <p>The TiledViz server is running correctly!</p>
+    {# Show timestamp if available #}
+    <p>Timestamp: {{ moment().format('YYYY-MM-DD HH:mm:ss') if moment else 'N/A' }}</p>
+    {# Back to home link #}
+    <p><a href="{{ url_for('index') }}">Back to Home</a></p>
+</div>
 {% endblock %}
-

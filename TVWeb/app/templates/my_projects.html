@@ -1,0 +1,266 @@
+{% extends "base_main_template.html" %}
+
+{% block additional_scripts_css %}
+<style>
+.card {
+    background-color: #ffffff !important;
+    color: #333333 !important;
+    border: 2px solid #e9ecef;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    border-bottom: 2px solid #e9ecef;
+}
+
+.table {
+    background-color: #ffffff !important;
+    color: #333333 !important;
+}
+
+.table th {
+    background-color: #f8f9fa !important;
+    color: #495057 !important;
+    border-color: #dee2e6 !important;
+}
+
+.table td {
+    border-color: #dee2e6 !important;
+    color: #333333 !important;
+}
+
+.form-control, .form-select {
+    background-color: #ffffff !important;
+    color: #333333 !important;
+    border: 2px solid #ced4da !important;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #80bdff !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+}
+
+.btn {
+    font-weight: 600;
+    text-shadow: none;
+}
+    
+.alert {
+    border: 2px solid #e9ecef;
+    background-color: #ffffff !important;
+    color: #333333 !important;
+}
+
+h1, h2, h3, h4, h5, h6, p, label {
+    color: #333333 !important;
+}
+
+.badge {
+    font-size: 0.9em;
+    padding: 0.5em 0.8em;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">
+                        <i class="fas fa-folder-open me-2"></i>
+                        My Projects
+                    </h3>
+                </div>
+                <div class="card-body">
+                     <!-- Project Selection Section -->
+                     {% if projects_by_role.owned or projects_by_role.admin%}
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-crown me-2"></i>
+                                Manage Project Members
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="GET" action="#" id="projectSelectForm">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <label for="project_select" class="form-label text-dark">Select a project to manage members:</label>
+                                        <select class="form-select" id="project_select" name="project_id" onchange="redirectToProject()">
+                                            <option value="">Choose a project...</option>
+                                            {% for project_info in projects_by_role.owned %}
+                                            <option value="{{ project_info.project.id }}" data-url="{{ url_for('project_members', project_id=project_info.project.id) }}">
+                                                {{ project_info.project.name }} (Owner)
+                                            </option>
+                                            {% endfor %}
+                                            {% for project_info in projects_by_role.admin %}
+                                            <option value="{{ project_info.project.id }}" data-url="{{ url_for('project_members', project_id=project_info.project.id) }}">
+                                                {{ project_info.project.name }} (Admin)
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">&nbsp;</label>
+                                        <button type="button" class="btn btn-primary w-100" onclick="goToSelectedProject()" disabled id="manageBtn">
+                                            <i class="fas fa-users me-2"></i>Manage Members
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Admin Projects Section -->
+                    {% if projects_by_role.admin %}
+                    <div class="card mb-4">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0">
+                                <i class="fas fa-user-shield me-2"></i>
+                                Projects I Admin ({{ projects_by_role.admin|length }})
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Project Name</th>
+                                            <th>Description</th>
+                                            <th>Created</th>
+                                            <th>Role</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for project_info in projects_by_role.admin %}
+                                        <tr>
+                                            <td><strong>{{ project_info.project.name }}</strong></td>
+                                            <td>{{ project_info.project.description or 'No description' }}</td>
+                                            <td>{{ project_info.project.creation_date.strftime('%Y-%m-%d %H:%M:%S') if project_info.project.creation_date else 'Unknown' }}</td>
+                                            <td>
+                                                <span class="badge bg-warning text-dark">Admin</span>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <a href="{{ url_for('project_members', project_id=project_info.project.id) }}" class="btn btn-sm btn-primary">
+                                                        <i class="fas fa-users me-1"></i>Manage Members
+                                                    </a>
+                                                    <a href="{{ url_for('project') }}" class="btn btn-sm btn-info">
+                                                        <i class="fas fa-cog me-1"></i>Settings
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Member Projects Section -->
+                    {% if projects_by_role.member %}
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-user me-2"></i>
+                                Projects I'm Member Of ({{ projects_by_role.member|length }})
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>Project Name</th>
+                                            <th>Description</th>
+                                            <th>Created</th>
+                                            <th>Role</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for project_info in projects_by_role.member %}
+                                        <tr>
+                                            <td><strong>{{ project_info.project.name }}</strong></td>
+                                            <td>{{ project_info.project.description or 'No description' }}</td>
+                                            <td>{{ project_info.project.creation_date.strftime('%Y-%m-%d %H:%M:%S') if project_info.project.creation_date else 'Unknown' }}</td>
+                                            <td>
+                                                {% if project_info.role == 'editor' %}
+                                                    <span class="badge bg-primary">Editor</span>
+                                                {% elif project_info.role == 'viewer' %}
+                                                    <span class="badge bg-info">Viewer</span>
+                                                {% elif project_info.role == 'guest' %}
+                                                    <span class="badge bg-secondary">Guest</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">{{ project_info.role }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <a href="{{ url_for('project') }}" class="btn btn-sm btn-outline-info">
+                                                    <i class="fas fa-eye me-1"></i>View
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- No Projects Message -->
+                    {% if not projects_by_role.owned and not projects_by_role.admin and not projects_by_role.member %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        You don't have any projects yet. 
+                        <a href="{{ url_for('project') }}" class="alert-link">Create your first project</a> or ask an administrator to add you to an existing project.
+                    </div>
+                    {% endif %}
+
+                    <!-- Action Buttons -->
+                    <div class="mt-4">
+                        <a href="{{ url_for('project') }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Create New Project
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function redirectToProject() {
+        const select = document.getElementById('project_select');
+        const manageBtn = document.getElementById('manageBtn');
+        
+        if (select.value) {
+            manageBtn.disabled = false;
+        } else {
+            manageBtn.disabled = true;
+        }
+    }
+    
+    function goToSelectedProject() {
+        const select = document.getElementById('project_select');
+        const selectedOption = select.options[select.selectedIndex];
+        
+        if (selectedOption && selectedOption.dataset.url) {
+            window.location.href = selectedOption.dataset.url;
+        }
+    }
+    
+    // Initialize button state
+    document.addEventListener('DOMContentLoaded', function() {
+        redirectToProject();
+    });
+    </script>
+{% endblock %}

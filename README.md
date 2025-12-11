@@ -3,7 +3,7 @@ TiledViz is designed to be a client-server for small-multiple and generic data v
 With TiledViz, you can use secure connection to watch remote VNC streams from
 computing machine and metadata for each element of ensemble from a database.
 
-On host, the job is TiledViz Secure (TVSecure.py).
+On host, the job is TiledViz Secure (TVSecure.py). It is a secured scheduler of web micro-services.
 Flask is running inside TVSecure then you don't need to run its docker container
 mannually.
 
@@ -13,27 +13,22 @@ script run this TVSecure tool.
 
 You must download TiledViz also on your HPC machine in order to build HPC
 visualization dockers.
-You have some examples with Mageia7 and Ubuntu 18.04 in TVConnection directory.
+You have some examples with Mageia8 and Ubuntu 18.04 in TVConnection directory.
 You may want GPU acceleration inside this container then GLX extension is required.
-Take care of x11-driver-video-nvidia390 or x11-driver-vidio-nvidia-current package to
+If you want to use your own client container, take care of x11-driver-vidio-nvidia-current package to
 be able to use you Nvidia GPU already installed in the shared kernel of the HPC node. 
 You can try TiledTest CASE with glxgears to test GLX extension.
-
-Those HPC containers musn't be shared between users because it will contain your own id_rsa key.
-You can put your rsa ssh public key in ${HOME}/.ssh/authorized_key for redirection of
-VNC stream on your frontend with good rights.
-
-This represent a security breach because docker containers will be shared on HPC machine between users.
-For a more robust chain, you can ask root for http frontend machine to create a generic account and
-get a ssh key to export VNC stream through ssh to this generic account.
-See also step 10 for the configuration of this host.
+One can use Singularity client containers as well whith tools in Singularity directory.
 
 Thoses containers are launched (in test_job.py for example) on the HPC machine.
 You may use TVConnections/Swarm/launch_dockers script.
 
+Using docker on HPC machine represent a security breach because one user with docker rights can escaladate to root.
+
+With a new connection a special ssh id is created and propagated to user chain of frontends and use in HPC containers to exchange secured data and RPC (VNC) streams to be share by other invited users in the secured web session.
 
 For TiledViz client browser, best usage comes with a scale factor at 0.25 to watch all
-tiles in a full view.
+tiles in a full view of the visualization grid.
 
 You can adjust list of scale factor with google-chrome using dev tools on page
 chrome://settings/?search=zoom
@@ -46,7 +41,7 @@ and get the list
 toolkit.zoomManager.zoomValues
 
 
-7. Use debug option in web Connection form.
+1. Use debug option in web Connection form.
 
 If you want to build your own TiledViz cases, you may read
 TVConnection/TVConnections.py
@@ -62,19 +57,33 @@ You can either have python sources of your functions already loaded with this co
 print(inspect.getsource(myfun))
 on ipython prompt.
 
-8. Problems on some OS
+2. Problems on some OS
 
 Some gvfs versions gives full memory with Connections docker and
 udisks2-volume-monitor service. You can deactivate this behaviour with 
 > systemctl --user stop gvfs-udisks2-volume-monitor.service
 > systemctl --user mask gvfs-udisks2-volume-monitor.service
 
-9. SSL and server deployment
+Some new Dockerd version limit system in containers.
+This blocks connections to x11vnc server for TVConnection client.
+One must change /etc/docker/daemon.json by added
+```
+    "default-ulimits": {
+       "nofile": {
+          "Hard": 1048576,
+          "Name": "nofile",
+          "Soft": 1048576
+        }
+    }
+```
+
+3. SSL and server deployment
 
 Give SERVER_NAME.DOMAIN web server string available in a DNS service.  
 Give SSL public then private available keys complete path in server at install stage in a readable directory.
+Thoses variables are asked in the installation step on a web server.
 
-10. Logger
+4. Logger
 
 Change level (from WARNING to DEBUG) interactively :
 > docker exec -u flaskusr -it flaskdock bash -c 'echo DEBUG > /tmp/logfifo'
@@ -82,7 +91,7 @@ Change level (from WARNING to DEBUG) interactively :
 Size of server log:
 > docker inspect --format='{{.LogPath}}' flaskdock | xargs sudo du -sh
 
-11. ssh version
+5. ssh version
 Switch to ed25519.
 
 As per the release notes for OpenSSH 7.6:

@@ -17,6 +17,10 @@
 	style: bold;
 }
 
+:root{
+    --bs-secondary-color: rgba(62, 158, 98, 0.75);
+}
+
 body
 {
 	color: lightgrey;

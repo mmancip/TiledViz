@@ -142,6 +142,7 @@ echo $( hostname )
 
 
 echo "#!/bin/bash
+#ssh-keygen -t ed25519 -N '' -f ~myuser/.ssh/id_25519
 ssh-keygen -b 1024 -t rsa -N '' -f ~myuser/.ssh/id_rsa 
 Xvfb ${DISPLAY} -screen 0 ${RESOL}x24 2>&1 |tee -a $LOGFILE &
 sleep 2

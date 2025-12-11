@@ -11,7 +11,8 @@ export POSTGRES_PASSWORD="$5"
 export flaskhost=$6
 export UserId=$7
 export GroupId=$8
-shift 8
+export SMTP_PASSWORD="$9"
+shift 9
 export SECRET_KEY="$@"
 
 groupadd -r -g $GroupId flaskusr && useradd -r -u $UserId -g flaskusr flaskusr && \
@@ -24,9 +25,6 @@ groupadd -r -g $GroupId flaskusr && useradd -r -u $UserId -g flaskusr flaskusr &
 # patch codegen if needed :
 cd /flask_venv/lib/python3.*/site-packages/sqlacodegen;
 /TiledViz/TVDatabase/patch_flask_sqlacodegen /TiledViz
-
-# patch flask-bootstrap for Radioform in quick_form macro
-sed -e 's&    {% for item in field -%}&      <p class="label-block">{{field.label|safe}}</p>\n      <p class="help-block">{{field.description|safe}}</p>\n    {% for item in field -%}&' -i /flask_venv/lib/python3.*/site-packages/flask_bootstrap/templates/bootstrap/wtf.html
 
 # ln -s /TiledViz/TVWeb/FlaskDocker/noVNC /etc/nginx/sites-available/noVNC
 # ln -s /etc/nginx/sites-available/noVNC /etc/nginx/sites-enabled/
@@ -41,9 +39,13 @@ chown root:root  /etc/nginx/nginx.conf
 echo nginx -g "daemon off;"
 nginx -g "daemon off;" &
 
+# Add acl for flaskusr on SSL path
+find $(dirname $SSLpublic) -ls -execdir setfacl -m u:flaskusr:rX {} \+
+find $(dirname $SSLprivate) -ls -execdir setfacl -m u:flaskusr:rX {} \+
+
 if ($debug_Flask); then
-    su flaskusr -w DOMAIN,SERVER_NAME,SSLpublic,SSLprivate -c "/bin/bash -vx -c \"cd /TiledViz/TVWeb; FlaskDocker/launch_flask $POSTGRES_HOST $POSTGRES_PORT $POSTGRES_DB $POSTGRES_USER '$POSTGRES_PASSWORD' $flaskhost '$SECRET_KEY'\""
+    su flaskusr -w DOMAIN,SERVER_NAME,SSLpublic,SSLprivate,SMTP_SERVER,SMTP_PORT,SMTP_USE_SSL,SMTP_USE_TLS,SMTP_USERNAME,SMTP_PASSWORD,FROM_EMAIL,FROM_NAME,IMAP_SERVER,IMAP_PORT -c "/bin/bash -vx -c \"cd /TiledViz/TVWeb; FlaskDocker/launch_flask $POSTGRES_HOST $POSTGRES_PORT $POSTGRES_DB $POSTGRES_USER '$POSTGRES_PASSWORD' $flaskhost '$SMTP_PASSWORD' '$SECRET_KEY'\""
     while true; do sleep 10; done
 else
-    su - flaskusr -w DOMAIN,SERVER_NAME,SSLpublic,SSLprivate -c "/bin/bash -c \"cd /TiledViz/TVWeb; FlaskDocker/launch_flask $POSTGRES_HOST $POSTGRES_PORT $POSTGRES_DB $POSTGRES_USER '$POSTGRES_PASSWORD' $flaskhost '$SECRET_KEY'\""
+    su - flaskusr -w DOMAIN,SERVER_NAME,SSLpublic,SSLprivate,SMTP_SERVER,SMTP_PORT,SMTP_USE_SSL,SMTP_USE_TLS,SMTP_USERNAME,SMTP_PASSWORD,FROM_EMAIL,FROM_NAME,IMAP_SERVER,IMAP_PORT -c "/bin/bash -c \"cd /TiledViz/TVWeb; FlaskDocker/launch_flask $POSTGRES_HOST $POSTGRES_PORT $POSTGRES_DB $POSTGRES_USER '$POSTGRES_PASSWORD' $flaskhost '$SMTP_PASSWORD' '$SECRET_KEY'\""
 fi

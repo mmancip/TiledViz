@@ -6,7 +6,11 @@ psycopg2-binary
 pexpect
 sqlacodegen
 docker
+Flask-Mail
+pyjwt
+
 zenipy
 python-prctl
 # vext.gi
 ansibleguy-nftables
+xX

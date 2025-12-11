@@ -116,13 +116,16 @@
 	<div id="editnodes">
 	  <a class="btn btn-large btn-info" href="/editnodes?message=%7B&quot;oldsessionname&quot;%3A&quot;{{ session }}&quot;%7D" style="font-size: 40px">Editnodes</a>
 	</div>
+	{# Show invite button only for owner/admin #}
+	{% if isadmin or (project_role in ['owner','admin']) %}
 	<div class="join-zone" id="join">
-		<span id="join-clients" style="font-size: 30px"></span><!--participants (ie, their number) will be inserted
-		through JS events and websocket to adapt with new clients-->
-		<button type="button" class="btn btn-info" data-toggle="modal" data-target="#inviteModal" style="font-size: 40px">
-		Invite others ?<i class="fas fa-user-plus"></i>
-		</button>
+	  <span id="join-clients" style="font-size: 30px"></span>
+	  <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#inviteModal"  style="font-size: 40px">
+	  Invite others ?
+	</button>
+	<!--   btn-info-->
 	</div>
+	{% endif %}
     {% endif %}
 </div>
 <!-- <form action='/grid' method="post"> -->
@@ -130,60 +133,56 @@
 <!-- 	<input type="submit" value='Submit'> -->
 <!-- </form> -->
 
-<!--Modal definition!-->
-<div id="inviteModal" class="modal modal _modal-invite" role="dialog">
-
-  <div class="modal-content">
-    <div class="modal-header">
-      Invite another member to join
-    </div>
-    <div class="modal-body">
-      <div class="row">
-	<div class="column">
-	  <label>
-	    Configure the new client:
-	  </label>
+<!--Modal definition! -->
+<div id="inviteModal" class="modal fade" tabindex="-1" role="dialog"
+     aria-labelledby="inviteModalLabel" aria-hidden="true" style="font-size: 40px">
+  <div class="modal-dialog modal-dialog-centered modal-xl" style="--bs-modal-bg: darkgrey" >
+    <div class="modal-content">
+      <div class="modal-header">
+        <h0 class="modal-title">Invite another member to join</h0>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+	<div class="row">
+	  <div class="column">
+	    <h1>  Configure the new client:</h1>
+	  </div>
+	  <div class="column btn-group" data-toggle="buttons-radio">
+	    <button id="active_new_client" type="checkbox" class="btn btn-secondary btn-selected">Active</button>
+	    <button id="passive_new_client" type="checkbox" class="btn btn-secondary">Passive</button>
+	  </div>
+	
+	  <div class="form-group"
+	    <h1 for="invitee_name">Invitee Name:</h1>
+	    <input type="text" class="form-control" id="invitee_name"
+		   placeholder="Enter invitee's username" style="font-size: 40px">>
+	  </div>
+	
+	  <div class="form-group">
+	    <h1 for="max_uses">Maximum Uses:</h1>
+	    <input type="number" class="form-control" id="max_uses" min="1" value="1" style="font-size: 50px">
+	  </div>
+	
+	  <button id="getUrl" class="btn btn-grey btn-primary" style="font-size: 30px">Generate invite link</button>
 	</div>
-	<div class="column btn-group" data-toggle="buttons-radio">
-	  <button id="active_new_client" type="checkbox" class="btn btn-secondary btn-selected">Active</button>
-	  <button id="passive_new_client" type="checkbox" class="btn btn-secondary">Passive</button>
-	</div>
+	<form>
+	  <div class="input-group">
+	    <input type="text" class="form-control" placeholder="Invite link will appear here..."
+		   id="custom-url" style="font-size: 40px">
+	    <span class="input-group-btn">
+	      <button class="btn btn-default" type="button" id="copy-button"
+		      data-toggle="tooltip" data-placement="button"
+		      title="Copy to Clipboard"> Copy
+	      </button>
+	    </span>
+	  </div>
+	</form>
+	
+	<div id="invite-error" class="alert alert-danger" style="display: none;"></div>
       </div>
-      
-      <div class="row">
-        <div class="form-group">
-          <label for="invitee_name">Invitee Name:</label>
-          <input type="text" class="form-control" id="invitee_name" placeholder="Enter invitee's username">
-        </div>
+      <div class="modal-footer">
+	<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
       </div>
-      
-      <div class="row">
-        <div class="form-group">
-          <label for="max_uses">Maximum Uses:</label>
-          <input type="number" class="form-control" id="max_uses" min="1" value="1">
-        </div>
-      </div>
-      
-      <div class="row">
-        <button id="getUrl" class="btn btn-grey btn-primary">Generate invite link</button>
-      </div>
-      <form>
-	<div class="input-group">
-          <input type="text" class="form-control" placeholder="Invite link will appear here..." id="custom-url">
-	  <span class="input-group-btn">
-	    <button class="btn btn-default" type="button" id="copy-button"
-		    data-toggle="tooltip" data-placement="button"
-		    title="Copy to Clipboard">
-	      Copy
-	    </button>
-	  </span>
-	</div>
-      </form>
-      
-      <div id="invite-error" class="alert alert-danger" style="display: none;"></div>
-    </div>
-    <div class="modal-footer">
-      <button id="closeModal" type="button" class="btn btn-grey btn-primary" data-toggle="modal" data-target="#inviteModal">I’m done!</button>
     </div>
   </div>
 </div>
