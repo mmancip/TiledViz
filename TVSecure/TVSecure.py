@@ -432,7 +432,7 @@ class FlaskDocker(threading.Thread):
                         debug=bool(int(create_newconnect.group("Debug")))
                         if (debug):
                             logging.warning("Debug mode for connection.")
-                        ThisConnection=ConnectionDocker(self.containerFlask, nbTiles, debug, firstFree,
+                        ThisConnection=ConnectionDocker(self.containerFlask, self.user, nbTiles, debug, firstFree,
                                                         POSTGRES_HOST, POSTGRES_IP, POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD)
                         Connections[firstFree]["ThisConnection"]=ThisConnection
                 else:
@@ -570,14 +570,14 @@ class FlaskDocker(threading.Thread):
 
 class ConnectionDocker(threading.Thread):
     
-    def __init__(self,containerFlask, nbTiles, debug, ConnectNum,
+    def __init__(self,containerFlask, userflask, nbTiles, debug, ConnectNum,
                  POSTGRES_HOST=POSTGRES_HOST, POSTGRES_IP=POSTGRES_IP, POSTGRES_PORT=POSTGRES_PORT,
                  POSTGRES_DB=POSTGRES_DB, POSTGRES_USER=POSTGRES_USER, POSTGRES_PASSWORD=POSTGRES_PASSWORD):
         threading.Thread.__init__(self)
         logging.error("Thread Connection creation Num :"+str(ConnectNum))
         self.threadName="TVConnect%s" % (ConnectNum)
         self.thread = threading.Thread(target=self.run,name=self.threadName,
-                                       args=(containerFlask, nbTiles, debug, ConnectNum,
+                                       args=(containerFlask, userflask, nbTiles, debug, ConnectNum,
                                                              POSTGRES_HOST, POSTGRES_IP, POSTGRES_PORT,
                                                              POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD,))
         self.thread.start()
@@ -586,13 +586,16 @@ class ConnectionDocker(threading.Thread):
         threads[self.name]=self.thread
         #threading.Thread.__init__(self, target=self.run_forever)
 
-    def run(self,containerFlask, nbTiles, debug, ConnectNum,
+    def run(self,containerFlask, userflask, nbTiles, debug, ConnectNum,
             POSTGRES_HOST=POSTGRES_HOST, POSTGRES_IP=POSTGRES_IP, POSTGRES_PORT=POSTGRES_PORT,
             POSTGRES_DB=POSTGRES_DB, POSTGRES_USER=POSTGRES_USER, POSTGRES_PASSWORD=POSTGRES_PASSWORD):
 
         self.user="myuser"
         self.home='/home/'+self.user
         self.debug=debug
+
+        # With ACL, only userflask can use SSL keys
+        self.userflask=userflask
         
         self.oldtime=time.time()
 
@@ -752,14 +755,14 @@ class ConnectionDocker(threading.Thread):
         self.LogAddUser=container_exec_out(self.containerFlask, commandAdduser)
         logging.debug("Add user "+self.flaskusr+" on Flask container."+re.sub(r'\*n',r'\\n',str(self.LogAddUser)))
         
-        # Get id_rsa.pub for tunneling VNC flux
+        # Get id_ed25519.pub for tunneling VNC flux
         authorized_key="No such file or directory"
         re_wrong_key=re.compile(r''+authorized_key)
         match_authorized=re_wrong_key.search(authorized_key)
         count_authorized=0
         while(match_authorized):
             time.sleep(timeWait)
-            commandAuthKey = "cat "+self.home+"/.ssh/id_rsa.pub"
+            commandAuthKey = "cat "+self.home+"/.ssh/id_ed25519.pub"
             self.LogAuthKey = container_exec_out(self.containerConnect, commandAuthKey)
             self.LogAuthorized_key = re.sub(r'\n',r'',self.LogAuthKey)
             # print("Key : ",self.LogAuthorized_key)
@@ -874,7 +877,7 @@ class ConnectionDocker(threading.Thread):
             " 2>&1 > /tmp/websockify_$(date +%F_%H-%M-%S).log &'"
         logging.debug("commandLaunchWebsockify : "+commandLaunchWebsockify)
         logging.warning("commandLaunchWebsockify.")
-        self.LogLaunchWebsockify=self.containerFlask.exec_run(cmd=commandLaunchWebsockify,user=self.flaskusr,detach=True)
+        self.LogLaunchWebsockify=self.containerFlask.exec_run(cmd=commandLaunchWebsockify,user=self.userflask,detach=True)
         #user="root"
         
         # Get websockify PID :
@@ -940,7 +943,14 @@ class ConnectionDocker(threading.Thread):
         listPortsTilesFile=os.path.join(self.dir_out,"listPortsTiles.pickle")
         logging.warning("Launch websockify and save "+listPortsTilesFile+" on Connection "+self.name)
         try:
-            # SSL encrypt : use websockify and SSL public/secret keys.
+            # SSL encrypt :
+            # Add ACL for myuser on SSL keys
+            commandSetACL="bash -c 'find "+os.path.dirname(self.SSLpublic)+" -ls -execdir setfacl -m u:"+self.user+":rX {} \\+ ;"+\
+                " find "+os.path.dirname(self.SSLprivate)+" -ls -execdir setfacl -m u:"+self.user+":rX {} \\+'"
+            logging.warning(f"commandSetACL {commandSetACL}")
+            self.LogSetACL=self.containerConnect.exec_run(cmd=commandSetACL,user="root",detach=True)
+
+            # use websockify and SSL public/secret keys.
             self.listPortsTilesIE={}
             self.listPortsTilesIE["TiledVizHost"]=flaskaddr
             listInterPort=[]
@@ -965,7 +975,7 @@ class ConnectionDocker(threading.Thread):
                             commandLaunchWebsockify="bash -c 'cd /TiledViz/TVConnections/; source /TiledViz/TiledVizEnv_*/bin/activate; "+\
                                 "./wss_websockify "+self.SSLpublic+" "+self.SSLprivate+ \
                                 " "+str(externPort)+" "+str(internPort)+" /TiledViz/TVWeb"+ \
-                                " 2>&1 > /tmp/websockify_$(date +%F_%H-%M-%S).log &'"
+                                " 2>&1 > /tmp/websockify_"+str(inode)+"_"+str(externPort)+"_"+str(internPort)+"_$(date +%F_%H-%M-%S).log &'"
                             logging.debug("commandLaunchWebsockify : "+commandLaunchWebsockify)
                             logging.warning("commandLaunchWebsockify : "+commandLaunchWebsockify)
                             #logging.warning("commandLaunchWebsockify. "+key)

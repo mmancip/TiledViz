@@ -52,7 +52,7 @@ fi
 
 /etc/init.d/postfix start
 sed -e "s&#Port 22&Port $PORTssh&" -i /etc/ssh/sshd_config
-/usr/sbin/sshd-keygen
+/usr/libexec/openssh/sshd-keygen
 /usr/sbin/sshd -E /var/log/sshd.log
 
 groupadd -g ${myGID} myuser
@@ -142,8 +142,7 @@ echo $( hostname )
 
 
 echo "#!/bin/bash
-#ssh-keygen -t ed25519 -N '' -f ~myuser/.ssh/id_25519
-ssh-keygen -b 1024 -t rsa -N '' -f ~myuser/.ssh/id_rsa 
+ssh-keygen -t ed25519 -N '' -f ~myuser/.ssh/id_ed25519
 Xvfb ${DISPLAY} -screen 0 ${RESOL}x24 2>&1 |tee -a $LOGFILE &
 sleep 2
 ${HOME_user}/.vnc/xstartup

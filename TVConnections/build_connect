@@ -2,7 +2,7 @@
 date +%F_%H-%M-%S
 mv TVDatabase/postgresql $HOME/tmp
 source $HOME/.cache/envTiledViz
-sed -e "s&_NTP_&$NTPserver&"  -e "s&_SMTP_SERVER_&$SMTP_server&" TVConnections/mageianconnect/Dockerfile_i > TVConnections/mageianconnect/Dockerfile
+sed -e "s&_NTP_&$NTPserver&"  -e "s&_SMTP_SERVER_&$SMTPserver&" TVConnections/mageianconnect/Dockerfile_i > TVConnections/mageianconnect/Dockerfile
 docker buildx build -t mageiaconnect -f TVConnections/mageianconnect/Dockerfile .
 mv $HOME/tmp/postgresql  TVDatabase
 date +%F_%H-%M-%S

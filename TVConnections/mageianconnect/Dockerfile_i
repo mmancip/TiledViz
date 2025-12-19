@@ -1,17 +1,19 @@
 # Docker file mageiaconnect
-FROM mageia:8
+FROM mageia:9
 MAINTAINER  "Martial Mancip" <Martial.Mancip@MaisondelaSimulation.fr>
 
 RUN dnf install -y lib64mesagl1 xkbcomp x11-server-xvfb xdpyinfo xinit x11-data-xkbdata x11-font-alias \
                   openssh xauth  xterm xset htop mesa-demos x11vnc xrandr \
 		  lib64sane1 lib64gtk+3_0 lib64virtualgl virtualgl wget htop man socat \
-		  lib64lapack3
+		  lib64lapack3 acl
     
 #RUN urpmi --replacepkgs cracklib-dicts
 RUN dnf install -y  dnf-plugins-core \
-    && dnf config-manager --add-repo /etc/yum.repos.d/mageia-nonfree-x86_64.repo \
-    && dnf config-manager --set-enabled mageia-x86_64-nonfree updates-x86_64-nonfree \
-    && dnf install -y x11-driver-video-nvidia-current --setopt=install_weak_deps=False 
+    && dnf install -y x11-driver-video
+# \
+#     && dnf config-manager --add-repo /etc/yum.repos.d/mageia-nonfree-x86_64.repo \
+#     && dnf config-manager --set-enabled mageia-x86_64-nonfree updates-x86_64-nonfree \
+#     && dnf install -y x11-driver-video-nvidia-current --setopt=install_weak_deps=False 
 
 RUN dnf install -y  \
 	 fluid-soundfont-gm \
@@ -33,7 +35,8 @@ RUN dnf install -y  \
 	 x11-font-bitstream-75dpi \
 	 x11-font-bitstream-type1 \
 	 x11-font-type1 \
-	 x11-font-xfree86-type1 \
+
+x11-font-xfree86-type1 \
 	 xorg-x11-75dpi-fonts \
         && /bin/dbus-uuidgen --ensure
 
@@ -50,8 +53,7 @@ COPY ./ /TiledViz
 
 RUN rm -rf /TiledViz/TVFiles/* /TiledViz/launch_TiledViz
 
-RUN pip3 install --pre sqlacodegen \
-    && pip3 install -r /TiledViz/TVConnections/requirements.txt ;
+RUN pip3 install -r /TiledViz/TVConnections/requirements.txt ;
 
 RUN cd /TiledViz/TVConnections/mageianconnect/ && \
     mkdir -p /home/myuser &&\
@@ -80,15 +82,14 @@ CMD ["-1", "localhost", "6431", "TiledViz", "tiledviz", "m_test/@03", "-r","800x
 RUN bash -c "echo 'LD_LIBRARTY_PATH=/usr/local/lib64:$LD_LIBRARY_PATH' >> /etc/profile; sed -e 's&nvidia390&nvidia-current&' -i /home/myuser/.bashrc" 
 
 # changed in install.sh
-ENV SMTPserver _SMTP_
+ENV SMTPserver _SMTP_SERVER_
 ENV NTPserver _NTP_
 
 RUN dnf install -y postfix \
     && echo "relayhost=$SMTPserver"  >> /etc/postfix/main.cf \
     && sed -e "s&inet_protocols = all&inet_protocols = ipv4&" -i /etc/postfix/main.cf
 
-#mageia:9 RUN dnf install -y ntpsec \
-RUN dnf install -y ntp \
-    && sed -e "s/1.pool.ntp*/$NTPserver iburst/" -e "s/server [23].pool.ntp.*//" -i /etc/ntp.conf \
+RUN dnf install -y ntpsec \
+    && echo "server $NTPserver iburst" >> /etc/ntpd.conf \
     && rm -f /etc/localtime \
     && ln -s /usr/share/zoneinfo/Europe/Paris /etc/localtime

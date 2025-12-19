@@ -28,6 +28,9 @@ TiledVizPath='/TiledViz'
 
 TilesScriptsPath='/opt'
 
+sys.path.append("/usr/local/lib/python3.10/site-packages")
+sys.path.append("/usr/local/lib64/python3.10/site-packages")
+
 sys.path.append(os.path.abspath(TiledVizPath+'/TVDatabase'))
 from TVDb import tvdb
 from TVDb import models
