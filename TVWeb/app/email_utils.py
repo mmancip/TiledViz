@@ -2,6 +2,7 @@
 
 import os
 import jwt
+import random
 import datetime
 from flask import current_app, flash, redirect
 from flask_mail import Mail, Message
@@ -133,7 +134,7 @@ def verify_token(token, secret_key=None):
     except jwt.InvalidTokenError:
         # Invalid token format
         return None
-
+ 
 # Email Sending Functions
 def send_verification_email(user_email, username, token):
     """
@@ -291,4 +292,103 @@ def delete_sent_email(subject, recipient):
             
     except Exception as e:
         print(f"Error deleting sent email: {e}")
+        return False
+
+
+# 2FA login 
+def generate_verification_code():
+    """
+    Generate a 6 digits code for 2FA login verification
+    Args:
+        user_id: The user's ID
+        expiration_sec: Token expiration time in seconds (default: 6 minutes)
+    Returns:
+        6 digits code
+    """
+
+    # Generate code
+    code = random.randrange(100000, 999999)
+    return code
+
+
+def send_2FAcode_email(user_email, username, code):
+    """
+    Send 2FAcode email with JWT token
+    Args:
+        user_email: Recipient email address
+        username: Username for personalization
+        code: 6 digit
+    Returns:
+        True if email sent successfully, False otherwise
+    """
+    try:
+        from flask import current_app
+        
+        # Get SMTP configuration with fallback to hardcoded values
+        smtp_server = MAIL_SERVER
+        smtp_port = MAIL_PORT
+        smtp_username = MAIL_USERNAME
+        smtp_password = MAIL_PASSWORD
+        from_email = MAIL_DEFAULT_SENDER
+        
+        # Create a fresh Mail instance
+        from flask_mail import Mail
+        mail = Mail(App)
+        
+        # Create verification URL
+        server_name = os.getenv('SERVER_NAME')
+        domain = os.getenv('DOMAIN')
+        
+        # Create email message
+        msg = Message(
+            subject="TiledViz - 2FA code",
+            recipients=[user_email],
+            sender=from_email
+        )
+        
+        # HTML content
+        html_content = f"""
+        <html>
+        <body>
+            <h2>Welcome to TiledViz, {username}!</h2>
+            <p>You tried to login to TiledViz. Use this code in login page to validate 2FA verification.
+            <p><a style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">{code}</a></p>
+            <p>This link will expire in 5 minutes.</p>
+            <br>
+            <p>Best regards,<br>The TiledViz Team</p>
+        </body>
+        </html>
+        """
+        
+        # Plain text content
+        text_content = f"""
+        Welcome to TiledViz, {username}!
+        
+        Please use this code to validate your 2FA security check:
+        
+        {code}
+        
+        This code will expire in 5 minutes.
+        
+        If you didn't create an account, please ignore this email.
+        
+        Best regards,
+        The TiledViz Team
+        """
+        
+        # Set both HTML and text content
+        msg.html = html_content
+        msg.body = text_content
+        
+        # Send email
+        mail.send(msg)
+        
+        print(" Email sent successfully")
+        return True
+        
+    except Exception as e:
+        print(f" Error sending verification email: {e}")
+        print(f" Error type: {type(e)}")
+        import traceback
+        print(f" Traceback: {traceback.format_exc()}")
         return False

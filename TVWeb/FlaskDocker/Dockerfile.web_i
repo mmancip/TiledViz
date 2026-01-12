@@ -1,6 +1,6 @@
 # Docker file for flask-based docker
 
-FROM python:3.10
+FROM python:3.12
 
 # Update python3, install pip3, netstat, virtualenv
 ENV DEBIAN_FRONTEND teletype

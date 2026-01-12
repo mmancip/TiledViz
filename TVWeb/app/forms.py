@@ -132,15 +132,30 @@ def BuildLoginForm(session):
         default_username = "Anonymous"
     LoginForm.username = StringField("Username", default=default_username,validators=[InputRequired()])
     LoginForm.password = PasswordField("Password", validators=[InputRequired()])
+
     LoginForm.remember_me = BooleanField("Remember me")
     LoginForm.newuser = BooleanField("Change password ?")
+
     LoginForm.choice_project = RadioField(
         label="Action with the project :",
         choices=[("create","Create a new one ?"), ("connect","Connect to an existing one ?")],
         default="connect"
     )
+
     LoginForm.submit = SubmitField("Next step")
     return LoginForm
+
+def Build2FAForm(session,myusername):
+    class Form2FA(FlaskForm):
+        # recaptcha = RecaptchaField()
+        pass
+
+    Form2FA.username = StringField("Username", default=myusername,validators=[InputRequired()])
+
+    Form2FA.code = IntegerField("Code received by mail for 2FA security check",validators=[InputRequired(),NumberRange(min=100000, max=999999)])
+    
+    Form2FA.submit = SubmitField("Next step")
+    return Form2FA
 
 def BuildNewProjectForm(listprojects):
     class NewProjectForm(FlaskForm):

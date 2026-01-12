@@ -18,13 +18,14 @@ import lxml
 
 from app import app, socketio, db
 
-from app.forms import BuildRegisterForm, BuildLoginForm, BuildNewProjectForm, BuildAllProjectSessionForm, BuildOldProjectForm, BuildNewSessionForm, BuildTilesSetForm, BuildEditsessionform, BuildOldTileSetForm, BuildConfigSessionForm, BuildConnectionsForm, BuildRetreiveSessionForm, BuildAdminForm
+from app.forms import BuildRegisterForm, BuildLoginForm, Build2FAForm, BuildNewProjectForm, BuildAllProjectSessionForm, BuildOldProjectForm, BuildNewSessionForm, BuildTilesSetForm, BuildEditsessionform, BuildOldTileSetForm, BuildConfigSessionForm, BuildConnectionsForm, BuildRetreiveSessionForm, BuildAdminForm
 
 # Import email utilities
-from app.email_utils import generate_verification_token, send_verification_email, verify_token, delete_sent_email
+from app.email_utils import generate_verification_token, send_verification_email, verify_token, delete_sent_email, generate_verification_code, send_2FAcode_email
 
 import app.models as models # DB management
 import json, os, pprint
+#import distutils
 #import shutil
 # import gzip,base64
 import socket
@@ -137,6 +138,9 @@ projectl=str(min(15,models.Projects.name.type.length))
 connectionh=str(min(40,models.Connections.host_address.type.length))
 datel=str(19)
 descrl=str(min(62,models.Projects.description.type.length))
+
+# 2FAcode
+codes2FA={}
 
 class FormUser():
     __slots__=["data","iseditor"]
@@ -1368,8 +1372,9 @@ def register():
         cookie_persistence = myform.remember_me.data
         logging.warning("[!] Cookie persistence set to %s" % (str(cookie_persistence)))
 
+        # TODO : suppress code below and options because is_verified is not 
         logging.debug("Project Choice :"+myform.choice_project.data)
-       
+
         # Check if user is logged in (only first user or existing users)
         if "username" in session and session["username"] != "Anonymous":
             if(myform.choice_project.data == "create"):
@@ -1390,7 +1395,6 @@ def register():
             return redirect("/login")
     return render_template("main_login.html", **(myrender()), title="TiledViz register", form=myform)
 
-
 # OR Login
 @app.route('/login', methods=["GET", "POST"])
 def login():
@@ -1403,53 +1407,117 @@ def login():
             User = db.session.query(models.Users).filter_by(name=session["username"]).first()
             if User:
                 exists = User.id is not None
+                logging.error(f"User already connected with username {session['username']}.")
+
                 if exists:
+                    # Check if user email is verified
+                    if not User.is_verified:
+                        flash("Your email address has not been verified yet. Please check your email and click the verification link.") 
+                        return render_template("main_login.html", **(myrender()), title="TiledViz login", form=myform)
+                
                     hashPassword = User.password
-                    hashSalt = User.salt
+                    hashSalt = User.salt 
+                    
                     myform = BuildLoginForm(session)()
                     myusername = myform.username.data if hasattr(myform, 'username') else session["username"]
-                    mypassword = myform.password.data if hasattr(myform, 'password') else None
-                    if mypassword and tvdb.testpassprotected(models.Users, myusername, mypassword, hashPassword, hashSalt):
-                        logging.warning('Correct password.')
-                        session["username"] = myusername
-                        session["is_client_active"] = True
-                        # Check if there's a pending invite link
-                        if "pending_invite_link" in session:
-                            link = session.pop("pending_invite_link")
-                            return redirect(url_for(".handle_join_with_invite_link", link=link))
-                        if (myform.newuser.data):
-                            return redirect("/register")
-                        if(myform.choice_project.data == "create"):
-                            return redirect("/project")
-                        elif (myform.choice_project.data == "modify"):
-                            return redirect("/oldsessions")
-                        else:
-                            logging.warning("After login page choice : " + myform.choice_project.data + " project.")
+                    if (myusername != str(session["username"])):
+                        flash(f"User already connected with username {session['username']} but one tried to login as different user {myusername}.\n"+\
+                               +"Please logout before login as another user.")
+                        logging.error(f"User already connected with username {session['username']} but one tried to login as user {myusername}.")
+                        session.pop('username', None)
+                        session.pop("is_client_active")
+                        return redirect(url_for('index'))
+                    
+
+                    logging.error(f"User {session['username']} already connected.")
+                    flash("Your were already connected.")
+                    return redirect("/allsessions")
+                    
     myform = BuildLoginForm(session)()
     if myform.validate_on_submit():
         myusername = myform.username.data
         mypassword = myform.password.data
         user = db.session.query(models.Users).filter_by(name=myusername).first()
         if user:
-            if tvdb.testpassprotected(models.Users, myusername, mypassword, user.password, user.salt):
-                # Check if user email is verified
-                if not user.is_verified:
-                    flash("Your email address has not been verified yet. Please check your email and click the verification link.")
-                    return render_template("main_login.html", **(myrender()), title="TiledViz login", form=myform)
+            # Check if user email is verified
+            if not user.is_verified:
+                flash("Your email address has not been verified yet. Please check your email and click the verification link.")
+                return render_template("main_login.html", **(myrender()), title="TiledViz login", form=myform)
                 
-                session["username"] = myusername
-                session["is_client_active"] = True
-                # Check if there's a pending invite link
-                if "pending_invite_link" in session:
-                    link = session.pop("pending_invite_link")
-                    return redirect(url_for(".handle_join_with_invite_link", link=link))
-                return redirect("/allsessions")
+            if tvdb.testpassprotected(models.Users, myusername, mypassword, user.password, user.salt):
+                logging.info('Correct password.')
+
+                # Send 2FA email with correct code
+                code = generate_verification_code()
+                email_sent = send_2FAcode_email(
+                    user_email=user.mail,
+                    username=myusername,
+                    code=code
+                )
+                # Create expiration datetime (UTC)
+                expiration_time = datetime.datetime.utcnow() + datetime.timedelta(seconds=360)
+                codes2FA[myusername]={"code":code, "expiration_time":expiration_time}
+                
+                strerror=f"We have sent you a security code on your mail. Please check your inbox before UTC {expiration_time}."
+                flash(strerror)
+                message = '{"username": "'+myusername+'", '+\
+                    '"newuser": "'+str(myform.newuser.data)+'", "choice_project": "'+myform.choice_project.data+'"}'
+                logging.info(strerror+" message "+message)
+                logging.warning(f"User {myusername} try to connect.")
+                return redirect(url_for(".check2FA",message=message))
+
             else:
                 flash("Invalid password")
+                return redirect("/login")
         else:
             flash("Invalid username")
+            return redirect("/login")
+            
     return render_template("main_login.html", **(myrender()), title="TiledViz login", form=myform)
+    
+@app.route('/check2FA', methods=["GET", "POST"])
+def check2FA():
+    message = json.loads(request.args["message"])
+    myusername=message["username"]
+    if (myusername in codes2FA):
+        code=codes2FA[myusername]["code"]
+        expiration_time=codes2FA[myusername]["expiration_time"]
+    else:
+        flash("User didn't received a 2FA code. Please try to login again.")
+        return redirect("/login")
+    
+    myform = Build2FAForm(session,myusername)()
+    if myform.validate_on_submit():
+        if (datetime.timedelta(seconds=360) < datetime.datetime.utcnow()-expiration_time):
+           flash("Timeout for code verification. Please try to login again.")
+           return redirect("/login")
+   
+        logging.info(f"code created {code} and from form {myform.code.data}")
+        if (code == int(myform.code.data)):
+            session["username"] = myusername
+            session["is_client_active"] = True
+            
+            logging.info(f"code OK message {message}")
+            logging.warning(f"User {myusername} has loggined with 2FA code.")
+            codes2FA.pop(myusername)
+            
+            if (message["newuser"]=="True"): #distutils.util.strtobool(message["newuser"])):
+                return redirect("/register")
 
+            # Check if there's a pending invite link
+            if "pending_invite_link" in session:
+                link = session.pop("pending_invite_link")
+                return redirect(url_for(".handle_join_with_invite_link", link=link))
+            
+            if (message["choice_project"] == "create"):
+                return redirect("/project")
+            elif (message["choice_project"] == "connect"):
+                return redirect("/allsessions")
+        else:
+            flash("Code mismatch. Please try to login again.")
+            return redirect("/login")
+
+    return render_template("main_login.html", **(myrender()), title="TiledViz login", form=myform)
 
 @app.route('/logout')
 def logout():
