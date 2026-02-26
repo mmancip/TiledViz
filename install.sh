@@ -39,9 +39,8 @@ read -s firewallT;
 [[ $firewallT == y || $firewallT == n ]] && echo "Valid Input" || echo "Invalid Input"
 
 echo "==== Install environment ===="
-# pre-version 3.0 sqlacodegen
-pip3 install --pre sqlacodegen
-# other packages
+TiledVizEnv_$DATE/bin/python3 -m pip install --upgrade pip
+# TiledViz packages
 pip3 install -r requirements.txt
 
 # Get noVNC
@@ -155,6 +154,10 @@ sed -e "s&_SERVER_NAME_&$SERVER_NAME&" \
     -e "s&_IMAP_PORT_&$IMAP_PORT&" \
     -i $HOME/.cache/envTiledViz
 
+
+echo "==== Start PostgreSQL ===="
+./start_postgres
+
 echo "==== Build Docker images ===="
 echo "===== build connection Docker ====="
 TVConnections/build_connect
@@ -195,9 +198,6 @@ if [[ $firewallT == y ]]; then
     echo "Set capabilites on python"
     sudo setcap cap_net_admin=eip $(realpath $(which python))
 fi
-
-echo "==== Start PostgreSQL ===="
-./start_postgres
 
 # TODO : git clone Countdown 360:
 #cd TVWeb/apps/static/dist/js

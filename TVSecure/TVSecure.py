@@ -72,6 +72,9 @@ if (configExist):
     # Firewall with NFT (best way to convert bool string in python bool
     FirewallT=json.loads(config['TVSecure']['FirewallT'].lower())
 
+    # Port for SSH server
+    SSHport=config['TVSecure']['SSHport']
+
 else:
     NbSecureConnection=59
     NbBitesLog="500k"
@@ -81,7 +84,7 @@ else:
     Swait=10
     Mwait=1800
     FirewallT=False
-
+    SSHport="22"
 if FirewallT :
     import signal
     import nftables
@@ -135,7 +138,9 @@ def parse_args(argv):
 TVvolume=docker.types.Mount(target='/TiledViz',source=os.getenv('PWD'),type='bind',read_only=False)
 
 SSLpath=os.path.dirname(os.path.dirname(os.getenv('SSLpublic')))
-TVssl=docker.types.Mount(target=SSLpath,source=SSLpath,type='bind',read_only=False)
+TVssl=docker.types.Mount(target=SSLpath,source=SSLpath,type='bind',read_only=True)
+
+TVnginx=docker.types.Mount(target='/var/log/nginx',source='/var/log/nginx',type='bind',read_only=False)
 
 flaskc={"max-size": NbBitesLog, "max-file": "3"}
 TVlogs=docker.types.LogConfig(type=docker.types.LogConfig.types.JSON, config=flaskc)
@@ -195,6 +200,9 @@ class FlaskDocker(threading.Thread):
         logging.debug("In thread "+threading.current_thread().name)
         self.oldtime=time.time()
 
+        #self.healthcheck={"test":[]}
+        #self.healthcheck={"test":["NONE"]}
+        
         #socket.gethostbyname(socket.gethostname())
         self.commandFlask=[POSTGRES_HOST,POSTGRES_PORT, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, flaskaddr, str(os.getuid()),str(os.getgid()), SMTP_PASSWORD, secretKey]
         
@@ -219,11 +227,12 @@ class FlaskDocker(threading.Thread):
         self.postgresHost={POSTGRES_HOST:POSTGRES_IP}
         # Flask external port + Firewall
         self.flaskPORT={'443/tcp':('0.0.0.0',443),'80/tcp':('0.0.0.0',80),'5000/tcp':('0.0.0.0',5000)}
+        
         if FirewallT :
             logging.warning("Add rules for %s" % (str(self.flaskPORT)))
             nft.cmd("add rule ip filter TILEDVIZ tcp dport 443 accept")
             nft.cmd("add rule ip filter TILEDVIZ tcp dport 80 accept")
-            nft.cmd("add rule ip filter TILEDVIZ tcp dport 5000 accept")
+            #nft.cmd("add rule ip filter TILEDVIZ tcp dport 5000 accept")
             nft.cmd("add rule ip filter TILEDVIZ tcp dport " + str(ConnectionPort) + " accept")
 
         for i in range(NbSecureConnection): 
@@ -247,12 +256,13 @@ class FlaskDocker(threading.Thread):
         try:
             self.containerFlask=client.containers.create(
                 name="flaskdock", image="flaskimage",
-                mounts=[TVvolume,TVssl], extra_hosts=self.postgresHost,
+                mounts=[TVvolume,TVssl,TVnginx], extra_hosts=self.postgresHost,
                 command=self.commandFlask,
                 ports=self.flaskPORT,
                 environment=ENVFlask,
                 log_config=TVlogs,
                 detach=True) #auto_remove=True,
+                #healthcheck=self.healthcheck,
                 #healthcheck=healthcheckN,
             
         except docker.errors.ContainerError:
@@ -574,7 +584,7 @@ class ConnectionDocker(threading.Thread):
                  POSTGRES_HOST=POSTGRES_HOST, POSTGRES_IP=POSTGRES_IP, POSTGRES_PORT=POSTGRES_PORT,
                  POSTGRES_DB=POSTGRES_DB, POSTGRES_USER=POSTGRES_USER, POSTGRES_PASSWORD=POSTGRES_PASSWORD):
         threading.Thread.__init__(self)
-        logging.error("Thread Connection creation Num :"+str(ConnectNum))
+        logging.warning("Thread Connection creation Num :"+str(ConnectNum))
         self.threadName="TVConnect%s" % (ConnectNum)
         self.thread = threading.Thread(target=self.run,name=self.threadName,
                                        args=(containerFlask, userflask, nbTiles, debug, ConnectNum,
@@ -631,7 +641,7 @@ class ConnectionDocker(threading.Thread):
             nft.cmd("add rule ip filter TILEDVIZ jump " + str(self.name))
                               
         VncVolume=docker.types.Mount(source=self.dir,target=self.home+"/.vnc",type='bind',read_only=False)
-        XLocale=docker.types.Mount(source="/usr/share/X11/locale",target="/usr/share/X11/locale",type='bind')
+        #XLocale=docker.types.Mount(source="/usr/share/X11/locale",target="/usr/share/X11/locale",type='bind')
 
         if (debug):
             self.commandConnect=[str(self.connectionId),POSTGRES_HOST,POSTGRES_PORT,POSTGRES_DB,POSTGRES_USER,POSTGRES_PASSWORD,'-r',CONNECTION_RESOL,'-u',str(os.getuid()),'-g',str(os.getgid()),'-p',str(self.PORTssh),'-d']
@@ -695,12 +705,13 @@ class ConnectionDocker(threading.Thread):
             
             self.containerConnect=client.containers.create(
                 name=self.name, image="mageiaconnect",
-                mounts=[VncVolume,XLocale,TVssl],
+                mounts=[VncVolume,TVssl],
                 extra_hosts=self.postgresHost,
                 command=self.commandConnect,
                 ports=self.listPortsTiles,
                 devices=list_gpu_dev,
                 auto_remove=self.cont_auto_remove, detach=True)
+            #,XLocale
                 # healthcheck=healthcheckN,
 
         except docker.errors.ContainerError:
@@ -718,8 +729,8 @@ class ConnectionDocker(threading.Thread):
         self.daterun=datetime.datetime.now()
         logging.warning("Ready to start "+self.name+".")
         try:
-            self.containerConnect.start()
-            logging.warning("Connection started.")
+            Outstart=self.containerConnect.start()
+            logging.warning(f"Connection started {Outstart}.")
         except docker.errors.APIError :
             logging.error("The container can't start.", exc_info=True)
             sys.exit(listerrors["start"])
@@ -817,10 +828,12 @@ class ConnectionDocker(threading.Thread):
         self.tunnel_command="ssh -4 -T -N -nf -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -R 0.0.0.0:"+str(internPort)+":localhost:5902 "+self.flaskusr+"@"+self.IPFlask+" &"
         scriptTunnel="awk 'BEGIN {print \""+vnc_command+" \\n "+self.tunnel_command+"\" >>\""+self.tunnel_script+"\"}' > /dev/null &"
         logging.debug("awk command to build tunnel script : "+scriptTunnel)
+        logging.debug("User container status :"+str(self.containerConnect.status))
         
         self.LogScrTunnel=self.containerConnect.exec_run(cmd=scriptTunnel,user=self.user,detach=True)
         time.sleep(0.5)
         self.LogModTunnel=self.containerConnect.exec_run(cmd="chmod u+x "+self.tunnel_script,user=self.user,detach=True)
+        logging.debug("User container status :"+str(self.containerConnect.status))
         
         self.kill_tunnel_script=os.path.join(self.home,".vnc","kill_tunnel_flask")
         out_kill_tunnel=os.path.join(self.home,".vnc","out_killtunnel")
@@ -836,8 +849,10 @@ class ConnectionDocker(threading.Thread):
         time.sleep(0.5)
         self.LogModTunnel=self.containerConnect.exec_run(cmd="chmod u+x "+self.kill_tunnel_script,user=self.user,detach=True)
         logging.warning("tunnel script built.")
+        logging.debug("User container status :"+str(self.containerConnect.status))
 
         self.connect()
+        logging.debug("User container status :"+str(self.containerConnect.status))
                 
         # Add password for temporary connection
         commandBuildVNC="awk 'BEGIN {print \""+self.password+"\" >>\""+flaskhome+"/vncpassword\"}' /dev/null"
@@ -1166,6 +1181,7 @@ class ConnectionDocker(threading.Thread):
     def updateScripts(self):
         logging.warning("updateScripts : Config files for tileset "+str(self.TileSetDB.config_files)+" and connection "+str(self.ConnectionDB.config_files))
 
+        logging.debug("User container status :"+str(self.containerConnect.status))
         # Create a memory archive file for config files
         filetar = BytesIO()
         intar = tarfile.TarFile(fileobj=filetar, mode='w')
@@ -1182,6 +1198,7 @@ class ConnectionDocker(threading.Thread):
             intar.addfile(tarinfo, BytesIO(tfd))
             tf.close()
         
+        logging.debug("User container status :"+str(self.containerConnect.status))
         TSConfigFiles=self.TileSetDB.config_files
         for filename in TSConfigFiles:
             tmpfile=TSConfigFiles[filename].replace("/TiledViz",".")
@@ -1196,7 +1213,8 @@ class ConnectionDocker(threading.Thread):
             tf.close()
 
         logging.warning("Config files for tileset "+str(self.TileSetDB.name)+" and connection "+str(self.ConnectionDB.id))
-        intar.list()
+        logging.warning(str(intar.getnames()))
+        logging.debug("User container status :"+str(self.containerConnect.status))
         intar.close()
         filetar.seek(0)
 
@@ -1204,6 +1222,7 @@ class ConnectionDocker(threading.Thread):
         self.LogPut=self.containerConnect.put_archive(path=self.home, data=filetar)
         logging.warning("Put config file to connection docker :\n"+str(self.LogPut))
         filetar.close()
+        logging.debug("User container status :"+str(self.containerConnect.status))
 
     def killTunnel(self):
         # stop tunnel ssh for VNC
@@ -1286,6 +1305,7 @@ class ConnectionDocker(threading.Thread):
         
     def connect(self):
         logging.warning("Tunnel command in "+self.tunnel_script+" : "+self.tunnel_command)
+        logging.debug("User container status :"+str(self.containerConnect.status))
         self.LogTunnel=self.containerConnect.exec_run(cmd="sh -c "+self.tunnel_script,user=self.user,detach=True)
         time.sleep(1)
         # outHandler.flush()
@@ -1293,6 +1313,7 @@ class ConnectionDocker(threading.Thread):
         # self.LogTestTunnel=container_exec_out(self.containerConnect, testTunnel,user=self.user)
         # logging.debug("Tunnel to Flask docker :\n"+re.sub(r'\*n',r'\\n',str(self.LogTestTunnel)))
         logging.warning("Container connected.")
+        logging.debug("User container status :"+str(self.containerConnect.status))
         outHandler.flush()
 
     def action(self,callfunct):
@@ -1387,7 +1408,7 @@ if __name__ == '__main__':
         nft.cmd("add chain ip filter TILEDVIZ { type filter hook input priority 0 ; policy drop ; }")
         nft.cmd("add rule ip filter TILEDVIZ ct state related,established accept")
         nft.cmd("add rule ip filter TILEDVIZ tcp dport 22 accept")
-        nft.cmd("add rule ip filter TILEDVIZ tcp dport 2222 accept")
+        nft.cmd("add rule ip filter TILEDVIZ tcp dport "+SSHport+" accept")
         
     args = parse_args(sys.argv)
     #print("call args :",str(args))

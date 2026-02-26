@@ -25,5 +25,5 @@ export FLASK_APP=TVWeb.py
 
 echo $LC_ALL $LANG $FLASK_APP
 
-gunicorn -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker --timeout 240 --config gunicorn.conf.py --certfile=$SSLpublic --keyfile=$SSLprivate TVWeb:app
-
+gunicorn -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker --reload --timeout 240 --config gunicorn.conf.py --log-file /tmp/out_gunicorn --log-level warning TVWeb:app
+# --certfile=$SSLpublic --keyfile=$SSLprivate

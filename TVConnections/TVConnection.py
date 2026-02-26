@@ -665,15 +665,34 @@ if __name__ == '__main__':
     NbFrontendTo=0
     NbFrontendFrom=0
     if (auth_type == "rebound"):
-        NbFrontendTo = int(input("Give the number of gateways to go to the HPC frontend (0 if direct connection - ssh auth_type option) : "))
-        # TODO
-        #NbFrontendFrom = int(input("Give the number of gateways to go back from HPC nodes to the Flask server (1 if they need to rebound from the HPC frontend) :"))
-
-
+        while True:
+            try:
+                NbFrontendTo = int(input("Give the number of gateways to go to the HPC frontend (0 if direct connection - ssh auth_type option) : "))
+                # TODO
+                #NbFrontendFrom = int(input("Give the number of gateways to go back from HPC nodes to the Flask server (1 if they need to rebound from the HPC frontend) :"))
+                break
+            except ValueError as err:
+                logging.error("Error : number of gateways - Only one integer.")
+                print(f"Error : {err}\n Number of gateways - Only one integer is acceptable here please. Try again.")
+            
     # Define Key name and local path
     Frontend = TVconnection.host_address
     sshKeyName="id_ed_"+Frontend+'_'+myhostname
     sshKeyPath=os.path.join(Home,".ssh",sshKeyName)
+    
+    # Detect ANSI ESC characters in passwords
+    #ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    ansi_escape = re.compile(r'''
+    \x1B  # ESC
+    (?:   # 7-bit C1 Fe (except CSI)
+        [@-Z\\-_]
+    |     # or [ for CSI, followed by a control sequence
+        \[
+        [0-?]*  # Parameter bytes
+        [ -/]*  # Intermediate bytes
+        [@-~]   # Final byte
+    )
+''', re.VERBOSE)
     
     NOT_CONNECTED=True
     OK_Key=False
@@ -698,11 +717,12 @@ if __name__ == '__main__':
             for iFront in range(NbFrontendTo):
                 while True:
                     try:
-                        nFront = input("Enter the remote machine name number %d \n" % (iFront+1))
+                        nFront = input(f"Enter the remote machine name number {iFront+1} : \n")
                         nFront = nFront.encode('ascii').decode()
                         break
-                    except UnicodeDecodeError:
-                        logging.error("Error : only ascii chars are available.")
+                    except Exception as err:
+                        logging.error(f"Error : remote machine {iFront+1} name - only ascii chars are available.")
+                        print(f"Error : {err}\n Remote machine {iFront+1} name - only ascii chars are available. Try again.")
 
                 lFrontend.append(nFront)
                     
@@ -711,8 +731,10 @@ if __name__ == '__main__':
                         UserFront = input("Enter your remote machine number %d user name \n" % (iFront+1))
                         UserFront = UserFront.encode('ascii').decode()
                         break
-                    except UnicodeDecodeError:
-                        logging.error("Error : only ascii chars are available.")
+                    except Exception as err:
+                        logging.error(f"Error : remote machine {iFront+1} Username - only ascii chars are available.")
+                        print(f"Error : {err}\n Remote machine {iFront+1} Username - only ascii chars are available. Try again.")
+
 
                 lUserFront.append(UserFront)
                 
@@ -734,10 +756,15 @@ if __name__ == '__main__':
                     
                 while True:
                     try:
-                        Password = getpass("Enter your password for this machine %d for user %s :\n" % (iFront+1, UserFront))
+                        if (sys.version_info[0:3] > (3,14,0)):
+                            Password = getpass(f"Enter your password for this machine {iFront+1} for user {UserFront} :\n", echo_char='_')
+                        else:
+                            Password = getpass(f"Enter your password for this machine {iFront+1} for user {UserFront} :\n")
+                        Password=ansi_escape.sub('', Password)
                         break
-                    except UnicodeDecodeError:
-                        logging.error("Error : only ascii chars are available.")
+                    except Exception as err:
+                        logging.error(f"Error : remote machine {iFront+1} {UserFront} password - error with password.")
+                        print(f"Error : {err}\n remote machine {iFront+1} {UserFront} password - error with password. Try again.")
 
                 lPassword.append(Password)
 
@@ -745,17 +772,24 @@ if __name__ == '__main__':
             logging.warning("Remote machine frontend : "+Frontend)
             while True:
                 try:
-                    UserFront = input("Enter your remote machine user name \n")
+                    UserFront = input(f"Enter your frontend machine {Frontend} user name \n")
                     UserFront = UserFront.encode('ascii').decode()
                     break
-                except UnicodeDecodeError:
-                    logging.error("Error : only ascii chars are available.")
+                except Exception as err:
+                    logging.error(f"Error : frontend machine {Frontend} Username. only ascii chars are available.")
+                    print(f"Error : {err}\n Frontend machine {Frontend} Username - Only ascii chars are available. Try again.")
+
             while True:
                 try:
-                    Password = getpass("Enter your password for this user :\n")
+                    if (sys.version_info[0:3] > (3,14,0)):
+                        Password = getpass(f"Enter your frontend {Frontend} password for this user {UserFront} :\n", echo_char='_')
+                    else:
+                        Password = getpass(f"Enter your frontend {Frontend} password for this user {UserFront} :\n")
+                    Password=ansi_escape.sub('', Password)
                     break
-                except UnicodeDecodeError:
-                    logging.error("Error : only ascii chars are available.")
+                except Exception as err:
+                    logging.error(f"Error : frontend {Frontend} {UserFront} password error.")
+                    print(f"Error : {err}\n Frontend {Frontend} {UserFront} password error. Try again.")
 
         if (auth_type == "rebound"):
 
@@ -815,6 +849,7 @@ if __name__ == '__main__':
                         outpass = childcopy.sendline(lPassword[iFront])
                         if outpass < len(lPassword[iFront]):
                             Password = getpass("Wrong password for "+lUserFront[iFront]+"@"+lFrontend[iFront]+". Try again enter your password for this user :\n")
+                            Password=ansi_escape.sub('', Password)
                             childcopy.close(force=True)
                         else:
                             expindex=childcopy.expect([pexpect.EOF, pexpect.TIMEOUT])
@@ -902,6 +937,7 @@ if __name__ == '__main__':
                     outpass = childcopy.sendline(Password)
                     if outpass < len(Password):
                         Password = getpass("Wrong password for "+UserFront+"@"+Frontend+". Try again enter your password for this user :\n")
+                        Password=ansi_escape.sub('', Password)
                         childcopy.close(force=True)                    
                     else:
                         expindex=childcopy.expect([pexpect.EOF, pexpect.TIMEOUT])

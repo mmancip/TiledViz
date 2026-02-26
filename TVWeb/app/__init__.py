@@ -56,7 +56,7 @@ bootstrap = Bootstrap5(app)
 #ssl.PROTOCOL_SSLv23 = ssl.PROTOCOL_TLSv1
 
 async_mode = "gevent"
-socketio = SocketIO(app,async_mode=async_mode,ssl_context=(os.getenv('SSLpublic'),os.getenv('SSLprivate')))
+socketio = SocketIO(app,async_mode=async_mode) #,ssl_context=(os.getenv('SSLpublic'),os.getenv('SSLprivate')))
 #socketio = io.connect({transports: ['websocket']});
 #,ping_interval=100000
 #cors_allowed_origins ? List of origins that are allowed to connect to this server. All origins are allowed by default.

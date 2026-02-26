@@ -639,7 +639,7 @@ def copy_users_session(newsession,oldusers):
                                         % (projectsession.name,projectsession.id,user.name,hisrole))
                         a_member[0].role_type="editor"
                         db.session.commit()
-                else:
+                elif (is_already_a_member == 0):
                     if (iseditor):
                         hisrole="editor"
                     else:
@@ -1757,6 +1757,7 @@ def project():
                 project = models.Projects(name=str(myform.projectname.data),
                                          creation_date=screation_date,
                                          id_users=user_id,
+                                         role_type="owner",
                                          description=myform.description.data)
                 db.session.add(project)
                 db.session.flush()  # Get the project ID
@@ -2426,7 +2427,27 @@ def newsession():
         logging.info("in session")
         id_projects=db.session.query(models.Projects.id).filter_by(name=session["projectname"])
         sessionname=myform.sessionname.data
-        newsession,exist=create_newsession(sessionname, myform.description.data, id_projects, myform.users)
+
+        oldusers=[]
+        if ("users" in myform):
+            list_users=[]
+            i=0
+            logging.debug("myform.users : %s" % str(myform.users))
+            for newuser in myform.users:
+                soup=BeautifulSoup(str(newuser),'lxml')
+                outsoup=soup.find_all("input")
+                outfind=[ input.get("value") for input in outsoup ]
+                outchecked=[ input.get("checked") for input in outsoup ]
+                if (len(outfind[0]) > 0):
+                    logging.debug("myform.users : %s %s" % (str(outfind[0]),str(outchecked[1] == "")))
+                    thisuser=FormUser(data=outfind[0],iseditor=(outchecked[1]==""))
+                    list_users.append(thisuser)
+
+            ok_list_users="Owner %s add users %s to the session %s" % (session["username"],str(list_users),sessionname)
+            logging.debug("ok_list_users : %s " % ok_list_users)
+            oldusers=list_users
+
+        newsession,exist=create_newsession(sessionname, myform.description.data, id_projects, oldusers)
         if (not exist):
             try:
                 db.session.add(newsession)
@@ -2893,7 +2914,7 @@ def searchtileset():
         flash("Unable to validate permissions for tileset search.")
         return redirect("/allsessions")
 
-    querysessions= models.Sessions.query.filter(models.Sessions.users.any(name=session["username"])).all()
+    querysessions= db.session.query(models.Sessions).filter(models.Sessions.users.any(name=session["username"])).all()
 
     printstr="{0:\xa0<"+tilesetl+"."+tilesetl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"
 

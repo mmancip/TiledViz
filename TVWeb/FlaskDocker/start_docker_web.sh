@@ -29,13 +29,15 @@ cd /flask_venv/lib/python3.*/site-packages/sqlacodegen;
 # ln -s /TiledViz/TVWeb/FlaskDocker/noVNC /etc/nginx/sites-available/noVNC
 # ln -s /etc/nginx/sites-available/noVNC /etc/nginx/sites-enabled/
 ln -s /TiledViz/TVWeb/noVNC /var/www/html/
-#sed -e 's&error_log /var/log/nginx/error.log;&error_log /var/log/nginx/error.log debug;&' -i /etc/nginx/nginx.conf
-# Prevent nginx error at startup if IPV6 is disabled on master host
-#sed -e 's&listen \[\:\:\]\:80 default_server;&#listen [::]:80 default_server;&' -i /etc/nginx/sites-available/default
+
 rm /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 cp -f /TiledViz/TVWeb/nginx/nginx.conf /etc/nginx/
 sed -e "s&DNSservername&$SERVER_NAME.$DOMAIN&"  -e "s&/DOMAIN/&/$DOMAIN/&" -e "s&_SSLpublic_&$SSLpublic&" -e "s&_SSLprivate_&$SSLprivate&" -i /etc/nginx/nginx.conf
 chown root:root  /etc/nginx/nginx.conf
+[ -f /var/log/nginx/access.log ] && mv /var/log/nginx/access.log /var/log/nginx/access.log-$(date +%Y%m%d)
+[ -f /var/log/nginx/upstream.log ] && mv /var/log/nginx/upstream.log /var/log/nginx/upstream.log-$(date +%Y%m%d)
+[ -f /var/log/nginx/error.log ] && mv /var/log/nginx/error.log /var/log/nginx/error.log-$(date +%Y%m%d)
+
 echo nginx -g "daemon off;"
 nginx -g "daemon off;" &
 

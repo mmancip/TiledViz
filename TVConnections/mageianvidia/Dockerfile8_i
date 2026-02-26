@@ -1,6 +1,5 @@
 # Docker file mageianvidia
 FROM mageia:8
-MAINTAINER  "Martial Mancip" <Martial.Mancip@MaisondelaSimulation.fr>
 
 RUN dnf install -y lib64mesagl1 xkbcomp x11-data-xkbdata x11-font-alias x11-server-xvfb xdpyinfo xinit \
                   openssh xauth  xterm xset htop mesa-demos x11vnc xrandr \

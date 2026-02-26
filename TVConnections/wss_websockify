@@ -6,7 +6,7 @@
 # $4 internPort
 # $5 noVNC PATH
 cd websockify
-./websockify.py --web $5/noVNC --cert $1 \
+./run --web $5/noVNC --cert $1 \
             --key $2 $3 0.0.0.0:$4 \
             2>&1 > /dev/null &
 #/tmp/websockify_$(date +%F_%H-%M-%S).log &
