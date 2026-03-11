@@ -414,7 +414,7 @@ class FlaskDocker(threading.Thread):
                     notUsedConnections=[i for i,x in enumerate(usedConnections) if not x]
                     if (len(notUsedConnections) == 0):
                         FindFree=False
-                            logging.error("ERROR : Full Connection pool. No new connection possible.", exc_info=True)
+                        logging.error("ERROR : Full Connection pool. No new connection possible.", exc_info=True)
                     else:
                         # Find the first free Connection
                         notUsedCountConnections=[ countConnections[i] for i in notUsedConnections ]
