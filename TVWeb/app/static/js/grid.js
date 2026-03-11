@@ -272,7 +272,7 @@ $(document).ready( function(){
     //#007  
     bool_fix_number_of_columns = configBehaviour.fixColumnNumber; // True seems to not behave properly when running on WildOS :'(
     //#008
-    maximal_number_of_columns = configBehaviour.maxColumnNumber;  
+    maximal_number_of_columns = configBehaviour.maxNumOfColumns;  
     //#009
     gapBetweenColumns = configBehaviour.spaceBetweenColumns;
     //#010

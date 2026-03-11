@@ -6,7 +6,7 @@
 	    Parameters :
 	    - cardinal -> number of mesh elements ( i.e. number of node/simulation)
 	    - NumColumnsConstant -> If the number of must be constant ( if not, the number of columns will gColumnth with the screen size)
-	    - maxNumOfColumns_ -> if  NumColumnsConstant=true  , maxNumOfColumns_ will determine the numbre of columns on the grid 
+	    - maxNumOfColumns_ -> if  NumColumnsConstant=true  , maxNumOfColumns_ will determine the number of columns on the grid 
 	    if  NumColumnsConstant=false, maxNumOfColumns_ will determine the maximal number on the grid	, if the screen is too big, node and his contents will be rescale
 	*/
 

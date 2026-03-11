@@ -13,4 +13,4 @@ zenipy
 python-prctl
 # vext.gi
 ansibleguy-nftables
-xX
+psutil

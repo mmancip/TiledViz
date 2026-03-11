@@ -5,7 +5,7 @@ import threading
 import time
 
 import docker
-import sys,os,stat
+import sys,os,stat,psutil
 import argparse
 import json
 import datetime
@@ -150,6 +150,7 @@ threads={}
 sqltConnections={"username":"none","connectionid":-1}
 Connections=[sqltConnections] * NbSecureConnection
 usedConnections=[False] * NbSecureConnection
+countConnections=[0] * NbSecureConnection
 
 # Get string of exec_run output
 def container_exec_out(thecontainer, cmd, user='root'):
@@ -407,27 +408,28 @@ class FlaskDocker(threading.Thread):
                     #                 +" "+create_newconnect.group("Debug"))
                     logging.debug("Connection container type :"+create_newconnect.group("containers"))
 
-                    # Find the first free Connection
-                    ReverseFreeConnect= usedConnections.copy()
-                    ReverseFreeConnect.reverse() 
+                    logging.warning(f"Connection table count {countConnections} free {usedConnections}")
+                    
                     FindFree=True
-                    try:
-                        firstFree=NbSecureConnection - ReverseFreeConnect.index(True)
-                    except:
-                        firstFree=0
-                    if (firstFree == NbSecureConnection):
+                    notUsedConnections=[i for i,x in enumerate(usedConnections) if not x]
+                    if (len(notUsedConnections) == 0):
                         FindFree=False
-                        try:
-                            firstFree=usedConnections.index(False)
-                            logging.warning("Connection pool loop :"+str(firstFree))
-                            FindFree=True
-                        except:
                             logging.error("ERROR : Full Connection pool. No new connection possible.", exc_info=True)
+                    else:
+                        # Find the first free Connection
+                        notUsedCountConnections=[ countConnections[i] for i in notUsedConnections ]
+                    
+                        numConnects=min(notUsedCountConnections)
+                        indices = [i for i, x in enumerate(notUsedCountConnections) if x == numConnects]
+                        
+                        firstFree=notUsedConnections[indices[0]]
+
                     logging.warning("Connection pool slot :"+str(firstFree))
 
                     if (FindFree):
+                        countConnections[firstFree]+=1
                         usedConnections[firstFree]=True
-                        logging.warning("Connection table :"+str(usedConnections))
+                        logging.warning(f"Connection table for new connection count {countConnections} free {usedConnections}")
                     
                         # then create the new connection
                         Connections[firstFree]=({"username":create_newconnect.group("username"),
@@ -480,36 +482,22 @@ class FlaskDocker(threading.Thread):
                         if( quit_oldconnect.group("username") == theConnection["username"] and
                             quit_oldconnect.group("idCon") == theConnection["connectionid"] ):
                             logging.warning("Before quit connection "+str(theConnection["connectionid"]))                            
+
+                            ThisConnection=theConnection["ThisConnection"]
                             theConnection["ThisConnection"].callfunction("quitConnection")
                             try:
-                                ConnectNum= theConnection["ThisConnection"].ConnectNum
-                                ConnectName=theConnection["ThisConnection"].name
-                                
-                                if FirewallT :
-                                    # remove jump connectiondock rule in TILEDVIZ chain
-                                    logging.warning("remove jump connectiondock rule in TILEDVIZ chain")
-                                    nft.set_handle_output("True")
-                                    rc, output, error = nft.cmd("list table ip filter")
-                                    matches = re.findall("jump " + ConnectName + " # handle [0-9]+",output)
-                                    handle_num = re.sub("jump " + ConnectName + " # handle ","", matches[0])
-                                    nft.cmd("delete rule ip filter TILEDVIZ handle " + handle_num)
-                                    nft.cmd("destroy chain ip filter " + ConnectName)
+                                ConnectName=ThisConnection.threadName
+                                ConnectNum=ThisConnection.ConnectNum
 
-                                logging.warning("Connection %s suppression : %d" % (ConnectName,ConnectNum))
                                 iquit=0
-                                while (not theConnection["ThisConnection"].hasQuit ):
+                                while (not ThisConnection.hasQuit ):
                                     time.sleep(1)
                                     iquit=iquit+1
                                     if (iquit > 20):
-                                        logging.error("Connection %s has never quitted : %d" % (ConnectName,ConnectNum))
-                                        try:
-                                            theConnection["ThisConnection"].quitConnection()
-                                        except Exception as err:
-                                            logging.error("Error while direct stoping Connection with id "+str(quit_oldconnect.group("idCon"))+" : "+str(err), exc_info=True)
-                                        break
-                                Connections[ConnectNum]=sqltConnections
-                                usedConnections[ConnectNum]=False
-                                logging.warning("Connection table :"+str(usedConnections))
+                                        logging.error(f"Connection {ConnectName} has never quitted : {ConnectNum}")
+                                        ThisConnection.quitConnection()
+
+                                logging.warning(f"Connection table count {countConnections} free {usedConnections}")
                                 outHandler.flush()
                             except Exception as err:
                                 logging.error("Error while stoping Connection with id "+str(quit_oldconnect.group("idCon"))+" : "+str(err), exc_info=True)
@@ -586,15 +574,17 @@ class ConnectionDocker(threading.Thread):
         threading.Thread.__init__(self)
         logging.warning("Thread Connection creation Num :"+str(ConnectNum))
         self.threadName="TVConnect%s" % (ConnectNum)
+        self.ConnectNum=ConnectNum
         self.thread = threading.Thread(target=self.run,name=self.threadName,
                                        args=(containerFlask, userflask, nbTiles, debug, ConnectNum,
                                                              POSTGRES_HOST, POSTGRES_IP, POSTGRES_PORT,
                                                              POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD,))
         self.thread.start()
-        time.sleep(5)
+        # super(StoppableThread, self).__init__()
+        self._stop_event = threading.Event()
+        time.sleep(1)
         logging.warning("Thread Connection creation : %s with name %s" % (str(self.thread),self.threadName))
         threads[self.name]=self.thread
-        #threading.Thread.__init__(self, target=self.run_forever)
 
     def run(self,containerFlask, userflask, nbTiles, debug, ConnectNum,
             POSTGRES_HOST=POSTGRES_HOST, POSTGRES_IP=POSTGRES_IP, POSTGRES_PORT=POSTGRES_PORT,
@@ -1041,7 +1031,7 @@ class ConnectionDocker(threading.Thread):
 
         search_action = re.compile(r''+"action=")
         self.action_OK=False
-        while True:
+        while (not self._stop_event.is_set()):
             # Wrapper to private members :
             while( len(self.call_list) > 0 ):
                 logging.warning("Container "+self.name+" call list : "+str(self.call_list))
@@ -1054,9 +1044,12 @@ class ConnectionDocker(threading.Thread):
                 elif callfunc == "killTunnel":
                     self.killTunnel()
                 elif callfunc == "reconnect":
-                    if (not os.path.exists(os.path.join(self.dir_out,"nodes.json"))):
+                    logging.warning(f"Call reconnect in {self.ConnectionDB.id_users}/{self.ConnectionDB.id}.")
+                    HasNodes=os.path.exists(os.path.join(self.dir_out,"nodes.json"))
+                    logging.warning(f"Test nodes.json : {HasNodes}")
+                    if (not HasNodes):
                         self.get_nodesjson()
-                    logging.warning("After get nodes.json.")
+                    logging.warning("Before connect.")
                     self.connect()
                 elif (search_action.search(callfunc)):
                     logging.warning("Action detected "+str(callfunc))
@@ -1086,7 +1079,7 @@ class ConnectionDocker(threading.Thread):
 
         iter=0
         notlaunched=True
-        while notlaunched:
+        while (notlaunched and not self._stop_event.is_set()):
             #logging.debug("Container "+self.name+" wake up.")
             if (not os.path.exists(path_nodesTVFile)):
                 logging.warning("TRY GET "+path_nodesjson+ " file from Connection %s." % (self.name))
@@ -1232,10 +1225,11 @@ class ConnectionDocker(threading.Thread):
         # logging.warning("Kill tunnel to Flask docker :\n"+re.sub(r'\*n',r'\\n',str(self.LogTunnel)))
 
     def startActionConnection(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as testsock:
-            if testsock.connect_ex(('localhost', self.actionPort)) == 0:
+        n=psutil.net_connections()
+        if (len([ ips for ips in range(len(n)) if n[ips].laddr.port == actionPort]) > 0):
                 logging.warning("Action server "+str(self.ConnectionDB.id)+" already started.")
                 return
+        
         # Server in TVSecure wait for connection from TVConnection in connectionDocker to send actions commands.
         logging.warning("Try start ActionConnection on port "+str(self.actionPort))
         try:
@@ -1294,14 +1288,32 @@ class ConnectionDocker(threading.Thread):
         
         if FirewallT :
             # Close Firewall ports
-            NFTcmd="delete chain ip filter " + str(self.name)
-            logging.warning(NFTcmd)
-            nft.cmd(NFTcmd)
+            # remove jump connectiondock rule in TILEDVIZ chain
+            logging.warning(f"remove jump {self.name} rule in TILEDVIZ chain")
+            nft.set_handle_output("True")
+            rc, output, error = nft.cmd("list table ip filter")
+            jumprule="jump " + self.name + " # handle "
+            logging.warning(f"remove {jumprule}.")
+            matches = re.findall(jumprule+"[0-9]+",output)
+            try:
+                handle_num = re.sub(jumprule,"", matches[0])
+                nft.cmd("delete rule ip filter TILEDVIZ handle " + handle_num)
+            except:
+                logging.warning(f"Rule {jumprule} not found.")
+            nft.cmd(f"destroy chain ip filter {self.name}")
+
+        logging.warning(f"Connection {self.name} clean usedConnections list for {self.ConnectNum}." )
+        Connections[self.ConnectNum]=sqltConnections
+        usedConnections[self.ConnectNum]=False
 
         logging.warning("End of quitConnection for "+self.name+", containers list :"+str(client.containers.list()))
         self.hasQuit=True
-        raise ValueError                        
     
+        logging.warning(f"Connection {self.name} suppression thread {self.ConnectNum}." )
+        self._stop_event.set()
+        threads[self.name].join(timeout=1)
+        
+        return
         
     def connect(self):
         logging.warning("Tunnel command in "+self.tunnel_script+" : "+self.tunnel_command)
@@ -1328,7 +1340,7 @@ class ConnectionDocker(threading.Thread):
 
             count_exist_new_nodes=0
             not_loaded=True
-            while(not_loaded):
+            while(not_loaded and not self._stop_event.is_set()):
                 time.sleep(2)
                 try: 
                     # Get back nodes.json from connection docker ?
