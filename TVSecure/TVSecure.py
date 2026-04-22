@@ -138,7 +138,10 @@ def parse_args(argv):
 TVvolume=docker.types.Mount(target='/TiledViz',source=os.getenv('PWD'),type='bind',read_only=False)
 
 SSLpath=os.path.dirname(os.path.dirname(os.getenv('SSLpublic')))
-TVssl=docker.types.Mount(target=SSLpath,source=SSLpath,type='bind',read_only=True)
+TVssl=docker.types.Mount(target=SSLpath,source=SSLpath,type='bind',read_only=False)
+
+Confpath=os.path.join(os.getenv('HOME'),".tiledviz")
+TVconf=docker.types.Mount(target="/home/myuser/.tiledviz",source=Confpath,type='bind',read_only=True)
 
 TVnginx=docker.types.Mount(target='/var/log/nginx',source='/var/log/nginx',type='bind',read_only=False)
 
@@ -695,7 +698,7 @@ class ConnectionDocker(threading.Thread):
             
             self.containerConnect=client.containers.create(
                 name=self.name, image="mageiaconnect",
-                mounts=[VncVolume,TVssl],
+                mounts=[VncVolume,TVssl,TVconf],
                 extra_hosts=self.postgresHost,
                 command=self.commandConnect,
                 ports=self.listPortsTiles,
@@ -1028,9 +1031,11 @@ class ConnectionDocker(threading.Thread):
 
         logging.warning("Launch start action connection.")
         self.startActionConnection()
+        logging.warning("After start action connection.")
 
         search_action = re.compile(r''+"action=")
         self.action_OK=False
+        logging.warning("Wait for commands.")
         while (not self._stop_event.is_set()):
             # Wrapper to private members :
             while( len(self.call_list) > 0 ):
@@ -1226,20 +1231,23 @@ class ConnectionDocker(threading.Thread):
 
     def startActionConnection(self):
         n=psutil.net_connections()
-        if (len([ ips for ips in range(len(n)) if n[ips].laddr.port == actionPort]) > 0):
-                logging.warning("Action server "+str(self.ConnectionDB.id)+" already started.")
-                return
+
+        VecUsedActionPort=[ ips for ips in range(len(n)) if n[ips].laddr.port == self.actionPort]
+        if (len(VecUsedActionPort) > 0):
+           logging.error("Action server "+str(self.ConnectionDB.id)+" already started.")
+           return
         
         # Server in TVSecure wait for connection from TVConnection in connectionDocker to send actions commands.
-        logging.warning("Try start ActionConnection on port "+str(self.actionPort))
+        logging.warning(f"Try start ActionConnection on port {self.actionPort}")
         try:
             self.ActionConnect=sock.server(self.actionPort)
             logging.warning("Action server launched on "+str(self.actionPort)+".")
             outHandler.flush()
             self.ActionConnect.new_connect(1)
+            logging.warning(f"New connect for action server launched on {self.actionPort}.")
             # Send Not an action message after Hello
             HelloMsg=self.ActionConnect.recv(1)
-            logging.warning("Action client hello message : "+str(HelloMsg))
+            logging.warning(f"Action client hello message : {HelloMsg}")
             outHandler.flush()
             
             self.ActionConnect.send_client(1,"Hello connection"+str(self.ConnectionDB.id))
@@ -1252,7 +1260,8 @@ class ConnectionDocker(threading.Thread):
 
             self.action_OK=True
         except Exception as err:
-            logging.error("Error with Action server "+str(self.ConnectionDB.id)+" : "+str(err), exc_info=True)
+            print(exc_info=True)
+            logging.error(f"Error with Action server {self.ConnectionDB.id}  : {err}")
 
     def quitConnection(self):
         # Quit Websockify for user
@@ -1476,6 +1485,7 @@ if __name__ == '__main__':
     # except:
     #     code.interact(banner="Hand to Flask :",local=dict(globals(), **locals()))
 
+    # TODO : destroy other Connection rules as in nft_clean_rules.py
     if FirewallT :
         def signal_handler(sig, frame):
             logging.error("destroy chain ip filter TILEDVIZ")

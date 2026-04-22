@@ -13,7 +13,7 @@ from sqlalchemy import create_engine
 #from sqlalchemy import pool
 from sqlalchemy.pool import QueuePool
 from sqlalchemy import MetaData
-from sqlalchemy import select
+
 # # from sqlalchemy.orm import scoped_session, sessionmaker
 # # from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, joinedload, subqueryload, Session
@@ -90,8 +90,9 @@ def insert_table(table_name,values):
 
 def print_table(table_name):
     table_ = metadata.tables[table_name]
-    select_st = select([table_])
+    select_st = table_.select()
     res = conn.execute(select_st)
+    print(res.keys())
     for _row in res:
         print(_row)
 

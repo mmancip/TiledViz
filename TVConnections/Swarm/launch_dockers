@@ -96,6 +96,7 @@ while [ $i -le ${NUM} ]; do
     ${SWARMARGS} \
     $DEVICES \
      -v /usr/share/X11/locale:/usr/share/X11/locale:ro --expose=22 \
+     -v ${HOME}/.ssh:/home/myuser/.ssh:rw \
      -v ${DIR}/${DOCKERDIR}:/home/myuser/.vnc:rw ${OPTIONS} -e DOCKERID=${i0} --hostname ${DOCKERDIR} \
      -t ${DOCKERNAME} ${DOCKERARGS} 2>&1 |tee ${DIR}/${DOCKERDIR}/stdout" > ${DIR}/${DOCKERDIR}/call_docker-run
 #utiliser --mount=
