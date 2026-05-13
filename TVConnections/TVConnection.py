@@ -88,7 +88,7 @@ def parse_args(argv):
 
 
 
-class ClientAction(threading.Thread):
+class ServerAction(threading.Thread):
     
     def __init__(self,connectionId,globals,locals):
         threading.Thread.__init__(self)
@@ -99,11 +99,23 @@ class ClientAction(threading.Thread):
         tiles_actions["action0"]=["get_new_nodes","system_update_alt"]
 
         try:
-            self.actionclient=sock.client(ActionPort)
-            self.actionclient.send_OK(1)
-            logging.warning("ClientAction : connect server connectiondock")
+            self.actionserver=sock.server(ActionPort)
+            logging.warning(f"Launch server for action on {ActionPort}.")
+            outHandler.flush()
+
+            self.actionserver.new_connect(1)
+            logging.warning(f"New connection detected on action server.")
+            outHandler.flush()
+
+            # Send Not an action message after Hello
+            HelloMsg=self.actionserver.recv(1)
+            logging.warning(f"Action server hello message : {HelloMsg}")
+            self.actionserver.send_client(1,HelloMsg)
+            logging.warning("Action server send back hello message")
+            outHandler.flush()
+            
         except:
-            logging.error("ClientAction : can't connect to server connectiondock")
+            logging.error("ServerAction : can't connect to client TVSecure")
             traceback.print_exc(file=sys.stderr)
             
         self.iter=0
@@ -123,24 +135,24 @@ class ClientAction(threading.Thread):
         global tiles_actions
         self.IsActionConnected=False
         self.iter=self.iter+1
-        #logging.warning("ClientAction : detect")
-        if ("actionclient" in dir(self)):
-            data=self.actionclient.recv()
+        #logging.warning("ServerAction : detect")
+        if ("actionserver" in dir(self)):
+            data=self.actionserver.recv(1)
             if not data:
                 return False
         else:
             # No ActionConnection server
-            logging.error("ClientAction : No more Action connection to server connectiondock")
+            logging.error("ServerAction : No more Action connection to server connectiondock")
             return -1
-        self.actionclient.send_OK(self.iter)
+        self.actionserver.send_OK(1,self.iter)
         self.IsActionConnected=True
 
         try:
             actiontiles=list(map(int,data.replace(',,','').split(",")))
-            logging.warning("ClientAction : get actionTile message "+str(actiontiles))
+            logging.warning("ServerAction : get actionTile message "+str(actiontiles))
             actionId=actiontiles.pop(0)
         except:
-            logging.warning("ClientAction : not an action "+data)
+            logging.warning("ServerAction : not an action "+data)
             return False
         # test if it is a valid action command
         self.thisAction="action"+str(actionId)
@@ -150,47 +162,47 @@ class ClientAction(threading.Thread):
                 self.isSelection=True
                 try:
                     self.thisSelection=list(map(int,actiontiles))
-                    logging.debug("ClientAction : detect a valid selection "+str(self.thisSelection))
+                    logging.debug("ServerAction : detect a valid selection "+str(self.thisSelection))
                 except:
                     return False
             else:
-                logging.warning("ClientAction : detect a global action ")
+                logging.warning("ServerAction : detect a global action ")
             return True
         else: 
-            logging.error("ClientAction : error reading "+self.thisAction)
+            logging.error("ServerAction : error reading "+self.thisAction)
             self.isSelection=False
             return False
         
     def execute(self,globals,locals):
         # Separate Execute
-        logging.debug("ClientAction : run")
+        logging.debug("ServerAction : run")
         if (not self.IsActionConnected):
             return
         try:
             funaction=tiles_actions[self.thisAction][0]
             functionAction=eval(funaction)
             search_tileNum=inspect.signature(functionAction).parameters
-            logging.debug("ClientAction : "+funaction+" parameters :"+str(search_tileNum))
+            logging.debug("ServerAction : "+funaction+" parameters :"+str(search_tileNum))
             if ("tileNum" in search_tileNum):
                 if (self.isSelection):
                     for num in self.thisSelection:
                         action=funaction+"(tileNum="+str(num)+")"
-                        logging.warning("ClientAction : send action "+action)
+                        logging.warning("ServerAction : send action "+action)
                         eval(action,globals,locals)
                 else:
-                    logging.warning("ClientAction : Apply this action "+funaction+" on all tiles.")
+                    logging.warning("ServerAction : Apply this action "+funaction+" on all tiles.")
                     for num in range(NUM_DOCKERS):
                         action=funaction+"(tileNum="+str(num)+")"
-                        logging.warning("ClientAction : send action "+action)
+                        logging.warning("ServerAction : send action "+action)
                         eval(action,globals,locals)
             else: 
                 action=funaction+"()"
-                logging.warning("ClientAction : No tile for this action "+action)
+                logging.warning("ServerAction : No tile for this action "+action)
                 eval(action,globals,locals)
-            logging.warning("ClientAction : action "+action+" launched.")
+            logging.warning("ServerAction : action "+action+" launched.")
         except:
             traceback.print_exc(file=sys.stderr)
-            logging.warning("ClientAction : problem with action "+funaction+" launch.")
+            logging.warning("ServerAction : problem with action "+funaction+" launch.")
             pass
 
 ### Functions used in case job ###
@@ -1144,13 +1156,13 @@ if __name__ == '__main__':
             logging.warning("Launch actions thread.")
             sys.stdout.flush()
             
-            GetActions=ClientAction(connectionId,globals=dict(globals()),locals=dict(**locals()))
+            GetActions=ServerAction(connectionId,globals=dict(globals()),locals=dict(**locals()))
             outHandler.flush()
         except:
             traceback.print_exc(file=sys.stdout)
-            code.interact(banner="Error ClientAction :",local=dict(globals(), **locals()))
+            code.interact(banner="Error ServerAction :",local=dict(globals(), **locals()))
         
-        #logging.warning("Actions \n",str(tiles_actions))
+        logging.warning(f"Actions \n {tiles_actions}")
         sys.stdout.flush()
         isActions=True
         

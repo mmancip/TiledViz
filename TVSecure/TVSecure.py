@@ -685,6 +685,13 @@ class ConnectionDocker(threading.Thread):
                 time.sleep(0.1)
         logging.warning("Build connection with "+str(self.nbTiles)+" ports : "+str(self.listPortsTiles))
 
+        # open port for Action in localhost only
+        self.actionPort=ActionPort+self.ConnectNum
+        self.listConnectPorts=self.listPortsTiles|{f"{ActionPort}/tcp":('0.0.0.0',self.actionPort)} 
+        logging.warning(f"Build connection with {self.nbTiles} ports and {self.actionPort} : {self.listConnectPorts}")
+
+
+
         # Open port in firewall here ?
         
         # Wake up docker server ?
@@ -701,7 +708,7 @@ class ConnectionDocker(threading.Thread):
                 mounts=[VncVolume,TVssl,TVconf],
                 extra_hosts=self.postgresHost,
                 command=self.commandConnect,
-                ports=self.listPortsTiles,
+                ports=self.listConnectPorts,
                 devices=list_gpu_dev,
                 auto_remove=self.cont_auto_remove, detach=True)
             #,XLocale
@@ -916,37 +923,6 @@ class ConnectionDocker(threading.Thread):
         output, errs = p.communicate()
         ipdocker0=output.decode('utf-8').replace('\n','')
         logging.warning("ConnectionDocker : connection for actions with port %d and ip for docker0 %s" % (self.actionPort,ipdocker0))
-
-        self.action_script=os.path.join(self.home,".vnc","tunnel_action")
-        action_command="socat TCP-LISTEN:"+str(ActionPort)+",fork,reuseaddr TCP:"+ipdocker0+":"+str(self.actionPort)+" &"
-        scriptAction="awk 'BEGIN {print \""+action_command+"\" >>\""+self.action_script+"\"}' 2>&1 /dev/null"
-        logging.debug("awk command to build action script : "+scriptAction)
-
-        self.LogScrAction=self.containerConnect.exec_run(cmd=scriptAction,user=self.user,detach=True)
-        time.sleep(0.5)
-        self.LogModAction=self.containerConnect.exec_run(cmd="chmod u+x "+self.action_script,user=self.user,detach=True)
-        #logging.warning("action script built.")
-        time.sleep(0.5)
-        self.LogAction=self.containerConnect.exec_run(cmd="sh -c "+self.action_script,user=self.user,detach=True)
-        logging.warning("action script executed.")
-        outHandler.flush()
-        time.sleep(0.5)
-        
-        # suppress Action tunnel
-        self.kill_action_script=os.path.join(self.home,".vnc","kill_action_"+str(self.actionPort))
-        out_kill_action=os.path.join(self.home,".vnc","out_killaction_"+str(self.actionPort))
-        killAction='Tunnel=$(pgrep -f \\"socat.*'+str(self.actionPort)+'.*\\");\\n'+\
-            'if [ X\\"$Tunnel\\" != X\\"\\" ]; then \\n pgrep -fla \\"socat.*'+str(self.actionPort)+'.*\\" > '+out_kill_action+';\\n'+\
-            'kill -9 $Tunnel 2>&1 >> '+out_kill_action+';\\n fi'
-
-        scriptAction="awk 'BEGIN {print \""+killAction+"\" >>\""+self.kill_action_script+"\"}' > "+out_kill_action
-
-        logging.debug("awk command to build kill action script : "+scriptAction)
-
-        self.LogScrAction=self.containerConnect.exec_run(cmd=scriptAction,user=self.user,detach=True)
-        time.sleep(0.1)
-        self.LogModAction=self.containerConnect.exec_run(cmd="chmod u+x "+self.kill_action_script,user=self.user,detach=True)
-        logging.warning("action script built.")
         
         listPortsTilesFile=os.path.join(self.dir_out,"listPortsTiles.pickle")
         logging.warning("Launch websockify and save "+listPortsTilesFile+" on Connection "+self.name)
@@ -1028,10 +1004,6 @@ class ConnectionDocker(threading.Thread):
 
         time.sleep(timeAliveConn)
         self.get_nodesjson()
-
-        logging.warning("Launch start action connection.")
-        self.startActionConnection()
-        logging.warning("After start action connection.")
 
         search_action = re.compile(r''+"action=")
         self.action_OK=False
@@ -1154,9 +1126,6 @@ class ConnectionDocker(threading.Thread):
                         time.sleep(Swait)
                         pass
 
-                        # Send again get via action launch_nodes_json
-                        #raise ValueError                        
-                        
                     outHandler.flush()
                 except (docker.errors.NotFound, requests.exceptions.HTTPError) as err:
                     logging.warning(path_nodesjson+" NotFound for iter %d." % (iter))
@@ -1230,32 +1199,12 @@ class ConnectionDocker(threading.Thread):
         # logging.warning("Kill tunnel to Flask docker :\n"+re.sub(r'\*n',r'\\n',str(self.LogTunnel)))
 
     def startActionConnection(self):
-        n=psutil.net_connections()
-
-        VecUsedActionPort=[ ips for ips in range(len(n)) if n[ips].laddr.port == self.actionPort]
-        if (len(VecUsedActionPort) > 0):
-           logging.error("Action server "+str(self.ConnectionDB.id)+" already started.")
-           return
         
         # Server in TVSecure wait for connection from TVConnection in connectionDocker to send actions commands.
         logging.warning(f"Try start ActionConnection on port {self.actionPort}")
         try:
-            self.ActionConnect=sock.server(self.actionPort)
-            logging.warning("Action server launched on "+str(self.actionPort)+".")
-            outHandler.flush()
-            self.ActionConnect.new_connect(1)
-            logging.warning(f"New connect for action server launched on {self.actionPort}.")
-            # Send Not an action message after Hello
-            HelloMsg=self.ActionConnect.recv(1)
-            logging.warning(f"Action client hello message : {HelloMsg}")
-            outHandler.flush()
-            
-            self.ActionConnect.send_client(1,"Hello connection"+str(self.ConnectionDB.id))
-            logging.warning("Action client receive OK "+str(self.ActionConnect.get_OK(1)))
-            outHandler.flush()
-            
-            self.ActionConnect.send_client(1,"Not an action first.")
-            logging.warning("Action client receive OK from not-an-action message "+str(self.ActionConnect.get_OK(1)))
+            self.ActionConnect=sock.client(self.actionPort)
+            logging.warning(f"Action client connection on {self.actionPort}.")
             outHandler.flush()
 
             self.action_OK=True
@@ -1278,12 +1227,10 @@ class ConnectionDocker(threading.Thread):
         # End action connection:
         try:
             if ("ActionConnect" in dir(self)):
-                self.ActionConnect.close_all()
+                self.ActionConnect.close()
 
-                self.LogKillAction=self.containerConnect.exec_run(cmd="sh -c "+self.kill_action_script,user=self.user,detach=True)
-                logging.warning("Kill Action connection in Connection docker.")
         except Exception as err:
-            logging.error("Error while stoping Action server "+str(self.ConnectionDB.id)+" : "+str(err), exc_info=True)
+            logging.error("Error while stoping Action connection "+str(self.ConnectionDB.id)+" : "+str(err), exc_info=True)
 
         # suppress connection docker
         try:
@@ -1341,9 +1288,8 @@ class ConnectionDocker(threading.Thread):
         # Get action num + selection of tiles (if needed by the function)
         actionlist=re.sub(r'action=',r'',callfunct)
         #logging.warning("Action for tileset %s. command %s" % (self.tilesetId,actionlist))
-        self.ActionConnect.send_client(1,actionlist)
-        RET=self.ActionConnect.get_OK(1)
-        logging.warning("Action for tileset %s. command %s return %d" % (self.tilesetId,actionlist,RET))
+        self.ActionConnect.send_server(actionlist)
+
         if (re.sub(r',.*',r'',actionlist)=="0"):
             path_nodesjson=os.path.join(self.home,"nodes.json")
 
