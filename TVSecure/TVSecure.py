@@ -6,6 +6,7 @@ import time
 
 import docker
 import sys,os,stat,psutil
+import traceback
 import argparse
 import json
 import datetime
@@ -683,14 +684,16 @@ class ConnectionDocker(threading.Thread):
                     logging.error("Build %d find again port %d ports list %s" % (t,port,str(self.listPorts)))
                     s.close()
                 time.sleep(0.1)
-        logging.warning("Build connection with "+str(self.nbTiles)+" ports : "+str(self.listPortsTiles))
+        #logging.warning("Build connection with "+str(self.nbTiles)+" ports : "+str(self.listPortsTiles))
 
         # open port for Action in localhost only
         self.actionPort=ActionPort+self.ConnectNum
         self.listConnectPorts=self.listPortsTiles|{f"{ActionPort}/tcp":('0.0.0.0',self.actionPort)} 
-        logging.warning(f"Build connection with {self.nbTiles} ports and {self.actionPort} : {self.listConnectPorts}")
-
-
+        logging.warning(f"Build connection with {self.nbTiles} ports and action port {self.actionPort} : {self.listConnectPorts}")
+        if FirewallT :
+            NFTcmd=f"add rule ip filter {self.name} iif lo tcp dport {self.actionPort} accept"
+            logging.warning(NFTcmd)
+            nft.cmd(NFTcmd)
 
         # Open port in firewall here ?
         

@@ -45,9 +45,10 @@ else:
         strdelete=f"delete rule ip filter TILEDVIZ handle {handle_num}"
         print(strdelete)
         nft.cmd(strdelete)
-        strdestroy=f"destroy chain ip filter {ConnectName}"
-        print(strdestroy)
-        nft.cmd(strdestroy)
     else:
         print(f"connection {ConnectName} not detected!")
             
+    strdestroy=f"destroy chain ip filter {ConnectName}"
+    print(strdestroy)
+    nft.cmd(strdestroy)
+
