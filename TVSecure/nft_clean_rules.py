@@ -51,4 +51,4 @@ else:
     strdestroy=f"destroy chain ip filter {ConnectName}"
     print(strdestroy)
     nft.cmd(strdestroy)
-
+            

@@ -1,0 +1,6 @@
+#!/bin/bash
+tail -1 /tmp/connectiondock$1/tunnel_flask > /tmp/connectiondock$1/tunnel_vnc
+PORT=$( sed -e 's!.*:\([0-9]*\):localhost.*!\1!' /tmp/connectiondock$1/tunnel_flask )
+sed -e "s!connect$1@172.17.0.3 &!$2@172.17.0.1!" -i /tmp/connectiondock$1/tunnel_vnc
+docker exec -it -u myuser connectiondock$1 bash -c /home/myuser/.vnc/tunnel_vnc
+vncviewer localhost:$PORT -PasswordFile /tmp/connectiondock37/passwd 
