@@ -1,6 +1,6 @@
 six
 wheel
-pgi
+
 sqlalchemy
 psycopg2-binary
 pexpect
@@ -9,8 +9,7 @@ docker
 Flask-Mail
 pyjwt
 
-zenipy
 python-prctl
-# vext.gi
+
 ansibleguy-nftables
 psutil

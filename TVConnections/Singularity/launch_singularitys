@@ -31,7 +31,7 @@ SINGULARITYsize=200
 echo "launch singularitys at ${DATE}"
 
 # Nvidia or Nouveau driver
-TestNVIDIA=""
+declare -A TestNVIDIA
 
 # count X display on each host
 declare -A HostX

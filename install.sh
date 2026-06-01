@@ -1,114 +1,189 @@
 #!/bin/bash
 
-# Test Docker rights
-docker ps -a
+UseLastEnv=$1
+
+echo "#==== Tiledviz installation script. ==="
+echo "If you want to use graphical installation, you need to install zenity package on your system,"
+echo "and set installX11=true in envTiledViz on your TiledViz source root, OK ?"
+#read OK
+
+source ./envTiledViz
+
+# if asked installX11 in ./envTiledViz rerun with graphical progress bar.
+if ( $instalX11 ) & [ X"$GraphicalInstall" != Xtrue ]; then
+    export GraphicalInstall=true
+    echo "Restart with graphical progression bar."
+    sleep 3
+    ( ./install.sh $UseLastEnv ) | zenity --progress --title="Progress Status" --text="First Task" --percentage=0 --auto-kill
+    #--auto-close
+    exit 0
+fi
+
+echo "1"
+
+echo "# Test Docker rights"
+echo $(docker ps -a)
+echo "5"
 
 # Build Virtualenv for TVSecure
-if [ X"$1" == X"" ]; then
-    echo "==== Build Virtualenv for TVSecure ===="
+# if UseLastEnv is null, build a new environement
+if [ X"$UseLastEnv" == X"" ]; then
+    echo "#==== Build new Virtualenv for TVSecure ===="
     export DATE=$(date +%F_%H-%M-%S)
-    echo "DATE=$DATE"
+    echo "#DATE=$DATE"
+
     mkdir TiledVizEnv_${DATE}
     python3 -m venv TiledVizEnv_${DATE}
     source TiledVizEnv_${DATE}/bin/activate
-
-    echo "==== Copy TiledViz env in .cache ===="
+    echo "8"
+    
+    echo "#==== Copy TiledViz env in .cache ===="
     [ ! -d $HOME/.cache ] && mkdir $HOME/.cache
     sed -e "s&DATE=.*&DATE=$DATE&" envTiledViz > $HOME/.cache/envTiledViz
     chmod 600 $HOME/.cache/envTiledViz
-
+    echo "9"
+    
     ls -la $HOME/.cache/envTiledViz
     source $HOME/.cache/envTiledViz
+    echo "# Build Env OK."
+
 else
+    echo "#==== Retreive old configuration ===="
     OLDENV=$(find . -maxdepth 1 -type d -name "TiledVizEnv_*" |tail -1)
     export DATE_ENV=$(echo $OLDENV |sed -e 's&\./TiledVizEnv_&&')
     source $OLDENV/bin/activate
-
+    echo "8"
+    
     ls -la $HOME/.cache/envTiledViz
     source $HOME/.cache/envTiledViz
     if [ ${DATE_ENV} != ${DATE} ]; then
-	echo "Error restart install : DATEs not equal ${DATE_ENV} != ${DATE}."
+	echo "#Error restart install : DATEs not equal ${DATE_ENV} != ${DATE}."
+	sleep 10
 	exit 1
     fi
+    echo "# Retrieve Env OK."
 fi
 
-echo "===== Enable FirewallT Tiledviz ====="
-# Améliorer clean input ?
-echo "Activate firewallT for Tiledviz ? : ('n' or 'y')"
-read -s firewallT;
-[[ $firewallT == y || $firewallT == n ]] && echo "Valid Input" || echo "Invalid Input"
+echo "10"
 
-echo "==== Install environment ===="
+echo "#===== Enable FirewallT Tiledviz ====="
+
+if ( $installX11 ); then
+    zenity  --question --title "TiledViz firewall" --text " Activate firewallT for Tiledviz ?"
+    elsefirewallT=$?
+    [[ $firewallT == 0 ]] && firewallT=y || firewallT=n
+else
+    echo "Activate firewallT for Tiledviz ? : ('n' or 'y')"
+    read -s firewallT;
+    [[ $firewallT == y || $firewallT == n ]] && echo "Valid Input" || echo "Invalid Input"
+fi
+
+echo "#==== Install environment ===="
 TiledVizEnv_$DATE/bin/python3 -m pip install --upgrade pip
 # TiledViz packages
 pip3 install -r requirements.txt
 
+echo "20"
+
 # Get noVNC
-echo "==== Get noVNC ===="
+echo "#==== Get noVNC ===="
 pushd TVWeb
 git clone https://github.com/novnc/noVNC.git noVNC
+echo "25"
 cd noVNC
-git checkout v1.4.0
+git checkout v1.7.0
 patch -p0 < ../patch_ui
 cd ..
 cp vnc_multi.html noVNC
 cp ui_multi.js noVNC/app
 cp rfb_multi.js noVNC/core
-#patch -p0 < patch_devices_noVNC 
+#patch -p0 < patch_devices_noVNC
 popd
+echo "27"
 
-echo "==== Get websockify ===="
+echo "#==== Get websockify ===="
 pushd TVConnections
 git clone https://github.com/novnc/websockify
 popd
 
+echo "30"
+
 # Launch postgresql docker
-echo "==== Launch postgresql docker ===="
+echo "#==== Prepare postgresql docker ===="
 if ( $installX11 ); then
-    password=$(python3 -c "import zenipy; password=zenipy.zenipy.password(title='PostgreSQL password',text='Please give a password for your postgresql DB : (no '@' or '/' !)', width=450, height=120, timeout=None); print(str(password))")
+    Outz=$(zenity  --width=600 --forms --title="Postgres DB" \
+		   --text="Create Postgres Docker."\
+		   --add-entry="Docker name (default: ${postgresNAME})" --add-entry="External PORT (default: ${POSTGRES_PORT})" --add-password="Password (forbiden '@', '&', '/', '|')")
+    $(echo $Outz | sed -e 's&\([^|]*\)|\([^|]*\)|\([^|]*\)&export POSTG_NAME="\1"  export POSTG_PORT="\2" export password="\3"&')
 else
-    echo "Please give a password for your postgresql DB : (no '@' or '/' !)"
+    echo "Please give the Docker name of PostGresQL DB (default: ${postgresNAME})."
+    read POSTG_NAME;
+    echo "Please give its external PORT (default: ${POSTGRES_PORT})."
+    read POSTG_PORT;
+
+    echo "Please give a password for your postgresql DB : (forbiden '@', '/', '|' !)"
     read -s password
 fi
-replpass=$( echo $password | sed -e "s|\&|\\\&|g" )
-sed -e "s|your_postgres_password|$replpass|" -i $HOME/.cache/envTiledViz
+[ X"$POSTG_NAME" == X ] && export POSTG_NAME=$postgresNAME
+[ X"$SSLprivate" == X ] && export POSTG_PORT=$POSTGRES_PORT
+replpass=$( echo $password | sed -e "s|\&|\\\&|g" -e 's|"||g' )
 
-echo "==== Copy tiledViz.conf in $HOME/.tiledviz cache dir ===="
+sed -e "s&${postgresNAME}&$POSTG_NAME&" \
+    -e "s&${POSTGRES_PORT}&$POSTG_PORT&" \
+    -e "s|your_postgres_password|$replpass|" \
+    -i $HOME/.cache/envTiledViz
+echo "32"
+
+echo "#==== Copy tiledViz.conf in $HOME/.tiledviz cache dir ===="
 mkdir $HOME/.tiledviz
 cp tiledviz.conf $HOME/.tiledviz
 [[ $firewallT == y ]] && sed -e "s|FirewallT=False|FirewallT=True|" -i $HOME/.tiledviz/tiledviz.conf 
+echo "33"
 
-
-echo "=== Add SSL certificates ==="
+echo "#=== Web Server URL ==="
 if ( $installX11 ); then
-    myweb=$(python3 -c "import zenipy; myweb=zenipy.zenipy.password(title='SSL web server.domain name',text='Please give a SERVER.DOMAIN for your SSL web server.', width=450, height=120, timeout=None); print(str(myweb))")
+    webserver=$(zenity --forms --title="Web server informations" --text="SSL web server.domain name" --add-entry="Server name" --add-entry="Domain extension" )
+    $(echo $webserver |sed -e 's&\([^|]*\)|\([^|]*\)&export SERVER_NAME="\1" export DOMAIN="\2"&')
 else
     echo "Please give a SERVER.DOMAIN for your SSL web server"
     read myweb;
-fi
-IFS='.' read -r -a webline <<<$myweb
+    IFS='.' read -r -a webline <<<$myweb
 
-# Array slice
-serv="${webline[@]: 0:$((${#webline[*]}-2))}"
-SERVER_NAME=$(echo $serv |sed -e "s/ /./g")
-DOMAIN=${webline[${#webline[*]}-2]}.${webline[${#webline[*]}-1]}
+    # Array slice
+    serv="${webline[@]: 0:$((${#webline[*]}-2))}"
+    SERVER_NAME=$(echo $serv |sed -e "s/ /./g")
+    DOMAIN=${webline[${#webline[*]}-2]}.${webline[${#webline[*]}-1]}
+fi
+
+echo "35"
 
 
 if ( $installX11 ); then
-    SSLpublic=$(python3 -c "import zenipy; myssl=zenipy.zenipy.password(title='SSL PUBLIC key path',text='Please give the PUBLIC SSL key PATH.', width=450, height=120, timeout=None); print(str(myssl))")
-    SSLprivate=$(python3 -c "import zenipy; myssl=zenipy.zenipy.password(title='SSL PRIVATE key path',text='Please give the PRIVATE SSL key PATH.', width=450, height=120, timeout=None); print(str(myssl))")
-    SMTP_SERVER=$(python3 -c "import zenipy; myserver=zenipy.zenipy.password(title='SMTP server address',text='Please give your SMTP server address - the outgoing mail server.', width=450, height=120, timeout=None); print(str(myserver))")
-    SMTP_PORT=$(python3 -c "import zenipy; myport=zenipy.zenipy.password(title='SMTP server PORT',text='Please give your SMTP server address - for the outgoing mail server.', width=450, height=120, timeout=None); print(str(myport))")
-    SMTP_USE_SSL=$(python3 -c "import zenipy; myssl=zenipy.zenipy.password(title='SMTP server SSL option',text='Please give your SSL option - for the outgoing mail server.', width=450, height=120, timeout=None); print(str(myssl))")
-    SMTP_USE_TLS=$(python3 -c "import zenipy; mytls=zenipy.zenipy.password(title='SMTP server TLS option',text='Please give your TLS option - for the outgoing mail server.', width=450, height=120, timeout=None); print(str(mytls))")
-    SMTP_USERNAME=$(python3 -c "import zenipy; myuser=zenipy.zenipy.password(title='SMTP user name',text='Please give your user name - for the outgoing mail server.', width=450, height=120, timeout=None); print(str(myuser))")
-    SMTP_PASSWORD=$(python3 -c "import zenipy; mypass=zenipy.zenipy.password(title='SMTP password',text='Please give your password - for the outgoing mail server.', width=450, height=120, timeout=None); print(str(mypass))")
-    FROM_EMAIL=$(python3 -c "import zenipy; myuser=zenipy.zenipy.password(title='TiledViz email',text='Please give this TiledViz email - for the outgoing mail server.', width=450, height=120, timeout=None); print(str(myuser))")
-    IMAP_SERVER=$(python3 -c "import zenipy; myserver=zenipy.zenipy.password(title='IMAP server address',text='Please give your IMAP server address - the ingoing mail server.', width=450, height=120, timeout=None); print(str(myserver))")
-    IMAP_PORT=$(python3 -c "import zenipy; myport=zenipy.zenipy.password(title='IMAP server PORT',text='Please give your IMAP server address - for the ingoing mail server.', width=450, height=120, timeout=None); print(str(myport))")
+    Outz=$(zenity  --width=600 --forms --title="Web connections informations" \
+		   --text="SSL, SMTP, MAIL ( outgoing mail server for 2FA )."\
+		   --add-entry="SSL PUBLIC key path" --add-entry="SSL PRIVATE key path" --add-entry="TiledViz email.")
+    $(echo $Outz | sed -e 's&\([^|]*\)|\([^|]*\)|\([^|]*\)&export SSLpublic="\1"  export SSLprivate="\2" export FROM_EMAIL="\3"&')
 
+    Outz=$(zenity  --width=600 --forms --title="SMTP server for some TiledSet cases"  \
+		   --add-entry="SMTP server address (optionnal)" \
+		   --add-entry="SMTP server PORT" \
+		   --add-entry="SMTP server username" \
+		   --add-password="SMTP server password" )
+    $(echo $Outz | sed -e 's&\([^|]*\)|\([^|]*\)|\([^|]*\)|\([^|]*\)&export SMTP_SERVER="\1" export SMTP_PORT="\2" export SMTP_USERNAME="\3" export SMTP_PASSWORD="\4"&')
+   
+    Outz=$(zenity  --question --title "SMTP server" --text "SSL option ?" )
+    SMTP_USE_SSL=$( [[ $? == 0 ]] && echo true || echo false )
+    Outz=$(zenity  --question --title "SMTP server" --text "TLS option ?" )
+    SMTP_USE_TLS=$( [[ $? == 0 ]] && echo true || echo false )
 
-    NTP=$(python3 -c "import zenipy; myserver=zenipy.zenipy.password(title='NTP server address',text='Please give your NTP server address - the time server.', width=450, height=120, timeout=None); print(str(myserver))")
+    Outz=$(zenity  --width=600 --forms --title="IMAP and NTP (optionnal)" \
+		   --text="IMAP server ( the ingoing mail server ) | NTP server ( time server )" \
+		   --add-entry="IMAP server address" \
+		   --add-entry="IMAP server PORT " \
+		   --add-entry="NTP server address" )
+    $(echo $Outz | sed -e 's&\([^|]*\)|\([^|]*\)|\([^|]*\)&export IMAP_SERVER="\1" export IMAP_PORT="\2" export NTP="\3"&')
+
+    echo "#$SSLpublic $SSLprivate $SMTP_SERVER $SMTP_PORT $SMTP_USE_SSL $SMTP_USE_TLS $SMTP_USERNAME $SMTP_PASSWORD $FROM_EMAIL $IMAP_SERVER $IMAP_PORT $NTP"
 else
     echo "Please give the PUBLIC SSL key PATH."
     read SSLpublic;
@@ -137,6 +212,7 @@ else
     echo "Please give your NTP server address - the time server."
     read NTP;
 fi
+SMTP_PASSWORD=$( echo $SMTP_PASSWORD | sed -e "s|\&|\\\&|g" -e 's|"||g' )
 
 sed -e "s&_SERVER_NAME_&$SERVER_NAME&" \
     -e "s&_DOMAIN_&$DOMAIN&" \
@@ -154,51 +230,53 @@ sed -e "s&_SERVER_NAME_&$SERVER_NAME&" \
     -e "s&_IMAP_PORT_&$IMAP_PORT&" \
     -i $HOME/.cache/envTiledViz
 
+echo "40"
 
+# ==========================================================
 echo "==== Start PostgreSQL ===="
 ./start_postgres
+echo "50"
 
-echo "==== Build Docker images ===="
-echo "===== build connection Docker ====="
+sleep 2
+
+echo "#==== Build Docker images ===="
+echo "#===== build connection Docker ====="
 TVConnections/build_connect
 
-echo "===== build Flask Docker ====="
+echo "60"
+
+echo "#===== build Flask Docker ====="
 TVWeb/FlaskDocker/build_flaskdock
 
+echo "70"
 
+echo "#===== build HPC images : ====="
+echo "#====== Magiea connection client ======"
 
-echo "===== build HPC images : ====="
-echo "====== Init : move postgresql dir ======"
-#mv TVDatabase/postgresql ${HOME}/tmp/postgresql_$DATE
-#ssh-keygen -t dsa -N '' -f ~/.ssh/id_dsa
-
-echo "====== Magiea connection client ======"
-# Copy HPC machine id in HPC running containers !
-# Security breach.
-# You must modify this key if it not the same server.
-#cp -p ~/.ssh/id_rsa* TVConnections/mageianvidia/ssh
-
-#docker build -t mageianvidia:latest  -f TVConnections/mageianvidia/Dockerfile .
 TVConnections/build_mageia_latest
 TVConnections/build_mageia8
 
-# echo "====== Magiea 6 ======"
-# docker build -t mageianvidia:6 -f TVConnections/mageianvidia/Dockerfile6 .
+echo "80"
 
-echo "====== Ubuntu connection client ======"
+echo "#====== Ubuntu connection client ======"
 docker build -t tileubuntu -f TVConnections/tileubuntu/Dockerfile .
 
+echo "90"
 
-echo "====== End build dockers ======"
+echo "#====== End build dockers ======"
 #mv ${HOME}/tmp/postgresql_$DATE TVDatabase/postgresql
 
 if [[ $firewallT == y ]]; then
-    echo "====== Activate FirewallT ======"
+    echo "#====== Activate FirewallT ======"
     # Capabilites pour executer python sans sudo (setcap -r pour l'enlever)
     echo "Set capabilites on python"
     sudo setcap cap_net_admin=eip $(realpath $(which python))
 fi
+echo "100"
 
 # TODO : git clone Countdown 360:
 #cd TVWeb/apps/static/dist/js
 #git clone https://github.com/johnschult/jquery.countdown360.git
+
+
+echo "# All finished."

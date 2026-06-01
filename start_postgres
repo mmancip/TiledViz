@@ -4,10 +4,10 @@ source $HOME/.cache/envTiledViz
 
 export PythonVENV=./TiledVizEnv_${DATE}
 
-echo "===== 1 List and close active containers =====" 
+echo "#===== 1 List and close active containers =====" 
 docker container ls -a --filter=name=$postgresNAME && docker container ls -a -q --filter=name=$postgresNAME |xargs docker rm -f -v
 
-echo "===== 2 PostgreSQL container ====="
+echo "#===== 2 PostgreSQL container ====="
 PostgresDock=postgres:13.21-alpine
 
 if ( ! docker images --filter "reference=${PostgresDock}" >/dev/null ); then
@@ -25,30 +25,33 @@ export POSTGRES_HOST=$(docker inspect --format '{{range .NetworkSettings.Network
 source ${PythonVENV}/bin/activate
 
 if ( $installX11 ); then
-    pathtodump=$(python3 -c "import zenipy; pathtodump=zenipy.zenipy.file_selection(title='Do you want to restore from a PostgreSQL dump file ? Please give the path to file or cancel if not : ', width=450, height=120, timeout=None); print(str(pathtodump))")
+    pathtodump=$(zenity  --width=600 --forms --title="Do you want to restore from a PostgreSQL dump file ?" \
+		   --text="Please give the path to file or empty if not" \
+		   --add-entry="Postgres Dump file : ")
 else
     echo
-    echo
-    echo "Do you want to restore from a PostgreSQL dump file ? Please give the path to file or empty string if not"
+    echo "# Do you want to restore from a PostgreSQL dump file ? Please give the path to file or empty string if not"
     read pathtodump;
 fi
+echo "35"
+
 if [ X$pathtodump == X ]; then
-    echo "===== 3 Patch TiledViz DB definition =====" 
+    echo "#===== 3 Patch TiledViz DB definition =====" 
 
     replpass=$( echo $POSTGRES_PASSWORD | sed -e "s|\&|\\\&|g" )
     sed -e "s|	ENCRYPTED PASSWORD '\(.*\)';|	ENCRYPTED PASSWORD '$replpass';|" TVDatabase/TiledViz.sql > $HOME/tmp/TiledViz.sql
     export PGPASSWORD=$POSTGRES_PASSWORD
 
-    echo "===== 4 Apply TiledViz DB definition =====" 
+    echo "#===== 4 Apply TiledViz DB definition =====" 
 
     psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f $HOME/tmp/TiledViz.sql
     rm $HOME/tmp/TiledViz.sql
 
     sleep 2
-    echo "===== 5 Apply TiledViz management functions =====" 
+    echo "#===== 5 Apply TiledViz management functions =====" 
     psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f TVDatabase/management.sql
 else
-    echo "===== 3 Restore Old DB =====" 
+    echo "#===== 3 Restore Old DB =====" 
 
     replpass=$( echo $POSTGRES_PASSWORD | sed -e "s|\&|\\\&|g" )
     #sed -e "s|	ENCRYPTED PASSWORD '\(.*\)';|	ENCRYPTED PASSWORD '$replpass';|" TVDatabase/TiledViz_role.sql > $HOME/tmp/TiledViz_role.sql
@@ -58,5 +61,7 @@ else
     psql -h ${POSTGRES_IP} -p ${POSTGRES_PORT} -U ${POSTGRES_USER} -d ${POSTGRES_DB} < $pathtodump
     #rm $pathtodump
 fi
-echo "===== 6 Build model =====" 
+echo "38"
+
+echo "#===== 6 Build model =====" 
 sqlacodegen postgresql://${POSTGRES_USER}:"${POSTGRES_PASSWORD}"@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB} --outfile=TVDatabase/TVDb/models.py

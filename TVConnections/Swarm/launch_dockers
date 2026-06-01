@@ -32,7 +32,7 @@ DOCKERsize=200
 echo "launch dockers at ${DATE}"
 
 # Nvidia or Nouveau driver
-TestNVIDIA=""
+declare -A TestNVIDIA
 
 i=1
 while [ $i -le ${NUM} ]; do

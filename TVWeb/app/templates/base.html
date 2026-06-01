@@ -30,7 +30,7 @@
 	  integrity="sha256-eZrrJcwDc/3uDhsdt61sL2oOBY362qM3lon1gyExkL0="
 	  crossorigin="anonymous" />
 
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/base.css') }}">    
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/base.css') }}">
 
     <style>
       .bd-placeholder-img {
@@ -114,7 +114,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"
 	    integrity="sha256-KM512VNnjElC30ehFwehXjx1YCHPiQkOPmqnrWtpccM="
 	    crossorigin="anonymous"></script>
-    
+
     <!-- Bootstrap -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/js/bootstrap.bundle.min.js"
 	    integrity="sha512-HvOjJrdwNpDbkGJIG2ZNqDlVqMo77qbs4Me4cah0HoDrfhrbA+8SBlZn1KrvAQw7cILLPFJvdwIgphzQmMm+Pw=="
@@ -125,10 +125,10 @@
 	crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 {% block additional_scripts_css %}{% endblock %}
 
-  
+
   <script type="text/javascript">
     autoadaptzoom = function(){
-	var P=window.devicePixelRatio;
+		var P=window.devicePixelRatio;
 	var a = (1-0.45)/(1-0.1);
 	var c = 1 - a;
 	var r=a*P + c;
@@ -142,17 +142,23 @@
 	//var zfonts=a*P+c;
 	$("select").css("width","auto");
 	$("select").css("height","auto");
-	$("option").css("font-size","inherit");
         $(".checkbox").children("label").children("input").css('-webkit-transform','scale('+Zscale+')').css('-moz-transform','scale('+1/Zscale+')');
         $(".radio").children("label").children("input").css('-webkit-transform','scale('+Zscale+')').css('-moz-transform','scale('+1/Zscale+')');
 	var a = (20-12)/(0.1-1);
 	var c = 12 -a;
-	var zfonts=a*P+c;
+	var zfonts=(a*P+c);
+    var optionFonts=1/P*zfonts;
 	$('.container').css("font-size",zfonts+"px");
 	$("select").css("font-size",zfonts+"px");
-        $('div[id^="search_"]').css("font-size",zfonts+"px");
+    $('div[id^="search_"]').css("font-size",zfonts+"px");
+    $("option").css("font-size",optionFonts+"px");
+    $(".dropdown-item").css("font-size",optionFonts+"px");
+    $('nav').css("font-size",optionFonts+"px");
+    $('.navbar-brand').css("font-size",optionFonts+"px");
+console.log(P)
     }
-  </script>		  
+
+  </script>
   </head>
 
 <body>
@@ -177,7 +183,7 @@
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" aria-expanded="false">Menu</a>
             <ul class="dropdown-menu">
-	      {% if notlogin %} 
+	      {% if notlogin %}
               <li><a class="dropdown-item" href="/login">Login</a></li>
               <li><a class="dropdown-item" href="/register">Register</a></li>
 	      {% else %}
@@ -193,7 +199,7 @@
             </ul>
           </li>
 	  {% if isadmin %}
-          
+
     <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
       Admin
   </a>
@@ -213,7 +219,7 @@
       <a class="navbar-brand" href="#Project"> {{ session["projectname"] }} {{ session["sessionname"] }} {{ session["username"] }} </a>
     </div>
   </nav>
-  {% endif %}  
+  {% endif %}
   {% block body %}{% endblock %}
 </body>
 </html>
