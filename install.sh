@@ -10,7 +10,7 @@ echo "and set installX11=true in envTiledViz on your TiledViz source root, OK ?"
 source ./envTiledViz
 
 # if asked installX11 in ./envTiledViz rerun with graphical progress bar.
-if ( $instalX11 ) & [ X"$GraphicalInstall" != Xtrue ]; then
+if ( $installX11 ) && [ X"$GraphicalInstall" != Xtrue ]; then
     export GraphicalInstall=true
     echo "Restart with graphical progression bar."
     sleep 3

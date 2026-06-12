@@ -37,7 +37,7 @@ echo "35"
 
 if [ X$pathtodump == X ]; then
     echo "#===== 3 Patch TiledViz DB definition =====" 
-
+    mkdir $HOME/tmp
     replpass=$( echo $POSTGRES_PASSWORD | sed -e "s|\&|\\\&|g" )
     sed -e "s|	ENCRYPTED PASSWORD '\(.*\)';|	ENCRYPTED PASSWORD '$replpass';|" TVDatabase/TiledViz.sql > $HOME/tmp/TiledViz.sql
     export PGPASSWORD=$POSTGRES_PASSWORD

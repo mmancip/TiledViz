@@ -114,7 +114,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"
 	    integrity="sha256-KM512VNnjElC30ehFwehXjx1YCHPiQkOPmqnrWtpccM="
 	    crossorigin="anonymous"></script>
-
+    
     <!-- Bootstrap -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/js/bootstrap.bundle.min.js"
 	    integrity="sha512-HvOjJrdwNpDbkGJIG2ZNqDlVqMo77qbs4Me4cah0HoDrfhrbA+8SBlZn1KrvAQw7cILLPFJvdwIgphzQmMm+Pw=="
@@ -128,35 +128,39 @@
 
   <script type="text/javascript">
     autoadaptzoom = function(){
-		var P=window.devicePixelRatio;
-	var a = (1-0.45)/(1-0.1);
-	var c = 1 - a;
-	var r=a*P + c;
-	var Zscale=r/P;
-	var decal=(1-P)/(1-0.1)*40
-	$('.container').css('-webkit-transform','scale('+Zscale+') translateY('+decal+'%)')
-	    .css('-moz-transform','scale('+Zscale+') translateY('+decal+'%)')
-	    .css('transform','scale('+Zscale+') translateY('+decal+'%)');
-	//var a = (50-10)/(0.1-1);
-	//var c = 10 -a;
-	//var zfonts=a*P+c;
-	$("select").css("width","auto");
-	$("select").css("height","auto");
-        $(".checkbox").children("label").children("input").css('-webkit-transform','scale('+Zscale+')').css('-moz-transform','scale('+1/Zscale+')');
-        $(".radio").children("label").children("input").css('-webkit-transform','scale('+Zscale+')').css('-moz-transform','scale('+1/Zscale+')');
-	var a = (20-12)/(0.1-1);
-	var c = 12 -a;
-	var zfonts=(a*P+c);
-    var optionFonts=1/P*zfonts;
-	$('.container').css("font-size",zfonts+"px");
-	$("select").css("font-size",zfonts+"px");
-    $('div[id^="search_"]').css("font-size",zfonts+"px");
-    $("option").css("font-size",optionFonts+"px");
-    $(".dropdown-item").css("font-size",optionFonts+"px");
-    $('nav').css("font-size",optionFonts+"px");
-    $('.navbar-brand').css("font-size",optionFonts+"px");
-console.log(P)
+      var P=window.devicePixelRatio;
+      var a = (1-0.45)/(1-0.1);
+      var c = 1 - a;
+      var r=a*P + c;
+      var Zscale=r/P;
+      var decal=(1-P)/(1-0.1)*40
+      decal = Math.max(-20, decal);
+      $('.container').css('-webkit-transform','scale('+Zscale+') translateY('+decal+'%)')
+          .css('-moz-transform','scale('+Zscale+') translateY('+decal+'%)')
+          .css('transform','scale('+Zscale+') translateY('+decal+'%)');
+      //var a = (50-10)/(0.1-1);
+      //var c = 10 -a;
+      //var zfonts=a*P+c;
+      $("select").css("width","auto");
+      $("select").css("height","auto");
+      $(".checkbox").children("label").children("input").css('-webkit-transform','scale('+Zscale+')').css('-moz-transform','scale('+1/Zscale+')');
+      $(".radio").children("label").children("input").css('-webkit-transform','scale('+Zscale+')').css('-moz-transform','scale('+1/Zscale+')');
+      var a = (20-12)/(0.1-1);
+      var c = 12 -a;
+      var zfonts=(a*P+c);
+      zfonts = Math.max(12, zfonts);
+      var optionFonts=1/P*zfonts;
+      optionFonts = Math.max(12, optionFonts);
+      $('.container').css("font-size",zfonts+"px");
+      $("select").css("font-size",zfonts+"px");
+      $('div[id^="search_"]').css("font-size",zfonts+"px");
+      $("option").css("font-size",optionFonts+"px");
+      $(".dropdown-item").css("font-size",optionFonts+"px");
+      $('nav').css("font-size",optionFonts+"px");
+      $('.navbar-brand').css("font-size",optionFonts+"px");
+      console.log(P)
     }
+
 
   </script>
   </head>
@@ -199,7 +203,7 @@ console.log(P)
             </ul>
           </li>
 	  {% if isadmin %}
-
+          
     <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
       Admin
   </a>

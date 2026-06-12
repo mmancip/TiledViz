@@ -3,4 +3,6 @@ date +%F_%H-%M-%S
 mv TVDatabase/postgresql $HOME/tmp
 docker build -t mageiaconnect -f TVConnections/mageianconnect/DockerfileUpdateTileServer .
 mv $HOME/tmp/postgresql  TVDatabase
+docker inspect mageiaconnect:latest |grep Created
+ls -la TVConnections/TVConnection.py TVConnections/TileServer.py
 date +%F_%H-%M-%S

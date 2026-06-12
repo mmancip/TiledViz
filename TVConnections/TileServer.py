@@ -54,14 +54,34 @@ TSthreads={}
 
 # Tile Management
 class TileConnection:
-    def __init__(self, TSserver, TileSetName, id, container, password):
+    def __init__(self, TSserver, TileSetName, id, container, password, TileSetPort):
         self.TSserver=TSserver
         self.TileSetName=TileSetName
         self.Id=id
         self.ids=(container, password)
+        self.TileSetPort=TileSetPort
         self.laststate=False
         self.lastval=255
         serverLogger.warning("New connection : serveur %s TS %s id %d properties %s ." % (str(self.TSserver),self.TileSetName,self.Id,str(self.ids)))
+
+    def remove(self):
+        serverLogger.warning(f"remove Tile {self.TSserver} {self.TileSetName} {self.Id} {self.ids} {self.TileSetPort} {self.laststate} {self.lastval}")
+        DelCOMMAND=f"nohup bash -c 'PID=$$; Displ=$(head -1 $HOME/.vnc/out_Client* | sed -e \"s&.*:\\([0-9]*\\)&:\\1&\"); '"+\
+            f"'locPORT=$(grep \"ssh -x.*{self.TileSetPort}\" $HOME/.vnc/out_Client* |head -1 |sed -e \"s&.* \\([0-9]*\\):localhost.*&\\1&\") ; '"+\
+            f"'pgrep -f $locPORT |grep -v $PID |xargs kill; '"+\
+            f"'pgrep -f \" $Displ \"  |grep -v $PID |xargs kill ; '"+\
+            f"'pgrep -f \"{self.Id}.*{self.TileSetPort}\"  |grep -v $PID |xargs kill; sleep 1; '"+\
+            f"'rm -rf $HOME/.vnc/*; '"+\
+            f"''"
+            # f"'OUT=$HOME/.vnc/del_$(date +%F_%H-%M-%S); touch $OUT; echo $PID Remove Tile $Displ $locPORT >> $OUT ; '"+\
+            # f"'pgrep -fa $locPORT |grep -v $PID >> $OUT; echo 1 >> $OUT; pgrep -fa \" $Displ \" |grep -v $PID >> $OUT; echo 2 >> $OUT; pgrep -fa \"{self.Id}.*{self.TileSetPort}\" |grep -v $PID >> $OUT ; echo 3 >> $OUT; '"+\
+            # f"'ls -al $HOME/.vnc/* >> $OUT; echo ------ >> $OUT; '"+\
+            # f"'echo 1 >> $OUT; '"+\
+            # f"'echo 2 >> $OUT; '"+\
+            # f"'echo 3 >> $OUT; '"+\
+            # f"'echo 4 >> $OUT; '"+\
+        serverLogger.warning(f"del COMMAND {DelCOMMAND}")
+        self.execute(DelCOMMAND)
 
     def get_laststate(self):
         if (self.laststate):
@@ -72,10 +92,10 @@ class TileConnection:
     def execute(self,command):
         self.laststate=False
         ExecuteMsg="execute "+command
-        serverLogger.debug("in tile command "+ExecuteMsg)
+        serverLogger.debug(f"in tile {self.TileSetName} {self.Id} command {ExecuteMsg}")
         self.TSserver.send_client(self.Id,ExecuteMsg)
         RET=self.TSserver.get_OK(self.Id)
-        serverLogger.debug("in tile command return "+str(RET))
+        serverLogger.debug(f"in tile {self.TileSetName} {self.Id} command return {RET}")
         self.lastval=RET
         self.laststate=True
 
@@ -96,17 +116,29 @@ class TilesSet(threading.Thread):
         self.laststate=False
         self.lastval=255
 
-    def __del__(self):
-        # !! Must have kill tiles before !!
+    def remove(self):
+        serverLogger.warning(f"Remove TileSet {self.TileSetName}, thread {self.thread} and id {self.id}")
         for tileconnection in self.ListClient:
+            serverLogger.warning(f"Remove tile {tileconnection[0]}")
+            tileconnection[0].remove()
             del tileconnection
+        serverLogger.warning(f"Remove Thread {TSthreads[self.TileSetName]}")
         del TSthreads[self.TileSetName]
-        serverLogger.warning("Remove TileSet "+self.TileSetName
-              +" , thread "+str(self.thread)
-              +" and id "+str(self.id))
         #self.thread.stop()
         self._alive.remove(self)
-        
+
+    def removeTile(self,Id):
+        serverLogger.warning(f"Remove Tile {Id} in TileSet {self.TileSetName} ( thread {self.thread} and id {self.id} )")
+        i=0
+        for tileconnection in self.ListClient:
+            if(tileconnection[0].Id == Id):
+                serverLogger.warning(f"Remove tile {tileconnection[0]}")
+                tileconnection[0].remove()
+                del tileconnection
+                self.ListClient.pop(i)
+            else:
+                i=i+1
+                
     def run(self, TileSetName, Nb):
         # Launch TileSet ??
 
@@ -168,7 +200,7 @@ class TilesSet(threading.Thread):
                     (container, password) = data.split(':')
 
                     # Get back error for each send ? 
-                    thisTile=TileConnection(TSconnect, TileSetName, id, container, password)
+                    thisTile=TileConnection(TSconnect, TileSetName, id, container, password, self.TileSetPort)
                     self.ListClient.append((thisTile, self, TileSetName, id, container, password))
                     # Get Tile properties + password !!
                     # thisTile.properties()
@@ -362,12 +394,25 @@ class ClientConnect(threading.Thread):
                 TSName=p.sub(r'\1',CommandRecv)
                 serverLogger.warning('Receive remove command for TileSet "'+TSName+'".')
                 outHandler.flush()
-                
-                del self.TileSets[TSName]
+
+                serverLogger.warning(f"del TileSet {self.TileSets[TSName]} {self.id}")
+
+                self.TileSets[TSName].remove()
+                outHandler.flush()
                 self.Connect.close(self.id)
+                outHandler.flush()
                 #self.thread.stop()
                 self._alive.remove(self)
                 return
+                
+            elif (re.search(r'remove TTile',CommandRecv)):
+                p=re.compile(r'remove TTile=(\w*) Tiles=(\w*) ')
+                TSName=p.sub(r'\1',CommandRecv)
+                TileId=p.sub(r'\2',CommandRecv)
+                serverLogger.warning(f'Receive remove command for Tile {TileId} in Set {TSName}.')
+                outHandler.flush()
+                self.TileSets[TSName].removeTile(Id)
+
                 
             elif (re.search(r'execute all',CommandRecv)):
                 p=re.compile(r'execute all (.*)')

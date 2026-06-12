@@ -5111,6 +5111,7 @@ def handle_invite_link_request(cdata):
         client_type = "passive"
         
     try:
+        DEFAULT_URL=os.getenv("SERVER_NAME")+"."+os.getenv("DOMAIN")
         print(DEFAULT_URL)
     except:
         DEFAULT_URL = "0.0.0.0:5000"

@@ -362,7 +362,7 @@ def BuildEditsessionform(oldsession, session, edit=True):
     printstr="{0:\xa0<20.20}\xa0|\xa0{1:\xa0<18.18}"
     ListAllUsers_ThisSession=[('NoChoice',printstr.format("User name","role"))]
     for user in myUsers:
-        for projm in user.project_members_:
+        for projm in user.project_members_user:
             if projm.project_id == myproject.id:
                 ListAllUsers_ThisSession.append((user.id,printstr.format(user.name,projm.role_type)))
     labelUsers='All users in this session and their roles : '

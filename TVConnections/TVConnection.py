@@ -268,16 +268,10 @@ def replaceconf(x):
         
 def kill_all_containers():
     stateVM=True
-    client.send_server(LaunchTS+" "+COMMANDStop)
-    print("Out of COMMANDStop.")
-    sys.stdout.flush()
-    # state=client.get_OK()
-    # print("Out of COMMANDStop : "+ str(state))
-    # stateVM=(state == 0)
-    # client.send_server(ExecuteTS+' killall -9 Xvfb')
-    # state=client.get_OK()
-    # print("Out of killall command : "+ str(state))
-    time.sleep(2)
+    #client.send_server(LaunchTS+" "+COMMANDStop)
+    #print("Out of COMMANDStop.")
+    #sys.stdout.flush()
+    #time.sleep(2)
     Remove_TileSet()
     return stateVM
         
