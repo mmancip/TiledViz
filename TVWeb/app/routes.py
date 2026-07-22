@@ -2,7 +2,9 @@
 
 # routes are defined here, then imported in __init__.py
 
-from flask import render_template, flash, redirect, session, request, jsonify, make_response, url_for, Response
+from flask import render_template, flash, redirect, session, request, jsonify, make_response, url_for, Response, Flask
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 import markupsafe
 
 import sqlalchemy
@@ -21,7 +23,7 @@ from app import app, socketio, db
 from app.forms import BuildRegisterForm, BuildLoginForm, Build2FAForm, BuildNewProjectForm, BuildAllProjectSessionForm, BuildOldProjectForm, BuildNewSessionForm, BuildTilesSetForm, BuildEditsessionform, BuildOldTileSetForm, BuildConfigSessionForm, BuildConnectionsForm, BuildRetreiveSessionForm, BuildAdminForm
 
 # Import email utilities
-from app.email_utils import generate_verification_token, send_verification_email, verify_token, delete_sent_email, generate_verification_code, send_2FAcode_email
+from app.email_utils import generate_verification_token, send_verification_email, verify_token, delete_sent_email, generate_verification_code, send_2FAcode_email, send_new_register_email
 
 import app.models as models # DB management
 import json, os, pprint
@@ -61,17 +63,76 @@ logging.debug("Flask Route start app config : "+str(app.config))
 sys.path.append(os.path.abspath('app'))
 from Anatreada import anatreada
 
-# Time sleep for waiting loops in seconds : 
-timeAlive=5
 
-# Time for create and start connections in seconds
-TimeConnection=30
+# Read config file
+TVrunDir='/.tiledviz'
+TVconf=TVrunDir+"/tiledviz.conf"
+configExist=False
+if (os.path.isdir(TVrunDir)):
+    if (os.path.isfile(TVconf)):
+        configExist=True
+else:
+    os.mkdir(TVrunDir)
+    mode = os.stat(TVrunDir).st_mode
+    mode -= (mode & (stat.S_IRWXG | stat.S_IRWXO))
+    os.chmod(TVrunDir,mode)
+    
+if (configExist):
+    TVconfig = configparser.ConfigParser()
+    TVconfig.optionxform = str
+    TVconfig.read(TVconf)
 
-# Boolean for admin page :
-really_delete=True
+    # defaut access to HPC frontend ('ssh' for direct ssh or 'rebound' to use one or more gateways) 
+    authchoice=json.loads(TVconfig['TVWeb']['AuthChoice'])
 
-# Link expired duree in seconds
-LinkExpiredAfterSec=240
+    # Time sleep for waiting loops in seconds : 
+    timeAlive=int(TVconfig['TVWeb']['timeAlive'])
+
+    # Time for create and start connections in seconds
+    TimeConnection=int(TVconfig['TVWeb']['TimeConnection'])
+
+    # Boolean for admin page :
+    really_delete=json.loads(TVconfig['TVWeb']['really_delete'].lower())
+
+    # Link expired duree in seconds
+    LinkExpiredAfterSec=int(TVconfig['TVWeb']['LinkExpiredAfterSec'])
+
+    # Global rate limit for all pages
+    GlobalRateLimit=json.loads(TVconfig['TVWeb']['GlobalRateLimit'])
+
+    # More vulnerable pages rate limit (register, login)
+    VulnerableRateLimit=json.loads(TVconfig['TVWeb']['VulnerableRateLimit'])
+
+else:
+    # defaut access to HPC frontend ('ssh' for direct ssh or 'rebound' to use one or more gateways) 
+    authchoice='ssh'
+
+    # Time sleep for waiting loops in seconds : 
+    timeAlive=5
+
+    # Time for create and start connections in seconds
+    TimeConnection=30
+
+    # Boolean for admin page :
+    really_delete=True
+
+    # Link expired duree in seconds
+    LinkExpiredAfterSec=240
+
+    # Global rate limit for all pages
+    GlobalRateLimit=["200 per day", "50 per hour"]
+
+    # More vulnerable pages rate limit (register, login)
+    VulnerableRateLimit="15/hour;5/minute;1/second"
+
+
+# Rate Limit
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=GlobalRateLimit,
+    storage_uri="memory://",
+)
 
 # A global list for roles in projects
 valid_roles = ['owner', 'editor', 'viewer']
@@ -666,7 +727,7 @@ def create_newsession(sessionname, description, projectid, oldusers):
                                 id_projects=projectid,
                                 creation_date=creation_date)
 
-    exist=db.session.query(models.Sessions.id).filter_by(name=sessionname).scalar() is not None
+    exist=db.session.query(models.Sessions.id).filter(models.Sessions.name.like(sessionname)).first() is not None
 
     if (not exist):
         lastsession=db.session.query(models.Sessions.id).order_by(models.Sessions.id.desc()).first()
@@ -689,7 +750,7 @@ def create_newsession(sessionname, description, projectid, oldusers):
             else:
                 logging.error(f"Failed to fix session inconsistencies: {fix_message}")
     else:
-        newsession=db.session.query(models.Sessions).filter_by(name=sessionname).one()
+        newsession=db.session.query(models.Sessions).filter(models.Sessions.name.like(sessionname)).one()
         
     session["sessionname"]=str(sessionname)
             
@@ -934,7 +995,7 @@ def launch_connection(theTS, theConnect, myhost_address, myauth_type, mycontaine
 # Define new session
 def save_session(oldsessionname, newsuffix, newdescription, alltiles):
     creation_date=datetime.datetime.now()
-    oldsession=db.session.query(models.Sessions).filter_by(name=oldsessionname).one()
+    oldsession=db.session.query(models.Sessions).filter(models.Sessions.name.like(oldsessionname)).one()
     projectid=oldsession.id_projects
     # TODO : max length of Session.name (=80) ?
     # mais parent with date may be too long
@@ -1232,6 +1293,7 @@ def index():
 # ====================================================================
 # Register
 @app.route('/register', methods=["GET", "POST"])
+@limiter.limit(VulnerableRateLimit, methods=["POST"])
 def register():
     showlogin=False
     showexist=False
@@ -1343,6 +1405,24 @@ def register():
                 username=myusername,
                 token=token
             )
+
+            try:
+                # Query all admins
+                admin_records = db.session.query(models.Users.mail).filter_by(is_admin=True).all()
+                admin_emails = [record.mail for record in admin_records if record.mail]
+
+                if admin_emails:
+                    logging.info(f"Sending registration alert to {len(admin_emails)} admins.")
+                    send_new_register_email(
+                        admin_emails=admin_emails,
+                        username=str(myusername),
+                        creation_date=str(creation_date),
+                        user_email=str(myform.email.data),
+                        user_company=str(myform.compagny.data),
+                        user_manager=str(myform.manager.data)
+                    )
+            except Exception as e:
+                logging.error(f"Failed to fetch admins or send admin notification: {e}")
             
             if email_sent:
                 logging.warning("Verification email sent to {}".format(myform.email.data))
@@ -1397,6 +1477,7 @@ def register():
 
 # OR Login
 @app.route('/login', methods=["GET", "POST"])
+@limiter.limit(VulnerableRateLimit, methods=["POST"])
 def login():
     if ("username" not in session):
         session["username"] = "Anonymous"
@@ -2235,15 +2316,24 @@ def allmysessions():
     listmyprojectssession.append(('NoChoice',printstr.format("Project name","Session name","Date and Time","Description")))
     listmysession=[]
     for thissessions in mysessions:
-            
         for thissession in thissessions[1]:
             listmysession.append(thissession)
-            thedate="1970-01-01"
+            dbSession=db.session.query(models.Sessions).filter(models.Sessions.name.like(thissession)).first()
+            logging.debug(f"Session : {thissession} {dbSession}")
             try:
-                thedate=db.session.query(models.Sessions.creation_date).filter_by(name=str(thissession)).scalar().isoformat().replace("T"," ")
+                logging.debug(f"        :               {dbSession.name}")
+                thedate=dbSession.creation_date.isoformat().replace("T"," ")
             except:
+                logging.debug(f"Error date session {thissession}")
+                thedate="1972-08-05"
                 pass
-            SessDesc=db.session.query(models.Sessions).filter_by(name=thissession).scalar().description
+            try:
+                SessDesc=dbSession.description
+            except:
+                logging.debug(f"Error desc session {thissession}")
+                SessDesc="Unknown"
+                pass
+
             listmyprojectssession.append(
                 (str(thissession),printstr.
                  format(str(thissessions[0]),
@@ -2259,14 +2349,22 @@ def allmysessions():
     printstr="{0:\xa0<"+sessionl+"."+sessionl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"        
     listsessions.append(('NoChoice',printstr.format("Session name","Date and Time","Description")))
     for thissession in invite_sessions:
-        logging.debug("Build listsessions for invite_session "+str(thissession.name))
         if (thissession.name not in listmysession):
-            thedate="1970-01-01"
+            dbSession=db.session.query(models.Sessions).filter(models.Sessions.name.like(thissession.name)).first()
+            logging.debug(f"iSession : {thissession} {dbSession}")
             try:
-                thedate=db.session.query(models.Sessions.creation_date).filter_by(name=thissession.name).scalar().isoformat().replace("T"," ")
+                logging.debug(f"        :               {dbSession.name}")
+                thedate=dbSession.creation_date.isoformat().replace("T"," ")
             except:
+                logging.debug(f"Error date invited session {thissession}")
+                thedate="1972-08-05"
                 pass
-            SessDesc=db.session.query(models.Sessions).filter_by(name=thissession.name).scalar().description
+            try:
+                SessDesc=dbSession.description
+            except:
+                logging.debug(f"Error desc invited session {thissession}")
+                SessDesc="Unknown"
+                pass
             listsessions.append(
                 (str(thissession.name),printstr.
                  format(str(thissession.name),
@@ -2308,10 +2406,10 @@ def allmysessions():
                   "You must choose a session in your projects or one you were invited on.")
             return redirect("/allsessions")
             
-        logging.debug("Which is session "+str(db.session.query(models.Sessions.id).filter_by(name=session["sessionname"]).scalar()))
-        its_project_id=db.session.query(models.Sessions).filter_by(name=session["sessionname"]).scalar().id_projects
+        logging.warning("Which is session "+str(db.session.query(models.Sessions.id).filter(models.Sessions.name.like(f'{session["sessionname"]}')).first()))
+        its_project_id=db.session.query(models.Sessions).filter(models.Sessions.name.like(f'{session["sessionname"]}')).first().id_projects
         session["projectname"]=db.session.query(models.Projects).filter_by(id=its_project_id).scalar().name
-        logging.debug("And have project id "+str(its_project_id)+" which is "+str(session["projectname"]))
+        logging.warning("And have project id "+str(its_project_id)+" which is "+str(session["projectname"]))
         session["is_client_active"]=True
         if(myform.edit.data):
             # Back-end guard: only owner/admin/editor may access edit view
@@ -2495,7 +2593,7 @@ def copysession():
 
     message=json.loads(request.args["message"])
     oldsessionname=message["oldsessionname"]
-    oldsession = db.session.query(models.Sessions).filter_by(name=oldsessionname).scalar()    
+    oldsession = db.session.query(models.Sessions).filter(models.Sessions.name.like(oldsessionname)).first()    
     # Permission: only owner may manage members (add users)
     try:
         current_user_obj = db.session.query(models.Users).filter_by(name=session["username"]).first()
@@ -2612,7 +2710,7 @@ def editsession():
         
     message=json.loads(request.args["message"])
     oldsessionname=message["oldsessionname"]
-    oldsession = db.session.query(models.Sessions).filter_by(name=oldsessionname).scalar()    
+    oldsession = db.session.query(models.Sessions).filter(models.Sessions.name.like(oldsessionname)).first()    
     # Permission: only owner may manage members (add users)
     try:
         current_user_obj = db.session.query(models.Users).filter_by(name=session["username"]).first()
@@ -2809,7 +2907,7 @@ def editnodes():
 
     message=json.loads(request.args["message"])
     oldsessionname=message["oldsessionname"]
-    ThisSession = db.session.query(models.Sessions).filter_by(name=oldsessionname).scalar()    
+    ThisSession = db.session.query(models.Sessions).filter(models.Sessions.name.like(oldsessionnam)).first()    
 
     # Permissions: only owner/editor can edit nodes
     try:
@@ -2901,7 +2999,7 @@ def searchtileset():
         message=json.loads(request.args["message"].replace("'", '"'))
 
     oldsessionname=message["oldsessionname"]
-    oldsession = db.session.query(models.Sessions).filter_by(name=oldsessionname).scalar()    
+    oldsession = db.session.query(models.Sessions).filter(models.Sessions.name.like(oldsessionname)).first()    
 
 
     # Guard: edit permission required on owning project to add tilesets from search
@@ -2965,7 +3063,7 @@ def configsession():
     message=json.loads(request.args["message"])
 
     sessionname=message["sessionname"]
-    thesession = db.session.query(models.Sessions).filter_by(name=sessionname).scalar()
+    thesession = db.session.query(models.Sessions).filter(models.Sessions.name.like(sessionname)).first()
 
     # Detect how the data of config has been inserted :        
     if ( session["sessionname"] in  jsontransfert):
@@ -3046,7 +3144,7 @@ def addtileset():
 
     # Guard: user must be allowed to edit the project owning the session
     try:
-        ThisSession = db.session.query(models.Sessions).filter_by(name=session["sessionname"]).first()
+        ThisSession = db.session.query(models.Sessions).filter(models.Sessions.name.like(session["sessionname"])).first()
         user_id=get_user_id("AddTileSetPerm",session["username"])
         if not ThisSession or not can_manage_project(ThisSession.id_projects, user_id):
             flash("You don't have permission to add tilesets in this project.")
@@ -3103,7 +3201,7 @@ def addtileset():
             connectionbool=True
 
         #print(session["sessionname"])
-        conn_session=db.session.query(models.Sessions).filter_by(name=session["sessionname"]).scalar()
+        conn_session=db.session.query(models.Sessions).filter(models.Sessions.name.like(session["sessionname"])).first()
         creation_date=datetime.datetime.now()
         tilesetname=myform.name.data
         if ( myform.dataset_path.data ):
@@ -3211,7 +3309,7 @@ def copytileset():
 
     # Guard: edit permission required on owning project
     try:
-        ThisSession = db.session.query(models.Sessions).filter_by(name=session["sessionname"]).first()
+        ThisSession = db.session.query(models.Sessions).filter(models.Sessions.name(session["sessionname"])).first()
         user_id=get_user_id("CopyTileSetPerm",session["username"])
         if not ThisSession or not can_manage_project(ThisSession.id_projects, user_id):
             flash("You don't have permission to copy tilesets in this project.")
@@ -3239,7 +3337,7 @@ def copytileset():
 
         nbr_of_tiles = len(oldtileset.tiles)
         
-        sessioncopy=db.session.query(models.Sessions).filter_by(name=session["sessionname"]).scalar()
+        sessioncopy=db.session.query(models.Sessions).filter_by(models.Sessions.name.like(session["sessionname"])).scalar()
         creation_date=datetime.datetime.now()
         tilesetname=myform.name.data
         newtileset, exist=create_newtileset(myform.name.data, sessioncopy, oldtileset.type_of_tiles, oldtileset.Dataset_path, creation_date)
@@ -3395,7 +3493,7 @@ def edittileset():
     # TODO : test if user is in a session with this tileset
     # Guard: edit permission required on owning project
     try:
-        ThisSession = db.session.query(models.Sessions).filter_by(name=session["sessionname"]).first()
+        ThisSession = db.session.query(models.Sessions).filter(models.Sessions.name.like(session["sessionname"])).first()
         user_id=get_user_id("EditTileSetPerm",session["username"])
         if not ThisSession or not can_manage_project(ThisSession.id_projects, user_id):
             flash("You don't have permission to edit tilesets in this project.")
@@ -3853,7 +3951,7 @@ def vncconnection():
 @app.route('/addconnection', methods=["GET", "POST"])
 def addconnection():
     global TimeConnection
-    
+
     if ("username" in session):
         if (session["username"] == "Anonymous"):
             return redirect("/login")
@@ -3861,16 +3959,20 @@ def addconnection():
         flash("Add connection : User must login !")
         return redirect("/login")
 
-    myform = BuildConnectionsForm()()
+    User = db.session.query(models.Users).filter_by(name=session["username"]).one()
+    
+    logging.warning(f"authchoices before {authchoice}")
+    myform = BuildConnectionsForm(is_admin=User.is_admin,authchoice=authchoice)()
+
     print('message=',str(request.args["message"]))
     message=json.loads(request.args["message"])
     message["TimeConnection"]=TimeConnection
-    
+
     logging.debug("ConnectionForm built."+str(message))
 
     # Guard: edit permission required on owning project
     try:
-        ThisSession = db.session.query(models.Sessions).filter_by(name=session.get("sessionname")).first()
+        ThisSession = db.session.query(models.Sessions).filter(models.Sessions.name.like(session["sessionname"])).first()
         user_id=get_user_id("AddConnectionPerm",session["username"])
         if not ThisSession or not can_manage_project(ThisSession.id_projects, user_id):
             flash("You don't have permission to manage connections in this project.")
@@ -3878,7 +3980,7 @@ def addconnection():
     except Exception:
         flash("Unable to validate permissions for connection management.")
         return redirect("/allsessions")
-    
+
     if myform.validate_on_submit():
         logging.info("in addconnection")
 
@@ -3887,7 +3989,7 @@ def addconnection():
         # test validity of data with s.encode('ascii') and except UnicodeDecodeError:
         #myform.host_address.data myform.auth_type.data myform.container.data ?
 
-        
+
         logging.info(str(session["username"])+" "+str(myform.host_address.data)+"  "+str(myform.auth_type.data)+"  "+str(myform.container.data))
 
         creation_date=datetime.datetime.now()
@@ -3905,7 +4007,7 @@ def addconnection():
                     return
             except:
                 return
-        
+
         if (myform.scheduler_file.data):
             scheduler_filename=myform.scheduler_file.data.filename
         else:
@@ -3955,7 +4057,7 @@ def addconnection():
             for FileS in jsontransfert[TStmpName]:
                 tf = tempfile.NamedTemporaryFile(mode="w+b",dir=connectionpath,prefix="",delete=False)
                 tf.write(jsontransfert[TStmpName][FileS])
-                # TODO : Add dir ? 
+                # TODO : Add dir ?
                 TSConfigjson[FileS]=tf.name
                 tf.close()
             # for FileS in jsontransfert[TStmpName]:
@@ -3969,9 +4071,9 @@ def addconnection():
                 logging.warning("Config files File : %s " % (str(FileS)))
                 tf = tempfile.NamedTemporaryFile(mode="w+b",dir=connectionpath,prefix="",delete=False)
                 tf.write(FileS.read())
-                # TODO : Add dir (in JOBPath on HPC machine) info for files ? 
+                # TODO : Add dir (in JOBPath on HPC machine) info for files ?
                 ConnConfigjson[FileS.filename]=tf.name
-                tf.close() 
+                tf.close()
 
         # if (myform.configfiles.data):
         #     for FileS in myform.configfiles.data:
@@ -3981,7 +4083,7 @@ def addconnection():
         #             logging.error("Config file : %s " % (FileS))
         #             tf = tempfile.NamedTemporaryFile(mode="w+b",dir=connectionpath,prefix="",delete=False)
         #             tf.write(myform.configfiles.data[FileS].read())
-        #             # TODO : Add dir (in JOBPath on HPC machine) info for files ? 
+        #             # TODO : Add dir (in JOBPath on HPC machine) info for files ?
         #             ConnConfigjson[FileS]=tf.name
         #             tf.close()
         #         else:
@@ -4008,13 +4110,13 @@ def addconnection():
         db.session.commit()
 
         deb=(myform.debug.data & 1 | 0)
-        
+
         passpath="/home/connect"+str(newConnection.id)+"/vncpassword"
         logging.warning("Go to vnc with path "+passpath)
 
         config = configparser.ConfigParser()
         config.optionxform = str
-        
+
         if ( "config.tar" in newtileset.config_files ):
             tar_config_file=tarfile.TarFile(name=newtileset.config_files["config.tar"],mode='r')
             tar_config_file.list()
@@ -4036,7 +4138,7 @@ def addconnection():
                 strerror="Error getting number of tiles from case_config.ini before connection : "+str(err)
                 logging.error(strerror)
                 nbtiles=0
-        
+
         logging.warning("addconnection: "
                         +str(session["username"])+" ; "
                         +str(myform.host_address.data)+" ; "
@@ -4062,8 +4164,8 @@ def addconnection():
                 return redirect(url_for(".edittileset",message=message))
             count=count+1
             #logging.warning("addconnection count : "+str(count))
-            
-            # GET VNC password in 
+
+            # GET VNC password in
             # security problem here if server is attacked ?
             time.sleep(timeAlive)
             #os.system("ls -la "+passpath)
@@ -4085,7 +4187,7 @@ def addconnection():
                 #TODO logging.debug
                 myflush()
                 return redirect(url_for(".vncconnection",message=message))
-        
+
     return render_template("addconnection.html", **(myrender()), title="Add new Connection TiledViz", form=myform, message=message)
 
 # Edit old Connection related to a tileset
@@ -4102,7 +4204,7 @@ def editconnection():
 
     # Guard: edit permission required on owning project
     try:
-        ThisSession = db.session.query(models.Sessions).filter_by(name=session.get("sessionname")).first()
+        ThisSession = db.session.query(models.Sessions).filter(models.Sessions.name.like(session["sessionname"])).first()
         user_id=get_user_id("EditConnectionPerm",session["username"])
         if not ThisSession or not can_manage_project(ThisSession.id_projects, user_id):
             flash("You don't have permission to edit connections in this project.")
@@ -4154,7 +4256,10 @@ def editconnection():
         flash("Error direct connection to shell.")
 
         
-    myform = BuildConnectionsForm(oldconnection)()
+    User = db.session.query(models.Users).filter_by(name=session["username"]).one()
+    
+    myform = BuildConnectionsForm(is_admin=User.is_admin,oldconnection=oldconnection)()
+
     logging.debug("ConnectionForm edit."+str(message))
     if myform.validate_on_submit():
         logging.info("in editconnection")
@@ -4396,7 +4501,7 @@ def show_grid():
         pass
 
     # Build Session
-    ThisSession=db.session.query(models.Sessions).filter(models.Sessions.name == session["sessionname"]).first()
+    ThisSession=db.session.query(models.Sessions).filter(models.Sessions.name.like(session["sessionname"])).first()
 
     # Test if session is empty
     if (len(ThisSession.tile_sets) == 0):
@@ -4666,7 +4771,7 @@ def shareConfig(cdata):
         configJson=json.loads(cdata["Config"].replace("'", '"'));
         logging.info("Config: "+str(configJson))
         oldsessionname=session["sessionname"]
-        ThisSession = db.session.query(models.Sessions).filter_by(name=oldsessionname).scalar()    
+        ThisSession = db.session.query(models.Sessions).filter(models.Sessions.name.like(oldsessionname)).first()    
         oldconfig=ThisSession.config
         # Update modified config
         for section in configJson:
@@ -4800,7 +4905,7 @@ def ClickAction(cdata):
         logfun("actionid %d" % (actionid))
         myflush()
         if (actionid == 0):
-            ThisSession=db.session.query(models.Sessions).filter(models.Sessions.name == session["sessionname"]).first()
+            ThisSession=db.session.query(models.Sessions).filter(models.Sessions.name.like(session["sessionname"])).first()
             # save old nodes.json before get new
             out_nodes_json = os.path.join("/TiledViz/TVFiles", str(oldconnection.id_users), str(oldconnection.id),"nodes.json")
             mvDATE=datetime.datetime.now().isoformat().replace(":","-")
@@ -4839,7 +4944,7 @@ def ClickAction(cdata):
             try:
                 logging.warning("Update nodes for session %s" % (session["sessionname"]))
                 myflush()
-                ThisSession=db.session.query(models.Sessions).filter(models.Sessions.name == session["sessionname"]).first()
+                ThisSession=db.session.query(models.Sessions).filter(models.Sessions.name.like(session["sessionname"])).first()
                 # action0 == get new nodes.json file
                 time.sleep(timeAlive)
                 
@@ -5058,7 +5163,7 @@ def handle_invite_link_request(cdata):
         return
     
     # Get session and project
-    session_obj = db.session.query(models.Sessions).filter_by(name=session["sessionname"]).first()
+    session_obj = db.session.query(models.Sessions).filter(models.Sessions.name.like(session["sessionname"])).first()
     if not session_obj:
         socketio.emit("get_link_back", {"error": "Session not found"}, room=croom)
         return
@@ -5150,7 +5255,7 @@ def handle_invite_link_request(cdata):
             creation_date=datetime.datetime.now(),
             max_uses=max_uses,
             use_count=0,
-            id_sessions=db.session.query(models.Sessions.id).filter_by(name=session["sessionname"]).scalar(),
+            id_sessions=db.session.query(models.Sessions.id).filter(models.Sessions.name.like(session["sessionname"])).scalar(),
             id_users=invitee.id if is_new_client_active else None
         )
         db.session.add(invite_link)
@@ -5283,34 +5388,34 @@ def handle_join_with_invite_link(link):
 
 # ====================================================================
 # Error management
-@app.route('/400')
-def bad_request():
-    flash("Your cookie has expired. Please go back and update page.")
+@app.errorhandler(400)
+def bad_request(e):
     logging.error("Bad request or cookie expired for user "+str(session["username"]))
-    return redirect(url_for(".index"))
+    return render_template('error_pages/400.html'), 400
 
-@app.route('/502')
-def bad_req():
-    flash("Your cookie has expired. Please go back and update page.")
+@app.errorhandler(502)
+def bad_req(e):
     logging.error("Cookie expired for user "+str(session["username"]))
-    return redirect(url_for(".index"))
+    return render_template('error_pages/502.html'), 502
 
-@app.route('/504')
-def bad_connect():
-    flash("An error has occured with TiledViz. We are really sorry about this.\n Your connection has never reached the connection machine. Please try again with a new connection.")
+@app.errorhandler(504)
+def bad_connect(e):
     logging.error("Error of TVSecure for user "+str(session["username"]))
-    return redirect(url_for(".index"))
+    return render_template('error_pages/504.html'), 504
 
 
-@app.route('/404')
-def not_found():
-    return "Unknown page. Please modify your address."
+@app.errorhandler(404)
+def not_found(e):
+    return render_template('error_pages/404.html'), 404
 
-@app.route('/500')
-def TVerror():
-    flash("An error has occured with TiledViz. We are really sorry about this.\n Please try to keep your history of actions and send them to TiledViz developpers.")
+@app.errorhandler(429)
+def not_found(e):
+    return render_template('error_pages/429.html'), 429
+
+@app.errorhandler(500)
+def TVerror(e):
     logging.error("Error with TiledViz for user "+str(session["username"]))
-    return redirect(url_for(".index"))
+    return render_template('error_pages/500.html'), 500
 
 # # Proxy VNC
 # # Thank's to https://stackoverflow.com/posts/36601467/revisions

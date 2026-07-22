@@ -221,7 +221,6 @@ def BuildAllProjectSessionForm(list_myprojects_sessions,list_invite_sessions):
     AllProjectSessionForm.submit = SubmitField("Next step")
     return AllProjectSessionForm
 
-# TODO
 
 def BuildOldProjectForm(thisproject,listsessions, session):
     class OldProjectForm(FlaskForm):
@@ -499,13 +498,13 @@ def BuildTilesSetForm(oldtileset=None,json_tiles_text=None,onlycopy=False,editco
     return TilesSetForm
 
 
-def BuildConnectionsForm(oldconnection=None,json_tiles_text=None):
+def BuildConnectionsForm(is_admin=False,authchoice="ssh",oldconnection=None):
     class ConnectionForm(FlaskForm):
         pass
 
     if (oldconnection==None):
         host_address=""
-        auth_type="ssh"
+        auth_type=authchoice
         container="docker_swarm"
         scheduler="none"
     else:
@@ -516,9 +515,11 @@ def BuildConnectionsForm(oldconnection=None,json_tiles_text=None):
         
     ConnectionForm.submit1 = SubmitField("Next step")
     ConnectionForm.host_address = StringField("Name or IP of the machine (required)", default=host_address, validators=[InputRequired()])
-
-    ConnectionForm.debug = BooleanField("Debug mode",default=False)
-
+    if (is_admin):
+        ConnectionForm.debug = BooleanField("Debug mode",default=False)
+    else:
+        ConnectionForm.debug = False
+        
     # Connection files specific for associated TileSet
     ConnectionForm.configfiles = MultipleFileField(label="Connection configuration files (required for connection). ",
                                                    description="Configuration files placed in connection dir and upload in CASE dir on HPC frontend.",
@@ -526,6 +527,7 @@ def BuildConnectionsForm(oldconnection=None,json_tiles_text=None):
 
     
     # Connection with ssh rebounds
+    print(f"authchoices inside {authchoice}")
     #ConnectionForm.auth_type = HiddenField(default=auth_type)
     ConnectionForm.auth_type = RadioField(label='Authentication type',
                                           description='Connection to the machine :',

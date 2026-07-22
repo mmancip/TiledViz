@@ -88,16 +88,8 @@ echo "20"
 # Get noVNC
 echo "#==== Get noVNC ===="
 pushd TVWeb
-git clone https://github.com/novnc/noVNC.git noVNC
+./install_noVNC
 echo "25"
-cd noVNC
-git checkout v1.7.0
-patch -p0 < ../patch_ui
-cd ..
-cp vnc_multi.html noVNC
-cp ui_multi.js noVNC/app
-cp rfb_multi.js noVNC/core
-#patch -p0 < patch_devices_noVNC
 popd
 echo "27"
 
@@ -125,7 +117,7 @@ else
     read -s password
 fi
 [ X"$POSTG_NAME" == X ] && export POSTG_NAME=$postgresNAME
-[ X"$SSLprivate" == X ] && export POSTG_PORT=$POSTGRES_PORT
+[ X"$POSTG_PORT" == X ] && export POSTG_PORT=$POSTGRES_PORT
 replpass=$( echo $password | sed -e "s|\&|\\\&|g" -e 's|"||g' )
 
 sed -e "s&${postgresNAME}&$POSTG_NAME&" \
@@ -259,7 +251,7 @@ TVConnections/build_mageia8
 echo "80"
 
 echo "#====== Ubuntu connection client ======"
-docker build -t tileubuntu -f TVConnections/tileubuntu/Dockerfile .
+TVConnections/build_tileubuntu
 
 echo "90"
 

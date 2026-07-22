@@ -7,7 +7,7 @@ systemctl --now enable docker
 
 # => edit
 #    nano /etc/ssh/sshd_config
-SSHport=$(</dev/urandom tr -dc '2481397056' | head -c5)
+SSHport=$(shuf -i 49152-65535 -n 1)
 sed -e "s&#Port 22&Port $SSHport&" -e "s&#GatewayPorts.*&GatewayPorts yes&" -i /etc/ssh/sshd_config
 
 #dnf install -y iptables-nft nfttables

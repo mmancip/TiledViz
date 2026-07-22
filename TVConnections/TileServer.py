@@ -68,9 +68,9 @@ class TileConnection:
         serverLogger.warning(f"remove Tile {self.TSserver} {self.TileSetName} {self.Id} {self.ids} {self.TileSetPort} {self.laststate} {self.lastval}")
         DelCOMMAND=f"nohup bash -c 'PID=$$; Displ=$(head -1 $HOME/.vnc/out_Client* | sed -e \"s&.*:\\([0-9]*\\)&:\\1&\"); '"+\
             f"'locPORT=$(grep \"ssh -x.*{self.TileSetPort}\" $HOME/.vnc/out_Client* |head -1 |sed -e \"s&.* \\([0-9]*\\):localhost.*&\\1&\") ; '"+\
-            f"'pgrep -f $locPORT |grep -v $PID |xargs kill; '"+\
-            f"'pgrep -f \" $Displ \"  |grep -v $PID |xargs kill ; '"+\
-            f"'pgrep -f \"{self.Id}.*{self.TileSetPort}\"  |grep -v $PID |xargs kill; sleep 1; '"+\
+            f"'pgrep -f $locPORT |grep -v $PID |xargs kill -9; '"+\
+            f"'pgrep -f \" $Displ \"  |grep -v $PID |xargs kill -9; '"+\
+            f"'pgrep -f \"{self.Id}.*{self.TileSetPort}\"  |grep -v $PID |xargs kill -9; sleep 1; '"+\
             f"'rm -rf $HOME/.vnc/*; '"+\
             f"''"
             # f"'OUT=$HOME/.vnc/del_$(date +%F_%H-%M-%S); touch $OUT; echo $PID Remove Tile $Displ $locPORT >> $OUT ; '"+\
@@ -240,7 +240,7 @@ class TilesSet(threading.Thread):
     def execute_all(self,command):
         serverLogger.warning(self.TileSetName+" : Command on all tiles : "+command)
         self.wait_client("execute_all",command)
-            
+        
         self.laststate=False
         # if (len(self.ListClient) == 0):
         #     self.TSconnect.send_OK(self.id,-1)
@@ -251,6 +251,7 @@ class TilesSet(threading.Thread):
             import ipdb; ipdb.set_trace()
         for (client, TSserver, TSName, id, container, password) in self.ListClient:
             client.execute(command)
+        outHandler.flush()
         self.laststate=True
         
     def get_laststate_execute_all(self):
@@ -310,6 +311,7 @@ class TilesSet(threading.Thread):
         except Exception as err:
             self.TSconnect.send_OK(self.id,-9)
             serverLogger.error("Exception with list of tiles : "+str(err))
+        outHandler.flush()
             
 
     def get_laststate_execute_list(self,tilesId):
@@ -386,6 +388,7 @@ class ClientConnect(threading.Thread):
                 serverLogger.warning("Create TileSet "+TSName+" with "+str(self.Nb)+" tiles.")
                 TS = TilesSet(TSName,self.Nb)
                 self.TileSets[TSName]=TS
+                outHandler.flush()
             
                 # TODO : give password to connection after create TS
             
@@ -393,16 +396,14 @@ class ClientConnect(threading.Thread):
                 p=re.compile(r'remove TS=(\w*)')
                 TSName=p.sub(r'\1',CommandRecv)
                 serverLogger.warning('Receive remove command for TileSet "'+TSName+'".')
-                outHandler.flush()
 
                 serverLogger.warning(f"del TileSet {self.TileSets[TSName]} {self.id}")
 
                 self.TileSets[TSName].remove()
-                outHandler.flush()
                 self.Connect.close(self.id)
-                outHandler.flush()
                 #self.thread.stop()
                 self._alive.remove(self)
+                outHandler.flush()
                 return
                 
             elif (re.search(r'remove TTile',CommandRecv)):
@@ -410,8 +411,8 @@ class ClientConnect(threading.Thread):
                 TSName=p.sub(r'\1',CommandRecv)
                 TileId=p.sub(r'\2',CommandRecv)
                 serverLogger.warning(f'Receive remove command for Tile {TileId} in Set {TSName}.')
-                outHandler.flush()
                 self.TileSets[TSName].removeTile(Id)
+                outHandler.flush()
 
                 
             elif (re.search(r'execute all',CommandRecv)):
@@ -444,6 +445,7 @@ class ClientConnect(threading.Thread):
                     serverLogger.debug(str(TheTS)+" : Get state on list command "+CommandRecv+" %d." % (RET))
                 serverLogger.debug(str(TheTS)+" : Get Send OK for command "+CommandRecv+" %d." % (RET))
                 self.Connect.send_OK(self.id,RET)
+                outHandler.flush()
 
             elif (re.search(r'execute TS',CommandRecv)):
                 p0=re.compile(r'execute TS=(\w*) (.*)')
@@ -511,6 +513,7 @@ class ClientConnect(threading.Thread):
                         continue
                 serverLogger.debug(TSName+" : Send OK for command "+CommandRecv+" %d." % (RET))
                 self.Connect.send_OK(self.id,RET)
+                outHandler.flush()
 
             elif (re.search(r'launch TS',CommandRecv)):
                 p=re.compile(r'launch TS=(\w*) (.*)')
@@ -537,6 +540,7 @@ class ClientConnect(threading.Thread):
                     serverLogger.info("stderr : "+errors.decode('utf-8'))
                 
                 self.Connect.send_OK(self.id,p.returncode)
+                outHandler.flush()
 
             elif (re.search(r'putfile TS',CommandRecv)):
                 p=re.compile(r'putfile TS=(\w*) (.*)')
@@ -555,6 +559,7 @@ class ClientConnect(threading.Thread):
                 self.Connect.send_OK(self.id,0)
 
                 self.Connect.get_file(self.id,CommandPath,CommandFilename,int(CommandSize),CommandSha256)
+                outHandler.flush()
 
             elif (re.search(r'askfile TS',CommandRecv)):
                 p=re.compile(r'askfile TS=(\w*) (.*)')
@@ -570,6 +575,7 @@ class ClientConnect(threading.Thread):
 
                 (FileSize, FileSha256) = self.Connect.send_file(self.id,CommandPath,CommandFilename)
                 serverLogger.warning('File sent with size %d and sha256 %s ' % (FileSize,FileSha256))
+                outHandler.flush()
                 
             else:
                 serverLogger.error("*********** UNRECOGNIZED COMMAND FROM CLIENT "+str(self.Connect.clientinfos[self.id])+" *********** :")

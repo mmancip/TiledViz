@@ -1,6 +1,6 @@
 six
 wheel
-
+Flask-Limiter
 sqlalchemy
 psycopg2-binary
 pexpect

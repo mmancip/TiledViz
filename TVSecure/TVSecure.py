@@ -137,9 +137,10 @@ def parse_args(argv):
     return args
 
 TVvolume=docker.types.Mount(target='/TiledViz',source=os.getenv('PWD'),type='bind',read_only=False)
+TVWconf=docker.types.Mount(target='/.tiledviz',source=TVrunDir,type='bind',read_only=True)
 
 SSLpath=os.path.dirname(os.path.dirname(os.getenv('SSLpublic')))
-TVssl=docker.types.Mount(target=SSLpath,source=SSLpath,type='bind',read_only=False)
+TVssl=docker.types.Mount(target=SSLpath,source=SSLpath,type='bind',read_only=True)
 
 Confpath=os.path.join(os.getenv('HOME'),".tiledviz")
 TVconf=docker.types.Mount(target="/home/myuser/.tiledviz",source=Confpath,type='bind',read_only=True)
@@ -261,7 +262,7 @@ class FlaskDocker(threading.Thread):
         try:
             self.containerFlask=client.containers.create(
                 name="flaskdock", image="flaskimage",
-                mounts=[TVvolume,TVssl,TVnginx], extra_hosts=self.postgresHost,
+                mounts=[TVvolume,TVWconf,TVssl,TVnginx], extra_hosts=self.postgresHost,
                 command=self.commandFlask,
                 ports=self.flaskPORT,
                 environment=ENVFlask,
@@ -895,8 +896,9 @@ class ConnectionDocker(threading.Thread):
             " 2>&1 > /tmp/websockify_$(date +%F_%H-%M-%S).log &'"
         logging.debug("commandLaunchWebsockify : "+commandLaunchWebsockify)
         logging.warning("commandLaunchWebsockify.")
-        self.LogLaunchWebsockify=self.containerFlask.exec_run(cmd=commandLaunchWebsockify,user=self.userflask,detach=True)
+        self.LogLaunchWebsockify=self.containerFlask.exec_run(cmd=commandLaunchWebsockify,user="root",detach=True)
         #user="root"
+        #user=self.userflask
         
         # Get websockify PID :
         commandWebsockifyPID="bash -c 'echo $(pgrep -f \"^python3 .*"+str(internPort)+"\" |sort |head -1)'"
@@ -932,10 +934,10 @@ class ConnectionDocker(threading.Thread):
         try:
             # SSL encrypt :
             # Add ACL for myuser on SSL keys
-            commandSetACL="bash -c 'find "+os.path.dirname(self.SSLpublic)+" -ls -execdir setfacl -m u:"+self.user+":rX {} \\+ ;"+\
-                " find "+os.path.dirname(self.SSLprivate)+" -ls -execdir setfacl -m u:"+self.user+":rX {} \\+'"
-            logging.warning(f"commandSetACL {commandSetACL}")
-            self.LogSetACL=self.containerConnect.exec_run(cmd=commandSetACL,user="root",detach=True)
+            # commandSetACL="bash -c 'find "+os.path.dirname(self.SSLpublic)+" -ls -execdir setfacl -m u:"+self.user+":rX {} \\+ ;"+\
+            #     " find "+os.path.dirname(self.SSLprivate)+" -ls -execdir setfacl -m u:"+self.user+":rX {} \\+'"
+            # logging.warning(f"commandSetACL {commandSetACL}")
+            # self.LogSetACL=self.containerConnect.exec_run(cmd=commandSetACL,user="root",detach=True)
 
             # use websockify and SSL public/secret keys.
             self.listPortsTilesIE={}
@@ -966,7 +968,7 @@ class ConnectionDocker(threading.Thread):
                             logging.debug("commandLaunchWebsockify : "+commandLaunchWebsockify)
                             logging.warning("commandLaunchWebsockify : "+commandLaunchWebsockify)
                             #logging.warning("commandLaunchWebsockify. "+key)
-                            self.LogLaunchWebsockify=self.containerConnect.exec_run(cmd=commandLaunchWebsockify,user=self.user,detach=True)
+                            self.LogLaunchWebsockify=self.containerConnect.exec_run(cmd=commandLaunchWebsockify,user="root",detach=True)
                             #user="root",
                             NotOKport=False
                         
@@ -1216,10 +1218,19 @@ class ConnectionDocker(threading.Thread):
             logging.error(f"Error with Action server {self.ConnectionDB.id}  : {err}")
 
     def quitConnection(self):
+        # Send Action "remove TiledSet"
+        try:
+            if (not self.action_OK):
+                self.startActionConnection()
+            self.action("action=1,,")
+            logging.warning("Remove TiledSet on HPC server.")
+        except:
+            pass
+        
         # Quit Websockify for user
         commandKillWebsockify="bash -c 'kill "+str(self.websockifyPID)+"'"
-        self.LogKillWebsockify=container_exec_out(self.containerFlask,commandKillWebsockify,user=self.flaskusr)
-        #user="root"
+        self.LogKillWebsockify=container_exec_out(self.containerFlask,commandKillWebsockify,user="root")
+
         logging.warning("Kill websokify PID "+str(self.websockifyPID)+" on Flask container. "+re.sub(r'\*n',r'\\n',str(self.LogKillWebsockify)))
 
         # Erase login on flask
@@ -1275,7 +1286,7 @@ class ConnectionDocker(threading.Thread):
         return
         
     def connect(self):
-        logging.warning("Tunnel command in "+self.tunnel_script+" : "+self.tunnel_command)
+        logging.debug("Tunnel command in "+self.tunnel_script+" : "+self.tunnel_command)
         logging.debug("User container status :"+str(self.containerConnect.status))
         self.LogTunnel=self.containerConnect.exec_run(cmd="sh -c "+self.tunnel_script,user=self.user,detach=True)
         time.sleep(1)
@@ -1283,15 +1294,16 @@ class ConnectionDocker(threading.Thread):
         # testTunnel="sh -c \'pgrep -fla \"ssh.*"+self.flaskusr+"\"\'"
         # self.LogTestTunnel=container_exec_out(self.containerConnect, testTunnel,user=self.user)
         # logging.debug("Tunnel to Flask docker :\n"+re.sub(r'\*n',r'\\n',str(self.LogTestTunnel)))
-        logging.warning("Container connected.")
+        logging.warning(f"Container connected : {self.LogTunnel}")
+        #        logging.warning("Tunnel command in "+self.tunnel_script+" : "+self.tunnel_command)
         logging.debug("User container status :"+str(self.containerConnect.status))
         outHandler.flush()
 
     def action(self,callfunct):
         # Get action num + selection of tiles (if needed by the function)
         actionlist=re.sub(r'action=',r'',callfunct)
-        #logging.warning("Action for tileset %s. command %s" % (self.tilesetId,actionlist))
         self.ActionConnect.send_server(actionlist)
+        logging.warning("Action for tileset %s. command %s" % (self.tilesetId,actionlist))
 
         if (re.sub(r',.*',r'',actionlist)=="0"):
             path_nodesjson=os.path.join(self.home,"nodes.json")

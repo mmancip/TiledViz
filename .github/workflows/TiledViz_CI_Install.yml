@@ -1,0 +1,343 @@
+# Copyright (C) The TiledViz development team
+name: TiledViz Install Test
+
+on:
+  push:
+    tags:
+      - '**'
+
+jobs:
+  Install-Ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+
+      - name: Install Python
+        run: sudo apt-get install -y python3-pip
+
+      - name: Install expect
+        run: sudo apt-get install -y expect
+
+      - name: Install libcap-dev
+        run: sudo apt-get install -y libcap-dev
+
+      - name: Install docker
+        run: |
+          sudo usermod -aG docker $USER
+          sudo systemctl start docker || true
+          sudo chmod 666 /var/run/docker.sock
+
+      - name: Generate mock SSL certificates for tests
+        run: |
+          sudo mkdir -p /etc/letsencrypt/archive
+          sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout /etc/letsencrypt/archive/privkey.pem \
+            -out /etc/letsencrypt/archive/fullchain.pem \
+            -subj "/C=FR/ST=IDF/L=Paris/O=TiledVizTest/CN=localhost"
+
+      - name: Run install script
+        env:
+          POSTGRESQL_PASSWORD: ${{ secrets.POSTGRESQL_PASSWORD }}
+          SERVER_DOMAIN: ${{ secrets.SERVER_DOMAIN }}
+          PUBLIC_SSL_PATH: "/etc/letsencrypt/archive/fullchain.pem"
+          PRIVATE_SSL_PATH: "/etc/letsencrypt/archive/privkey.pem"
+          SMTP_SERVER_ADDRESS: ${{ secrets.SMTP_SERVER_ADDRESS }}
+          SMTP_PORT_ADDRESS: ${{ secrets.SMTP_PORT_ADDRESS }}
+          SMTP_SSL_OPTION: ${{ secrets.SMTP_SSL_OPTION }}
+          SMTP_TLS_OPTION: ${{ secrets.SMTP_TLS_OPTION }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          TILEDVIZ_EMAIL: ${{ secrets.TILEDVIZ_EMAIL }}
+          IMAP_SERVER_ADDRESS: ${{ secrets.IMAP_SERVER_ADDRESS }}
+          IMAP_PORT_ADDRESS: ${{ secrets.IMAP_PORT_ADDRESS }}
+          NTP_SERVER_ADDRESS: ${{ secrets.NTP_SERVER_ADDRESS }}
+        run: |
+          export BUILDKIT_PROGRESS=plain
+          export DOCKER_BUILDKIT=1
+
+          expect << 'EOF'
+          set timeout -1
+          spawn ./install.sh
+
+          expect "Activate firewallT for Tiledviz ? : ('n' or 'y')"
+          send "n\r"
+
+          expect "Please give the Docker name of PostGresQL DB (default: tiledvizpostg)."
+          send "tiledvizpostg\r"
+
+          expect "Please give its external PORT (default: 6431)."
+          send "6431\r"
+
+          expect "Please give a password for your postgresql DB : (forbiden '@', '/', '|' !)"
+          send "$env(POSTGRESQL_PASSWORD)\r"
+
+          expect "Please give a SERVER.DOMAIN for your SSL web server"
+          send "$env(SERVER_DOMAIN)\r"
+
+          expect "Please give the PUBLIC SSL key PATH."
+          send "$env(PUBLIC_SSL_PATH)\r"
+          expect "Please give the PRIVATE SSL key PATH."
+          send "$env(PRIVATE_SSL_PATH)\r"
+
+          expect "Please give your SMTP server address - the outgoing mail server."
+          send "$env(SMTP_SERVER_ADDRESS)\r"
+          expect "Please give your SMTP PORT address - for the outgoing mail server."
+          send "$env(SMTP_PORT_ADDRESS)\r"
+          expect "Please give your SMTP SSL option - for the outgoing mail server."
+          send "$env(SMTP_SSL_OPTION)\r"
+          expect "Please give your SMTP TLS option - for the outgoing mail server."
+          send "$env(SMTP_TLS_OPTION)\r"
+          expect "Please give your SMTP user name - for the outgoing mail server."
+          send "$env(SMTP_USERNAME)\r"
+          expect "Please give your SMTP password - for the outgoing mail server."
+          send "$env(SMTP_PASSWORD)\r"
+
+          expect "Please give this TiledViz email - for the outgoing mail server."
+          send "$env(TILEDVIZ_EMAIL)\r"
+
+          expect "Please give your IMAP server address - the ingoing mail server."
+          send "$env(IMAP_SERVER_ADDRESS)\r"
+          expect "Please give your IMAP PORT address - for the ingoing mail server."
+          send "$env(IMAP_PORT_ADDRESS)\r"
+
+          expect "Please give your NTP server address - the time server."
+          send "$env(NTP_SERVER_ADDRESS)\r"
+
+          expect "# Do you want to restore from a PostgreSQL dump file ? Please give the path to file or empty string if not"
+          send "\r\r"
+
+          expect " All finished."
+          EOF
+
+      - name: Launch TiledViz
+        env:
+          POSTGRESQL_PASSWORD: ${{ secrets.POSTGRESQL_PASSWORD }}
+        run: |
+          export PYTHONPATH="$PWD:$PWD/TVDatabase:$PYTHONPATH"
+          expect << 'EOF'
+          set timeout 120
+
+          spawn ./launch_TiledViz
+          expect "Please give a password for your Flask server."
+          send "$env(POSTGRESQL_PASSWORD)\r"
+
+          expect "==== Running ... ===="
+          set timeout 5
+          expect {
+              eof {
+                  send_user "\nERROR : Server Crashed\n"
+                  exit 1
+              }
+              timeout {
+                  send_user "\nSUCCESS : Server Stable\n"
+                  exit 0
+              }
+          }
+          EOF
+
+  Install-Rocky-Linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+
+      - name: Generate mock SSL certificates for tests
+        run: |
+          sudo mkdir -p /etc/letsencrypt/archive
+          sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -keyout /etc/letsencrypt/archive/privkey.pem \
+            -out /etc/letsencrypt/archive/fullchain.pem \
+            -subj "/C=FR/ST=IDF/L=Paris/O=TiledVizTest/CN=localhost"
+
+      - name: Start Rocky Linux Environment
+        run: |
+          cat << 'EOF' > rocky.env
+          POSTGRESQL_PASSWORD=${{ secrets.POSTGRESQL_PASSWORD }}
+          SERVER_DOMAIN=${{ secrets.SERVER_DOMAIN }}
+          PUBLIC_SSL_PATH=/etc/letsencrypt/archive/fullchain.pem
+          PRIVATE_SSL_PATH=/etc/letsencrypt/archive/privkey.pem
+          SMTP_SERVER_ADDRESS=${{ secrets.SMTP_SERVER_ADDRESS }}
+          SMTP_PORT_ADDRESS=${{ secrets.SMTP_PORT_ADDRESS }}
+          SMTP_SSL_OPTION=${{ secrets.SMTP_SSL_OPTION }}
+          SMTP_TLS_OPTION=${{ secrets.SMTP_TLS_OPTION }}
+          SMTP_USERNAME=${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
+          TILEDVIZ_EMAIL=${{ secrets.TILEDVIZ_EMAIL }}
+          IMAP_SERVER_ADDRESS=${{ secrets.IMAP_SERVER_ADDRESS }}
+          IMAP_PORT_ADDRESS=${{ secrets.IMAP_PORT_ADDRESS }}
+          NTP_SERVER_ADDRESS=${{ secrets.NTP_SERVER_ADDRESS }}
+          EOF
+
+          docker run -d --name rocky \
+          --add-host host.docker.internal:host-gateway \
+          --privileged \
+          --env-file rocky.env \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          -v /home/runner/work:/home/runner/work \
+          -v /etc/letsencrypt:/etc/letsencrypt \
+          -w ${{ github.workspace }} \
+          rockylinux/rockylinux:9 sleep infinity
+
+      - name: Install Prerequisites
+        run: |
+          docker exec rocky dnf update -y
+          docker exec rocky dnf install -y git sudo epel-release dnf-plugins-core
+          docker exec rocky dnf install -y python3-pip patch libcap-devel python3-devel postgresql expect openssl gcc postgresql-devel
+          docker exec rocky dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+          docker exec rocky dnf install -y docker-ce-cli docker-buildx-plugin
+          docker exec rocky dnf install -y which
+
+
+          export UserId=$(id -u)
+          export GroupId=$(id -g)
+          export MYHOME=/home/runner/work/myuser-home
+          docker exec rocky bash -c "groupadd -r -g $GroupId myuser && \
+            useradd -r -u $UserId -g myuser -d $MYHOME -s /bin/bash myuser && \
+            cp -rp /etc/skel $MYHOME && \
+            chown -R myuser:myuser $MYHOME"
+          docker exec rocky bash -c 'echo "myuser ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers'
+          docker exec rocky usermod -aG docker myuser
+          docker exec rocky chown -R myuser:myuser ${{ github.workspace }}
+          docker exec rocky chmod 666 /var/run/docker.sock
+
+      - name: Install firewallT dependencies
+        run: |
+          docker exec rocky dnf install -y iptables-nft nftables openssh-server
+
+          cat << 'SH_EOF' > firewallT_setup.sh
+          set -e
+
+          # => edit /etc/ssh/sshd_config with a randomized SSH port
+          SSHport=$(shuf -i 49152-65535 -n 1)
+          echo "Randomized SSH port: $SSHport"
+          sed -e "s&#Port 22&Port $SSHport&" -e "s&#GatewayPorts.*&GatewayPorts yes&" -i /etc/ssh/sshd_config
+
+          nft list ruleset || true
+
+          cat >> /etc/sysconfig/nftables.conf << NFT_EOF
+          table inet filter {
+                  chain input {
+                          type filter hook input priority filter; policy drop;
+                          iif "lo" accept
+                          ct state established,related accept
+                          # Allow ping
+                          icmp type echo-request limit rate 5/second accept
+                          tcp dport $SSHport accept
+                          tcp dport 80 accept
+                          tcp dport 443 accept
+                  }
+          }
+          NFT_EOF
+
+          nft -f /etc/sysconfig/nftables.conf
+          nft add rule inet filter input tcp dport $SSHport accept
+          nft add rule inet filter input icmp type echo-request limit rate 5/second accept
+
+          # Add TILEDVIZ
+          nft add table ip filter
+          nft add chain ip filter TILEDVIZ
+          nft add rule ip filter TILEDVIZ tcp dport $SSHport accept
+
+          nft list ruleset
+          SH_EOF
+
+          chmod +x firewallT_setup.sh
+          docker exec rocky bash ./firewallT_setup.sh
+
+
+
+      - name: Install TiledViz
+        run: |
+          cat << 'SH_EOF' > run_install.sh
+          export BUILDKIT_PROGRESS=plain
+          export DOCKER_BUILDKIT=1
+
+          expect << 'EXPECT_EOF'
+          set timeout -1
+          spawn ./install.sh
+
+          expect "Activate firewallT for Tiledviz ? : ('n' or 'y')"
+          send "y\r"
+
+          expect "Please give the Docker name of PostGresQL DB (default: tiledvizpostg)."
+          send "tiledvizpostg\r"
+
+          expect "Please give its external PORT (default: 6431)."
+          send "6431\r"
+
+          expect "Please give a password for your postgresql DB : (forbiden '@', '/', '|' !)"
+          send "$env(POSTGRESQL_PASSWORD)\r"
+
+          expect "Please give a SERVER.DOMAIN for your SSL web server"
+          send "$env(SERVER_DOMAIN)\r"
+
+          expect "Please give the PUBLIC SSL key PATH."
+          send "$env(PUBLIC_SSL_PATH)\r"
+          expect "Please give the PRIVATE SSL key PATH."
+          send "$env(PRIVATE_SSL_PATH)\r"
+
+          expect "Please give your SMTP server address - the outgoing mail server."
+          send "$env(SMTP_SERVER_ADDRESS)\r"
+          expect "Please give your SMTP PORT address - for the outgoing mail server."
+          send "$env(SMTP_PORT_ADDRESS)\r"
+          expect "Please give your SMTP SSL option - for the outgoing mail server."
+          send "$env(SMTP_SSL_OPTION)\r"
+          expect "Please give your SMTP TLS option - for the outgoing mail server."
+          send "$env(SMTP_TLS_OPTION)\r"
+          expect "Please give your SMTP user name - for the outgoing mail server."
+          send "$env(SMTP_USERNAME)\r"
+          expect "Please give your SMTP password - for the outgoing mail server."
+          send "$env(SMTP_PASSWORD)\r"
+
+          expect "Please give this TiledViz email - for the outgoing mail server."
+          send "$env(TILEDVIZ_EMAIL)\r"
+
+          expect "Please give your IMAP server address - the ingoing mail server."
+          send "$env(IMAP_SERVER_ADDRESS)\r"
+          expect "Please give your IMAP PORT address - for the ingoing mail server."
+          send "$env(IMAP_PORT_ADDRESS)\r"
+
+          expect "Please give your NTP server address - the time server."
+          send "$env(NTP_SERVER_ADDRESS)\r"
+
+          expect "# Do you want to restore from a PostgreSQL dump file ? Please give the path to file or empty string if not"
+          send "\r\r"
+
+          expect " All finished."
+
+
+
+          EXPECT_EOF
+          SH_EOF
+
+          chmod +x run_install.sh
+          docker exec --user myuser rocky bash ./run_install.sh
+
+      - name: Launch TiledViz
+        run: |
+          cat << 'SH_EOF' > run_launch.sh
+
+          export PYTHONPATH="$PWD:$PWD/TVDatabase:$PYTHONPATH"
+          expect << 'EXPECT_EOF'
+          set timeout 120
+          spawn ./launch_TiledViz
+          expect "Please give a password for your Flask server."
+          send "$env(POSTGRESQL_PASSWORD)\r"
+          expect "==== Running ... ===="
+
+          set timeout 5
+          expect {
+              eof {
+                  send_user "\nERROR : Server Crashed\n"
+                  exit 1
+              }
+              timeout {
+                  send_user "\nSUCCESS : Server Stable\n"
+                  exit 0
+              }
+          }
+          EXPECT_EOF
+          SH_EOF
+          chmod +x run_launch.sh
+          docker exec --user myuser rocky bash ./run_launch.sh

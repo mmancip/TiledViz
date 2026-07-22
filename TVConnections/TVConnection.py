@@ -55,6 +55,9 @@ ActionPort=int(config['TVSecure']['ActionPort'])
 # Message fix size for data transfert through socket
 MSGsize=int(config['sock']['MSGsize'])
 
+MaxSessionDuration=21600
+NbActionDetect=36000
+
 # Key name for this connection built in main :
 sshKeyName=""
 
@@ -92,7 +95,8 @@ class ServerAction(threading.Thread):
     
     def __init__(self,connectionId,globals,locals):
         threading.Thread.__init__(self)
-        self.thread = threading.Thread(target=self.run,args=(connectionId,globals,locals,)).start()
+        self.thread = threading.Thread(target=self.run, name="ServerAction",
+                                       args=(connectionId,globals,locals,)).start()
 
     def run(self,connectionId,globals,locals):
         global tiles_actions
@@ -127,8 +131,8 @@ class ServerAction(threading.Thread):
             elif (detectActionConnection == -1):
                 return
             time.sleep(0.1)
-            if (self.iter > 100):
-                logging.error("No ActionServer detected after 100 tries.")
+            if (self.iter > NbActionDetect):
+                logging.warning(f"No ActionServer detected after {NbActionDetect} tries.")
                 return
 
     def detect(self):
@@ -616,6 +620,32 @@ if __name__ == '__main__':
     #rootLogger.handlers[0].flush()
     #outHandler.flush()
     
+    # Hack to see thread names in htop
+    try:
+        import prctl
+        def set_thread_name(name):
+            logging.debug("For thread "+threading.current_thread().name+ " give name %s " % (name))
+            prctl.set_name(name)
+
+        def _thread_name_hack(self):
+            set_thread_name(self.name)
+            logging.debug("For thread "+threading.current_thread().name+ " hack name %s " % (self.name))
+            try:
+                self._bootstrap_inner()
+            except:
+                if self._daemonic and _sys is None:
+                    return
+                raise
+            #threading.Thread.__bootstrap_original(self)
+            logging.debug("For thread "+threading.current_thread().name+ " end of hack name %s " % (self.name))
+
+        # threading.Thread._bootstrap_original = threading.Thread._bootstrap
+        threading.Thread._bootstrap = _thread_name_hack
+                                
+    except ImportError:
+        logging.debug('No python-prctl module. No thread names')
+        def set_thread_name(name): pass
+
     # Connection to DB
     metadata, conn, engine, pool, session = tvdb.SQLconnector(args)
     os.environ["POSTGRES_PASSWORD"]=""
@@ -667,7 +697,13 @@ if __name__ == '__main__':
     TVuser=session.query(models.Users).filter(models.Users.id==TVconnection.id_users).first().name
 
     session.close()
-
+    engine.dispose()
+    metadata=""
+    conn=""
+    engine=""
+    pool=""
+    session=""
+    
     NbFrontendTo=0
     NbFrontendFrom=0
     if (auth_type == "rebound"):
@@ -1109,14 +1145,14 @@ if __name__ == '__main__':
         #os.system('rm -f ./nodes.json')
         return True
     
-    if (args.debug):
-        try:
-            code.interact(banner="Before client :",local=dict(globals(), **locals()))
-        except SystemExit:
-            pass
-        except :
-            traceback.print_exc(file=sys.stderr)
-            pass
+    # if (args.debug):
+    #     try:
+    #         code.interact(banner="Before client (use raise SystemExit to close prompt)",local=dict(globals(), **locals()))
+    #     except SystemExit:
+    #         pass
+    #     except :
+    #         traceback.print_exc(file=sys.stderr)
+    #         pass
 
     # build connection with TileServer on Frontend
     try:
@@ -1134,7 +1170,7 @@ if __name__ == '__main__':
             logging.warning("Second test. Can not connect with TileServer on Frontend. We may stop.")
             try:
                 sys.ps1="$$$ "
-                code.interact(banner="Before client :",local=dict(globals(), **locals()))
+                code.interact(banner="Wrong socket connection client (use raise Exception to close prompt without exiting).",local=dict(globals(), **locals()))
                 sys.ps1=">>> "
             except SystemExit:
                 exit(0)
@@ -1165,29 +1201,33 @@ if __name__ == '__main__':
         global isActions
         if (not isActions):
             launch_actions()
+             
+        if (args.debug):
+            # if (not args.debug):
+            #     try:
+            #         code.interact(banner="Interactive console to use actions directly :",local=dict(globals(), **locals()))
+            #     except SystemExit:
+            #         pass
+            #     except:
+            #         pass
             
-        # if (not args.debug):
-        #     try:
-        #         code.interact(banner="Interactive console to use actions directly :",local=dict(globals(), **locals()))
-        #     except SystemExit:
-        #         pass
-        #     except:
-        #         pass
-
-        # else:
-        #     input("Debug mode : Wait for you hit return to close connection.\n")
-        c = get_config()
-        #c.InteractiveShellEmbed.colors="NoColor"
-        c.InteractiveShellEmbed.banner1 = "Please type exit() to terminate launch script ."
-        c.InteractiveShellEmbed.confirm_exit = False
-        #c.InteractiveShellEmbed.color_info=False
-        IPython.embed(config=c)
-
+            # else:
+            #     input("Debug mode : Wait for you hit return to close connection.\n")
+            c = get_config()
+            #c.InteractiveShellEmbed.colors="NoColor"
+            c.InteractiveShellEmbed.banner1 = "Please type exit() to terminate launch script ."
+            c.InteractiveShellEmbed.confirm_exit = False
+            #c.InteractiveShellEmbed.color_info=False
+            IPython.embed(config=c)
+        else:
+            time.sleep(MaxSessionDuration)
+        
     # Execute launch file
     try:
         COMMANDStop="echo 'error script "+filename+"'"
         exec(compile(open(filename, "rb").read(), filename, 'exec'), globals(), locals())
         #filename.job(globals(), locals())
+        time.sleep(MaxSessionDuration)
     except :
         traceback.print_exc(file=sys.stderr)
         #myglobals=globals()

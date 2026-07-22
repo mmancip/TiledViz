@@ -1,6 +1,6 @@
 #!/bin/bash
-
-date +%F_%H-%M-%S
+DATE_=$(date +%F_%H-%M-%S)
+echo $DATE_
 mv TVDatabase/postgresql $HOME/tmp
 source $HOME/.cache/envTiledViz
 
@@ -21,6 +21,11 @@ sed -e "s&_SERVER_NAME_&$SERVER_NAME&" \
     -e "s&_IMAP_PORT_&$IMAP_PORT&" \
     TVWeb/FlaskDocker/Dockerfile.web_i > TVWeb/FlaskDocker/Dockerfile.web
 sed -e "s&DNSservername&$SERVER_NAME&"  -e "s&_DOMAIN_&$DOMAIN&" -e "s&_SSLpublic_&$SSLpublic&" -e "s&_SSLprivate_&$SSLprivate&" TVWeb/nginx/nginx.conf_i > TVWeb/nginx/nginx.conf
-docker buildx build -t flaskimage -f TVWeb/FlaskDocker/Dockerfile.web .
+docker buildx build -t flaskimage -f TVWeb/FlaskDocker/Dockerfile.web . > $HOME/tmp/out_docker_build_flaskdock_$DATE_ 2>&1
+RET=$?
+if [ $RET -gt 0 ] ; then
+    cat $HOME/tmp/out_docker_build_flaskdock_$DATE_
+fi
 mv $HOME/tmp/postgresql  TVDatabase
 date +%F_%H-%M-%S
+exit $RET

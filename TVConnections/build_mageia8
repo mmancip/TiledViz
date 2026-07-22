@@ -1,8 +1,14 @@
 #!/bin/bash
-date +%F_%H-%M-%S
+DATE_=$(date +%F_%H-%M-%S)
+echo $DATE_
 mv TVDatabase/postgresql $HOME/tmp
 source $HOME/.cache/envTiledViz
 sed -e "s&_NTP_&$NTPserver&"  -e "s&_SMTP_&$SMTPserver&" TVConnections/mageianvidia/Dockerfile8_i > TVConnections/mageianvidia/Dockerfile8
-docker build -t mageianvidia:8 -f TVConnections/mageianvidia/Dockerfile8 .
+docker build -t mageianvidia:8 -f TVConnections/mageianvidia/Dockerfile8 . > $HOME/tmp/out_docker_build_mageia8_$DATE_ 2>&1
+RET=$?
+if [ $RET -gt 0 ] ; then
+    cat $HOME/tmp/out_docker_build_mageia8_$DATE_
+fi
 mv $HOME/tmp/postgresql  TVDatabase
 date +%F_%H-%M-%S
+exit $RET

@@ -36,10 +36,9 @@ RUN dnf install -y  \
 	 x11-font-bitstream-75dpi \
 	 x11-font-bitstream-type1 \
 	 x11-font-type1 \
-
-x11-font-xfree86-type1 \
+	 x11-font-xfree86-type1 \
 	 xorg-x11-75dpi-fonts \
-        && /bin/dbus-uuidgen --ensure
+         && /bin/dbus-uuidgen --ensure
 
 RUN dnf install -y alsa-utils lib64fribidi0 xdg-utils wmctrl openssh-server openssh-clients sshpass xwd netpbm gettext
 RUN dnf --downloadonly --downloaddir=/tmp/cache install -y icewm-theme-oxygen-aya \
@@ -54,7 +53,9 @@ COPY ./ /TiledViz
 
 RUN rm -rf /TiledViz/TVFiles/* /TiledViz/launch_TiledViz
 
-RUN pip3 install -r /TiledViz/TVConnections/requirements.txt ;
+RUN dnf install -y gcc libcap-devel lib64python3-devel \
+    && pip3 install -r /TiledViz/TVConnections/requirements.txt \
+    && dnf remove -y lib64python3-devel libstdc++-python-devel libstdc++-devel lib64mpc3 kernel-userspace-headers binutils lib64xcrypt-devel glibc-devel gcc isl lib64isl23 gcc-cpp libcap-devel 
 
 RUN cd /TiledViz/TVConnections/mageianconnect/ && \
     mkdir -p /home/myuser &&\
@@ -83,8 +84,8 @@ CMD ["-1", "localhost", "6431", "TiledViz", "tiledviz", "m_test/@03", "-r","800x
 RUN bash -c "echo 'LD_LIBRARTY_PATH=/usr/local/lib64:$LD_LIBRARY_PATH' >> /etc/profile; sed -e 's&nvidia390&nvidia-current&' -i /home/myuser/.bashrc" 
 
 # changed in install.sh
-ENV SMTPserver _SMTP_SERVER_
-ENV NTPserver _NTP_
+ENV SMTPserver=_SMTP_SERVER_
+ENV NTPserver=_NTP_
 
 RUN dnf install -y postfix \
     && echo "relayhost=$SMTPserver"  >> /etc/postfix/main.cf \

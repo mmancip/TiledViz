@@ -3,3 +3,4 @@ sqlacodegen
 pexpect
 sqlalchemy
 configparser
+python-prctl

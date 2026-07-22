@@ -212,7 +212,15 @@
       <li><a class="dropdown-item" href="/admin/migration">Database Migration</a></li>
   </ul>
 </li>
-	  {% endif %}
+          {% else %}
+    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+      Tools
+  </a>
+  <ul class="dropdown-menu">
+   <li><a class="dropdown-item" href="/manage">Manage</a></li>
+  </ul>
+</li>
+          {% endif %}
         </ul>
         <!-- <form role="search"> -->
         <!--   <input class="form-control" type="search" placeholder="Search" aria-label="Search"> -->
@@ -225,5 +233,9 @@
   </nav>
   {% endif %}
   {% block body %}{% endblock %}
+ <script type="text/javascript">
+  //Removing  leaving page alert
+  window.onbeforeunload = null;
+ </script>
 </body>
 </html>

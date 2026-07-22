@@ -42,12 +42,14 @@ echo nginx -g "daemon off;"
 nginx -g "daemon off;" &
 
 # Add acl for flaskusr on SSL path
-find $(dirname $SSLpublic) -ls -execdir setfacl -m u:flaskusr:rX {} \+
-find $(dirname $SSLprivate) -ls -execdir setfacl -m u:flaskusr:rX {} \+
+# find $(dirname $SSLpublic) -ls -execdir setfacl -m u:flaskusr:rX {} \+
+# find $(dirname $SSLprivate) -ls -execdir setfacl -m u:flaskusr:rX {} \+
 
 if ($debug_Flask); then
-    su flaskusr -w DOMAIN,SERVER_NAME,SSLpublic,SSLprivate,SMTP_SERVER,SMTP_PORT,SMTP_USE_SSL,SMTP_USE_TLS,SMTP_USERNAME,SMTP_PASSWORD,FROM_EMAIL,FROM_NAME,IMAP_SERVER,IMAP_PORT -c "/bin/bash -vx -c \"cd /TiledViz/TVWeb; FlaskDocker/launch_flask $POSTGRES_HOST $POSTGRES_PORT $POSTGRES_DB $POSTGRES_USER '$POSTGRES_PASSWORD' $flaskhost '$SMTP_PASSWORD' '$SECRET_KEY'\""
+    su flaskusr -w DOMAIN,SERVER_NAME,SMTP_SERVER,SMTP_PORT,SMTP_USE_SSL,SMTP_USE_TLS,SMTP_USERNAME,SMTP_PASSWORD,FROM_EMAIL,FROM_NAME,IMAP_SERVER,IMAP_PORT -c "/bin/bash -vx -c \"cd /TiledViz/TVWeb; FlaskDocker/launch_flask $POSTGRES_HOST $POSTGRES_PORT $POSTGRES_DB $POSTGRES_USER '$POSTGRES_PASSWORD' $flaskhost '$SMTP_PASSWORD' '$SECRET_KEY'\""
+    #,SSLpublic,SSLprivate
     while true; do sleep 10; done
 else
-    su - flaskusr -w DOMAIN,SERVER_NAME,SSLpublic,SSLprivate,SMTP_SERVER,SMTP_PORT,SMTP_USE_SSL,SMTP_USE_TLS,SMTP_USERNAME,SMTP_PASSWORD,FROM_EMAIL,FROM_NAME,IMAP_SERVER,IMAP_PORT -c "/bin/bash -c \"cd /TiledViz/TVWeb; FlaskDocker/launch_flask $POSTGRES_HOST $POSTGRES_PORT $POSTGRES_DB $POSTGRES_USER '$POSTGRES_PASSWORD' $flaskhost '$SMTP_PASSWORD' '$SECRET_KEY'\""
+    su - flaskusr -w DOMAIN,SERVER_NAME,SMTP_SERVER,SMTP_PORT,SMTP_USE_SSL,SMTP_USE_TLS,SMTP_USERNAME,SMTP_PASSWORD,FROM_EMAIL,FROM_NAME,IMAP_SERVER,IMAP_PORT -c "/bin/bash -c \"cd /TiledViz/TVWeb; FlaskDocker/launch_flask $POSTGRES_HOST $POSTGRES_PORT $POSTGRES_DB $POSTGRES_USER '$POSTGRES_PASSWORD' $flaskhost '$SMTP_PASSWORD' '$SECRET_KEY'\""
+    #SSLpublic,SSLprivate,
 fi

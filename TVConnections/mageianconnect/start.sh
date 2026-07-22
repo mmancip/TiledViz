@@ -59,8 +59,11 @@ groupadd -g ${myGID} myuser
 useradd -r -u ${myUID} -g myuser myuser
 HOME_user=/home/myuser
 chmod 700 ${HOME_user}/.vnc
-chown -R myuser:myuser ${HOME_user}
+chown myuser:myuser ${HOME_user}
 
+mkdir ${HOME_user}/.ssh
+touch ${HOME_user}/.ssh/config
+chown myuser:myuser -R ${HOME_user}/.ssh
 chmod 600 ${HOME_user}/.ssh/config
 
 LOGFILE=${HOME_user}/.vnc/$(hostname).log
@@ -84,7 +87,7 @@ if ! [ -e ${HOME_user}/.vnc/passwd ]; then
 else
     echo Random Password Generated: $(x11vnc -showrfbauth ${HOME_user}/.vnc/passwd |tail -1 |sed -e 's/.*pass: //' ) |tee -a $LOGFILE
 fi
-chown -R myuser:myuser ${HOME_user} 
+chown -R myuser:myuser ${HOME_user}/.vnc 
 
 # Change ldconfig paths if no nvidia device
 if [ ! -e /dev/nvidia0 ]; then
@@ -120,7 +123,9 @@ echo "#!/bin/bash
 sleep 1
 pgrep -fa Xvfb
 export DISPLAY=$DISPLAY
-icewm-light &
+if [ X\"$debug\" != X ]; then
+   icewm-light &
+fi
 
 /opt/vnccommand &
 
@@ -128,13 +133,13 @@ sleep 1
 if [ X\"$debug\" != X ]; then optDEB=1; fi
 stty sane
 export TERM=linux
-xterm -rv -fullscreen -fa 'Adobe Courrier:size=12:antialias=true' -e /TiledViz/TVConnections/tvconnections.sh ${ConnectionId} ${POSTGRES_HOST} ${POSTGRES_PORT} ${POSTGRES_DB} ${POSTGRES_USER} '${POSTGRES_PASSWORD}' \$optDEB
+xterm -rv  -geometry ${RESOL} -fa 'Adobe Courrier:size=12:antialias=true' -e /TiledViz/TVConnections/tvconnections.sh ${ConnectionId} ${POSTGRES_HOST} ${POSTGRES_PORT} ${POSTGRES_DB} ${POSTGRES_USER} '${POSTGRES_PASSWORD}' \$optDEB
 " >${HOME_user}/.vnc/xstartup
 chmod 755 ${HOME_user}/.vnc/xstartup
 
-chown -R myuser:myuser ${HOME_user}
-
 echo export DOCKERID=$DOCKERID >> ${HOME_user}/.bashrc
+
+chown -R myuser:myuser ${HOME_user}/.vnc ${HOME_user}/.bashrc
 
 # Run the vncserver
 cd

@@ -222,6 +222,90 @@ def send_verification_email(user_email, username, token):
         print(f" Traceback: {traceback.format_exc()}")
         return False
 
+def send_new_register_email(admin_emails,username,creation_date,user_email,user_company,user_manager):
+    """
+    Send email to an admin when a new user register
+    Args:
+        admin_emails : All admins emails
+        username : To see if admin knows it
+        user_email: User email for verification
+        user_company: User company for verification
+        user_manager: User manager for verification
+    Returns:
+        True if email sent successfully, False otherwise
+    """
+    try:
+        from flask import current_app
+
+        # Get SMTP configuration with fallback to hardcoded values
+        smtp_server = MAIL_SERVER
+        smtp_port = MAIL_PORT
+        smtp_username = MAIL_USERNAME
+        smtp_password = MAIL_PASSWORD
+        from_email = MAIL_DEFAULT_SENDER
+
+        # Create a fresh Mail instance
+        from flask_mail import Mail
+        mail = Mail(App)
+
+        # Create email message
+        msg = Message(
+            subject="TiledViz - New Register",
+            bcc=admin_emails,
+            sender=from_email
+        )
+
+        # HTML content
+        html_content = f"""
+        <html>
+        <body>
+            <h2>{username} just registered in TiledViz.</h2>
+            <p>Here are the different information entered by the user :</p>
+            <p>- Username : {username}</p>
+            <p>- Email : {user_email}</p>
+            <p>- Company : {user_company}</p>
+            <p>- Manager : {user_manager}</p>
+            <p>If you did not authorize this registration, you can review or delete this account from your admin dashboard.</p>
+            <br>
+            <p>Best regards,<br>The TiledViz Team</p>
+        </body>
+        </html>
+        """
+
+        # Plain text content
+        text_content = f"""
+        {username} just registered in TiledViz.
+
+        Here are the different information entered by the user :
+
+        - Username : {username}
+        - Email : {user_email}
+        - Company : {user_company}
+        - Manager : {user_manager}
+
+        If you did not authorize this registration, you can review or delete this account from your admin dashboard.
+
+        Best regards,
+        The TiledViz Team
+        """
+
+        # Set both HTML and text content
+        msg.html = html_content
+        msg.body = text_content
+
+        # Send email
+        mail.send(msg)
+
+        print(" Email sent successfully")
+        return True
+
+    except Exception as e:
+        print(f" Error sending verification email: {e}")
+        print(f" Error type: {type(e)}")
+        import traceback
+        print(f" Traceback: {traceback.format_exc()}")
+        return False
+
 # IMAP Functions for Email Management
 def delete_sent_email(subject, recipient):
     """
