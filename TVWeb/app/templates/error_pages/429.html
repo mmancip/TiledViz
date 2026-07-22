@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+{% extends "base_main_template.html" %}
+
+{% block content %}
+
+   <style>
+        .error-body{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #333;
+        }
+        .error-page {
+            text-align: center;
+            padding: 2rem;
+        }
+        .error-code {
+            font-size: 6rem;
+            font-weight: 700;
+            color: #f39c12; /* Couleur orange pour l'avertissement */
+            line-height: 1;
+        }
+        .error-title {
+            font-size: 1.5rem;
+            margin: 1rem 0;
+        }
+        .error-desc {
+            font-size: 1rem;
+            margin-bottom: 2rem;
+        }
+    </style>
+
+<div class="error-body">
+    <div class="error-page">
+        <div class="error-code">429</div>
+        <h1 class="error-title">Too Many Requests</h1>
+        <p class="error-desc">
+            You have exceeded your rate limit.
+            Please wait a moment and try again.
+        </p>
+         <a href="/">
+            <button type="button" name="buttonLogin" class="btn btn-primary btn-block btn-lg">Go Home</button>
+        </a>
+    </div>
+</div>
+
+{% endblock %}

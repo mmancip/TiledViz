@@ -1,0 +1,134 @@
+sudo apt-get update
+sudo apt-get install -y build-essential gcc screen git htop lsof strace \
+                        emacs-nox nano patch libcap-dev python3-pip \
+                        python3-setuptools python3-dev postgresql \
+                        python-is-python3
+sudo setcap cap_net_admin=eip $(realpath $(which python3))
+
+
+# DOCKER INSTALL
+sudo apt-get install -y ca-certificates curl gnupg
+
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+sudo tee /etc/apt/sources.list.d/docker.sources <<EOF
+Types: deb
+URIs: https://download.docker.com/linux/ubuntu
+Suites: $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
+Components: stable
+Architectures: $(dpkg --print-architecture)
+Signed-By: /etc/apt/keyrings/docker.asc
+EOF
+
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# Enable and start Docker
+sudo systemctl --now enable docker
+
+# Generate a safe random high port (between 49152 and 65535)
+SSHport=$(shuf -i 49152-65535 -n 1)
+#echo "Your randomized SSH port is: $SSHport"
+
+# Update sshd_config
+sudo sed -i -e "s/^#\?Port 22/Port $SSHport/" -e "s/^#\?GatewayPorts.*/GatewayPorts yes/" /etc/ssh/sshd_config
+
+# CRITICAL FOR UBUNTU since 22.10 : Disable systemd socket activation for SSH so it honors sshd_config
+if systemctl is-active --quiet ssh.socket; then
+    echo "Disabling SSH socket activation and switching to standard SSH service..."
+    sudo systemctl disable --now ssh.socket
+    sudo systemctl enable --now ssh.service
+fi
+# OR
+# sudo systemctl daemon-reload
+# sudo systemctl restart ssh.socket
+
+sudo apt-get install -y nftables
+nft list ruleset
+
+# Write the rules to Ubuntu's default configuration path
+nano /etc/nftables.conf
+```
+table inet filter {
+        chain input {
+                type filter hook input priority filter; policy drop;
+                iif "lo" accept
+                ct state established,related accept
+                # Allow ping
+                icmp type echo-request limit rate 5/second accept
+                tcp dport $SSHport accept
+                tcp dport 80 accept
+                tcp dport 443 accept
+        }
+}
+```
+
+# Load the newly written rules immediately
+sudo nft -f /etc/nftables.conf
+# OR
+# nft add rule inet filter input tcp dport $SSHport accept
+# nft add rule inet filter input icmp type echo-request limit rate 5/second accept
+
+# Add custom TILEDVIZ tables and chains
+sudo nft add table ip filter
+sudo nft add chain ip filter TILEDVIZ
+sudo nft add rule ip filter TILEDVIZ tcp dport $SSHport accept
+
+# Enable and start nftables service on boot
+sudo systemctl --now enable nftables.service
+
+# Restart SSH to apply the randomized port
+sudo systemctl restart ssh
+
+USER="myuser"
+sudo usermod -a -G docker $USER
+# User must logout and login again.
+
+# copy SSL keys from local machine to VPS:
+rootVPS> chown $USER /path_to_keys/domain.my
+localUSER> rsync -e "ssh -T -p $SSHport " /local/SSLpath/domain.my/* $USER@host.docmain.my:/path_to_keys/domain.my
+rootVPS> chown root:root -R /path_to_keys/domain.my
+rootVPS> chmod o-rx /path_to_keys/domain.my
+
+localUSER> rsync -e "ssh -T -p $SSHport " $TILEDVIZPATH/InstalOS/daemon.json $USER@host.docmain.my:./
+rootVPS> mv ~$USER/tmp/daemon.json /etc/docker/
+rootVPS> chown root:root  /etc/docker/daemon.json
+rootVPS> systemctl restart docker
+
+
+rootVPS> apt-get install -y fail2ban
+#nginx
+
+#rootVPS> mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf_00
+#rootVPS> cp $TILEDVIZ/TVWeb/nginx/nginx.conf /etc/nginx
+#rootVPS> systemctl enable --now nginx
+rootVPS> mkdir /var/log/nginx
+rootVPS> touch /var/log/nginx/access.log /var/log/nginx/upstream.log /var/log/nginx/error.log
+
+rootVPS> cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+
+rootVPS> sed -e 's&^\[sshd\]&[sshd]\nenabled=true\nbantime = 3600\nfindtime = 600\nmaxretry = 3&' -i /etc/fail2ban/jail.local
+rootVPS> sed -e "s&^port\ * = ssh&port = $SSHport&" -i /etc/fail2ban/jail.local
+rootVPS> sed -e 's&^\[\(nginx-.*\)\]&[\1]\nenabled=true&' -i /etc/fail2ban/jail.local
+#TODO :
+#* add nginx-botsearch2.conf
+#[nginx-botsearch2]
+#enabled=true
+#port    = http,https
+#logpath = %(nginx_access_log)s
+#* Open php-url-fopen
+#[php-url-fopen]
+#enabled=true
+
+rootVPS> mv /etc/logrotate.d/nginx  /root
+
+rootVPS> systemctl --now enable fail2ban
+
+# TODO : relaunch fail2ban after TiledViz to see nginx error files mount on host ?
+rootVPS> systemctl restart fail2ban
+rootVPS> fail2ban-client status --all |less
+
+# After TiledViz started :
+rootVPS> nft -nNsta list ruleset |less

@@ -1,0 +1,10 @@
+#!/bin/bash
+#source ../envDB
+source $HOME/.cache/envTiledViz
+FILE=./TiledViz_$(date +%F_%H-%M).dump
+#pg_dump -h ${POSTGRES_HOST} -U tiledviz -d TiledViz -p ${POSTGRES_PASSWORD} > ${FILE}
+pg_dump -h ${POSTGRES_HOST} -U ${POSTGRES_USER} -d ${POSTGRES_DB} -p ${POSTGRES_PORT} > ${FILE}
+
+
+#docker cp ./TiledViz.dump $postgresNAME:/tmp/
+#docker exec $postgresNAME bash -c 'psql -h "'$POSTGRES_HOST'" -p "'$POSTGRES_PORT'" -U "'$POSTGRES_USER'" -d "'$POSTGRES_DB'" < /tmp/'${FILE}

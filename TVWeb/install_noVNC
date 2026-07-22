@@ -1,0 +1,11 @@
+#!/bin/bash
+git clone https://github.com/novnc/noVNC.git noVNC
+
+cd noVNC
+git checkout v1.7.0
+patch -p0 < ../patch_ui
+patch -p0 < ../patch_menuNoVnc
+cd ..
+cp vnc_multi.html noVNC
+cp ui_multi.js noVNC/app
+cp rfb_multi.js noVNC/core
