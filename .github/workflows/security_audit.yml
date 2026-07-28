@@ -1,0 +1,85 @@
+name: Security Audit
+
+on:
+  push:
+    branches:
+      - master
+      - ci-security
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  sast:
+    name: Bandit and Semgrep
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install SAST dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r security_audit/requirements.txt
+
+      - name: Run Bandit
+        run: |
+          mkdir -p security_audit/out
+          bandit -r TVWeb/app TVSecure TVConnections \
+            -f json \
+            -o security_audit/out/bandit.json || true
+
+      - name: Run Semgrep
+        run: |
+          semgrep scan \
+            --config auto \
+            --metrics off \
+            --json \
+            --output security_audit/out/semgrep.json \
+            TVWeb/app TVSecure TVConnections || true
+
+      - name: Render readable reports
+        run: |
+          python security_audit/bandit_json.py normalize security_audit/out/bandit.json -o security_audit/out/bandit.normalized.json
+          python security_audit/semgrep_json.py normalize security_audit/out/semgrep.json -o security_audit/out/semgrep.normalized.json
+          python security_audit/bandit_json.py report security_audit/out/bandit.json -o security_audit/out/bandit.md
+          python security_audit/semgrep_json.py report security_audit/out/semgrep.json -o security_audit/out/semgrep.md
+
+      - name: Compare with baseline when available
+        run: |
+          if [ -f security_audit/baseline/bandit.json ]; then
+            python security_audit/bandit_json.py diff \
+              security_audit/baseline/bandit.json \
+              security_audit/out/bandit.json \
+              -o security_audit/out/bandit_diff.md \
+              --fail-on-new
+          else
+            echo "No Bandit baseline found; diff skipped."
+          fi
+
+          if [ -f security_audit/baseline/semgrep.json ]; then
+            python security_audit/semgrep_json.py diff \
+              security_audit/baseline/semgrep.json \
+              security_audit/out/semgrep.json \
+              -o security_audit/out/semgrep_diff.md \
+              --fail-on-new
+          else
+            echo "No Semgrep baseline found; diff skipped."
+          fi
+
+      - name: Run helper tests
+        run: |
+          python -m unittest security_audit/test_sast_json.py -v
+
+      - name: Upload SAST artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit-reports
+          path: security_audit/out/
