@@ -34,6 +34,9 @@ jobs:
           bandit -r TVWeb/app TVSecure TVConnections \
             -f json \
             -o security_audit/out/bandit.json || true
+          if [ ! -s security_audit/out/bandit.json ]; then
+            printf '{\n  "results": []\n}\n' > security_audit/out/bandit.json
+          fi
 
       - name: Run Semgrep
         run: |
@@ -43,6 +46,9 @@ jobs:
             --json \
             --output security_audit/out/semgrep.json \
             TVWeb/app TVSecure TVConnections || true
+          if [ ! -s security_audit/out/semgrep.json ]; then
+            printf '{\n  "results": []\n}\n' > security_audit/out/semgrep.json
+          fi
 
       - name: Render readable reports
         run: |
