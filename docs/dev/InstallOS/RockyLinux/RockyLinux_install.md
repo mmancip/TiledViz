@@ -1,3 +1,8 @@
+\page md_InstallOS_RockyLinux_RockyLinux_install RockyLinux Installation
+
+
+# RockyLinux Installation
+```bash
 dnf install -y epel-release gcc
 dnf install -y screen git htop lsof strace emacs-nox nano patch libcap-devel python3-pip-wheel python3-setuptools-wheel.noarch python3-devel postgresql
 setcap cap_net_admin=eip $(realpath $(which python))
@@ -13,7 +18,7 @@ sed -e "s&#Port 22&Port $SSHport&" -e "s&#GatewayPorts.*&GatewayPorts yes&" -i /
 #dnf install -y iptables-nft nfttables
 nft list ruleset
 nano /etc/sysconfig/nftables.conf 
-```
+"
 table inet filter {
         chain input {
                 type filter hook input priority filter; policy drop;
@@ -26,7 +31,7 @@ table inet filter {
                 tcp dport 443 accept
         }
 }
-```
+"
 nft -f etc/sysconfig/nftables.conf 
 # OR 
 nft add rule inet filter input tcp dport $SSHport accept
@@ -91,4 +96,4 @@ rootVPS> fail2ban-client status --all |less
  
 # After TiledViz started :
 rootVPS> nft -nNsta list ruleset |less
-
+```

@@ -1,3 +1,7 @@
+\page md_TiledViz_Installation TiledViz Installation
+
+
+# TiledViz Installation
 # Installation
 To install TiledViz you will need to first get the [latest release](https://github.com/mmancip/TiledViz/releases) available on github.
 ## Preparing the environment

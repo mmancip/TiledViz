@@ -1,5 +1,7 @@
-﻿
-# Documentation for TiledViz Install CI
+\page md_CI-CD_TiledViz_CI_Install TiledViz_CI_Install
+
+
+﻿# Documentation for TiledViz Install CI
 
 `TiledViz_Test_Install.yml` tests the installation for Ubuntu and Rocky-Linux.
 

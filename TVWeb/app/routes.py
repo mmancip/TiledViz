@@ -76,16 +76,19 @@ else:
     mode = os.stat(TVrunDir).st_mode
     mode -= (mode & (stat.S_IRWXG | stat.S_IRWXO))
     os.chmod(TVrunDir,mode)
-    
+
 if (configExist):
     TVconfig = configparser.ConfigParser()
     TVconfig.optionxform = str
     TVconfig.read(TVconf)
 
-    # defaut access to HPC frontend ('ssh' for direct ssh or 'rebound' to use one or more gateways) 
+    # default activation for 2FA
+    is2FaActivated=json.loads(TVconfig['TVWeb']['is2FaActivated'].lower())
+
+    # defaut access to HPC frontend ('ssh' for direct ssh or 'rebound' to use one or more gateways)
     authchoice=json.loads(TVconfig['TVWeb']['AuthChoice'])
 
-    # Time sleep for waiting loops in seconds : 
+    # Time sleep for waiting loops in seconds :
     timeAlive=int(TVconfig['TVWeb']['timeAlive'])
 
     # Time for create and start connections in seconds
@@ -104,10 +107,13 @@ if (configExist):
     VulnerableRateLimit=json.loads(TVconfig['TVWeb']['VulnerableRateLimit'])
 
 else:
-    # defaut access to HPC frontend ('ssh' for direct ssh or 'rebound' to use one or more gateways) 
+    # default activation for 2FA
+    is2FaActivated=True
+
+    # defaut access to HPC frontend ('ssh' for direct ssh or 'rebound' to use one or more gateways)
     authchoice='ssh'
 
-    # Time sleep for waiting loops in seconds : 
+    # Time sleep for waiting loops in seconds :
     timeAlive=5
 
     # Time for create and start connections in seconds
@@ -208,7 +214,7 @@ class FormUser():
     def __init__(self,data,iseditor):
         self.data=data
         self.iseditor=iseditor
-        
+
 # Global functions : creation, copy and delete DB elements
 
 def myflush():
@@ -236,12 +242,12 @@ def get_user_projects(user_id):
             models.Projects,
             models.ProjectMembers.role_type
         ).join(
-            models.ProjectMembers, 
+            models.ProjectMembers,
             models.Projects.id == models.ProjectMembers.project_id
         ).filter(
             models.ProjectMembers.user_id == user_id
         )
-        
+
         return projects_query.all()
     except Exception as e:
         logging.error(f"Error getting user projects: {str(e)}")
@@ -303,7 +309,7 @@ def get_project_members(project_id):
     """
     try:
         from sqlalchemy.orm import joinedload
-        
+
         members = db.session.query(models.ProjectMembers).options(
             joinedload(models.ProjectMembers.user)
         ).filter(
@@ -312,7 +318,7 @@ def get_project_members(project_id):
             models.ProjectMembers.role_type,
             models.ProjectMembers.user_id
         ).all()
-        
+
         return members
     except Exception as e:
         logging.error(f"Error getting project members: {str(e)}")
@@ -328,26 +334,26 @@ def add_project_member(project_id, user_id, role_type='viewer'):
             project_id=project_id,
             user_id=user_id
         ).first()
-        
+
         if existing_member:
             return False, "User is already a member of this project"
-        
+
         # Validate role type
         if role_type not in valid_roles:
             return False, f"Invalid role type. Must be one of: {', '.join(valid_roles)}"
-        
+
         # Create new member
         new_member = models.ProjectMembers(
             project_id=project_id,
             user_id=user_id,
             role_type=role_type
         )
-        
+
         db.session.add(new_member)
         db.session.commit()
-        
+
         return True, "Member added successfully"
-        
+
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error adding project member: {str(e)}")
@@ -362,25 +368,25 @@ def remove_project_member(project_id, user_id):
             project_id=project_id,
             user_id=user_id
         ).first()
-        
+
         if not member:
             return False, "User is not a member of this project"
-        
+
         # Prevent removal of the last owner
         if member.role_type == 'owner':
             owner_count = db.session.query(models.ProjectMembers).filter_by(
                 project_id=project_id,
                 role_type='owner'
             ).count()
-            
+
             if owner_count <= 1:
                 return False, "Cannot remove the last owner of a project"
-        
+
         db.session.delete(member)
         db.session.commit()
-        
+
         return True, "Member removed successfully"
-        
+
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error removing project member: {str(e)}")
@@ -395,29 +401,29 @@ def update_member_role(project_id, user_id, new_role):
             project_id=project_id,
             user_id=user_id
         ).first()
-        
+
         if not member:
             return False, "User is not a member of this project"
-        
+
         # Validate role type
         if new_role not in valid_roles:
             return False, f"Invalid role type. Must be one of: {', '.join(valid_roles)}"
-        
+
         # Prevent changing role of the last owner
         if member.role_type == 'owner' and new_role != 'owner':
             owner_count = db.session.query(models.ProjectMembers).filter_by(
                 project_id=project_id,
                 role_type='owner'
             ).count()
-            
+
             if owner_count <= 1:
                 return False, "Cannot change role of the last owner"
-        
+
         member.role_type = new_role
         db.session.commit()
-        
+
         return True, "Member role updated successfully"
-        
+
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error updating member role: {str(e)}")
@@ -431,46 +437,46 @@ def transfer_project_ownership(project_id, current_user_id, new_owner_id):
         # Validate current user is owner
         if not is_project_owner(project_id, current_user_id):
             return False, "Only the project owner can transfer ownership"
-        
+
         # Validate new owner exists
         new_owner = db.session.query(models.Users).filter_by(id=new_owner_id).first()
         if not new_owner:
             return False, "New owner user not found"
-        
+
         # Validate new owner is already a member
         new_owner_membership = db.session.query(models.ProjectMembers).filter_by(
             project_id=project_id,
             user_id=new_owner_id
         ).first()
-        
+
         if not new_owner_membership:
             return False, "The new owner must be a member of the project first"
-        
+
         # Prevent self-transfer
         if current_user_id == new_owner_id:
             return False, "Cannot transfer ownership to yourself"
-        
+
         # Prevent duplicate owners
         if new_owner_membership.role_type == 'owner':
             return False, "The selected user is already an owner of this project"
-        
+
         # Perform ownership transfer
         current_user_membership = db.session.query(models.ProjectMembers).filter_by(
             project_id=project_id,
             user_id=current_user_id
         ).first()
-        
+
         new_owner_membership.role_type = 'owner'     # Promote new owner
-        
+
         # Update the project's id_users field to reflect the new owner
         project = db.session.query(models.Projects).filter_by(id=project_id).first()
         if project:
             project.id_users = new_owner_id
-        
+
         db.session.commit()
-        
+
         return True, "Ownership transferred successfully"
-        
+
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error transferring ownership: {str(e)}")
@@ -485,7 +491,7 @@ def get_available_users_for_project(project_id):
         current_member_ids = db.session.query(models.ProjectMembers.user_id).filter_by(
             project_id=project_id
         ).subquery()
-        
+
         # Get available users
         # TODO
         #SAWarning: Coercing Subquery object into a select() for use in IN();
@@ -494,7 +500,7 @@ def get_available_users_for_project(project_id):
         available_users = db.session.query(models.Users).filter(
             ~models.Users.id.in_(current_member_ids)
         ).order_by(models.Users.name).all()
-        
+
         return available_users
     except Exception as e:
         logging.error(f"Error getting available users: {str(e)}")
@@ -512,7 +518,7 @@ def sync_user_to_project_and_session(user_id, project_id, session_id, role_type=
             project_id=project_id,
             user_id=user_id
         ).first()
-        
+
         if not existing_member:
             # Add user as project member with specified role
             new_member = models.ProjectMembers(
@@ -522,13 +528,13 @@ def sync_user_to_project_and_session(user_id, project_id, session_id, role_type=
             )
             db.session.add(new_member)
             logging.info(f"Added user {user_id} as {role_type} to project {project_id}")
-        
+
         # Check if user is already in session
         existing_session_user = db.session.query(models.t_many_users_has_many_sessions).filter_by(
             id_users=user_id,
             id_sessions=session_id
         ).first()
-        
+
         if not existing_session_user:
             # Add user to session
             session_user = models.t_many_users_has_many_sessions.insert().values(
@@ -537,10 +543,10 @@ def sync_user_to_project_and_session(user_id, project_id, session_id, role_type=
             )
             db.session.execute(session_user)
             logging.info(f"Added user {user_id} to session {session_id}")
-        
+
         db.session.commit()
         return True, "User synchronized successfully"
-        
+
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error synchronizing user to project and session: {str(e)}")
@@ -556,34 +562,34 @@ def validate_session_project_consistency(session_id):
         session_obj = db.session.query(models.Sessions).filter_by(id=session_id).first()
         if not session_obj:
             return [f"Session {session_id} not found"]
-        
+
         project_id = session_obj.id_projects
         if not project_id:
             return [f"Session {session_id} has no associated project"]
-        
+
         # Get all users in the session
         session_users = db.session.query(models.t_many_users_has_many_sessions).filter_by(
             id_sessions=session_id
         ).all()
-        
+
         inconsistencies = []
-        
+
         for session_user in session_users:
             user_id = session_user.id_users
-            
+
             # Check if user is a project member
             is_project_member = db.session.query(models.ProjectMembers).filter_by(
                 project_id=project_id,
                 user_id=user_id
             ).first()
-            
+
             if not is_project_member:
                 user = db.session.query(models.Users).filter_by(id=user_id).first()
                 user_name = user.name if user else f"User ID {user_id}"
                 inconsistencies.append(f"User {user_name} (ID: {user_id}) is in session but not a project member")
-        
+
         return inconsistencies
-        
+
     except Exception as e:
         logging.error(f"Error validating session-project consistency: {str(e)}")
         return [f"Error during validation: {str(e)}"]
@@ -596,11 +602,11 @@ def fix_session_project_inconsistencies(session_id, default_role='guest'):
         inconsistencies = validate_session_project_consistency(session_id)
         if not inconsistencies:
             return True, "No inconsistencies found"
-        
+
         # Get the session and its project
         session_obj = db.session.query(models.Sessions).filter_by(id=session_id).first()
         project_id = session_obj.id_projects
-        
+
         fixed_count = 0
         for inconsistency in inconsistencies:
             if "is in session but not a project member" in inconsistency:
@@ -609,7 +615,7 @@ def fix_session_project_inconsistencies(session_id, default_role='guest'):
                 match = re.search(r'User .+ \(ID: (\d+)\)', inconsistency)
                 if match:
                     user_id = int(match.group(1))
-                    
+
                     # Add user as project member
                     new_member = models.ProjectMembers(
                         project_id=project_id,
@@ -618,13 +624,13 @@ def fix_session_project_inconsistencies(session_id, default_role='guest'):
                     )
                     db.session.add(new_member)
                     fixed_count += 1
-        
+
         if fixed_count > 0:
             db.session.commit()
             return True, f"Fixed {fixed_count} inconsistencies by adding users as project members"
         else:
             return False, "No inconsistencies could be automatically fixed"
-            
+
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error fixing session-project inconsistencies: {str(e)}")
@@ -659,16 +665,16 @@ def can_create_invite_links(user_id, project_id):
             project_id=project_id,
             user_id=user_id
         ).first()
-        
+
         if not membership:
             return False, "User is not a project member"
-        
+
         # Check role permissions (restrict to owner)
         if membership.role_type in valid_manage_members:
             return True, f"User has {membership.role_type} role"
         else:
             return False, f"Role '{membership.role_type}' cannot create invitation links"
-            
+
     except Exception as e:
         logging.error(f"Error checking invite permissions: {str(e)}")
         return False, f"Error checking permissions: {str(e)}"
@@ -738,7 +744,7 @@ def create_newsession(sessionname, description, projectid, oldusers):
         db.session.commit()
         copy_users_session(newsession,oldusers)
         db.session.commit()
-        
+
         # Validate consistency after session creation
         inconsistencies = validate_session_project_consistency(newsession.id)
         if inconsistencies:
@@ -751,18 +757,18 @@ def create_newsession(sessionname, description, projectid, oldusers):
                 logging.error(f"Failed to fix session inconsistencies: {fix_message}")
     else:
         newsession=db.session.query(models.Sessions).filter(models.Sessions.name.like(sessionname)).one()
-        
+
     session["sessionname"]=str(sessionname)
-            
+
     return newsession,exist
-    
+
 # Define new TileSet
 def create_newtileset(tilesetname, thesession, type_of_tiles, datapath, creation_date):
     newtileset = models.TileSets(name=tilesetname,
                                 type_of_tiles = type_of_tiles,
                                 Dataset_path = datapath,
                                 creation_date=creation_date)
-    
+
     exist=db.session.query(models.TileSets.id).filter_by(name=tilesetname).scalar() is not None
 
     if (not exist):
@@ -786,7 +792,7 @@ def convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath):
     except Keyerror as e:
         traceback.print_exc(file=sys.stderr)
         raise(e)
-    
+
     ConnectionPort=0
     if (urlbool and len(datapath) > 0):
         # Detect if path is already in tiles source url
@@ -812,7 +818,7 @@ def convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath):
         comment=Mynode["comment"]
     except:
         pass
-    
+
     tags=[]
     try:
         searchtsn=re.search(r''+tilesetname,str(Mynode["tags"]))
@@ -833,7 +839,7 @@ def convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath):
         variable=Mynode["variable"]
     except:
         pass
-    
+
     pos_px_x=-1
     pos_px_y=-1
     try:
@@ -847,14 +853,14 @@ def convertTile(Mynode,tilesetname,connectionbool,urlbool,datapath):
         IdLocation=Mynode["IdLocation"]
     except:
         pass
-    
+
     return title,name,comment,tags,variable,pos_px_x,pos_px_y,IdLocation,url,ConnectionPort
 
 # Copy a connection when copy a TileSet
 # => copy connection + config files +     vnctransfert=json.loads(session["connection"+str(idconnection)]) + session["connection"+str(idconnection)]
 # TODO message to connection user owner grid : "Are you OK to copy your connection for tileset.name ?"
 def copy_connection(oldtileset,newtileset,newsessionname):
-    oldconnection=oldtileset.connections        
+    oldconnection=oldtileset.connections
     user_id=get_user_id("copy_connection",session["username"])
 
     message = '{"oldtilesetid":'+str(newtileset.id)+',"oldsessionname":"'+session["sessionname"]+'"}'
@@ -885,7 +891,7 @@ def copy_connection(oldtileset,newtileset,newsessionname):
                                       scheduler_file=oldconnection.scheduler_file,
                                       id_users=user_id,
                                       creation_date= creation_date)
-    
+
     lastconnection=db.session.query(models.Connections.id).order_by(models.Connections.id.desc()).first()
     if ( lastconnection ):
         newconnection.id=lastconnection.id+1
@@ -898,7 +904,7 @@ def copy_connection(oldtileset,newtileset,newsessionname):
     olddir=os.path.join(user_path,str(idconnection))
     newdir=os.path.join(user_path,str(newconnection.id))
     os.system("mkdir "+newdir)
-    
+
     config_files={}
     for key in oldconnection.config_files:
         filetmp=oldconnection.config_files[key]
@@ -911,7 +917,7 @@ def copy_connection(oldtileset,newtileset,newsessionname):
     newconnection.scheduler_file=oldconnection.scheduler_file
     newtileset.id_connections=newconnection.id
     db.session.commit()
-    
+
     vnctransfert=json.loads(session["connection"+str(idconnection)])
     vncpassword=vnctransfert["vncpassword"]
     session["connection"+str(newconnection.id)]=' {"callfunction":"edittileset",'+'"args":{"oldsessionname":"'+newsessionname+'","oldtilesetid":"'+str(newtileset.id)+'"}, "vncpassword":"'+vncpassword+'"}'
@@ -956,7 +962,7 @@ def launch_connection(theTS, theConnect, myhost_address, myauth_type, mycontaine
         NbTimeAlive = 20
         passpath="/home/connect"+str(theConnect.id)+"/vncpassword"
         logging.warning("Go to vnc with path "+passpath)
-        
+
         count=0
         while(True):
             if (count > NbTimeAlive):
@@ -968,7 +974,7 @@ def launch_connection(theTS, theConnect, myhost_address, myauth_type, mycontaine
                 return redirect(url_for(".edittileset",message=message))
             count=count+1
             logging.debug("count = "+str(count))
-            # GET VNC password in 
+            # GET VNC password in
             # security problem here if server is attacked ?
             time.sleep(timeAlive)
             #os.system("ls -la "+passpath)
@@ -980,7 +986,7 @@ def launch_connection(theTS, theConnect, myhost_address, myauth_type, mycontaine
             else:
                 logging.error("File not found in connection container "+passpath)
                 vncpassword=""
-            
+
             message = '{"oldtilesetid":'+str(theTS.id)+',"connectionid":'+str(theConnect.id)+',"sessionname":"'+session["sessionname"]+'"}'
             session["connection"+str(theConnect.id)]=' {"callfunction":"edittileset",'+'"args":{"oldsessionname":"'+str(session["sessionname"])+'","oldtilesetid":"'+str(theTS.id)+'"}, "vncpassword":"'+vncpassword+'"}'
 
@@ -999,7 +1005,7 @@ def save_session(oldsessionname, newsuffix, newdescription, alltiles):
     projectid=oldsession.id_projects
     # TODO : max length of Session.name (=80) ?
     # mais parent with date may be too long
-    #=> notion of heritage for session and tilsets in DB    
+    #=> notion of heritage for session and tilsets in DB
     newsessionname=session["sessionname"]+'_'+newsuffix
     newsession = models.Sessions(name=newsessionname,
                                 description=newdescription,
@@ -1029,7 +1035,7 @@ def save_session(oldsessionname, newsuffix, newdescription, alltiles):
     newsession.config = oldsession.config
     flag_modified(newsession,"config")
     db.session.commit()
-    
+
     # Validate consistency after session copy
     inconsistencies = validate_session_project_consistency(newsession.id)
     if inconsistencies:
@@ -1050,13 +1056,13 @@ def save_session(oldsessionname, newsuffix, newdescription, alltiles):
         logging.debug("copy tileset from :"+tileset.name)
 
         urlbool=False
-        connectionbool=False        
+        connectionbool=False
         if (tileset.type_of_tiles == "URL"):
             urlbool=True
         elif(tileset.type_of_tiles == "CONNECTION"):
             # Creation of the tiles and launch connection to remote machine.
             connectionbool=True
-            
+
         datapath=tileset.Dataset_path
         tileset1,exist=create_newtileset(tilesetname+'_'+newsuffix, newsession,
                                    tileset.type_of_tiles, datapath, creation_date)
@@ -1070,8 +1076,8 @@ def save_session(oldsessionname, newsuffix, newdescription, alltiles):
                 logging.error("copy id connection :  "+str(tileset1.id_connections))
 
             logging.error("copy config data 1 :"+tileset1.launch_file+"  "+str(tileset1.config_files))
-            
-            
+
+
         if (not exist):
             try:
                 db.session.add(tileset1)
@@ -1079,7 +1085,7 @@ def save_session(oldsessionname, newsuffix, newdescription, alltiles):
             except Exception:
                 traceback.print_exc(file=sys.stderr)
         logging.warning("add tileset1 :"+tileset1.name)
-        
+
         for tile in tileset.tiles:
             try :
                 i=next(i for i, item in enumerate(alltilesjson) if (item["title"] == tile.title))
@@ -1134,7 +1140,7 @@ def remove_this_session(sessionid):
     delelement(models.Sessions, "session", sessionid)
     db.session.commit()
 
-    
+
 def remove_this_project(projectid):
     """
     Remove a project and all its associated data
@@ -1152,14 +1158,14 @@ def remove_this_project(projectid):
 
         # Remove all project members
         db.session.query(models.ProjectMembers).filter_by(project_id=projectid).delete()
-        
+
         # Remove the project itself
         delelement(models.Projects, "project", projectid)
         db.session.commit()
-        
+
         logging.info(f"Project {projectid} and all associated data removed successfully")
         return True
-        
+
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error removing project {projectid}: {str(e)}")
@@ -1180,7 +1186,7 @@ def remove_this_user(userid):
     user_session=db.session.query(models.Sessions).filter(models.Sessions.users.any(id=userid)).all()
     for thissession in user_session:
         thissession.users.remove(thisuser)
-        
+
     # Search project wich have this user as owner
     # TODO : give the possibility to change owner of the project ?
     user_project=db.session.query(models.Projects).filter_by(id_users=userid).all()
@@ -1188,7 +1194,7 @@ def remove_this_user(userid):
         remove_this_project(thisproject.id)
 
     delelement(models.Users, "user", userid)
-        
+
 def remove_this_connection(oldtileset,idconnection,user_id):
     oldconnection=oldtileset.connections
     oldtilesetid=oldtileset.id
@@ -1208,7 +1214,7 @@ def remove_this_connection(oldtileset,idconnection,user_id):
             logging.warning("Remove file for tileset "+oldtileset.name+" : "+os.path.join(dirpath,filename))
         os.rmdir(dirpath)
         logging.warning("Remove dir for tileset "+oldtileset.name+" : "+dirpath)
-    
+
     oldtileset.id_connections=None
     #oldtileset.type_of_tiles == None
     oldtileset.config_files=""
@@ -1233,7 +1239,7 @@ def myrender():
         myargs["username"]=session["username"]
         if (session["username"]!="Anonymous"):
             myargs["notlogin"]=False
-    
+
             User=db.session.query(models.Users).filter_by(name=session["username"]).one_or_none()
             if User is None:
                 # User doesn't exist in database anymore (cookie corrupted or user deleted)
@@ -1259,7 +1265,7 @@ def myrender():
 @app.route('/index', methods=['GET', 'POST'])
 @app.route('/home', methods=['GET', 'POST'])
 def index():
-    try: 
+    try:
         #logging.warning(str(session))
         try:
             user = {"username" : session["username"] } # Test for cookie?
@@ -1372,14 +1378,14 @@ def register():
                         return render_template("main_login.html", **(myrender()), title="TiledViz register", form=myform)
 
                     flash("This username {} already exists and passwd is incorrect : ".format(session["username"]))
-                    return render_template("main_login.html", **(myrender()), 
-                                           title="TiledViz register", 
+                    return render_template("main_login.html", **(myrender()),
+                                           title="TiledViz register",
                                            form=myform)
         else:
             hashpass, salt=tvdb.passprotected(myform.password.data)
-            
+
             creation_date=datetime.datetime.now()
-            
+
             # Create the user first
             user = models.Users(name=str(myusername),
                                creation_date=str(creation_date),
@@ -1394,65 +1400,77 @@ def register():
             db.session.add(user)
             db.session.commit()
             logging.warning("Commit new user.")
-            
-            # Get real user ID and generate token
+
+            # Get real user ID
             user_id = user.id
-            token = generate_verification_token(user_id)
-            
-            # Send verification email with correct token
-            email_sent = send_verification_email(
-                user_email=myform.email.data,
-                username=myusername,
-                token=token
-            )
 
-            try:
-                # Query all admins
-                admin_records = db.session.query(models.Users.mail).filter_by(is_admin=True).all()
-                admin_emails = [record.mail for record in admin_records if record.mail]
+            if is2FaActivated:
+                token = generate_verification_token(user_id)
+                # Send verification email with correct token
+                email_sent = send_verification_email(
+                    user_email=myform.email.data,
+                    username=myusername,
+                    token=token
+                )
 
-                if admin_emails:
-                    logging.info(f"Sending registration alert to {len(admin_emails)} admins.")
-                    send_new_register_email(
-                        admin_emails=admin_emails,
-                        username=str(myusername),
-                        creation_date=str(creation_date),
-                        user_email=str(myform.email.data),
-                        user_company=str(myform.compagny.data),
-                        user_manager=str(myform.manager.data)
-                    )
-            except Exception as e:
-                logging.error(f"Failed to fetch admins or send admin notification: {e}")
-            
-            if email_sent:
-                logging.warning("Verification email sent to {}".format(myform.email.data))
-                flash("Registration successful! Please check your email and click the verification link to activate your account.")
+                try:
+                    # Query all admins
+                    admin_records = db.session.query(models.Users.mail).filter_by(is_admin=True).all()
+                    admin_emails = [record.mail for record in admin_records if record.mail]
+
+                    if admin_emails:
+                        logging.info(f"Sending registration alert to {len(admin_emails)} admins.")
+                        send_new_register_email(
+                            admin_emails=admin_emails,
+                            username=str(myusername),
+                            creation_date=str(creation_date),
+                            user_email=str(myform.email.data),
+                            user_company=str(myform.compagny.data),
+                            user_manager=str(myform.manager.data)
+                        )
+                except Exception as e:
+                    logging.error(f"Failed to fetch admins or send admin notification: {e}")
+
+                if email_sent:
+                    logging.warning("Verification email sent to {}".format(myform.email.data))
+                    flash("Registration successful! Please check your email and click the verification link to activate your account.")
+                else:
+                    # Email failed, remove the created user
+                    db.session.delete(user)
+                    db.session.commit()
+                    logging.error("Failed to send verification email to {}. User deleted.".format(myform.email.data))
+                    flash("Registration failed: Unable to send verification email. Please check your email address and try again.")
+                    return render_template("main_login.html", **(myrender()),
+                        title="TiledViz register",
+                        form=myform)
+
+                # Set admin if first user
+                if (user_id == 1):
+                    user.is_admin=True
+                    user.is_verified=True  # First user is auto-verified
+                    db.session.commit()
+                    logging.warning("New user is Admin and auto-verified.")
+                    # Auto-login first user
+                    session["username"] = myusername
+                    session["is_client_active"]=True
+                else:
+                    # Don't auto-login new users - they need to verify email first
+                    logging.info("New user {} needs to verify email before login.".format(myusername))
             else:
-                # Email failed, remove the created user
-                db.session.delete(user)
+                # Bypass verification email and auto-verify all new users when 2FA/verification is disabled
+                user.is_verified = True
+                if (user_id == 1):
+                    user.is_admin = True
                 db.session.commit()
-                logging.error("Failed to send verification email to {}. User deleted.".format(myform.email.data))
-                flash("Registration failed: Unable to send verification email. Please check your email address and try again.")
-                return render_template("main_login.html", **(myrender()), 
-                    title="TiledViz register", 
-                    form=myform)
-            
-            # Set admin if first user
-            if (user_id == 1):
-                user.is_admin=True
-                user.is_verified=True  # First user is auto-verified
-                db.session.commit()
-                logging.warning("New user is Admin and auto-verified.")
-                # Auto-login first user
+                logging.warning(f"New user {myusername} registered and auto-verified without email (is2FaActivated=False).")
+                # Auto-login new user immediately
                 session["username"] = myusername
-                session["is_client_active"]=True
-            else:
-                # Don't auto-login new users - they need to verify email first
-                logging.info("New user {} needs to verify email before login.".format(myusername))
+                session["is_client_active"] = True
+                flash("Registration successful! You are now logged in.")
         cookie_persistence = myform.remember_me.data
         logging.warning("[!] Cookie persistence set to %s" % (str(cookie_persistence)))
 
-        # TODO : suppress code below and options because is_verified is not 
+        # TODO : suppress code below and options because is_verified is not
         logging.debug("Project Choice :"+myform.choice_project.data)
 
         # Check if user is logged in (only first user or existing users)
@@ -1466,9 +1484,13 @@ def register():
                 else:
                     logging.info("New user "+session["username"]+" : create a new project or ask for invite_link.")
                     flash("New user {} registred : please create a new project or ask another user for an invite_link.".format(session["username"]))
-                    return render_template("main_login.html", **(myrender()), 
-                        title="TiledViz register", 
-                        form=myform)
+                    if is2FaActivated:
+                        return render_template("main_login.html", **(myrender()),
+                            title="TiledViz register",
+                            form=myform)
+                    else:
+                        return redirect("/allsessions")
+
         else:
             # New user not logged in - redirect to login
             flash("Please login as {} avec have clicked on received email on {}.".format(myform.username.data,myform.email.data))
@@ -1493,12 +1515,12 @@ def login():
                 if exists:
                     # Check if user email is verified
                     if not User.is_verified:
-                        flash("Your email address has not been verified yet. Please check your email and click the verification link.") 
+                        flash("Your email address has not been verified yet. Please check your email and click the verification link.")
                         return render_template("main_login.html", **(myrender()), title="TiledViz login", form=myform)
-                
+
                     hashPassword = User.password
-                    hashSalt = User.salt 
-                    
+                    hashSalt = User.salt
+
                     myform = BuildLoginForm(session)()
                     myusername = myform.username.data if hasattr(myform, 'username') else session["username"]
                     if (myusername != str(session["username"])):
@@ -1508,12 +1530,12 @@ def login():
                         session.pop('username', None)
                         session.pop("is_client_active")
                         return redirect(url_for('index'))
-                    
+
 
                     logging.error(f"User {session['username']} already connected.")
                     flash("Your were already connected.")
                     return redirect("/allsessions")
-                    
+
     myform = BuildLoginForm(session)()
     if myform.validate_on_submit():
         myusername = myform.username.data
@@ -1522,30 +1544,55 @@ def login():
         if user:
             # Check if user email is verified
             if not user.is_verified:
-                flash("Your email address has not been verified yet. Please check your email and click the verification link.")
-                return render_template("main_login.html", **(myrender()), title="TiledViz login", form=myform)
-                
+                if is2FaActivated:
+                    flash("Your email address has not been verified yet. Please check your email and click the verification link.")
+                    return render_template("main_login.html", **(myrender()), title="TiledViz login", form=myform)
+                else:
+                    user.is_verified = True
+                    db.session.commit()
+
             if tvdb.testpassprotected(models.Users, myusername, mypassword, user.password, user.salt):
                 logging.info('Correct password.')
 
-                # Send 2FA email with correct code
-                code = generate_verification_code()
-                email_sent = send_2FAcode_email(
-                    user_email=user.mail,
-                    username=myusername,
-                    code=code
-                )
-                # Create expiration datetime (UTC)
-                expiration_time = datetime.datetime.utcnow() + datetime.timedelta(seconds=360)
-                codes2FA[myusername]={"code":code, "expiration_time":expiration_time}
-                
-                strerror=f"We have sent you a security code on your mail. Please check your inbox before UTC {expiration_time}."
-                flash(strerror)
-                message = '{"username": "'+myusername+'", '+\
-                    '"newuser": "'+str(myform.newuser.data)+'", "choice_project": "'+myform.choice_project.data+'"}'
-                logging.info(strerror+" message "+message)
-                logging.warning(f"User {myusername} try to connect.")
-                return redirect(url_for(".check2FA",message=message))
+                if is2FaActivated:
+                    # Send 2FA email with correct code
+                    code = generate_verification_code()
+                    email_sent = send_2FAcode_email(
+                        user_email=user.mail,
+                        username=myusername,
+                        code=code
+                    )
+                    # Create expiration datetime (UTC)
+                    expiration_time = datetime.datetime.utcnow() + datetime.timedelta(seconds=360)
+                    codes2FA[myusername]={"code":code, "expiration_time":expiration_time}
+
+                    strerror=f"We have sent you a security code on your mail. Please check your inbox before UTC {expiration_time}."
+                    flash(strerror)
+                    message = '{"username": "'+myusername+'", '+\
+                        '"newuser": "'+str(myform.newuser.data)+'", "choice_project": "'+myform.choice_project.data+'"}'
+                    logging.info(strerror+" message "+message)
+                    logging.warning(f"User {myusername} try to connect.")
+                    return redirect(url_for(".check2FA",message=message))
+                else:
+                    session["username"] = myusername
+                    session["is_client_active"] = True
+
+                    logging.warning(f"User {myusername} has loggined without 2FA.")
+
+                    if (str(myform.newuser.data) == "True"):
+                        return redirect("/register")
+
+                    # Check if there's a pending invite link
+                    if "pending_invite_link" in session:
+                        link = session.pop("pending_invite_link")
+                        return redirect(url_for(".handle_join_with_invite_link", link=link))
+
+                    if (myform.choice_project.data == "create"):
+                        return redirect("/project")
+                    elif (myform.choice_project.data == "connect"):
+                        return redirect("/allsessions")
+                    else:
+                        return redirect("/allsessions")
 
             else:
                 flash("Invalid password")
@@ -1553,9 +1600,9 @@ def login():
         else:
             flash("Invalid username")
             return redirect("/login")
-            
+
     return render_template("main_login.html", **(myrender()), title="TiledViz login", form=myform)
-    
+
 @app.route('/check2FA', methods=["GET", "POST"])
 def check2FA():
     message = json.loads(request.args["message"])
@@ -1566,22 +1613,22 @@ def check2FA():
     else:
         flash("User didn't received a 2FA code. Please try to login again.")
         return redirect("/login")
-    
+
     myform = Build2FAForm(session,myusername)()
     if myform.validate_on_submit():
         if (datetime.timedelta(seconds=360) < datetime.datetime.utcnow()-expiration_time):
            flash("Timeout for code verification. Please try to login again.")
            return redirect("/login")
-   
+
         logging.info(f"code created {code} and from form {myform.code.data}")
         if (code == int(myform.code.data)):
             session["username"] = myusername
             session["is_client_active"] = True
-            
+
             logging.info(f"code OK message {message}")
             logging.warning(f"User {myusername} has loggined with 2FA code.")
             codes2FA.pop(myusername)
-            
+
             if (message["newuser"]=="True"): #distutils.util.strtobool(message["newuser"])):
                 return redirect("/register")
 
@@ -1589,7 +1636,7 @@ def check2FA():
             if "pending_invite_link" in session:
                 link = session.pop("pending_invite_link")
                 return redirect(url_for(".handle_join_with_invite_link", link=link))
-            
+
             if (message["choice_project"] == "create"):
                 return redirect("/project")
             elif (message["choice_project"] == "connect"):
@@ -1642,9 +1689,9 @@ def savesession():
             pass
         else:
             all_session[item]=session[item]
-            
+
     logging.info("complete all_session : "+str(all_session))
-    
+
     #all_connections=
     # session["connection"+str(idconnection)])
     # session["connection"+str(newconnection.id)]
@@ -1654,7 +1701,7 @@ def savesession():
         flash("Session cookie saved.")
         return redirect("/index")
         #return redirect(url_for('index'))
-    
+
     return render_template("savesession.html", **(myrender()),
                            all_session=json_all_session)
 
@@ -1678,20 +1725,20 @@ def retreivesession():
         if(myform.goback.data):
             logging.warning("go back to home without session.")
             return redirect(url_for(".index"))
-        
+
         if (myform.session_file.data) :
             session_file = myform.session_file.data
             logging.warning("Read session_file :"+myform.session_file.data.filename)
             session_data = json.loads(json.loads(session_file.read().decode('utf-8')))
             logging.warning("Session_data :"+str(session_data))
-            
+
             session["username"]=session_data['username']
             session["is_client_active"]=session_data["is_client_active"]
             session["projectname"]=session_data["projectname"]
             session["sessionname"]=session_data["sessionname"]
             all_session={"username":session['username'],"is_client_active":session["is_client_active"],
                  "projectname":session["projectname"],"sessionname":session["sessionname"]}
-            
+
             logging.info("basic all_session : "+str(all_session))
             for item in session_data:
                 if item in all_session:
@@ -1706,7 +1753,7 @@ def retreivesession():
         #     # jsontransfert[session["sessionname"]]={"callfunction": '{"function":"edittileset",'+'"args":{"oldtilesetid":"'+str(oldtilesetid)+'"}}',
         #     #                                        "TheJson":json_tiles}
         #     pass
-        
+
     #    return render_template("retreivesession.html")
     return render_template("main_login.html", **(myrender()), title="Retreive saved session for TiledViz", form=myform)
 
@@ -1724,10 +1771,10 @@ def project():
 
     # All projects for user using improved utility function
     printstr="{0:\xa0<"+projectl+"."+projectl+"}|\xa0{2:\xa0<"+datel+"."+datel+"}\xa0|\xa0{1:\xa0<"+descrl+"."+descrl+"}|\xa0{3:\xa0<"+descrl+"}"
-    
+
     # Get all projects where user is a member (any role)
     user_projects = get_user_projects(user_id)
-    
+
     myprojects=[]
     myprojects.append(('NoChoice',printstr.format("Project name","Description","Date and Time","All sessions")))
 
@@ -1736,10 +1783,10 @@ def project():
             ListsessionsTheproject=db.session.query(models.Sessions.name).filter_by(id_projects=project.id)
             allsessionsname=[ asessionTheproject.name for asessionTheproject in ListsessionsTheproject ]
             thedate=project.creation_date.isoformat().replace("T"," ") if project.creation_date else "Unknown"
-            
+
             # Add role information to the display
             project_display_name = f"{project.name} ({role_type})"
-            
+
             myprojects.append((str(project.id),
                                printstr.format(
                                      project_display_name,
@@ -1750,7 +1797,7 @@ def project():
     except Exception as e:
         logging.error(f"Error loading user projects: {str(e)}")
         pass
-    
+
     myform = BuildNewProjectForm(myprojects)()
 
     # UI filtering: adapt action choices based on selected project role
@@ -1777,7 +1824,7 @@ def project():
         pass
     if myform.validate_on_submit():
         logging.info("in project")
-        
+
         if (myform.chosen_project.data=="NoChoice"):
             if (myform.projectname.data != ""):
                 project_id = db.session.query(models.Projects.id).filter_by(name=myform.projectname.data).scalar()
@@ -1785,19 +1832,19 @@ def project():
                 logging.warning("You must create a new project or choose an old one.")
                 flash("You must create a new project or choose an old one.")
                 return redirect("/project")
-            
+
         else:
             project_id = int(myform.chosen_project.data)
-        
+
         exists = project_id is not None
         logging.debug("Project exists "+str(exists)+" id : "+str(project_id))
-        
+
         if exists:
             # Check if user has access to this project
             if not can_access_project(project_id, user_id):
                 flash("You don't have permission to access this project!")
                 return redirect("/project")
-                
+
             if (myform.chosen_project.data == "NoChoice"):
                 session["projectname"]=myform.projectname.data
             else:
@@ -1811,7 +1858,7 @@ def project():
             except Exception:
                 can_manage_members = False
                 can_edit_session = False
-                
+
             logging.debug("Chosen project : "+str(session["projectname"]))
             # Route behavior depends on role: only editors+ can create/modify
             user_can_edit = can_manage_project(project_id, user_id)
@@ -1833,7 +1880,7 @@ def project():
             creation_date=datetime.datetime.now()
             screation_date=str(creation_date)
             logging.error("create project date "+screation_date)
-            
+
             try:
                 project = models.Projects(name=str(myform.projectname.data),
                                          creation_date=screation_date,
@@ -1842,18 +1889,18 @@ def project():
                                          description=myform.description.data)
                 db.session.add(project)
                 db.session.flush()  # Get the project ID
-                
+
                 # Create the owner membership record using utility function
                 success, message = add_project_member(project.id, user_id, 'owner')
                 if not success:
                     db.session.rollback()
                     flash(f"Error creating project: {message}")
                     return redirect("/project")
-                
+
                 session["projectname"]=myform.projectname.data
                 logging.debug("Project created : create new session ")
                 return redirect("/newsession")
-                
+
             except Exception as e:
                 db.session.rollback()
                 logging.error(f"Error creating project: {str(e)}")
@@ -1861,8 +1908,8 @@ def project():
                 return redirect("/project")
         else:
             logging.error("Error for chosen project.")
-            return redirect("/project")            
-        
+            return redirect("/project")
+
     return render_template("main_login.html", **(myrender()), title="New project TiledViz", form=myform)
 
 # List all my old projects and after all sessions I am in
@@ -1887,7 +1934,7 @@ def admin():
     if not userAdmin:
         flash("You must be an administrator to access this page.")
         return redirect("/")
-        
+
     message='{"username": '+session["username"]+'}'
     logging.info("in administration page.")
 
@@ -1945,13 +1992,13 @@ def admin():
     for thisproject in allprojects:
         thedate=thisproject.creation_date.isoformat().replace("T"," ")
         Desc=thisproject.description
-        
+
         # Get owner via project_members
         owner_member = db.session.query(models.ProjectMembers).filter(
             models.ProjectMembers.project_id == thisproject.id,
             models.ProjectMembers.role_type == 'owner'
         ).first()
-        
+
         owner_name = 'Unknown'
         if owner_member and owner_member.user:
             owner_name = owner_member.user.name
@@ -1959,7 +2006,7 @@ def admin():
             old_owner = db.session.query(models.Users).filter_by(id=thisproject.id_users).first()
             if old_owner:
                 owner_name = old_owner.name
-            
+
         listallprojects.append(
             (str(thisproject.id),printstr.
              format(str(thisproject.name), owner_name, thedate, Desc)
@@ -1983,7 +2030,7 @@ def admin():
                     thedate,Desc)
             )
         )
-    
+
     projects = db.session.query(models.Projects).filter_by(id_users=user_id).all()
     logging.debug("My projects :"+str([ theproject.name for theproject in projects]))
 
@@ -2000,7 +2047,7 @@ def admin():
                         thedate,Desc)
                 )
             )
-        
+
     # All sessions own of those projects
     mysessions=[]
     try:
@@ -2010,13 +2057,13 @@ def admin():
     except:
         pass
     logging.debug("My sessions :"+str(mysessions))
-    
+
     printstr="{1:\xa0<"+sessionl+"."+sessionl+"}|{0:\xa0<"+projectl+"."+projectl+"}|\xa0{2:\xa0<"+datel+"."+datel+"}\xa0|\xa0{3:\xa0<"+descrl+"."+descrl+"}"
     listmyprojectssession=[]
     listmyprojectssession.append(('NoChoice',printstr.format("Project name","Session name","Date and Time","Description")))
     listmysession=[]
     for thissessions in mysessions:
-            
+
         for thissession in thissessions[1]:
             listmysession.append(thissession)
             thedate="1970-01-01"
@@ -2033,13 +2080,13 @@ def admin():
                         thedate,SessDesc)
                 )
             )
-            
-    
+
+
     # # All sessions this user has been invited to
     # listsessions=[]
 
     # invite_sessions = db.session.query(models.Sessions.name).filter(models.Sessions.users.any(id=user_id)).all()
-    # printstr="{0:\xa0<"+sessionl+"."+sessionl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"        
+    # printstr="{0:\xa0<"+sessionl+"."+sessionl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"
     # listsessions.append(('NoChoice',printstr.format("Session name","Date and Time","Description")))
     # for thissession in invite_sessions:
     #     logging.debug("Build listsessions for invite_session "+str(thissession.name))
@@ -2061,7 +2108,7 @@ def admin():
     # list all my Connections
     connections = db.session.query(models.Connections).filter_by(id_users=user_id)
     logging.debug("My connections :"+str([ theconnection.host_address for theconnection in connections]))
-    
+
     printstr="{0:\xa0<"+connectionh+"."+connectionh+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0\xa0\xa0\xa0\xa0|\xa0{2:\xa0<"+datel+"."+datel+"}\xa0\xa0\xa0\xa0|\xa0{3:\xa0<"+datel+"."+datel+"}"
     listmyconnections=[]
     listmyconnections.append(('NoChoice',printstr.format("Host address","Date and Time","id","In session")))
@@ -2077,13 +2124,13 @@ def admin():
                     str(insession))
             )
         )
-        
+
     if (userAdmin):
         listallconnections=[]
         # list all Connections
         allconnections = db.session.query(models.Connections)
         logging.debug("All connections :"+str([ theconnection.host_address for theconnection in allconnections]))
-    
+
         printstr="{0:\xa0<"+usernamel+"."+usernamel+"}|\xa0"+\
             "{1:\xa0<"+connectionh+"."+connectionh+"}|\xa0"+\
             "{2:\xa0<"+datel+"."+datel+"}\xa0\xa0\xa0\xa0\xa0|\xa0"+\
@@ -2104,7 +2151,7 @@ def admin():
                         str(insession))
                  )
             )
-        
+
     logging.debug("My project sessions :"+str(listmyprojectssession))
     # logging.debug("My invited sessions :"+str(listmysession))
     if (userAdmin):
@@ -2118,13 +2165,13 @@ def admin():
         ids=[]
 
         # TODO : GOT TO A NEW PAGE with the list of confirmations of deletations
-        
+
         if (userAdmin):
             if (myform.suprressfreetiles.data):
                 flash("All free tiles were suppressed.")
                 for freetile in db.session.query(models.t_freetiles).all():
                     delelement(models.Tiles, "tile", freetile[0])
-                
+
             if (myform.suprressUnusedTilesets.data):
                 flash("All free tilesets were suppressed.\n You may suppress all free tiles now.")
                 for freetilesets in db.session.query(models.t_freetilesets).all():
@@ -2133,7 +2180,7 @@ def admin():
                     db.session.query(func.deltileset(freetilesets[0])).all()
                     #delelement(models.TileSets, "tileset", freetilesets[0])
 
-        if ( myform.suppressSelected.data):            
+        if ( myform.suppressSelected.data):
             if (userAdmin):
                 if (myform.all_users.data != "NoChoice"):
                     chosenObject="user"
@@ -2144,7 +2191,7 @@ def admin():
                     ids.append(elementid)
 
                     remove_this_user(elementid)
-                
+
                 if (myform.all_projects.data != "NoChoice"):
                     chosenObject="project"
                     elementid=int(myform.all_projects.data)
@@ -2152,7 +2199,7 @@ def admin():
                     flash("Admin suppress element %s number %s." % (chosenObject,elementid))
                     objects.append(chosenObject)
                     ids.append(elementid)
-                    
+
                     remove_this_project(elementid)
 
                 if (myform.all_sessions.data != "NoChoice"):
@@ -2174,7 +2221,7 @@ def admin():
                 flash("Suppress element %s number %d." % (chosenObject,elementid))
                 objects.append(chosenObject)
                 ids.append(elementid)
-            
+
                 delelement(models.Projects, chosenObject, elementid)
 
             if (myform.chosen_project_session.data != "NoChoice"):
@@ -2193,7 +2240,7 @@ def admin():
             #     chosenObject="invitedsession"
             #     elementid=myform.chosen_session_invited.data
             #     flash("Suppress element %s number %s." % (chosenObject,elementid))
-            
+
             if (myform.chosen_user_connection.data != "NoChoice"):
                 chosenObject="connection"
                 elementid=int(myform.chosen_user_connection.data)
@@ -2212,7 +2259,7 @@ def admin():
                         delelement(models.Connections, chosenObject, elementid)
                 except:
                     delelement(models.Connections, chosenObject, elementid)
-        
+
         if (myform.suppressAllMyConnections.data):
             flash("All my connections were suppressed {}".format(session["username"]))
 
@@ -2232,7 +2279,7 @@ def admin():
 
 
         if (userAdmin):
-            
+
             if (myform.chosen_connections.data != "NoChoice"):
                 chosenObject="connection"
                 elementid=int(myform.chosen_connections.data)
@@ -2252,7 +2299,7 @@ def admin():
                 except:
                     delelement(models.Connections, chosenObject, elementid)
 
-        
+
             if (myform.suppressAllConnections.data):
                 flash("All connections for all users were suppressed.")
                 # TODO : use remove_this_connection(oldtileset,idconnection,user_id) to suppress tmp files in TVFiles
@@ -2275,7 +2322,7 @@ def admin():
         db.session.commit()
 
         return redirect("/admin")
-            
+
     return render_template("main_login.html", **(myrender()), title="Admin for user.", form=myform, message=message)
 
 
@@ -2300,7 +2347,7 @@ def allmysessions():
     # All projects own by user
     projects = db.session.query(models.Projects).filter_by(id_users=user_id)
     logging.debug("My projects :"+str([ theproject.name for theproject in projects]))
-    
+
     # All sessions own of those projects
     mysessions=[]
     try:
@@ -2310,7 +2357,7 @@ def allmysessions():
     except:
         pass
     logging.debug("My sessions :"+str(mysessions))
-    
+
     printstr="{1:\xa0<"+sessionl+"."+sessionl+"}|{0:\xa0<"+projectl+"."+projectl+"}|\xa0{2:\xa0<"+datel+"."+datel+"}\xa0|\xa0{3:\xa0<"+descrl+"."+descrl+"}"
     listmyprojectssession=[]
     listmyprojectssession.append(('NoChoice',printstr.format("Project name","Session name","Date and Time","Description")))
@@ -2341,12 +2388,12 @@ def allmysessions():
                         thedate,SessDesc)
                 )
             )
-    
+
     # All sessions this user has been invited to
     listsessions=[]
 
     invite_sessions = db.session.query(models.Sessions.name).filter(models.Sessions.users.any(id=user_id)).all()
-    printstr="{0:\xa0<"+sessionl+"."+sessionl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"        
+    printstr="{0:\xa0<"+sessionl+"."+sessionl+"}|\xa0{1:\xa0<"+datel+"."+datel+"}\xa0|\xa0{2:\xa0<"+descrl+"."+descrl+"}"
     listsessions.append(('NoChoice',printstr.format("Session name","Date and Time","Description")))
     for thissession in invite_sessions:
         if (thissession.name not in listmysession):
@@ -2371,7 +2418,7 @@ def allmysessions():
                         thedate, SessDesc)
                 )
             )
-        
+
     logging.debug("My project sessions :"+str(listmyprojectssession))
     logging.debug("My invited sessions :"+str(listsessions))
     if (len(listmyprojectssession) == 0 and len(listmysession) == 0 and len(invite_sessions) == 0):
@@ -2405,7 +2452,7 @@ def allmysessions():
             flash("You didn't select a session or click 'Go' button on search bar.\n"+
                   "You must choose a session in your projects or one you were invited on.")
             return redirect("/allsessions")
-            
+
         logging.warning("Which is session "+str(db.session.query(models.Sessions.id).filter(models.Sessions.name.like(f'{session["sessionname"]}')).first()))
         its_project_id=db.session.query(models.Sessions).filter(models.Sessions.name.like(f'{session["sessionname"]}')).first().id_projects
         session["projectname"]=db.session.query(models.Projects).filter_by(id=its_project_id).scalar().name
@@ -2420,10 +2467,10 @@ def allmysessions():
             message = '{"oldsessionname":"'+session["sessionname"]+'"}'
             return redirect(url_for(".editsession",message=message))
         return redirect("/grid")
-        
+
     return render_template("main_login.html", **(myrender()), title="All projects/sessions TiledViz", form=myform, message=message)
 
-    
+
 # List all old sessions for the projectname I am in
 @app.route('/oldsessions', methods=["GET", "POST"])
 def oldsessions():
@@ -2448,7 +2495,7 @@ def oldsessions():
         user_can_edit = can_manage_project(Project.id, user_id)
     except Exception:
         user_can_edit = False
-        
+
     Project = db.session.query(models.Projects).filter_by(name=session["projectname"]).scalar()
     project_id=Project.id
     project_desc=Project.description
@@ -2516,7 +2563,7 @@ def newsession():
         return redirect("/project")
 
     # New or session manager (copy, invite_link a list of connected users ?)
-    myform = BuildNewSessionForm()() 
+    myform = BuildNewSessionForm()()
     if myform.validate_on_submit():
         if myform.add_users.data:
             myform.users.append_entry()
@@ -2552,14 +2599,14 @@ def newsession():
                 db.session.commit()
             except Exception:
                 traceback.print_exc(file=sys.stderr)
-            
-                flash("Session with name {} creation problem.".format(sessionname))    
+
+                flash("Session with name {} creation problem.".format(sessionname))
                 return render_template("main_login.html", **(myrender()), title="New Session TiledViz", form=myform, message=message)
         else:
             flash("Session with name {} already exists".format(sessionname))
             return render_template("main_login.html", **(myrender()), title="New Session TiledViz", form=myform)
 
-        # Create default config for new session 
+        # Create default config for new session
         config_default_file=open("app/static/js/config_default.json",'r')
         json_configs=json.load(config_default_file)
         config_default_file.close()
@@ -2587,13 +2634,13 @@ def copysession():
     else:
         flash("Copy session : User must login !")
         return redirect("/login")
-    
+
     if ( not "sessionname" in session ):
         return redirect("/allsessions")
 
     message=json.loads(request.args["message"])
     oldsessionname=message["oldsessionname"]
-    oldsession = db.session.query(models.Sessions).filter(models.Sessions.name.like(oldsessionname)).first()    
+    oldsession = db.session.query(models.Sessions).filter(models.Sessions.name.like(oldsessionname)).first()
     # Permission: only owner may manage members (add users)
     try:
         current_user_obj = db.session.query(models.Users).filter_by(name=session["username"]).first()
@@ -2602,7 +2649,7 @@ def copysession():
         can_manage_members = False
         can_edit_session = False
         role_type="viewer"
-        
+
     if (can_edit_session):
         flash("User {} don't have rights to copy session {} with role {}".format(session["username"], myform.sessionname.data, role_type))
         return redirect("/oldsessions")
@@ -2631,19 +2678,19 @@ def copysession():
                 logging.debug("myform.users : %s %s" % (str(outfind[0]),str(outchecked[1] == "")))
                 thisuser=FormUser(data=outfind[0],iseditor=(outchecked[1]==""))
                 list_users.append(thisuser)
-                
+
         newsession,exist=create_newsession(myform.sessionname.data, myform.description.data, oldsession.id_projects, list_users)
 
         if (not exist):
             nbts=len(oldsession.tile_sets)
             for i in range(nbts):
                 newsession.tile_sets.append(oldsession.tile_sets[i])
-                
+
             try:
                 # if user has not change session.name, it can't be created.
                 db.session.add(newsession)
                 db.session.commit()
-                
+
                 # Validate consistency after session copy
                 inconsistencies = validate_session_project_consistency(newsession.id)
                 if inconsistencies:
@@ -2654,10 +2701,10 @@ def copysession():
                         logging.info(f"Fixed copied session inconsistencies: {fix_message}")
                     else:
                         logging.error(f"Failed to fix copied session inconsistencies: {fix_message}")
-                        
+
             except Exception:
                 traceback.print_exc(file=sys.stderr)
-            
+
                 message = '{"oldsessionname":"'+oldsessionname+'"}'
                 flash("Session with name {} creation problem.".format(newsession.name))
                 return render_template("main_login.html", **(myrender()), title="Copy session TiledViz", form=myform, message=message)
@@ -2669,8 +2716,8 @@ def copysession():
             return render_template("main_login.html", **(myrender()), title="Copy Session TiledViz", form=myform)
 
         theaction=myform.tilesetaction.data
-        
-        # try:    
+
+        # try:
         #     oldtilesetid=int(myform.tilesetchoice.data)
         #     message = '{"oldtilesetid":'+str(tilesetid)+'}'
         # except :
@@ -2707,10 +2754,10 @@ def editsession():
     else:
         flash("Edit session : User must login !")
         return redirect("/login")
-        
+
     message=json.loads(request.args["message"])
     oldsessionname=message["oldsessionname"]
-    oldsession = db.session.query(models.Sessions).filter(models.Sessions.name.like(oldsessionname)).first()    
+    oldsession = db.session.query(models.Sessions).filter(models.Sessions.name.like(oldsessionname)).first()
     # Permission: only owner may manage members (add users)
     try:
         current_user_obj = db.session.query(models.Users).filter_by(name=session["username"]).first()
@@ -2721,7 +2768,7 @@ def editsession():
 
     session["can_manage_members"]=can_manage_members
     session["can_edit_session"]=can_edit_session
-    
+
     myform = BuildEditsessionform(oldsession,session,edit=True)()
     if myform.validate_on_submit():
         # Redirect to project member management (owner/admin only)
@@ -2734,11 +2781,11 @@ def editsession():
         logging.debug("editSessionForm : ")
 
         if (myform.editusers.data):
-            return redirect(url_for('project_members', project_id=oldsession.projects.id)) 
+            return redirect(url_for('project_members', project_id=oldsession.projects.id))
 
         # - PCA -
         #   |_ my form contains the form the edition tileset
-        #   |_ process the anatreada script here ?? 
+        #   |_ process the anatreada script here ??
         # logging.info("Calling pca_nodes_of_tilesets methode of anatread")
         # logging.info("The user as selected the option : " + myform.has_pca.data)
 
@@ -2747,7 +2794,7 @@ def editsession():
         if myform.has_pca.data == "YES" :
 
             # logging.info("Contruction of nodes of tilesets to process the PCA ...")
-            
+
             # - PCA -
             #   |_ structure of dict_tiles_all_session :
             #
@@ -2772,7 +2819,7 @@ def editsession():
                 for tile in tileset.tiles:
                     dict_tiles_all_session["nodes"].append( {
                         "id" : tile.id,
-                        "title" : tile.title, 
+                        "title" : tile.title,
                         "tags" : tile.tags
                         } )
 
@@ -2782,7 +2829,7 @@ def editsession():
             logging.error(json_tiles_text)
             myflush()
             dict_pca_tiles_all_session, groups_dict = anatreada.pca_on_multiple_nodes(json_tiles_text)
-            
+
             dict_pca_tiles_all_session = json.loads(dict_pca_tiles_all_session)
             groups_dict = json.loads(groups_dict)
 
@@ -2793,12 +2840,12 @@ def editsession():
                     try :
                         tile = tileset.tiles[j]
                         tile.tags.append(groups_dict[str(tile.id)])
-                        
+
                         flag_modified(tile,"tags")
 
                     except :
                         logging.error("An error occurred : can't find tile id in groups dict ...")
-                        
+
             db.session.commit()
 
         if ("add_users" in myform):
@@ -2849,7 +2896,7 @@ def editsession():
 
         ListAllTileSet_ThisSession=[ (str(thistileset.id), thistileset.name) for thistileset in oldsession.tile_sets]
         if (len(ListAllTileSet_ThisSession) > 0):
-            try:    
+            try:
                 tilesetid=int(myform.tilesetchoice.data)
                 message = '{"oldtilesetid":'+str(tilesetid)+'}'
             except Exception:
@@ -2862,7 +2909,7 @@ def editsession():
             if(hasattr(myform,'edit') and myform.edit.data and can_edit_session):
                 logging.debug("message before edittileset "+str(message))
                 return redirect(url_for(".edittileset",message=message))
-        
+
         logging.debug("Action tileset : "+str(message)+" "+theaction)
         if(theaction == "useold"):
             session["is_client_active"]=True
@@ -2884,7 +2931,7 @@ def editsession():
                 db.session.commit()
             except Exception:
                 traceback.print_exc(file=sys.stderr)
-                
+
                 flash("Error remove tileset {}".format(db.session.query(models.TileSets).filter_by(id=tilesetid).scalar().name))
             message = '{"oldsessionname":"'+oldsessionname+'"}'
             return redirect(url_for(".editsession",message=message))
@@ -2907,7 +2954,7 @@ def editnodes():
 
     message=json.loads(request.args["message"])
     oldsessionname=message["oldsessionname"]
-    ThisSession = db.session.query(models.Sessions).filter(models.Sessions.name.like(oldsessionnam)).first()    
+    ThisSession = db.session.query(models.Sessions).filter(models.Sessions.name.like(oldsessionnam)).first()
 
     # Permissions: only owner/editor can edit nodes
     try:
@@ -2968,7 +3015,7 @@ def editnodes():
                     traceback.print_exc(file=sys.stderr)
                     strerror="Error from json "+out_nodes_json+" file from connection : "+str(err)
                     logging.error(strerror)
-                    
+
         else:
             tiledata=tvdb.encode_tileset(thistileset)
 
@@ -2979,7 +3026,7 @@ def editnodes():
 
     return redirect(url_for(".jsoneditor"))
 
-    
+
 # List all old tilesets I am in
 @app.route('/searchtileset', methods=["GET", "POST"])
 def searchtileset():
@@ -2999,7 +3046,7 @@ def searchtileset():
         message=json.loads(request.args["message"].replace("'", '"'))
 
     oldsessionname=message["oldsessionname"]
-    oldsession = db.session.query(models.Sessions).filter(models.Sessions.name.like(oldsessionname)).first()    
+    oldsession = db.session.query(models.Sessions).filter(models.Sessions.name.like(oldsessionname)).first()
 
 
     # Guard: edit permission required on owning project to add tilesets from search
@@ -3065,36 +3112,36 @@ def configsession():
     sessionname=message["sessionname"]
     thesession = db.session.query(models.Sessions).filter(models.Sessions.name.like(sessionname)).first()
 
-    # Detect how the data of config has been inserted :        
+    # Detect how the data of config has been inserted :
     if ( session["sessionname"] in  jsontransfert):
         if ( "TheJson" in  jsontransfert[session["sessionname"]]):
             # if TheJson is already define in message, it has been edited by jsoneditor (call beside)
             json_configs=jsontransfert[session["sessionname"]]["TheJson"]
             jsontransfert[session["sessionname"]].pop("TheJson")
-            logging.debug("configsession : come back from jsoneditor") 
+            logging.debug("configsession : come back from jsoneditor")
             # json_gziped=message["TheJson"].replace("b'","").replace("'","")
             # json_unziped=gzip.decompress(base64.b64decode(json_gziped)).decode('utf-8')
             # #print("configsession json_unziped", json_unziped)
             # json_configs=json.loads(json_unziped)
             #print("configsession json_configs", json_configs)
         else:
-            logging.debug("configsession : we can't be here !") 
+            logging.debug("configsession : we can't be here !")
             if ( thesession.config == None ):
-                logging.debug("configsession : using config_default.json") 
+                logging.debug("configsession : using config_default.json")
                 config_default_file=open("app/static/js/config_default.json",'r')
                 json_configs=json.load(config_default_file)
                 config_default_file.close()
             else:
-                logging.debug("configsession : old session config.") 
+                logging.debug("configsession : old session config.")
                 json_configs=thesession.config
     else:
         if ( thesession.config == None ):
-            logging.debug("configsession : using config_default.json") 
+            logging.debug("configsession : using config_default.json")
             config_default_file=open("app/static/js/config_default.json",'r')
             json_configs=json.load(config_default_file)
             config_default_file.close()
         else:
-            logging.debug("configsession : old session config.") 
+            logging.debug("configsession : old session config.")
             json_configs=thesession.config
 
     json_configs_text=json.JSONEncoder().encode(json_configs)
@@ -3116,17 +3163,17 @@ def configsession():
         # Translate json text in structure
         jsonConfigs = json.loads(json_configs)
         #logging.debug("json_configs modify : "+str(jsonConfigs))
-        
+
         # json_configs_file = FileField("File json object for tileset ")
         # json_file = open(json_file_name).read()
 
         thesession.config=jsonConfigs
-        flag_modified(thesession,"config")        
+        flag_modified(thesession,"config")
         db.session.commit()
 
         message = '{"oldsessionname":"'+sessionname+'"}'
         return redirect(url_for(".editsession",message=message))
-        
+
     return render_template("main_login.html", **(myrender()), title="Config session", form=myform, message=message)
 
 
@@ -3183,11 +3230,11 @@ def addtileset():
                     logging.error("Addtileset : correction with double quotes not efficient ! "+str(e))
                     flash("Please look on data for TileSet json compliance")
                     return redirect(url_for(".addtileset",message=message))
-                    
+
             nbr_of_tiles = len(jsonTileSet["nodes"])
             logging.info("Number of tiles "+str(nbr_of_tiles))
-            
-        # openports_between_tiles = FieldList(IntegerField("port :",validators=[Optional()]),description="Open port in visualisation network",min_entries=2,max_entries=5) 
+
+        # openports_between_tiles = FieldList(IntegerField("port :",validators=[Optional()]),description="Open port in visualisation network",min_entries=2,max_entries=5)
 
         urlbool=False
         connectionbool=False
@@ -3196,8 +3243,8 @@ def addtileset():
         elif(myform.type_of_tiles.data == "CONNECTION"):
             launch_file=myform.script_launch_file.data
             if (not launch_file):
-                flash("TileSet with connection must have at least a script to launch your tiles.\n You must add launch_file script.")    
-                return render_template("main_login.html", **(myrender()), title="New TileSet TiledViz", form=myform, message=message) 
+                flash("TileSet with connection must have at least a script to launch your tiles.\n You must add launch_file script.")
+                return render_template("main_login.html", **(myrender()), title="New TileSet TiledViz", form=myform, message=message)
             connectionbool=True
 
         #print(session["sessionname"])
@@ -3211,7 +3258,7 @@ def addtileset():
                 datapath="https"
             else:
                 datapath=""
-                
+
         newtileset,exist=create_newtileset(tilesetname, conn_session, myform.type_of_tiles.data, datapath, creation_date)
         if (not exist):
             try:
@@ -3219,13 +3266,13 @@ def addtileset():
                 db.session.commit()
             except Exception:
                 traceback.print_exc(file=sys.stderr)
-                
-                flash("TileSet with name {} creation problem :".format(tilesetname))    
+
+                flash("TileSet with name {} creation problem :".format(tilesetname))
                 return render_template("main_login.html", **(myrender()), title="New TileSet TiledViz", form=myform, message=message)
         else:
             flash("TileSet with name {} already exists : Please give another name ".format(tilesetname))
             return render_template("main_login.html", **(myrender()), title="New TileSet TiledViz", form=myform, message=message)
-        
+
         # Register config files in jsontransfert to write them in connection path
         if (connectionbool):
             TStmpName="tileset_"+str(newtileset.id)
@@ -3239,7 +3286,7 @@ def addtileset():
             jsontransfert["tileset_"+str(newtileset.id)][launch_file.filename]=launch_file.read()
             newtileset.launch_file=launch_file.filename
             db.session.commit()
-        
+
         if (json_tiles):
             # Insert tiles into DB :
             tiles=[]
@@ -3273,11 +3320,11 @@ def addtileset():
                     newtile.id=lasttile.id+1
                 else:
                     newtile.id=1
-            
+
                 db.session.add(newtile)
                 db.session.commit()
                 logging.warning(str(i)+" add tile "+str(newtile.id)+" "+str(newtile.title))
-            
+
                 newtileset.tiles.append(newtile)
                 db.session.commit()
 
@@ -3287,10 +3334,10 @@ def addtileset():
         if (connectionbool):
             message = '{"oldtilesetid":'+str(newtileset.id)+',"oldsessionname":"'+session["sessionname"]+'"}'
             return redirect(url_for(".addconnection",message=message))
-        else:        
+        else:
             message = '{"oldsessionname":"'+session["sessionname"]+'"}'
             return redirect(url_for(".editsession",message=message))
-    
+
     return render_template("edittileset.html", **(myrender()), title="New TileSet TiledViz", form=myform, message=message)
 
 
@@ -3328,7 +3375,7 @@ def copytileset():
     flash("Tileset {} copy for user {} in session {}".format(oldtileset.name,session["username"],session["sessionname"]))
     if myform.validate_on_submit():
         logging.info("in copy tileset")
-        
+
         if (myform.name.data == oldtileset.name):
             message = '{"oldtilsetid":"'+str(oldtilesetid)+'"}'
             flash("You must change tilsetname to copy tileset {}".format(oldtileset.name))
@@ -3336,7 +3383,7 @@ def copytileset():
             return render_template("main_login.html", **(myrender()), title="Copy tileset TiledViz", form=myform, message=message)
 
         nbr_of_tiles = len(oldtileset.tiles)
-        
+
         sessioncopy=db.session.query(models.Sessions).filter_by(models.Sessions.name.like(session["sessionname"])).scalar()
         creation_date=datetime.datetime.now()
         tilesetname=myform.name.data
@@ -3348,7 +3395,7 @@ def copytileset():
             except Exception:
                 traceback.print_exc(file=sys.stderr)
 
-                flash("TileSet creation with name {} already exist :".format(tilesetname))    
+                flash("TileSet creation with name {} already exist :".format(tilesetname))
                 return render_template("main_login.html", **(myrender()), title="New TileSet TiledViz", form=myform, message=message)
 
 
@@ -3375,18 +3422,18 @@ def copytileset():
 
             flag_modified(newtileset,"config_files")
             db.session.commit()
-            
+
             message = '{"oldtilesetid":'+str(newtileset.id)+',"oldsessionname":"'+session["sessionname"]+'"}'
             return redirect(url_for(".edittileset",message=message))
         else:
             message = '{"oldsessionname":"'+session["sessionname"]+'"}'
             return redirect(url_for(".editsession",message=message))
-            
+
     return render_template("edittileset.html", **(myrender()), title="Copy TileSet TiledViz", form=myform, message=message)
 
 def save_tiles(oldtileset,nbr_of_tiles,connectionbool,urlbool,datapath,jsonTileSet,creation_date):
     oldtileset.tiles=[]
-    tilesetname=oldtileset.name    
+    tilesetname=oldtileset.name
 
     for i in range(nbr_of_tiles):
         Mynode=jsonTileSet["nodes"][i]
@@ -3402,14 +3449,14 @@ def save_tiles(oldtileset,nbr_of_tiles,connectionbool,urlbool,datapath,jsonTileS
             message=json.loads(request.args["message"].replace("'", '"'))
             logging.error(''.join(traceback.format_tb(tb)))
             return redirect(url_for(".edittileset",message=message))
-            
+
         # # Insert and create only NEW tiles into TileSet or
         # # TODO: edit OLD tiles from TileSet.tiles list ? (add a suppress old tiles button in form).
         # # search if Tile already exists :
         # try:
         #     # unicity for (title, comment, tags) (url ?)
         #     oldtile=db.session.query(models.Tiles).filter_by(title=title,comment=comment).order_by(models.Tiles.id.desc()).first()
-        
+
         #     # if (type(oldtile) == type(None)):
         #     #     logging.warning(str(i)+" tile type "+str(type(oldtile)))
         #     #     # search with url ? (if comment has changed)
@@ -3423,7 +3470,7 @@ def save_tiles(oldtileset,nbr_of_tiles,connectionbool,urlbool,datapath,jsonTileS
         #     # TypeError: Object of type Response is not JSON serializable
         #     #     except :
         #     #         raise AttributeError
-        
+
         #     logging.debug(str(i)+" tile type "+str(type(oldtile)))
         #     oldtileid=oldtile.id
         #     logging.warning(str(i)+" update old tile "+str(oldtileid))
@@ -3463,9 +3510,9 @@ def save_tiles(oldtileset,nbr_of_tiles,connectionbool,urlbool,datapath,jsonTileS
         # except Exception:
         #     logging.warning(str(i)+" Error tile ")
         #     traceback.print_exc(file=sys.stderr)
-                
+
     db.session.commit()
-        
+
 # Edit old new TileSet
 @app.route('/edittileset', methods=["GET", "POST"])
 def edittileset():
@@ -3484,7 +3531,7 @@ def edittileset():
         logging.error("message error ! "+str(e))
         logging.error("message : "+str(request.args["message"]))
         traceback.print_exc(file=sys.stderr)
-        
+
     logging.warning("edittileset : "+str(message))
 
     oldtilesetid=message["oldtilesetid"]
@@ -3501,7 +3548,7 @@ def edittileset():
     except Exception:
         flash("Unable to validate permissions for tileset edition.")
         return redirect("/allsessions")
-    
+
     # Detect how the data of tileset has been inserted :
     buildargs={}
     buildargs["oldtileset"]=oldtileset
@@ -3525,7 +3572,7 @@ def edittileset():
                 flash("Error from json editor. Please try again.")
                 return redirect(url_for(".edittileset",message=message))
 
-    connectionbool=False            
+    connectionbool=False
     if(oldtileset.type_of_tiles == "CONNECTION"):
         # Try to get the old connection
         oldConnection_id=-1
@@ -3533,7 +3580,7 @@ def edittileset():
             oldconnection=db.session.query(models.Connections).filter_by(id=oldtileset.id_connections).one()
             oldConnection_id=oldtileset.id_connections
             buildargs["editconnection"]=True
-        
+
         except sqlalchemy.orm.exc.NoResultFound:
             flash("Tileset {} edit for user {} : no connection found ! ".format(oldtileset.name,session["username"]))
             oldConnection_id = 0
@@ -3554,7 +3601,7 @@ def edittileset():
             message = '{"oldsessionname":"'+session["sessionname"]+'"}'
             return redirect(url_for(".editsession",message=message))
         connectionbool=True
-    
+
     myform = BuildTilesSetForm(**buildargs)()
 
     if ("username" in session):
@@ -3562,10 +3609,10 @@ def edittileset():
     else:
         flash("You are not connected. You must login before using a connection.")
         return redirect("/login")
-        
+
     if myform.validate_on_submit():
         logging.info("in tileset editor")
-        
+
         if(connectionbool and buildargs["editconnection"]):
             if (myform.editconnection.data):
                 message = '{"oldtilesetid":'+str(oldtileset.id)+',"oldsessionname":"'+session["sessionname"]+'"}'
@@ -3573,7 +3620,7 @@ def edittileset():
             if (myform.shellconnection.data):
                 message = '{"direct":1,"oldtilesetid":'+str(oldtileset.id)+',"oldsessionname":"'+session["sessionname"]+'"}'
                 return redirect(url_for(".editconnection",message=message))
-            
+
         if(myform.goback.data):
             logging.debug("go back to edit old session : "+session["sessionname"])
             message = '{"oldsessionname":"'+session["sessionname"]+'"}'
@@ -3606,10 +3653,10 @@ def edittileset():
                 json_pca_tiles_text = anatreada.pca_on_one_node(myform.json_tiles_text.data)
                 json_tiles = json_pca_tiles_text
                 logging.info("edittileset -> myform.has_pca.data = YES -> json_tiles")
-            else:  
+            else:
                 json_tiles = myform.json_tiles_text.data
 
-        try:    
+        try:
             if myform.editjson.data:
                 jsontransfert[session["sessionname"]]={"callfunction": '{"function":"edittileset",'+'"args":{"oldtilesetid":"'+str(oldtilesetid)+'"}}',
                                                    "TheJson":json_tiles}
@@ -3627,8 +3674,8 @@ def edittileset():
                 logging.error("You (user "+str(user_id)+") don't have connection information in your personal cookie for this connection : "+str(oldConnection_id))
                 message=request.args["message"]
                 return redirect(url_for(".edittileset",message=message))
-        
-            # Build connection path            
+
+            # Build connection path
             user_path=os.path.join("/TiledViz/TVFiles",str(user_id))
             connectionpath=os.path.join(user_path,str(oldConnection_id))
 
@@ -3668,10 +3715,10 @@ def edittileset():
                         # rm unused config files
                         strrm="rm -f "+newfilename
                         os.system(strrm)
-            
+
             # Python file to launch case
             launch_file=myform.script_launch_file.data
-            
+
             oldtileset_launch_file=oldtileset.launch_file
             FileS=myform.script_launch_file.data
             tf = tempfile.NamedTemporaryFile(mode="w+b",dir=connectionpath,prefix="",delete=False)
@@ -3711,11 +3758,11 @@ def edittileset():
                 # rm unused config files
                 strrm="rm -f "+newfilename
                 os.system(strrm)
-        
+
         elif(oldtileset.type_of_tiles == "CONNECTION" and (myform.manage_connection.data == "reNew" or myform.createconnection.data)):
             launch_file=myform.script_launch_file.data
             if (not launch_file):
-                flash("TileSet with connection must have at least a script to launch your tiles.\n You must add launch_file script.")    
+                flash("TileSet with connection must have at least a script to launch your tiles.\n You must add launch_file script.")
                 return render_template("main_login.html", **(myrender()), title="Edit TileSet TiledViz", form=myform, message=message)
             # Register config files in jsontransfert to write them in connection path
             TStmpName="tileset_"+str(oldtileset.id)
@@ -3729,7 +3776,7 @@ def edittileset():
             jsontransfert["tileset_"+str(oldtileset.id)][launch_file.filename]=launch_file.read()
             oldtileset.launch_file=launch_file.filename
             db.session.commit()
-            
+
 
         # Translate json text in structure
         if (len(json_tiles) > 0):
@@ -3764,7 +3811,7 @@ def edittileset():
             return redirect(url_for(".edittileset",message=message))
 
         # TODO:
-        # openports_between_tiles = FieldList(IntegerField("port :",validators=[Optional()]),description="Open port in visualisation network",min_entries=2,max_entries=5) 
+        # openports_between_tiles = FieldList(IntegerField("port :",validators=[Optional()]),description="Open port in visualisation network",min_entries=2,max_entries=5)
 
         # TODO
         # TilesSetForm.script_launch_file
@@ -3776,7 +3823,7 @@ def edittileset():
             insertnewtiles=True
         elif (nbr_of_tiles < old_nbr_of_tiles):
             deletesometiles=True
-            
+
 
         urlbool=False
         if (myform.type_of_tiles.data == "URL"):
@@ -3789,12 +3836,12 @@ def edittileset():
             if (urlbool):
                 datapath="https"
             else:
-                datapath=""          
+                datapath=""
         oldtileset.datapath=datapath
         oldtileset.creation_date=creation_date
         db.session.commit()
 
-        
+
         session["is_client_active"]=True
 
         # Get back old connection if exists
@@ -3814,11 +3861,11 @@ def edittileset():
             # ("New","Create a new one."),
             # ("Save","Save the connection for reuse."),
             # ("Reload","Reload saved connection."),
-        else:        
+        else:
             save_tiles(oldtileset,nbr_of_tiles,connectionbool,urlbool,datapath,jsonTileSet,creation_date)
             message = '{"oldsessionname":"'+session["sessionname"]+'"}'
             return redirect(url_for(".editsession",message=message))
-    
+
     return render_template("edittileset.html", **(myrender()), title="Edit TileSet TiledViz", form=myform, message=message)
 
 # Special random function for link keys
@@ -3840,7 +3887,7 @@ def vncconnection():
     logging.warning("Enter in connection.")
 
     myflush()
-    
+
     try:
         message=json.loads(request.args["message"])
     except json.decoder.JSONDecodeError as e:
@@ -3869,13 +3916,13 @@ def vncconnection():
         logging.error("You (user "+str(user_id)+") don't have connection information in your personal cookie for this connection : "+str(idconnection))
         message=request.args["message"]
         return redirect(url_for(".edittileset",message=message))
-        
+
     vnctransfert=json.loads(session["connection"+str(idconnection)])
     logging.debug("With infos :"+str(vnctransfert))
 
     flaskaddr=os.getenv("flaskhost")
     logging.debug("Detected flask address :"+str(flaskaddr))
-    
+
     callfunction=vnctransfert["callfunction"]
     if (oldconnection):
         if  (user_id != oldconnection.id_users) :
@@ -3889,7 +3936,7 @@ def vncconnection():
     # Wait from TVSecure for connection PORT in DB
     db.session.refresh(oldconnection)
     connection_vnc=oldconnection.connection_vnc
-    logging.warning("PORT VNC :"+str(connection_vnc)) 
+    logging.warning("PORT VNC :"+str(connection_vnc))
     if (connection_vnc == 0):
         flash_msg="Error reading PORT VNC :"+str(connection_vnc)
         logging.error(flash_msg)
@@ -3897,18 +3944,18 @@ def vncconnection():
         message=request.args["message"]
         return redirect(url_for(".edittileset",message=message))
     connection_vnc=connection_vnc+32768
-    
+
     if ( request.method == 'POST'):
         logging.warning("in POST")
         myflush()
         message=json.JSONEncoder().encode(vnctransfert["args"])
-        
+
         logging.warning("killconnection: "
                         +str(session["username"])+" ; "
                         +str(idtileset)+" ; "
                         +str(idconnection))
         myflush()
-        
+
         out_nodes_json = os.path.join("/TiledViz/TVFiles", str(user_id), str(idconnection),"nodes.json")
         logging.warning("out_nodes_json after vncconnection.html :"+out_nodes_json)
 
@@ -3917,7 +3964,7 @@ def vncconnection():
 
         if ( not session["sessionname"] in  jsontransfert):
             jsontransfert[session["sessionname"]]={}
-            
+
         count=0
         while True:
             time.sleep(timeAlive)
@@ -3939,7 +3986,7 @@ def vncconnection():
             else:
                 logging.warning("Wait for "+out_nodes_json)
             count=count+1
-                
+
     return render_template("vncconnection.html", **(myrender()),
                            port=connection_vnc,
                            id=idconnection,
@@ -3960,7 +4007,7 @@ def addconnection():
         return redirect("/login")
 
     User = db.session.query(models.Users).filter_by(name=session["username"]).one()
-    
+
     logging.warning(f"authchoices before {authchoice}")
     myform = BuildConnectionsForm(is_admin=User.is_admin,authchoice=authchoice)()
 
@@ -4194,7 +4241,7 @@ def addconnection():
 @app.route('/editconnection', methods=["GET", "POST"])
 def editconnection():
     logging.warning('editconnection message='+str(request.args["message"]))
-    
+
     if ("username" in session):
         if (session["username"] == "Anonymous"):
             return redirect("/login")
@@ -4220,7 +4267,7 @@ def editconnection():
         logging.error("message : "+str(request.args["message"]))
         traceback.print_exc(file=sys.stderr)
         message=json.loads(request.args["message"].replace("'", '"'))
-    
+
     oldtilesetid=message["oldtilesetid"]
     oldtileset=db.session.query(models.TileSets).filter_by(id=oldtilesetid).one()
 
@@ -4232,7 +4279,7 @@ def editconnection():
         logging.error("This connection doesn't exist.")
         message=request.args["message"]
         return redirect(url_for(".edittileset",message=message))
-        
+
     user_id=get_user_id("editconnection",session["username"])
     # Build connection path
     user_path=os.path.join("/TiledViz/TVFiles",str(user_id))
@@ -4244,7 +4291,7 @@ def editconnection():
         logging.error("You (user "+str(user_id)+") don't have connection information in your personal cookie for this connection : "+str(idconnection))
         message=request.args["message"]
         return redirect(url_for(".edittileset",message=message))
-          
+
     if ("direct" in message):
         del message["direct"]
         message=launch_connection(oldtileset,oldconnection,
@@ -4255,23 +4302,23 @@ def editconnection():
         return redirect(url_for(".vncconnection",message=message))
         flash("Error direct connection to shell.")
 
-        
+
     User = db.session.query(models.Users).filter_by(name=session["username"]).one()
-    
+
     myform = BuildConnectionsForm(is_admin=User.is_admin,oldconnection=oldconnection)()
 
     logging.debug("ConnectionForm edit."+str(message))
     if myform.validate_on_submit():
         logging.info("in editconnection")
-        
+
         logging.info(str(myform.host_address.data)+"  "+str(myform.auth_type.data)+"  "+str(myform.container.data))
-        
+
         TSConfigjson={}
-        
+
         # TODO :
         #  Test connection type in launch a form dedicated.
 
-        # TODO : 
+        # TODO :
         #        rm old config files not overwitten if exists ?
 
         # detect/diff/update config files
@@ -4369,7 +4416,7 @@ def editconnection():
 @app.route('/removeconnection', methods=["GET", "POST"])
 def removeconnection():
     logging.warning('removeconnection message='+str(request.args["message"]))
-    
+
     if ("username" in session):
         if (session["username"] == "Anonymous"):
             return redirect("/login")
@@ -4396,7 +4443,7 @@ def removeconnection():
         logging.error("This connection doesn't exist.")
         message=request.args["message"]
         return redirect(url_for(".edittileset",message=message))
-        
+
     user_id=get_user_id("removeconnection",session["username"])
     if ( not "connection"+str(idconnection) in session):
         flash("You don't have connection information in your personal cookie for this connection.")
@@ -4405,18 +4452,18 @@ def removeconnection():
         return redirect(url_for(".edittileset",message=message))
 
     remove_this_connection(oldtileset,idconnection,user_id)
-    
+
     flash("Connection "+str(idconnection)+" for tileset "+oldtileset.name+" has been removed.")
     message=request.args["message"]
     return redirect(url_for(".edittileset",message=message))
 
 
-# Call json editor on a structure           
+# Call json editor on a structure
 # TODO : no more GET method to test ?
 @app.route('/jsoneditor', methods=['GET', 'POST'])
 def jsoneditor():
     #print("jsoneditor args : ",request.args)
-    #     json_gziped=request.args["TheJson"]                            
+    #     json_gziped=request.args["TheJson"]
     #     #print("type json_gziped :",type(json_gziped))
     #     TheJson=gzip.decompress(base64.b64decode(json_gziped)).decode('utf-8')
     #     callfunction=json.loads(request.args["callfunction"])
@@ -4427,7 +4474,7 @@ def jsoneditor():
         return redirect(url_for(".editsession",message=message))
 
     callfunction=json.loads(jsontransfert[session["sessionname"]]["callfunction"])
-    
+
     logging.debug("jsoneditor : "+str(callfunction))
     if ( request.method == 'POST'):
         message=callfunction["args"]
@@ -4455,10 +4502,10 @@ def show_grid():
         flash("You are not connected. You must login before using a grid.")
         logging.error("You are not connected. You must login before using a grid."+str(session))
         return redirect("/login")
-        
+
     if request.method == 'POST' and "new room" in request.form :
         psession = request.form['new room']
-        # TODO: properly close the old socket, or remove it from the room 
+        # TODO: properly close the old socket, or remove it from the room
         # (usefulness? it's only a testing tool at this point')
         logging.info("[!] Change session room to " + psession)
         session["sessionname"]=psession
@@ -4494,7 +4541,7 @@ def show_grid():
     except KeyError as e: # If the grid is the first to join the room, the "room_dict[session]" doesn't exist yet
         part_nbr = 0
         logging.info("first to join the room "+session["username"])
-    
+
     try:
         logging.debug("Grid with session :"+str(session["projectname"])+" "+str(session["sessionname"])+" "+str(session["username"]))
     except :
@@ -4508,8 +4555,8 @@ def show_grid():
         flash("No TileSet in this session : You must define tileset before going to grid.")
         message = '{"oldsessionname":"'+session["sessionname"]+'"}'
         return redirect(url_for(".editsession",message=message))
-        
-    
+
+
     # session["tilesetnames"]=[]
     # if (db.session.query(func.count(ThisSession.tile_sets)).scalar() > 0):
     if (type(ThisSession) != type(None)):
@@ -4536,9 +4583,9 @@ def show_grid():
     #                    for thistileset in ListAllTileSet_ThisSession ]
     # }
     # Need for saving session in a file ?
-    # textSession=json.JSONEncoder().encode(JsonSession)    
+    # textSession=json.JSONEncoder().encode(JsonSession)
     #logging.debug(textSession)
-    
+
     # Main loop to build the grid :
     nbr_of_tiles=0
 
@@ -4557,18 +4604,18 @@ def show_grid():
         if (nbtiles < 1):
             flash("Before grid, ERROR IN SESSION '%s' with TileSet '%s' : no tiles." % (ThisSession.name,thistileset.name))
             return redirect("/allsessions")
-             
+
         tiledata=tvdb.encode_tileset(thistileset)
         tiles_data["nodes"]=tiles_data["nodes"]+tiledata
         ts=ts+1
-        
-    #logging.debug(str(tiles_data))    
+
+    #logging.debug(str(tiles_data))
     session["nbr_of_tiles"]=nbr_of_tiles
-    logging.info("nbr_of_tiles="+str(session["nbr_of_tiles"]))    
-    
+    logging.info("nbr_of_tiles="+str(session["nbr_of_tiles"]))
+
     config["nbr_of_tiles"] = nbr_of_tiles
 
-    # Global tags search 
+    # Global tags search
     Tags={}
     Tags["globalTags"]=[]
     Tags["FloatingTags"]={}
@@ -4589,13 +4636,13 @@ def show_grid():
     # tag_lines contains tags information in a dictionary format
     tag_lines = []
     floating_tag={}
-    
+
     #i : int
     for i in range(0, len(df_column_tag_normalized)):
         # dict_line : dict()
         dict_line = dict()
         tags_node = []
-        
+
         # j : int
         for j in range(0, len(df_column_tag_normalized[i])):
 
@@ -4610,7 +4657,7 @@ def show_grid():
             # tag_name : str
             tag_name = list_line[0]
             tags_node.append(tag_name)
-            
+
             # if it's a variable tag
             if len(list_line) > 1:
                 value_min =     list_line[1]
@@ -4618,7 +4665,7 @@ def show_grid():
                 value_max =     list_line[3]
                 dict_line[tag_name] = float(value)
                 floating_tag[tag_name]={'m':value_min,'M':value_max}
-                    
+
             # if the tag is the last of the node/tile
             if j == len(df_column_tag_normalized[i]) -1 :
                 tag_lines.append(dict_line)
@@ -4629,8 +4676,8 @@ def show_grid():
                 Tags["globalTags"].append(tag)
                 if (tag in floating_tag):
                     Tags["FloatingTags"][tag]=floating_tag[tag]
-                    
-    
+
+
     tiles_data["config"] = config
     psgeom={}
     if (not session["is_client_active"]):
@@ -4662,7 +4709,7 @@ def show_grid():
     tiles_actions={}
     ts=0
     while (ts < lts):
- 
+
         thistileset=ThisSession.tile_sets[ts]
         # Connection for this TS
         tsconnection=thistileset.connections
@@ -4680,7 +4727,7 @@ def show_grid():
                         asaction=True
                     except:
                         pass
-                
+
                 if ( "actions.json" in thistileset.config_files ):
                     actions_file=open(thistileset.config_files["actions.json"],'r')
                     tiles_actions[thistileset.name]=json.load(actions_file)
@@ -4727,7 +4774,7 @@ def show_grid():
     return render_template("grid_template.html",
                            user=session["username"],
                            title="TiledViz on "+project,
-                           project=project, 
+                           project=project,
                            session=psession,
                            description=str(ThisSession.description),
                            json_geom=psgeom,
@@ -4771,7 +4818,7 @@ def shareConfig(cdata):
         configJson=json.loads(cdata["Config"].replace("'", '"'));
         logging.info("Config: "+str(configJson))
         oldsessionname=session["sessionname"]
-        ThisSession = db.session.query(models.Sessions).filter(models.Sessions.name.like(oldsessionname)).first()    
+        ThisSession = db.session.query(models.Sessions).filter(models.Sessions.name.like(oldsessionname)).first()
         oldconfig=ThisSession.config
         # Update modified config
         for section in configJson:
@@ -4807,7 +4854,7 @@ def handle_click_event(cdata):
     tile.pos_px_y=int(cdata["posY"])
     logging.debug("new pos  = (%d,%d)" % (int(tile.pos_px_x),int(tile.pos_px_y)))
     db.session.commit()
-    
+
     logging.info("[+] New position for tile " + cdata["id"] + " transmitted to " + str(len(room_dict[croom])) + " sockets")
     return [cdata["id"], 2, croom]
 
@@ -4888,7 +4935,7 @@ def ClickAction(cdata):
 
         actionid=int(action.replace("action", ""))
         command=str(actionid)+","+selections
-        
+
         oldtileset=db.session.query(models.TileSets).filter_by(name=TS).one()
         oldconnection=oldtileset.connections
         user_id=get_user_id("action_click",session["username"])
@@ -4896,12 +4943,12 @@ def ClickAction(cdata):
         if (not oldconnection):
             logging.error("[->] NO Connection : "+str(oldconnection)+" on tileset "+str(oldtileset)+" for user "+str(user_id))
             return
-        
+
         if  (user_id != oldconnection.id_users or not session["is_client_active"]):
             logging.error("[->] Connection id : "+str(oldconnection.id_users)+" for user "+str(user_id)+"  and session active "+str(session["is_client_active"]))
             myflush()
             return
-        
+
         logfun("actionid %d" % (actionid))
         myflush()
         if (actionid == 0):
@@ -4926,20 +4973,20 @@ def ClickAction(cdata):
             if (actionid==killid):
                 logging.warning("action %d : Find kill_all_containers action." % (actionid))
                 command=str(actionid)+","+","
-                
+
         logging.warning("action: "
                         +str(session["username"])+" ; "
                         +str(oldtileset.id)+" ; "
                         +str(oldconnection.id)+" ; "
                         +str(command))
         myflush()
-        
+
         if (searchKillid):
             if (actionid==killid):
-                time.sleep(timeAlive)                        
+                time.sleep(timeAlive)
                 logging.warning("action %d : Remove connection %d ." % (actionid,oldconnection.id))
                 remove_this_connection(oldtileset,oldconnection.id,user_id)
-            
+
         if (actionid == 0):
             try:
                 logging.warning("Update nodes for session %s" % (session["sessionname"]))
@@ -4947,18 +4994,18 @@ def ClickAction(cdata):
                 ThisSession=db.session.query(models.Sessions).filter(models.Sessions.name.like(session["sessionname"])).first()
                 # action0 == get new nodes.json file
                 time.sleep(timeAlive)
-                
+
                 # copy old nodes.json
-                out_nodes_json = os.path.join("/TiledViz/TVFiles", str(oldconnection.id_users), str(oldconnection.id),"nodes.json") 
+                out_nodes_json = os.path.join("/TiledViz/TVFiles", str(oldconnection.id_users), str(oldconnection.id),"nodes.json")
                 #diff save_nodes_json out_nodes_json ?
-                
+
                 # Old tile set data
                 with open(save_nodes_json) as save_json_tiles_file:
                     tiledata1=json.loads(save_json_tiles_file.read())
                     save_json_tiles_file.close()
 
                 # Add old index => For oldtiledset.tiles ??
-                itiledata1={"nodes":[]}; 
+                itiledata1={"nodes":[]};
                 for idx, tile in enumerate(tiledata1["nodes"]):
                     itiledata1["nodes"].append({"i":idx, "title":tile["title"]})
 
@@ -4979,8 +5026,8 @@ def ClickAction(cdata):
                             traceback.print_exc(file=sys.stderr)
                             strerror=str(err)
                             logging.error("After %d x %d s we still have this error :\n %s" % (NbIter, timeAlive,strerror))
-                            return 
-                        
+                            return
+
                 # sort Tiles data for old and new version of tileset
                 sortdata1 = sorted(tiledata1["nodes"], key=lambda v: v["title"])
                 isortdata1 = sorted(itiledata1["nodes"], key=lambda v: v["title"])
@@ -4990,7 +5037,7 @@ def ClickAction(cdata):
                 urlbool=False
                 datapath=""
                 creation_date=datetime.datetime.now()
-                
+
                 # DIFF sorted tiledata1 and tildedata2 and modify them in oldtiledset.tiles
                 logging.warning("DIFF sorted tiledata1 and tildedata2 ")
                 myflush()
@@ -5009,26 +5056,26 @@ def ClickAction(cdata):
 
                             title,name,comment,tags,variable,pos_px_x,pos_px_y,IdLocation,url,ConnectionPort = \
                                 convertTile(tile2,oldtileset.name,connectionbool,urlbool,datapath)
-                                
+
                             oldtileset.tiles[i].tags=tags
                             oldtileset.tiles[i].source= {"name" : name,
                                                          "connection" : ConnectionPort,
                                                          "url" : url,
                                                          "variable": variable}
                             flag_modified(oldtileset.tiles[i],"source")
-                            
+
                             oldtileset.tiles[i].pos_px_x= pos_px_x
                             oldtileset.tiles[i].pos_px_y= pos_px_y
                             oldtileset.tiles[i].IdLocation=IdLocation
                             db.session.commit()
                             logging.debug("OK equal url modify tile")
-                            
+
                             modtiles_data.append((i,tile2))
-                            
+
                             del sortdata2[idx2]
                             found=True
                             break
-                
+
                 # emit receive_deploy_nodes
                 sdata = {"id":cdata["id"], "modtiles_data":modtiles_data}
                 logging.debug("receive_deploy_nodes data : "+str(sdata))
@@ -5039,8 +5086,8 @@ def ClickAction(cdata):
                 traceback.print_exc(file=sys.stderr)
                 strerror=str(err)
                 logging.error(strerror)
-                        
-# Draw    
+
+# Draw
 sidDraw=""
 @socketio.on("drawBlob")
 def drawBlobShare(cdata):
@@ -5072,7 +5119,7 @@ def ModifDraws(cdata):
     logfun("[->] Modification of draw from "+str(cdata["nodeId"])+ " with "+action + " in room " + str(croom))
     sdata = {"nodeId":cdata["nodeId"]}
     socketio.emit('receive_'+action, sdata,room=croom)
-    
+
 # Connection
 @socketio.on('connected_grid')#, namespace='/grid')
 def config_client(cdata):
@@ -5131,14 +5178,14 @@ def disconnect_socket():
     return room_dict
 
 def clean_rooms():
-    try: 
+    try:
         for key in room_dict:
             if (not room_dict[key]):
                 room_dict.pop(key)
     except:
         time.sleep(2)
         clean_rooms()
-        
+
 @socketio.on("get_link")
 def handle_invite_link_request(cdata):
     croom = cdata["session"]
@@ -5150,39 +5197,39 @@ def handle_invite_link_request(cdata):
     if "username" not in session or session["username"] == "Anonymous":
         socketio.emit("get_link_back", {"error": "You must be logged in to create invitation links"}, room=croom)
         return
-    
+
     # SECURITY CHECK: Verify user is a member of the project
     if "projectname" not in session or "sessionname" not in session:
         socketio.emit("get_link_back", {"error": "Invalid session context"}, room=croom)
         return
-    
+
     # Get current user
     current_user = db.session.query(models.Users).filter_by(name=session["username"]).first()
     if not current_user:
         socketio.emit("get_link_back", {"error": "User not found"}, room=croom)
         return
-    
+
     # Get session and project
     session_obj = db.session.query(models.Sessions).filter(models.Sessions.name.like(session["sessionname"])).first()
     if not session_obj:
         socketio.emit("get_link_back", {"error": "Session not found"}, room=croom)
         return
-    
+
     project_id = session_obj.id_projects
     if not project_id:
         socketio.emit("get_link_back", {"error": "Session has no associated project"}, room=croom)
         return
-    
+
     # SECURITY CHECK: Verify user is a project member with appropriate permissions
     user_membership = db.session.query(models.ProjectMembers).filter_by(
         project_id=project_id,
         user_id=current_user.id
     ).first()
-    
+
     if not user_membership:
         socketio.emit("get_link_back", {"error": "You must be a project member to create invitation links"}, room=croom)
         return
-    
+
     # SECURITY CHECK: Only owners can create invites
     if user_membership.role_type not in valid_manage_members:
         socketio.emit("get_link_back", {"error": f"Insufficient permissions. Your role '{user_membership.role_type}' cannot create invitation links"}, room=croom)
@@ -5203,7 +5250,7 @@ def handle_invite_link_request(cdata):
         if not invitee_name:
             socketio.emit("get_link_back", {"error": "Invitee name is required for active links"}, room=croom)
             return
-            
+
         # Check if the invitee exists in the database
         invitee = db.session.query(models.Users).filter_by(name=invitee_name).first()
         if not invitee:
@@ -5214,7 +5261,7 @@ def handle_invite_link_request(cdata):
         client_type = "active"
     else:
         client_type = "passive"
-        
+
     try:
         DEFAULT_URL=os.getenv("SERVER_NAME")+"."+os.getenv("DOMAIN")
         print(DEFAULT_URL)
@@ -5222,14 +5269,14 @@ def handle_invite_link_request(cdata):
         DEFAULT_URL = "0.0.0.0:5000"
 
     creation_date = datetime.datetime.now().isoformat()
-    
+
     # Generate a unique key for the invitation
     key = linkrandom(32)
     try:
         key = key.decode('utf-8')
     except AttributeError:
         pass  # key est déjà une str
-    
+
     # Créer la clé du lien (à stocker dans la base)
     if (client_type == "active"):
         link_key = f"{session['sessionname']}{linkChar}{client_type}{linkChar}{invitee_name}{linkChar}{creation_date}{linkChar}{key}"
@@ -5271,13 +5318,13 @@ def handle_invite_link_request(cdata):
 @app.route("/join/<link>")
 def handle_join_with_invite_link(link):
     logging.warning("Handle join with invite link : " + link)
-    
+
     # Parse the link components
     link_parts = link.split(linkChar)
     if len(link_parts) < 5:
         flash("Invalid invitation link : wrong parts number %d in your link." % (len(link_parts)))
         return redirect(url_for(".index"))
-    
+
     session_name = link_parts[0]
     new_client_type = link_parts[1]
     username = link_parts[2]
@@ -5289,13 +5336,13 @@ def handle_join_with_invite_link(link):
         hasgeom=True
         logging.warning("Link with geom : %s " % (geom))
         link=session_name+linkChar+new_client_type+linkChar+username+linkChar+creation_date+linkChar+key
-    
+
     # Check if the invitation exists and is valid
     invite_link = db.session.query(models.InviteLinks).filter_by(link=link).first()
     if not invite_link:
         flash("Invalid invitation link : not found in DB")
         return redirect(url_for(".index"))
-        
+
     # Check if the invitation has reached its maximum number of uses
     if invite_link.use_count >= invite_link.max_uses:
         flash("This invitation has reached its maximum number of uses")
@@ -5309,7 +5356,7 @@ def handle_join_with_invite_link(link):
         delelement(models.InviteLinks, "link "+link, invite_link.id)
         db.session.commit()
         return redirect(url_for(".index"))
-    
+
     # For active links, check if the user is logged in and matches the invitee
     user = None
     if new_client_type == "active":
@@ -5318,27 +5365,27 @@ def handle_join_with_invite_link(link):
             session["pending_invite_link"] = link
             flash("You must be logged in to use this invitation link")
             return redirect(url_for(".login"))
-            
+
         # Verify that the logged-in user matches the invitee
         if session["username"] != username:
             flash("This invitation link is for a different user")
             return redirect(url_for(".index"))
-            
+
         # Verify that the user exists in the database
         user = db.session.query(models.Users).filter_by(name=username).first()
         if not user:
             flash("Invalid user account : user not found")
             return redirect(url_for(".index"))
-    
+
     # Increment the use count
     invite_link.use_count += 1
     db.session.commit()
-    
+
     # Set session variables
     session["sessionname"] = session_name
     session["is_client_active"] = (new_client_type == "active")
     session["username"] = username
-    
+
     # Get session details
     ThisSession = db.session.query(models.Sessions).filter_by(name=session_name).first()
     if not ThisSession:
@@ -5346,7 +5393,7 @@ def handle_join_with_invite_link(link):
         logging.error(flash_mess)
         flash(flash_mess+". Please check your command line")
         return redirect(url_for(".index"))
-    
+
     try:
         session["projectname"]=ThisSession.projects.name
         project_id = ThisSession.projects.id
@@ -5355,7 +5402,7 @@ def handle_join_with_invite_link(link):
         flash(ErrLink)
         logging.error(ErrLink)
         return redirect(url_for(".index"))
-    
+
     # Synchronize user to project and session if it's an active link
     if new_client_type == "active" and user:
         sync_success, sync_message = sync_user_to_project_and_session(
@@ -5369,7 +5416,7 @@ def handle_join_with_invite_link(link):
             flash(f"Warning: {sync_message}")
         else:
             logging.info(f"Successfully synchronized user {user.name} to project and session")
-        
+
     session["geometry"]='{}'
     if "passive" in link:
         if (hasgeom):
@@ -5439,12 +5486,12 @@ def TVerror(e):
 #         logging.debug("proxy noVNC path : \n "+str(path)+":"+str(dummy))
 #         logging.debug("routevnc : \n url "+str(request.host_url))
 #         # logging.error("routevnc : \n url "+str(request.host_url)+"\n method "+str(request.method).replace("\r","")+"\n header"+str(request.headers).replace("\r","")+"\n args :"+str(request.args).replace("\r",""))
-        
+
 #         VNCurl="https://"+app.config["SERVER_NAME"]
 #         logfun("Connect with url : "+VNCurl+dummy)
 #         newurl=request.url.replace(request.host_url, VNCurl)
 #         logfun("Replace url : "+newurl)
-        
+
 #         logging.debug(dummy+" header :"+str(request.headers))
 #         resp = requests.request(
 #             method=request.method,
@@ -5458,12 +5505,12 @@ def TVerror(e):
 #     #     logging.warning("proxy images path : \n "+str(path)+":"+str(dummy))
 #     #     logging.warning("host_url : \n url "+str(request.host_url))
 #     #     # logging.error("routevnc : \n url "+str(request.host_url)+"\n method "+str(request.method).replace("\r","")+"\n header"+str(request.headers).replace("\r","")+"\n args :"+str(request.args).replace("\r",""))
-        
+
 #     #     LocalUrl="https://localhost:5000/"
 #     #     logfun("Connect with url : "+LocalUrl+dummy)
 #     #     newurl=request.url.replace(request.host_url, LocalUrl)
 #     #     logfun("Replace url : "+newurl)
-        
+
 #     #     logging.warning(dummy+" header :"+str(request.headers))
 #     #     resp = requests.request(
 #     #         method=request.method,
@@ -5471,7 +5518,7 @@ def TVerror(e):
 #     #         headers={key: value for (key, value) in request.headers if key != 'Host'},
 #     #         data=request.get_data(),
 #     #         cookies=request.cookies,
-#     #         allow_redirects=False)        
+#     #         allow_redirects=False)
 #     else:
 #         logging.warning("proxy unknwon path : \n "+str(path)+":"+str(dummy)+"  "+str(request.host_url))
 #         resp = requests.request(
@@ -5485,7 +5532,7 @@ def TVerror(e):
 #     excluded_headers = ['content-encoding', 'content-length', 'transfer-encoding', 'connection']
 #     headers = [(name, value) for (name, value) in resp.raw.headers.items()
 #                if name.lower() not in excluded_headers]
-    
+
 #     response = Response(resp.content, resp.status_code, headers)
 #     return response
 
@@ -5493,18 +5540,18 @@ def TVerror(e):
 def revoke_invite(invite_id):
     if "username" not in session:
         return jsonify({"error": "User not logged in"}), 401
-        
+
     invite_link = db.session.query(models.InviteLinks).filter_by(id=invite_id).first()
     if not invite_link:
         return jsonify({"error": "Invitation not found"}), 404
-        
+
     # Check if the user has permission to revoke this invitation
     if invite_link.host_user != session["username"]:
         return jsonify({"error": "Not authorized to revoke this invitation"}), 403
-        
+
     invite_link.is_revoked = True
     db.session.commit()
-    
+
     return jsonify({"message": "Invitation revoked successfully"})
 
 # Manage project members
@@ -5512,39 +5559,39 @@ def revoke_invite(invite_id):
 def project_members(project_id):
     if ("username" not in session or session["username"] == "Anonymous"):
         return redirect("/login")
-    
+
     user_id = get_user_id("Project Members", session["username"])
-    
+
     # Check if project exists
     project = db.session.query(models.Projects).filter_by(id=project_id).first()
     if not project:
         flash("Project not found!")
         return redirect("/project")
-    
+
     # Check if user has permission to manage this project (owner)
     if not can_manage_project(project_id, user_id):
         flash("You don't have permission to manage members for this project!")
         return redirect("/project")
-    
+
     # Get all current project members using utility function
     current_members = get_project_members(project_id)
-    
+
     # Get all available users for adding using utility function
     available_users = get_available_users_for_project(project_id)
-    
+
     # Handle form submissions
     if request.method == "POST":
         if 'add_member' in request.form:
             new_user_id = request.form.get('user_id')
             new_role = request.form.get('role_type')
-            
+
             if new_user_id and new_role:
                 success, message = add_project_member(project_id, int(new_user_id), new_role)
                 flash(message)
                 if success:
                     # Refresh the page to show updated member list
                     return redirect(url_for('project_members', project_id=project_id))
-                    
+
         elif 'remove_member' in request.form:
             member_id = request.form.get('member_id')
             if member_id:
@@ -5553,18 +5600,18 @@ def project_members(project_id):
                 if success:
                     # Refresh the page to show updated member list
                     return redirect(url_for('project_members', project_id=project_id))
-                    
+
         elif 'change_role' in request.form:
             member_id = request.form.get('member_id')
             new_role = request.form.get('new_role')
-            
+
             if member_id and new_role:
                 success, message = update_member_role(project_id, int(member_id), new_role)
                 flash(message)
                 if success:
                     # Refresh the page to show updated member list
                     return redirect(url_for('project_members', project_id=project_id))
-                    
+
         elif 'transfer_ownership' in request.form:
             new_owner_id = request.form.get('new_owner_id')
             if new_owner_id:
@@ -5573,13 +5620,13 @@ def project_members(project_id):
                 if success:
                     # Refresh the page to show updated member list
                     return redirect(url_for('project_members', project_id=project_id))
-        
+
         # Redirect to refresh the page
         return redirect(url_for('project_members', project_id=project_id))
-    
+
     # Get updated member list for display
     current_members = get_project_members(project_id)
-    
+
     return render_template(
         "project_members.html",
         project=project,
@@ -5597,19 +5644,19 @@ def transfer_ownership_api(project_id):
     """
     if "username" not in session or session["username"] == "Anonymous":
         return jsonify({"error": "Authentication required"}), 401
-    
+
     user_id = get_user_id("Transfer Ownership", session["username"])
-    
+
     try:
         data = request.get_json()
         if not data or 'new_owner_id' not in data:
             return jsonify({"error": "new_owner_id is required"}), 400
-        
+
         new_owner_id = data['new_owner_id']
-        
+
         # Use utility function for ownership transfer
         success, message = transfer_project_ownership(project_id, user_id, new_owner_id)
-        
+
         if success:
             # Get new owner details for response
             new_owner = db.session.query(models.Users).filter_by(id=new_owner_id).first()
@@ -5626,7 +5673,7 @@ def transfer_ownership_api(project_id):
             }), 200
         else:
             return jsonify({"error": message}), 400
-        
+
     except Exception as e:
         db.session.rollback()
         logging.error(f"Error in ownership transfer API: {str(e)}")
@@ -5640,35 +5687,35 @@ def check_ownership_constraints(project_id):
     """
     if "username" not in session or session["username"] == "Anonymous":
         return jsonify({"error": "Authentication required"}), 401
-    
+
     user_id = get_user_id("Check Ownership Constraints", session["username"])
-    
+
     try:
         # Validate project exists
         project = db.session.query(models.Projects).filter_by(id=project_id).first()
         if not project:
             return jsonify({"error": "Project not found"}), 404
-        
+
         # Get current user's membership
         user_membership = db.session.query(models.ProjectMembers).filter_by(
-            project_id=project_id, 
+            project_id=project_id,
             user_id=user_id
         ).first()
-        
+
         if not user_membership:
             return jsonify({"error": "User is not a member of this project"}), 403
-        
+
         # Count owners
         owner_count = db.session.query(models.ProjectMembers).filter_by(
-            project_id=project_id, 
+            project_id=project_id,
             role_type='owner'
         ).count()
-        
+
         # Get all members for ownership transfer options
         all_members = db.session.query(models.ProjectMembers).filter_by(
             project_id=project_id
         ).all()
-        
+
         # Filter members who can receive ownership (not already owners)
         eligible_members = []
         for member in all_members:
@@ -5680,7 +5727,7 @@ def check_ownership_constraints(project_id):
                         "name": user_info.name,
                         "role": member.role_type
                     })
-        
+
         return jsonify({
             "is_owner": user_membership.role_type == 'owner',
             "owner_count": owner_count,
@@ -5694,7 +5741,7 @@ def check_ownership_constraints(project_id):
                 "cannot_transfer_to_existing_owner": True
             }
         }), 200
-        
+
     except Exception as e:
         logging.error(f"Error checking ownership constraints: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
@@ -5704,18 +5751,18 @@ def check_ownership_constraints(project_id):
 def my_projects():
     if ("username" not in session or session["username"] == "Anonymous"):
         return redirect("/login")
-    
+
     user_id = get_user_id("My Projects", session["username"])
-    
+
     # Get all user projects using utility function
     user_projects = get_user_projects(user_id)
-    
+
     # Organize projects by role
     projects_by_role = {
         'owned': [],
         'member': []
     }
-    
+
     # Categorize projects by role
     for project, role_type in user_projects:
         project_data = {
@@ -5723,12 +5770,12 @@ def my_projects():
             'role': role_type,
             'can_manage': role_type in valid_manage_members
         }
-        
+
         if role_type == 'owner':
             projects_by_role['owned'].append(project_data)
         else:
             projects_by_role['member'].append(project_data)
-    
+
     return render_template(
         "my_projects.html",
         projects_by_role=projects_by_role,
@@ -5743,44 +5790,44 @@ def migration_admin():
     """Admin interface for managing database migrations"""
     if ("username" not in session or session["username"] == "Anonymous"):
         return redirect("/login")
-    
+
     user_id = get_user_id("Migration Admin", session["username"])
     User = db.session.query(models.Users).filter_by(name=session["username"]).one()
-    
+
     if not User.is_admin:
         flash("You must be an administrator to access this page.")
         return redirect("/")
-    
+
     from app.migration import migrate_project_owners, check_migration_status, validate_migration, rollback_migration, get_orphaned_projects
-    
+
     # Handle migration actions
     if request.method == "POST":
         action = request.form.get('action')
-        
+
         if action == 'run_migration':
             if migrate_project_owners():
                 flash("Migration completed successfully!")
             else:
                 flash("Migration failed! Check logs for details.")
-                
+
         elif action == 'validate_migration':
             validation = validate_migration()
             if validation and validation['is_valid']:
                 flash("Migration validation passed - data is consistent!")
             else:
                 flash(f"Migration validation failed: {validation}")
-                
+
         elif action == 'rollback_migration':
             if rollback_migration():
                 flash("Migration rollback completed!")
             else:
                 flash("Migration rollback failed! Check logs for details.")
-    
+
     # Get current status
     status = check_migration_status()
     validation = validate_migration()
     orphaned_projects = get_orphaned_projects()
-    
+
     return render_template(
         "migration_admin.html",
         status=status,
@@ -5796,14 +5843,14 @@ def consistency_admin():
     """
     if ("username" not in session or session["username"] == "Anonymous"):
         return redirect("/login")
-    
+
     user_id = get_user_id("Consistency Admin", session["username"])
     User = db.session.query(models.Users).filter_by(name=session["username"]).one()
-    
+
     if not User.is_admin:
         flash("You must be an administrator to access this page.")
         return redirect("/")
-    
+
     sessions_data = []
     if request.method == 'GET':
         # Get all sessions with their consistency status
@@ -5817,11 +5864,11 @@ def consistency_admin():
                 'inconsistencies': inconsistencies,
                 'is_consistent': len(inconsistencies) == 0
             })
-    
+
     if request.method == 'POST':
         action = request.form.get('action')
         session_id = request.form.get('session_id')
-        
+
         if action == 'validate_session' and session_id:
             inconsistencies = validate_session_project_consistency(int(session_id))
             if inconsistencies:
@@ -5830,20 +5877,20 @@ def consistency_admin():
                     flash(inc)
             else:
                 flash(f"Session {session_id} is consistent with its project")
-                
+
         elif action == 'fix_session' and session_id:
             success, message = fix_session_project_inconsistencies(int(session_id))
             if success:
                 flash(message)
             else:
                 flash(f"Error: {message}")
-                
+
         elif action == 'validate_all':
             # Validate all sessions
             sessions = db.session.query(models.Sessions).all()
             total_inconsistencies = 0
             inconsistent_sessions = 0
-            
+
             for session_obj in sessions:
                 inconsistencies = validate_session_project_consistency(session_obj.id)
                 if inconsistencies:
@@ -5852,18 +5899,18 @@ def consistency_admin():
                     flash(f"Session '{session_obj.name}' (ID: {session_obj.id}): {len(inconsistencies)} inconsistencies")
                     for inc in inconsistencies:
                         flash(f"  - {inc}")
-            
+
             if total_inconsistencies == 0:
                 flash("All sessions are consistent with their projects!")
             else:
                 flash(f"Found {total_inconsistencies} inconsistencies across {inconsistent_sessions} sessions")
-                
+
         elif action == 'fix_all':
             # Fix all inconsistencies
             sessions = db.session.query(models.Sessions).all()
             total_fixed = 0
             fixed_sessions = 0
-            
+
             for session_obj in sessions:
                 success, message = fix_session_project_inconsistencies(session_obj.id)
                 if success and "Fixed" in message:
@@ -5876,13 +5923,13 @@ def consistency_admin():
                         if fixed_count > 0:
                             fixed_sessions += 1
                             flash(f"Session '{session_obj.name}': {message}")
-            
+
             if total_fixed > 0:
                 flash(f"Successfully fixed {total_fixed} inconsistencies across {fixed_sessions} sessions")
             else:
                 flash("No inconsistencies found to fix")
-    
-    return render_template('admin_consistency.html', 
+
+    return render_template('admin_consistency.html',
                          title="Consistency Admin",
                          sessions=sessions_data,
                          **myrender())
@@ -5895,42 +5942,42 @@ def project_invite(project_id):
     """
     if ("username" not in session or session["username"] == "Anonymous"):
         return redirect("/login")
-    
+
     # Get current user
     current_user = db.session.query(models.Users).filter_by(name=session["username"]).first()
     if not current_user:
         flash("User not found")
         return redirect("/")
-    
+
     # Check if user can create invites for this project (owner only)
     can_create, reason = can_create_invite_links(current_user.id, project_id)
     if not can_create:
         flash(f"Access denied: {reason}")
         return redirect("/")
-    
+
     # Get project details
     project = db.session.query(models.Projects).filter_by(id=project_id).first()
     if not project:
         flash("Project not found")
         return redirect("/")
-    
+
     # Get project sessions
     sessions = db.session.query(models.Sessions).filter_by(id_projects=project_id).all()
-    
+
     # Get existing invite links for this project
     invite_links = db.session.query(models.InviteLinks).filter_by(
         host_project=project.name
     ).order_by(models.InviteLinks.creation_date.desc()).all()
-    
+
     if request.method == 'POST':
         action = request.form.get('action')
-        
+
         if action == 'create_invite':
             session_id = request.form.get('session_id')
             invitee_name = request.form.get('invitee_name', '').strip()
             max_uses = request.form.get('max_uses', 1)
             invite_type = request.form.get('invite_type', 'passive')
-            
+
             try:
                 max_uses = int(max_uses)
                 if max_uses < 1:
@@ -5939,29 +5986,29 @@ def project_invite(project_id):
             except (ValueError, TypeError):
                 flash("Invalid maximum uses value")
                 return redirect(url_for('.project_invite', project_id=project_id))
-            
+
             # Validate session belongs to project
             session_obj = db.session.query(models.Sessions).filter_by(
-                id=session_id, 
+                id=session_id,
                 id_projects=project_id
             ).first()
             if not session_obj:
                 flash("Invalid session for this project")
                 return redirect(url_for('.project_invite', project_id=project_id))
-            
+
             # For active invites, validate invitee exists
             if invite_type == 'active':
                 if not invitee_name:
                     flash("Invitee name is required for active invitations")
                     return redirect(url_for('.project_invite', project_id=project_id))
-                
+
                 invitee = db.session.query(models.Users).filter_by(name=invitee_name).first()
                 if not invitee:
                     flash(f"User '{invitee_name}' does not exist")
                     return redirect(url_for('.project_invite', project_id=project_id))
             else:
                 invitee_name = "Anonymous"
-            
+
             # Create invitation link
             creation_date = datetime.datetime.now().isoformat()
             key = linkrandom(32)
@@ -5969,9 +6016,9 @@ def project_invite(project_id):
                 key = key.decode('utf-8')
             except AttributeError:
                 pass
-            
+
             link_key = f"{session_obj.name}{linkChar}{invite_type}{linkChar}{invitee_name}{linkChar}{creation_date}{linkChar}{key}"
-            
+
             try:
                 invite_link = models.InviteLinks(
                     link=link_key,
@@ -5986,31 +6033,31 @@ def project_invite(project_id):
                 )
                 db.session.add(invite_link)
                 db.session.commit()
-                
+
                 full_link = f"https://{DEFAULT_URL}/join/{link_key}"
                 flash(f"Invitation link created successfully: {full_link}")
-                
+
             except Exception as e:
                 db.session.rollback()
                 logging.error(f"Error creating invite link: {str(e)}")
                 flash("Failed to create invitation link")
-        
+
         elif action == 'revoke_invite':
             invite_id = request.form.get('invite_id')
             invite_link = db.session.query(models.InviteLinks).filter_by(
                 id=invite_id,
                 host_project=project.name
             ).first()
-            
+
             if invite_link:
                 invite_link.is_revoked = True
                 db.session.commit()
                 flash("Invitation link revoked successfully")
             else:
                 flash("Invitation link not found")
-        
+
         return redirect(url_for('.project_invite', project_id=project_id))
-    
+
     return render_template('project_invite.html',
                          title=f"Invite Users - {project.name}",
                          project=project,
@@ -6028,34 +6075,34 @@ def verify_email(token):
         if data is None:
             flash('Invalid or expired verification link.', 'error')
             return redirect('/register')
-        
+
         user_id = data.get('confirm_id')
         if not user_id:
             flash('Invalid verification link.', 'error')
             return redirect('/register')
-        
+
         # Find user and verify email
         user = db.session.query(models.Users).filter_by(id=user_id).first()
         if not user:
             flash('User not found.', 'error')
             return redirect('/register')
-        
+
         if user.is_verified:
             flash('User already verified. You can login.',"success")
             return redirect('/login')
-        
+
         # Mark user as verified
         user.is_verified = True
         user.dateverified = datetime.datetime.now()
         db.session.commit()
-        
+
         # Delete the sent email from IMAP (only if user has email)
         if user.mail:
             delete_sent_email("TiledViz - Email Verification", user.mail)
-        
+
         flash('Email verified successfully! You can now log in.', 'success')
         return redirect('/login')
-        
+
     except Exception as e:
         logging.error(f"Error verifying email: {e}")
         flash('An error occurred during verification. Please try again.', 'error')
@@ -6069,17 +6116,17 @@ def resend_verification():
         if not email:
             flash('Please enter your email address.', 'error')
             return render_template('resend_verification.html', **myrender())
-        
+
         # Find user
         user = db.session.query(models.Users).filter_by(mail=email).first()
         if not user:
             flash('No account found with this email address.', 'error')
             return render_template('resend_verification.html', **myrender())
-        
+
         if user.is_verified:
             flash('This email is already verified. You can log in.', 'info')
             return redirect('/login')
-        
+
         # Generate new token and send email
         token = generate_verification_token(user.id)
         email_sent = send_verification_email(
@@ -6087,13 +6134,13 @@ def resend_verification():
             username=user.name,
             token=token
         )
-        
+
         if email_sent:
             flash('Verification email sent! Please check your inbox.', 'success')
         else:
             flash('Failed to send verification email. Please try again later.', 'error')
-        
+
         return redirect('/login')
-    
+
     return render_template('resend_verification.html', **myrender())
 

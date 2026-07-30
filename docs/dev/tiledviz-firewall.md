@@ -1,21 +1,26 @@
-Le lancement de TiledViz se fait via le script `launch_TiledViz` qui démarre le script python `TVSecure.py`
+\page md_tiledviz-firewall TiledViz FireWallT
 
-Ce script permet, entre autres, de lancer des conteneurs de connexions.
 
-Chaque conteneur a :
+# TiledViz FireWallT
 
-- Un port aléatoire sur lequel le démon `sshd` écoute.
-- Une liste de ports aléatoires pour chaque tuile.
+TiledViz is launched via the `launch_TiledViz` script, which starts the `TVSecure.py` Python script.
 
-L'objectif est d'utiliser un pare-feu pour bloquer par défaut toutes les connexions entrantes et n'ouvrir dynamiquement que les ports nécessaires.
+Among other things, this script launches connection containers.
 
-***
+Each container has:
+
+* A random port on which the `sshd` daemon listens.
+* A list of random ports for each tile.
+
+The goal is to use a firewall to block all incoming connections by default and dynamically open only the necessary ports.
+
+---
 
 ## Python-iptables
 
-En recherchant "Python iptables" sur internet, je suis tombé sur la page officielle de PyPI proposant le module [`python-iptables`](https://pypi.org/project/python-iptables/). J'ai donc voulu le tester sur une machine virtuelle de test sous Rocky 8.
+Searching for "Python iptables" on the internet, I found the official PyPI page offering the [`python-iptables`](https://pypi.org/project/python-iptables/) module. I decided to test it on a test virtual machine running Rocky 8.
 
-**Environnement de test :**  
+**Test environment:**
 
 ```bash
 $ hostnamectl
@@ -35,11 +40,11 @@ Running setup.py install for python-iptables ... done
 Successfully installed python-iptables-1.0.1
 ```
 
-Je fais un test simple : lister la table `filter` et ajouter une chaîne `TestChain`
+I ran a simple test: listing the `filter` table and adding a `TestChain` chain.
 
 ```bash
 (env)$ sudo /home/bilal/env/bin/python3
-[sudo] Mot de passe de bilal :
+[sudo] password for bilal:
 Python 3.6.8 (default, Dec  4 2024, 12:35:02)
 [GCC 8.5.0 20210514 (Red Hat 8.5.0-22)] on linux
 >>> import iptc
@@ -51,13 +56,13 @@ True
 {'INPUT': [], 'FORWARD': [], 'OUTPUT': [], 'TestChain': []}
 ```
 
-Attention : il faut exécuter le module avec les privilèges root, sinon on obtient l'erreur suivante :
+Note: the module must be executed with root privileges, otherwise the following error occurs:
 
 ```bash
-iptc.ip4tc.IPTCError: can't initialize filter: b'Permission denied (you must be root)'
+iptc.ip4tc.IPTCError: cant initialize filter: Permission denied (you must be root)
 ```
 
-Mais, en vérifiant avec `iptables -L`, la chaîne `TestChain` n’apparaît pas. Et il y a un warning qui indique l'utilisation de `iptables-legacy`.
+However, checking with `iptables -L`, the `TestChain` chain does not appear. There is also a warning indicating the use of `iptables-legacy`.
 
 ```bash
 [root]$ iptables -L | grep -i chain
@@ -67,52 +72,56 @@ Chain FORWARD (policy ACCEPT)
 Chain OUTPUT (policy ACCEPT)
 ```
 
-En tentant d'exécuter `iptables-legacy`, j'ai constaté qu'il n'était ni installé sur le système ni présent dans les dépôts :
+When attempting to run `iptables-legacy`, I noticed it was neither installed on the system nor available in the repositories:
 
 ```bash
 [root]$ iptables-legacy
--bash: iptables-legacy : commande introuvable
+-bash: iptables-legacy: command not found
 
 [root]$ dnf search iptables-legacy
-Aucune correspondance trouvée.
+No match found.
 ```
 
-***
+---
 
-## `iptables`, `iptables-legacy` et `nftables`
+## `iptables`, `iptables-legacy`, and `nftables`
 
-En fouillant la [documentation](https://bugzilla.redhat.com/show_bug.cgi?id=1873474#c4) de Red Hat, j'ai trouvé cette phrase :
+Digging through the Red Hat [documentation](https://bugzilla.redhat.com/show_bug.cgi?id=1873474#c4), I found this sentence:
 
 > "We are not going to include iptables-legacy in RHEL8. iptables (nftables or legacy) itself will be deprecated for RHEL9 as well, in preference to nftables."
 
-Je me suis donc demandé qu'est ce que c'est `iptables-legacy`, `iptables-nft` et `nftables` ? 
+I then wondered what `iptables-legacy`, `iptables-nft`, and `nftables` were.
 
-Ce qui m'a amené à 2 supers docs :
+This led me to 2 great resources:
 
-- [netfilter](https://netfilter.org/)
-- [developers.redhat.com](https://developers.redhat.com/blog/2020/08/18/iptables-the-two-variants-and-their-relationship-with-nftables)
+* [netfilter](https://netfilter.org/)
+* [developers.redhat.com](https://developers.redhat.com/blog/2020/08/18/iptables-the-two-variants-and-their-relationship-with-nftables)
 
-Et voici ce que j'ai compris :
+Here is what I understood:
 
-- `netfilter` est un projet qui permet au noyau Linux de filtrer les paquets.
-- `iptables` est un outil de `netfilter` qui permet de définir des règles de filtrage.
-	- Deux variantes d'`iptables` existent : `iptables-legacy` et `iptables-nft`.
-- `nftables` est son successeur qui offre une plus grande flexibilité.
-	- La commande `nft` est utilisée pour manipuler `nftables` avec une syntaxe différente de `iptables`.
+* `netfilter` is a project that allows the Linux kernel to filter packets.
+* `iptables` is a `netfilter` tool used to define filtering rules.
+* Two variants of `iptables` exist: `iptables-legacy` and `iptables-nft`.
 
-Diagramme de fonctionnement :
+
+* `nftables` is its successor, offering greater flexibility.
+* The `nft` command is used to manipulate `nftables` with a different syntax than `iptables`.
+
+
+
+Operation diagram:
 
 ```
 +--------------+     +--------------+     +--------------+
-|   iptables   |     |   iptables   |     |     nft      |   USER
-|    legacy    |     |     nft      |     |  (nftables)  |   SPACE
+|   iptables   |     |   iptables   |     |      nft     |   USER
+|    legacy    |     |      nft     |     |  (nftables)  |   SPACE
 +--------------+     +--------------+     +--------------+
        |                          |         |
 ====== | ===== KERNEL API ======= | ======= | =====================
        |                          |         |
 +--------------+               +--------------+
 |   iptables   |               |   nftables   |              KERNEL
-|      API     |               |     API      |              SPACE
+|     API      |               |     API      |              SPACE
 +--------------+               +--------------+
              |                    |         |
              |                    |         |
@@ -120,47 +129,48 @@ Diagramme de fonctionnement :
           |   xtables    |--------+         +-----|   nftables   |
           |    match     |                        |    match     |
           +--------------+                        +--------------+
+
 ```
 
-En vérifiant la version d'`iptables` sur ma VM, on comprend pourquoi il y a eu le warning.
+Checking the `iptables` version on my VM explains why the warning appeared.
 
 ```bash
 $ iptables -V
 iptables v1.8.5 (nf_tables)
 ```
 
-Le module `iptables-python` doit se baser sur la variante `iptables-legacy`. La création de chaînes, règles, etc., avec `legacy` génère un avertissement et en invoquant `iptables-nft`, ces règles ne sont pas visibles.
+The `iptables-python` module must rely on the `iptables-legacy` variant. Creating chains, rules, etc., with `legacy` generates a warning, and when invoking `iptables-nft`, these rules are not visible.
 
-En poursuivant mes recherches, je suis tombé sur une [documentation](https://docs.rockylinux.org/fr/guides/security/enabling_iptables_firewall/) de Rocky Linux : 
+Continuing my research, I came across Rocky Linux [documentation](https://docs.rockylinux.org/fr/guides/security/enabling_iptables_firewall/):
 
 > "As of Rocky Linux 9.0, `iptables` and all of the utilities associated with it, are deprecated. This means that future releases of the OS will be removing `iptables`"
 
-Avec ces informations, j'ai choisis d'utiliser `nftables` avec `nft`.
+With this information, I chose to use `nftables` with `nft`.
 
-## Utilisation de `nftables` 
+## Using `nftables`
 
-Je me suis basé sur cette [doc](https://ral-arturo.org/2020/11/22/python-nftables-tutorial.html).
+I based my work on this [doc](https://ral-arturo.org/2020/11/22/python-nftables-tutorial.html).
 
-Un module Python permet d'interagir avec `libnftables` *(bibliothèque pour interagir avec nftables)* via `ctypes` *(bibliothèque python pour interagir avec des bibliothèques écrites en C comme `libnftables`)*. 
+A Python module allows interacting with `libnftables` *(a library to interact with nftables)* via `ctypes` *(a Python library to interact with C libraries like `libnftables`)*.
 
-Pour l'utiliser il faut installer le paquet `python3-nftables`, mais il est général installé par défaut avec Python :
+To use it, the `python3-nftables` package must be installed, but it is generally installed by default with Python:
 
 ```bash
 [root]$ rpm -q python3-nftables
 python3-nftables-1.0.4-7.el8_10.x86_64
 ```
 
-(Il est aussi possible de l'installer via pip) :
+(It can also be installed via pip):
 
 ```bash
 pip install ansibleguy-nftables
 ```
 
-Tout comme `python-iptables`, je test rapidement ce module :
+Just like `python-iptables`, I quickly tested this module:
 
 ```bash
 $ sudo python3
-[sudo] Mot de passe de bilal :
+[sudo] password for bilal:
 Python 3.6.8 (default, Dec  4 2024, 12:35:02) 
 [GCC 8.5.0 20210514 (Red Hat 8.5.0-22)] on linux
 >>> import nftables
@@ -173,7 +183,7 @@ Python 3.6.8 (default, Dec  4 2024, 12:35:02)
 (0, 'table inet filter {\n}\n', '')
 ```
 
-Je vérifie sur le terminal :
+I checked in the terminal:
 
 ```bash
 [root]$ nft list ruleset
@@ -181,29 +191,29 @@ table inet filter {
 }
 ```
 
-Tout fonctionne !
+Everything works!
 
-Le service `nftables` est géré par `systemd`, pour activer le pare-feu il faut lancer le service :
+The `nftables` service is managed by `systemd`; to enable the firewall, the service must be started:
 
 ```bash
 $ sudo systemctl start nftables.service
 ```
 
-***
+---
 
-## Sécurisation de TiledViz
+## Securing TiledViz
 
-L'objectif est de bloquer par défaut toute les connexions entrantes et d'ouvrir dynamiquement les ports nécessaires.
+The goal is to block all incoming connections by default and dynamically open the necessary ports.
 
-Dans `launch_TiledViz.sh` je m'assure que le service `nftables` est actif :
+In `launch_TiledViz.sh`, I ensure the `nftables` service is active:
 
 ```bash
 # launch_TiledViz.sh
-# Lance le service et l'active s'il ne l'est pas
+# Starts the service and enables it if it isn't already
 (systemctl status nftables.service | grep -w active) || (sudo systemctl start nftables.service && sudo systemctl enable nftables.service)
 ```
 
-Et j'exécute `TVSecure.py` avec les droits sudo :
+And I run `TVSecure.py` with sudo privileges:
 
 ```bash
 # launch_TiledViz.sh
@@ -214,7 +224,7 @@ sudo python3 TVSecure/TVSecure.py --POSTGRES_HOST=${POSTGRES_HOST} --POSTGRES_IP
     | sed -e "s%TVSecure \([0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9],[0-9][0-9][0-9]\) \- Thread\-\([0-9]*\) .* HTTP/1.1\" 200 None%\1 \2%" | grep -v " 1 " | grep -v 404
 ```
 
-J'ajoute les règles `nftables` dans `TVSecure.py`
+I add the `nftables` rules in `TVSecure.py`
 
 ```python
 # TVSecure/TVSecure.py
@@ -222,23 +232,23 @@ import nftables
 
 nft = nftables.Nftables()
 
-# Ferme tous les ports
+# Closes all ports
 nft.cmd("flush ruleset")
 nft.cmd("add table inet filter")
 nft.cmd("add chain inet filter INPUT { type filter hook input priority 0 ; policy drop ; }")
 
-# Autorise les connexions établies et le DNS (pour ping et faire de requêtes internet)
+# Allows established connections and DNS (for ping and internet requests)
 nft.cmd("add rule inet filter INPUT ct state related,established accept")
 nft.cmd("add rule inet filter INPUT udp dport 53 accept")
 ```
 
-Dès que l'on récupère le port SSH, on l'ouvre :
+As soon as the SSH port is retrieved, it is opened:
 
 ```python
 nft.cmd("add rule inet filter INPUT tcp dport " + str(PORTssh) + " accept")
 ```
 
-À chaque ajout d'un port pour une tuile, on l'ouvre :
+Each time a port is added for a tile, it is opened:
 
 ```python
 for i in range(nbTiles):
@@ -254,11 +264,11 @@ for i in range(nbTiles):
             listPorts.append(port)
             listSock.insert(0, s)
             listPortsTiles[str(port) + '/tcp'] = ('0.0.0.0', port)
-            # Ouvre le port
+            # Opens the port
             nft.cmd("add rule inet filter INPUT tcp dport " + str(port) + " accept")
 ```
 
-Voici un exemple de script complet pour tester :
+Here is an example of a complete script for testing:
 
 ```python
 # test-TVSecure.py
@@ -267,26 +277,26 @@ import nftables
 
 nbTiles = 10
 
-# Ferme les ports
+# Close ports
 nft = nftables.Nftables()
 nft.cmd("flush ruleset")
 nft.cmd("add table inet filter")
 nft.cmd("add chain inet filter INPUT { type filter hook input priority 0 ; policy drop ; }")
 
-# Pour moi
+# For me
 nft.cmd("add rule inet filter INPUT tcp dport 22 accept")
 
-# Pour continuer à pouvoir ping et faire les requetes DNS
+# To continue being able to ping and make DNS requests
 nft.cmd("add rule inet filter INPUT ct state related,established accept")
 nft.cmd("add rule inet filter INPUT udp dport 53 accept")
 
-# Récupère un port libre pour ssh
+# Retrieves a free port for ssh
 s=socket.socket()
 s.bind(('', 0))
 PORTssh = s.getsockname()[1]
 s.close()
 
-# Ouvre le port SSH
+# Opens the SSH port
 nft.cmd("add rule inet filter INPUT tcp dport "+str(PORTssh)+" accept")
 
 # Ports for tiles
@@ -294,7 +304,7 @@ listPortsTiles = {str(PORTssh)+'/tcp':('0.0.0.0',PORTssh)}
 listPorts = [PORTssh]
 listSock = []
 
-# Prends un nombre de port égale au nombre de Tiles
+# Takes a number of ports equal to the number of Tiles
 for i in range(nbTiles):
     already=True
 
@@ -308,11 +318,11 @@ for i in range(nbTiles):
             listPorts.append(port)
             listSock.insert(0,s)
             listPortsTiles[str(port)+'/tcp']=('0.0.0.0',port)
-            # Ouvre le port
+            # Opens the port
             nft.cmd("add rule inet filter INPUT tcp dport "+str(port)+" accept")
             
         else:
-            # Ferme la socket non utilisée
+            # Closes the unused socket
             s.close()  
 
 
@@ -324,25 +334,27 @@ print("ssh port : "+ str(PORTssh))
 rc, output, error = nft.cmd("list ruleset")
 print(output)
 
-# Ferme toutes les sockets à la fin
+# Closes all sockets at the end
 for s in listSock:
     s.close()
+
 ```
 
 ```bash
 # test-launch_TiledViz.sh
 #!/bin/bash
 
-# Démarre le service nftables si nécessaire
+# Starts the nftables service if necessary
 (systemctl status nftables.service | grep -w active) || (sudo systemctl start nftables.service && sudo systemctl enable nftables.service)
 
-# Exécute le script Python
+# Executes the Python script
 sudo python3 test-TVSecure.py
+
 ```
 
-### Tests de validation
+### Validation Tests
 
-**Avant l'exécution du script**
+**Before script execution**
 
 ```bash
 [bilal@localhost]$ systemctl status nftables.service
@@ -354,16 +366,18 @@ sudo python3 test-TVSecure.py
 Ncat: Version 7.92 ( https://nmap.org/ncat )
 Ncat: Listening on :::1234
 Ncat: Listening on 0.0.0.0:1234
+
 ```
 
-On peut accéder à n'importe quel port qu'on ouvre
+We can access any opened port:
 
 ```bash
 bg281242@mdlspc178:~$ nc -Nv 192.168.56.106 1234
 Connection to 192.168.56.106 1234 port [tcp/*] succeeded!
+
 ```
 
-**Après l'exécution du script**
+**After script execution**
 
 ```bash
 [bilal@localhost]$ ./test-launch_TiledViz.sh
@@ -398,46 +412,49 @@ table inet filter {
 Ncat: Version 7.92 ( https://nmap.org/ncat )
 Ncat: Listening on :::1234
 Ncat: Listening on 0.0.0.0:1234
+
 ```
 
-On ne peut plus accéder à n'importe quel port et le service nftables est activé.
+We can no longer access just any port, and the nftables service is activated.
 
-Mais on peut accéder au ports qu'on a ouvert (comme le 39683)
+But we can access the ports we opened (like 39683):
 
 ```bash
 [bilal@localhost]$ nc -lv 39683
 Ncat: Version 7.92 ( https://nmap.org/ncat )
 Ncat: Listening on :::39683
 Ncat: Listening on 0.0.0.0:39683
+
 ```
 
 ```bash
 bg281242@mdlspc178:~$ nc -Nv 192.168.56.106 39683
 Connection to 192.168.56.106 39683 port [tcp/*] succeeded!
+
 ```
 
-***
+---
 
-## Améliorations apportées
+## Improvements Made
 
-En mettant en place cette solution, nous avons rencontré trois problèmes :
+While implementing this solution, we encountered three problems:
 
-1. L'utilisation de sudo pour lancer le script Python créait des problèmes de permissions dans toute l'arborescence de TiledViz
-2. D'autres règles Docker étaient présentes, donc faire un `flush ruleset` à l'exécution de `launch_TiledViz` les supprimait
-3. Le service nftables.service géré par systemd lance `/etc/sysconfig/nftables.conf` qui est commenté en entier par défaut, donc que le service soit actif ou non ne changeait rien
+1. Using sudo to launch the Python script created permission issues throughout the TiledViz directory tree.
+2. Other Docker rules were present, so performing a `flush ruleset` when executing `launch_TiledViz` deleted them.
+3. The nftables.service managed by systemd runs `/etc/sysconfig/nftables.conf`, which is entirely commented out by default, meaning whether the service was active or not made no difference.
 
-Il fallait trouver une solution pour manipuler les règles de pare-feu sans avoir tous les droits root. C'est exactement ce que les capabilities Linux permettent !
+We had to find a solution to manipulate firewall rules without needing full root privileges. This is exactly what Linux capabilities provide!
 
-### Capabilities Linux
+### Linux Capabilities
 
-Traditionnellement dans UNIX, il existe deux catégories de processus : privilégiés et non privilégiés.
+Traditionally in UNIX, there are two categories of processes: privileged and unprivileged.
 
-- Les processus privilégiés contournent toutes les vérifications de permission du noyau
-- Les processus non privilégiés voient leurs permissions vérifiées en fonction de leur UID et GID effectifs
+* Privileged processes bypass all kernel permission checks.
+* Unprivileged processes have their permissions checked based on their effective UID and GID.
 
-À partir du noyau 2.2, Linux a divisé les privilèges associés à root en plusieurs unités appelées capabilities.
+Starting with kernel 2.2, Linux divided the privileges associated with root into several distinct units known as capabilities.
 
-Dans notre cas, `CAP_NET_ADMIN` est la capacité qui nous intéresse. Voici sa description dans le man 7 capabilities  :
+In our case, `CAP_NET_ADMIN` is the capability we are interested in. Here is its description in the `capabilities(7)` man page:
 
 ```
 CAP_NET_ADMIN
@@ -451,49 +468,54 @@ CAP_NET_ADMIN
               • set promiscuous mode;
               • enabling multicasting;
               • use setsockopt(2) to set the following socket options: SO_DEBUG, SO_MARK, SO_PRIORITY (for a priority outside the range 0 to 6), SO_RCVBUFFORCE, and SO_SNDBUFFORCE.
+
 ```
 
-Ces capacités s'appliquent sur des fichiers binaires. Dans le cas de TVSecure.py qui est lancé via python3, il faut les appliquer sur le fichier binaire de Python.
+These capabilities apply to binary files. In the case of TVSecure.py, which is launched via python3, we need to apply them to the Python binary file.
 
-### Modifications dans install.sh
+### Modifications in install.sh
 
-Nous avons ajouté un paramètre `security` que l'utilisateur peut positionner à `y` ou `n` :
+We added a `security` parameter that the user can set to `y` or `n`:
 
-- Si activé, on décommente les lignes ajoutées dans TVSecure qui créent le pare-feu
-- On active la capability sur le Python du système (en utilisant `realpath` et `which` pour trouver le bon chemin) :
+* If enabled, we uncomment the lines added in TVSecure that create the firewall.
+* We enable the capability on the system's Python (using `realpath` and `which` to find the correct path):
 
 ```bash
 sudo setcap cap_net_admin=eip $(realpath $(which python))
+
 ```
 
-### Modifications dans envTiledViz
+### Modifications in envTiledViz
 
-Nous avons ajouté la variable d'environnement `SECURITY` qui sera modifiée par install.sh.
+We added the `SECURITY` environment variable, which will be modified by install.sh.
 
-### Modifications dans TVSecure.py
+### Modifications in TVSecure.py
 
-Au lieu de créer une chaîne INPUT qui peut porter à confusion, nous créons une chaîne spécifique `TILEDVIZ` (dans le main du script à la fin, et non au début lorsqu’on fait les import et les définitions de variable) :
+Instead of creating an INPUT chain which can be confusing, we create a specific `TILEDVIZ` chain (in the main part of the script at the end, not at the beginning during imports and variable definitions):
 
 ```python
 nft.cmd("add chain ip filter TILEDVIZ { type filter hook input priority 0 ; policy drop ; }")
+
 ```
 
-Avant de créer une chaîne, nous la vidons pour éviter les règles redondantes (la distinction entre destroy et delete est importante):
+Before creating a chain, we flush it to avoid redundant rules (the distinction between destroy and delete is important):
 
 ```python
 nft.cmd("destroy chain ip filter TILEDVIZ")
+
 ```
 
-Pour chaque conteneur de connexion qui active la méthode `run`, nous créons une nouvelle chaîne et on insère un `jump` vers cette chaîne dans la chaîne TILEDVIZ :
+For each connection container that activates the `run` method, we create a new chain and insert a `jump` to this chain inside the TILEDVIZ chain:
 
 ```python
 nft.cmd("add chain ip filter " + str(self.name))
 nft.cmd("add rule ip filter TILEDVIZ jump " + str(self.name))
+
 ```
 
-Cette approche permet de facilement supprimer toutes les règles en même temps que le conteneur en "détruisant" (destroy) sa chaîne.
+This approach allows easily removing all rules at the same time as the container by "destroying" its chain.
 
-Nous gérons également les signaux d'interruption (CTRL+C) pour nettoyer les règles si l'utilisateur arrête le programme : 
+We also handle interrupt signals (CTRL+C) to clean up the rules if the user stops the program:
 
 ```python
 def signal_handler(sig, frame):

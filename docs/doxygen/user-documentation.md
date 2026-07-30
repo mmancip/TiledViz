@@ -1,4 +1,4 @@
-# User documentation
+# TiledViz documentation
 
 This section contains the user documentation for TiledViz.
 

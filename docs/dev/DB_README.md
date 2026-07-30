@@ -1,3 +1,7 @@
+\page md_DB_README Database ReadMe
+
+
+# Database ReadMe
 Database is constructed with pgmodeler
 
 To initialize the postgres DB on localhost, you must

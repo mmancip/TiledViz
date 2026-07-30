@@ -1,4 +1,4 @@
-# Usage documentation
+# User documentation
 
 This documentation aims to provide the user of TiledViz with basic knowledge about the interface and how to use it.
 
@@ -6,4 +6,4 @@ This documentation aims to provide the user of TiledViz with basic knowledge abo
 
 \subpage md_user-identification "User identification"
 
-\subpage md_user-documentation "User documentation"
+\subpage md_user-documentation "TiledViz documentation"
